@@ -1,11 +1,32 @@
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "phase2"
-authors = [{name = "Marek Miller", email = "mlm@math.ku.dk"}]
-license = {file = "LICENSE"}
+version = "0.1.0"
+authors = [{ name = "Marek Miller", email = "mlm@math.ku.dk" }]
+description = "Quantum phase estimation with parallel computing"
+license = { file = "LICENSE" }
 classifiers = ["License :: OSI Approved :: MIT License"]
-dynamic = ["version", "description"]
+requires-python = ">=3.10"
+dependencies = [
+    "jupyter >= 1.0.0",
+    "matplotlib>=3.8.0",
+    "numpy>=1.26.0",
+    "pyscf>=2.3.0",
+    "qiskit>=0.44.1",
+    "qiskit-aer>=0.12.2",
+    "qiskit-nature>=0.6.2",
+]
 
+
+[project.optional-dependencies]
+test = [
+    "black",
+    "flake8",
+    "isort",
+    "mypy >= 0.990",
+    "pytest >= 7.4.0",
+    "pytest-cov",
+]
