@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <hdf5.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +12,6 @@
 
 #include "QuEST.h"
 #include "circ.h"
-#include <hdf5/serial/hdf5.h>
 #include "logger.h"
 
 #define RAYON_NAME "rayon"

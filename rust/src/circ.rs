@@ -53,8 +53,8 @@ pub(crate) mod ffi {
         measure:    extern "C" fn(*mut circ, *mut c_void) -> circ_result,
     }
 
-    #[link(name = "circ")]
     #[link(name = "QuEST")]
+    #[link(name = "circ")]
     #[allow(non_snake_case)]
     extern "C" {
         pub(crate) fn circ_create_env() -> *mut circ_env;

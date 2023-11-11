@@ -1,9 +1,7 @@
-# link QuEST
-if (WIN32)
-    link_libraries(QuEST)
-else ()
-    link_libraries(QuEST m)
-endif ()
+find_package(HDF5 REQUIRED)
+include_directories(${HDF5_INCLUDE_DIRS})
+
+link_libraries(QuEST m)
 
 add_library(circ SHARED
         circ.c
@@ -20,14 +18,14 @@ add_library(rayon SHARED
         logger.c
 )
 target_link_libraries(rayon
-        hdf5_serial
+        ${HDF5_LIBRARIES}
 )
 
-add_executable(qpe-simul
+add_executable(phase2
         simul.c
         logger.c
 )
-target_link_libraries(qpe-simul
+target_link_libraries(phase2
         circ
         linen
         rayon

@@ -68,5 +68,9 @@ build/
 cmake-build-*
 tmp/
 
+Cargo.lock
+target/
+
 .idea
 .vscode
+
