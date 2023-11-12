@@ -15,7 +15,7 @@ struct circ_ {
      *
      * The user is responsible to manage the memory pointed to.
      */
-    circ_sample *sample;
+    void *data;
 
     circ_env *env;
     Qureg qureg;
@@ -29,6 +29,8 @@ struct circ_ {
      *    anc (ancilla)
      */
     int *mea_cl;
+    double *mea_cl_prob;
+
     int *mea_qb;
     int *sys_qb;
     int *anc_qb;
@@ -66,7 +68,7 @@ void circ_report_env(circ_env *const env) {
 }
 
 void zero_mea_cl(circ *const c) {
-    for (size_t i = 0; i < c->ct.num_mea_cl; i++) {
+    for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
         c->mea_cl[i] = 0;
     }
 }
@@ -90,23 +92,26 @@ void init_anc_qb(circ *const c) {
 }
 
 
-circ *circ_create(circuit const ct, circ_env *const env, circ_sample *sample) {
+circ *circ_create(circuit const ct, circ_env *const env, void *data) {
     circ *c = malloc(sizeof(circ));
-    int *mea_cl = malloc(sizeof(int) * ct.num_mea_cl);
+    int *mea_cl = malloc(sizeof(int) * ct.num_mea_qb);
+    double *mea_cl_prob = malloc(sizeof(double) * ct.num_mea_qb);
     int *mea_qb = malloc(sizeof(int) * circ_circuit_num_tot_qb(ct));
-    if (!(c && mea_cl && mea_qb)) {
+    if (!(c && mea_cl && mea_cl_prob && mea_qb)) {
         free(mea_qb);
+        free(mea_cl_prob);
         free(mea_cl);
         free(c);
         return NULL;
     }
     c->mea_cl = mea_cl;
+    c->mea_cl_prob = mea_cl_prob;
     c->mea_qb = mea_qb;
     c->sys_qb = c->mea_qb + ct.num_mea_qb;
     c->anc_qb = c->sys_qb + ct.num_sys_qb;
 
     c->ct = ct;
-    c->sample = sample;
+    c->data = data;
     c->env = env;
 
     c->qureg = createQureg(
@@ -124,12 +129,17 @@ circ *circ_create(circuit const ct, circ_env *const env, circ_sample *sample) {
 void circ_destroy(circ *c) {
     destroyQureg(c->qureg, c->env->quest_env);
     free(c->mea_qb);
+    free(c->mea_cl_prob);
     free(c->mea_cl);
     free(c);
 }
 
 int *circ_mea_cl(circ *const c) {
     return c->mea_cl;
+}
+
+double *circ_mea_cl_prob(circ *const c) {
+    return c->mea_cl_prob;
 }
 
 int *circ_mea_qb(circ *const c) {
@@ -142,10 +152,6 @@ int *circ_sys_qb(circ *const c) {
 
 int *circ_anc_qb(circ *const c) {
     return c->anc_qb;
-}
-
-size_t circ_num_mea_cl(circ *const c) {
-    return c->ct.num_mea_cl;
 }
 
 size_t circ_num_mea_qb(circ *const c) {
@@ -175,7 +181,7 @@ void circ_report(circ *const c) {
     reportQuregParams(c->qureg);
 
     printf("mea_cl register: [");
-    for (size_t i = 0; i < c->ct.num_mea_cl; i++) {
+    for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
         printf("%d", c->mea_cl[i]);
     }
     printf("]\n");
@@ -209,6 +215,7 @@ Qureg circ_qureg(circ *const c) {
 }
 
 circ_result circ_reset(circ *const c) {
+    initZeroState(circ_qureg(c));
     zero_mea_cl(c);
     if (c->ct.reset != NULL) {
         return c->ct.reset(c);
@@ -219,29 +226,34 @@ circ_result circ_reset(circ *const c) {
 circ_result circ_simulate(circ *const c) {
     circ_result result;
 
+    circ_reset(c);
+
     if (c->ct.state_prep != NULL) {
-        result = c->ct.state_prep(c, c->sample);
+        result = c->ct.state_prep(c, c->data);
         if (result != CIRC_OK) {
             return result;
         }
     }
     if (c->ct.routine != NULL) {
-        result = c->ct.routine(c, c->sample);
+        result = c->ct.routine(c, c->data);
         if (result != CIRC_OK) {
             return result;
         }
     }
     if (c->ct.state_post != NULL) {
-        result = c->ct.state_post(c, c->sample);
+        result = c->ct.state_post(c, c->data);
         if (result != CIRC_OK) {
             return result;
         }
     }
-    if (c->ct.measure != NULL) {
-        result = c->ct.measure(c, c->sample);
-        if (result != CIRC_OK) {
-            return result;
-        }
+
+    /* Measure qubits */
+    int *mea_cl = circ_mea_cl(c);
+    double *mea_cl_prob = circ_mea_cl_prob(c);
+    int *mea_qb = circ_mea_qb(c);
+    Qureg qureg = circ_qureg(c);
+    for (size_t i = 0; i < circ_num_mea_qb(c); i++) {
+        mea_cl[i] = measureWithStats(qureg, mea_qb[i], &mea_cl_prob[i]);
     }
 
     return CIRC_OK;

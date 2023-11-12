@@ -21,24 +21,18 @@
 #define RAYON_DEFAULT_NUM_ANC_QB 0
 
 typedef struct {
+    double time;
     int imag_switch;
     double outcome_prob;
 } rayon_circ_sample_data;
 
 circ_result rayon_reset(circ *c) {
-    Qureg qureg = circ_qureg(c);
-    int *mea_cl = circ_mea_cl(c);
-
-    initZeroState(qureg);
-    for (size_t i = 0; i < circ_num_mea_cl(c); i++) {
-        mea_cl[i] = 0;
-    }
-
+    (void) c;
     return CIRC_OK;
 }
 
-circ_result rayon_state_prep(circ *c, circ_sample* sample) {
-    (void) sample;
+circ_result rayon_state_prep(circ *c, void *data) {
+    (void) data;
     Qureg qureg = circ_qureg(c);
     int *mea_qb = circ_mea_qb(c);
     int *sys_qb = circ_sys_qb(c);
@@ -54,27 +48,28 @@ circ_result rayon_state_prep(circ *c, circ_sample* sample) {
     return CIRC_OK;
 }
 
-circ_result rayon_routine(circ *c, circ_sample* sample) {
+circ_result rayon_routine(circ *c, void *data) {
     PauliHamil hamil = circ_circuit_data(c).hamil;
 
     Qureg qureg = circ_qureg(c);
     int *mea_qb = circ_mea_qb(c);
     int *sys_qb = circ_sys_qb(c);
 
-    double time = sample->time;
+    rayon_circ_sample_data *sample_data = (rayon_circ_sample_data *) data;
+    double time = sample_data->time;
     for (int i = 0; i < hamil.numSumTerms; i++) {
         qreal angle = 2.0 * time * hamil.termCoeffs[i];
         multiControlledMultiRotatePauli(qureg, mea_qb, circ_num_mea_qb(c),
                                         sys_qb,
                                         hamil.pauliCodes + (i *
-                                                             hamil.numQubits),
+                                                            hamil.numQubits),
                                         hamil.numQubits, angle);
     }
 
     return CIRC_OK;
 }
 
-circ_result rayon_state_post(circ *c, circ_sample* sample) {
+circ_result rayon_state_post(circ *c, void *data) {
 
     Qureg qureg = circ_qureg(c);
     int *mea_qb = circ_mea_qb(c);
@@ -87,8 +82,8 @@ circ_result rayon_state_post(circ *c, circ_sample* sample) {
         hadamard(qureg, sys_qb[i]);
     }
 
-    rayon_circ_sample_data *sample_data = (rayon_circ_sample_data*)
-            sample->data;
+    rayon_circ_sample_data *sample_data = (rayon_circ_sample_data *)
+            data;
     if (sample_data->imag_switch == 1) {
         sGate(qureg, mea_qb[0]);
     }
@@ -97,28 +92,10 @@ circ_result rayon_state_post(circ *c, circ_sample* sample) {
     return CIRC_OK;
 }
 
-circ_result rayon_measure(circ *c, circ_sample* sample) {
-
-    Qureg qureg = circ_qureg(c);
-    int *mea_cl = circ_mea_cl(c);
-    int *mea_qb = circ_mea_qb(c);
-
-    rayon_circ_sample_data *sample_data = (rayon_circ_sample_data*)
-            sample->data;
-    int outcome = measureWithStats(qureg, mea_qb[0],
-                                   &sample_data->outcome_prob);
-    mea_cl[0] = outcome;
-    sample->outcome = outcome;
-
-    return CIRC_OK;
-}
-
-
 circuit rayon_circuit(circuit_data data) {
     circuit ct = {
             .name = RAYON_NAME,
             .data = data,
-            .num_mea_cl = RAYON_DEFAULT_NUM_MEA_CL,
             .num_mea_qb = RAYON_DEFAULT_NUM_MEA_QB,
             .num_sys_qb = data.hamil.numQubits,
             .num_anc_qb = RAYON_DEFAULT_NUM_ANC_QB,
@@ -126,7 +103,7 @@ circuit rayon_circuit(circuit_data data) {
             .state_prep = rayon_state_prep,
             .routine = rayon_routine,
             .state_post = rayon_state_post,
-            .measure = rayon_measure};
+    };
     return ct;
 }
 
@@ -226,27 +203,28 @@ int rayon_simulate(circ_env *env, const char *hamil_file) {
     double *values = malloc(sizeof(double) * steps);
     assert(values != NULL);
 
-    int outcome = 0;
     rayon_circ_sample_data sample_data = {
+            .time = times[0],
             .imag_switch = 0,
             .outcome_prob = 0.0,
     };
-    circ_sample sample = {.time = times[0], .outcome = outcome, .data =
-                           &sample_data};
+
     factory.num_sys_qb = num_qubits;
-    circ *circ = circ_create(factory, env, &sample);
+    circ *circ = circ_create(factory, env, &sample_data);
 
     log_info("evaluating real part of expectation value");
     for (size_t i = 0; i < steps; i++) {
-        sample.time = times[i];
+        sample_data.time = times[i];
         circ_reset(circ);
         circ_simulate(circ);
 
         double prob_0;
-        if (sample.outcome == 0) {
-            prob_0 = sample_data.outcome_prob;
+        int *mea_cl = circ_mea_cl(circ);
+        double *mea_cl_prob = circ_mea_cl_prob(circ);
+        if (mea_cl[0] == 0) {
+            prob_0 = mea_cl_prob[0];
         } else {
-            prob_0 = 1.0 - sample_data.outcome_prob;
+            prob_0 = 1.0 - mea_cl_prob[0];
         }
         values[i] = 2 * prob_0 - 1;
     }
@@ -262,15 +240,17 @@ int rayon_simulate(circ_env *env, const char *hamil_file) {
     log_info("evaluating imag part of expectation value");
     sample_data.imag_switch = 1;
     for (size_t i = 0; i < steps; i++) {
-        sample.time = times[i];
+        sample_data.time = times[i];
         circ_reset(circ);
         circ_simulate(circ);
 
         double prob_0;
-        if (sample.outcome == 0) {
-            prob_0 = sample_data.outcome_prob;
+        int *mea_cl = circ_mea_cl(circ);
+        double *mea_cl_prob = circ_mea_cl_prob(circ);
+        if (mea_cl[0] == 0) {
+            prob_0 = mea_cl_prob[0];
         } else {
-            prob_0 = 1.0 - sample_data.outcome_prob;
+            prob_0 = 1.0 - mea_cl_prob[0];
         }
         values[i] = 2 * prob_0 - 1;
     }

@@ -26,14 +26,8 @@ typedef struct circ_ circ;
 
 typedef struct circuit_data_ {
     PauliHamil hamil;
-    void* data;
+    void *data;
 } circuit_data;
-
-typedef struct circ_sample_ {
-    double time;
-    int outcome;
-    void* data;
-} circ_sample;
 
 /** circuit specification.
  */
@@ -41,7 +35,6 @@ typedef struct circuit_ {
     const char *name;
     circuit_data data;
 
-    size_t num_mea_cl;
     size_t num_mea_qb;
     size_t num_sys_qb;
     size_t num_anc_qb;
@@ -67,13 +60,12 @@ typedef struct circuit_ {
      *
      * There pointers can be NULL, meaning the step is not specified.
      */
-    circ_result (*state_prep)(circ *, circ_sample*);
+    circ_result (*state_prep)(circ *, void *);
 
-    circ_result (*routine)(circ *, circ_sample*);
+    circ_result (*routine)(circ *, void *);
 
-    circ_result (*state_post)(circ *, circ_sample*);
+    circ_result (*state_post)(circ *, void *);
 
-    circ_result (*measure)(circ *, circ_sample*);
 } circuit;
 
 circ_env *circ_create_env();
@@ -82,19 +74,19 @@ void circ_destroy_env(circ_env *);
 
 void circ_report_env(circ_env *);
 
-circ *circ_create(circuit, circ_env *, circ_sample*);
+circ *circ_create(circuit, circ_env *, void *);
 
 void circ_destroy(circ *);
 
 int *circ_mea_cl(circ *);
+
+double *circ_mea_cl_prob(circ *);
 
 int *circ_mea_qb(circ *);
 
 int *circ_sys_qb(circ *);
 
 int *circ_anc_qb(circ *);
-
-size_t circ_num_mea_cl(circ *);
 
 size_t circ_num_mea_qb(circ *);
 
