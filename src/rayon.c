@@ -130,7 +130,7 @@ circuit rayon_circuit(circuit_data data) {
     return ct;
 }
 
-int rayon_simulate(circ_env *env, char *hamil_file) {
+int rayon_simulate(circ_env *env, const char *hamil_file) {
 
     log_info("open data file");
     hid_t file_id = H5Fopen(hamil_file, H5F_ACC_RDWR, H5P_DEFAULT);

@@ -9,7 +9,7 @@
 
 int linen_simulate(circ_env *env, circuit_data data);
 
-int rayon_simulate(circ_env *env, char *hamil_file);
+int rayon_simulate(circ_env *env, const char *hamil_file);
 
 
 void exit_failure() {
@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
 
     if (strncmp(argv[1], "rayon", 5) == 0) {
         log_info("Circuit: rayon");
-        if (rayon_simulate(env, argv[2]) != 0) {
+        if (rayon_simulate(env, h5filename) != 0) {
             exit_failure();
         }
     }
