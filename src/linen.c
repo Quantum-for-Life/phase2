@@ -70,10 +70,12 @@ int simul_linen(circ_env *env) {
 
     circ *circ = circ_create(factory, env, NULL);
     if (circ) {
-        log_info("linen circ created");
+        log_debug("\"linen\" circuit created");
     }
+    log_debug("Report simulation environment");
+    circ_report_env(env);
 
-    log_debug("free circuit instance");
+    log_debug("Free circuit instance");
     circ_destroy(circ);
 
     return EXIT_SUCCESS;
