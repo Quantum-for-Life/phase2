@@ -4,6 +4,9 @@
 #include "QuEST.h"
 
 #include "circ.h"
+#include "log/log.h"
+
+#define CIRC_LOG_TAG "[circ] "
 
 struct circ_env_ {
     QuESTEnv quest_env;
@@ -44,6 +47,7 @@ size_t circ_circuit_num_tot_qb(circuit ct) {
 }
 
 circ_env *circ_create_env() {
+    log_debug(CIRC_LOG_TAG "Create circ_env");
     QuESTEnv quest_env = createQuESTEnv();
 
     circ_env *env = (circ_env *) malloc(sizeof(circ_env));
@@ -57,6 +61,7 @@ circ_env *circ_create_env() {
 }
 
 void circ_destroy_env(circ_env *const env) {
+    log_debug(CIRC_LOG_TAG "Destroy circ_env");
     if (env == NULL) {
         return;
     }
@@ -94,6 +99,7 @@ void init_anc_qb(circ *const c) {
 
 
 circ *circ_create(circuit const ct, circ_env *const env, void *data) {
+    log_debug(CIRC_LOG_TAG "Create circ");
     if (env == NULL) {
         return NULL;
     }
@@ -131,6 +137,7 @@ circ *circ_create(circuit const ct, circ_env *const env, void *data) {
 }
 
 void circ_destroy(circ *c) {
+    log_debug(CIRC_LOG_TAG "Destroy circ");
     if (c == NULL) {
         return;
     }

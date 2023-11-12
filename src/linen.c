@@ -62,24 +62,3 @@ linen_circuit(void *data) {
     };
     return ct;
 }
-
-circ_result
-linen_simulate(circ_env *env, void *data) {
-
-    log_debug("Report simulation environment");
-    circ_report_env(env);
-    circuit factory = linen_circuit(data);
-    circ *circ = circ_create(factory, env, NULL);
-    if (circ == NULL) {
-        log_error("Cannot initialize circuit");
-        return CIRC_ERR;
-    }
-    log_debug("\"linen\" circuit created");
-    circ_report(circ);
-    log_debug("Simulating circuit");
-    circ_simulate(circ);
-    log_debug("Free circuit instance");
-    circ_destroy(circ);
-
-    return CIRC_OK;
-}
