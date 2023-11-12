@@ -24,11 +24,22 @@ typedef struct circ_env_ circ_env;
  */
 typedef struct circ_ circ;
 
+typedef struct circuit_data_ {
+    PauliHamil hamil;
+    void* data;
+} circuit_data;
+
+typedef struct circ_sample_ {
+    double time;
+    int outcome;
+    void* data;
+} circ_sample;
+
 /** circuit specification.
  */
 typedef struct circuit_ {
     const char *name;
-    void *data;
+    circuit_data data;
 
     size_t num_mea_cl;
     size_t num_mea_qb;
@@ -56,13 +67,13 @@ typedef struct circuit_ {
      *
      * There pointers can be NULL, meaning the step is not specified.
      */
-    circ_result (*state_prep)(circ *, void *data);
+    circ_result (*state_prep)(circ *, circ_sample*);
 
-    circ_result (*routine)(circ *, void *data);
+    circ_result (*routine)(circ *, circ_sample*);
 
-    circ_result (*state_post)(circ *, void *data);
+    circ_result (*state_post)(circ *, circ_sample*);
 
-    circ_result (*measure)(circ *, void *data);
+    circ_result (*measure)(circ *, circ_sample*);
 } circuit;
 
 circ_env *circ_create_env();
@@ -71,7 +82,7 @@ void circ_destroy_env(circ_env *);
 
 void circ_report_env(circ_env *);
 
-circ *circ_create(circuit, circ_env *, void *data);
+circ *circ_create(circuit, circ_env *, circ_sample*);
 
 void circ_destroy(circ *);
 
@@ -97,7 +108,7 @@ const char *circ_name(circ *);
 
 void circ_report(circ *);
 
-void *circ_circuit_data(circ *);
+circuit_data circ_circuit_data(circ *);
 
 Qureg circ_qureg(circ *);
 

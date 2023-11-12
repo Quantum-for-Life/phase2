@@ -3,9 +3,7 @@
  * Simple circuit implementation for testing.
  */
 
-#include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "circ.h"
 #include "log/log.h"
@@ -18,65 +16,72 @@
 
 circ_result linen_reset(circ *c) {
     (void) c;
-    log_debug("reset circuit");
+    log_debug(">>> reset");
     return CIRC_OK;
 }
 
-circ_result linen_state_prep(circ *c, void *data) {
+circ_result linen_state_prep(circ *c, circ_sample* sample) {
     (void) c;
-    (void) data;
-    log_debug("state_prep");
+    (void) sample;
+    log_debug(">>> state_prep");
     return CIRC_OK;
 }
 
-circ_result linen_routine(circ *c, void *data) {
+circ_result linen_routine(circ *c, circ_sample* sample) {
     (void) c;
-    (void) data;
-    log_debug("routine");
+    (void) sample;
+    log_debug(">>> routine");
     return CIRC_OK;
 }
 
-circ_result linen_state_post(circ *c, void *data) {
+circ_result linen_state_post(circ *c, circ_sample* sample) {
     (void) c;
-    (void) data;
-    log_debug("state_post");
+    (void) sample;
+    log_debug(">>> state_post");
     return CIRC_OK;
 }
 
-circ_result linen_measure(circ *c, void *data) {
+circ_result linen_measure(circ *c, circ_sample* sample) {
     (void) c;
-    (void) data;
-    log_debug("measure");
+    (void) sample;
+    log_debug(">>> measure");
     return CIRC_OK;
 }
 
-circuit linen_circuit = {
-        .name = LINEN_NAME,
-        .data = NULL,
-        .num_mea_cl = LINEN_DEFAULT_NUM_MEA_CL,
-        .num_mea_qb = LINEN_DEFAULT_NUM_MEA_QB,
-        .num_sys_qb = LINEN_DEFAULT_NUM_SYS_QB,
-        .num_anc_qb = LINEN_DEFAULT_NUM_ANC_QB,
-        .reset = linen_reset,
-        .state_prep = linen_state_prep,
-        .routine = linen_routine,
-        .state_post = linen_state_post,
-        .measure = linen_measure};
+circuit linen_circuit(circuit_data data) {
+    circuit ct = {
+            .name = LINEN_NAME,
+            .data = data,
+            .num_mea_cl = LINEN_DEFAULT_NUM_MEA_CL,
+            .num_mea_qb = LINEN_DEFAULT_NUM_MEA_QB,
+            .num_sys_qb = data.hamil.numQubits,
+            .num_anc_qb = LINEN_DEFAULT_NUM_ANC_QB,
+            .reset = linen_reset,
+            .state_prep = linen_state_prep,
+            .routine = linen_routine,
+            .state_post = linen_state_post,
+            .measure = linen_measure};
+    return ct;
+}
 
+int
+linen_simulate(circ_env *env, circuit_data data) {
 
-int simul_linen(circ_env *env) {
-
-    circuit factory = linen_circuit;
-
-    circ *circ = circ_create(factory, env, NULL);
-    if (circ) {
-        log_debug("\"linen\" circuit created");
-    }
     log_debug("Report simulation environment");
     circ_report_env(env);
 
+    circuit factory = linen_circuit(data);
+    circ *circ = circ_create(factory, env, NULL);
+    if (circ == NULL) {
+        log_error("Cannot initialize circuit");
+        return -1;
+    }
+    log_debug("\"linen\" circuit created");
+    circ_report(circ);
+    log_debug("Simulating circuit");
+    circ_simulate(circ);
     log_debug("Free circuit instance");
     circ_destroy(circ);
 
-    return EXIT_SUCCESS;
+    return 0;
 }

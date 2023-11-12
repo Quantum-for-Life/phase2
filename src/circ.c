@@ -15,7 +15,7 @@ struct circ_ {
      *
      * The user is responsible to manage the memory pointed to.
      */
-    void *data;
+    circ_sample *sample;
 
     circ_env *env;
     Qureg qureg;
@@ -90,7 +90,7 @@ void init_anc_qb(circ *const c) {
 }
 
 
-circ *circ_create(circuit const ct, circ_env *const env, void *const data) {
+circ *circ_create(circuit const ct, circ_env *const env, circ_sample *sample) {
     circ *c = malloc(sizeof(circ));
     int *mea_cl = malloc(sizeof(int) * ct.num_mea_cl);
     int *mea_qb = malloc(sizeof(int) * circ_circuit_num_tot_qb(ct));
@@ -106,7 +106,7 @@ circ *circ_create(circuit const ct, circ_env *const env, void *const data) {
     c->anc_qb = c->sys_qb + ct.num_sys_qb;
 
     c->ct = ct;
-    c->data = data;
+    c->sample = sample;
     c->env = env;
 
     c->qureg = createQureg(
@@ -200,7 +200,7 @@ void circ_report(circ *const c) {
     printf("----------------\n");
 }
 
-void *circ_circuit_data(circ *const c) {
+circuit_data circ_circuit_data(circ *const c) {
     return c->ct.data;
 }
 
@@ -220,25 +220,25 @@ circ_result circ_simulate(circ *const c) {
     circ_result result;
 
     if (c->ct.state_prep != NULL) {
-        result = c->ct.state_prep(c, c->data);
+        result = c->ct.state_prep(c, c->sample);
         if (result != CIRC_OK) {
             return result;
         }
     }
     if (c->ct.routine != NULL) {
-        result = c->ct.routine(c, c->data);
+        result = c->ct.routine(c, c->sample);
         if (result != CIRC_OK) {
             return result;
         }
     }
     if (c->ct.state_post != NULL) {
-        result = c->ct.state_post(c, c->data);
+        result = c->ct.state_post(c, c->sample);
         if (result != CIRC_OK) {
             return result;
         }
     }
     if (c->ct.measure != NULL) {
-        result = c->ct.measure(c, c->data);
+        result = c->ct.measure(c, c->sample);
         if (result != CIRC_OK) {
             return result;
         }

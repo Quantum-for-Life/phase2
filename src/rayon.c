@@ -21,11 +21,9 @@
 #define RAYON_DEFAULT_NUM_ANC_QB 0
 
 typedef struct {
-    double time;
     int imag_switch;
-    int outcome;
     double outcome_prob;
-} rayon_CircData;
+} rayon_circ_sample_data;
 
 circ_result rayon_reset(circ *c) {
     Qureg qureg = circ_qureg(c);
@@ -39,8 +37,8 @@ circ_result rayon_reset(circ *c) {
     return CIRC_OK;
 }
 
-circ_result rayon_state_prep(circ *c, void *data) {
-    (void) data;
+circ_result rayon_state_prep(circ *c, circ_sample* sample) {
+    (void) sample;
     Qureg qureg = circ_qureg(c);
     int *mea_qb = circ_mea_qb(c);
     int *sys_qb = circ_sys_qb(c);
@@ -56,28 +54,28 @@ circ_result rayon_state_prep(circ *c, void *data) {
     return CIRC_OK;
 }
 
-circ_result rayon_routine(circ *c, void *data) {
-    PauliHamil *hamil = (PauliHamil *) circ_circuit_data(c);
-    rayon_CircData *circ_data = (rayon_CircData *) data;
+circ_result rayon_routine(circ *c, circ_sample* sample) {
+    PauliHamil hamil = circ_circuit_data(c).hamil;
+
     Qureg qureg = circ_qureg(c);
     int *mea_qb = circ_mea_qb(c);
     int *sys_qb = circ_sys_qb(c);
 
-    double time = circ_data->time;
-    for (int i = 0; i < hamil->numSumTerms; i++) {
-        qreal angle = 2.0 * time * hamil->termCoeffs[i];
+    double time = sample->time;
+    for (int i = 0; i < hamil.numSumTerms; i++) {
+        qreal angle = 2.0 * time * hamil.termCoeffs[i];
         multiControlledMultiRotatePauli(qureg, mea_qb, circ_num_mea_qb(c),
                                         sys_qb,
-                                        hamil->pauliCodes + (i *
-                                                             hamil->numQubits),
-                                        hamil->numQubits, angle);
+                                        hamil.pauliCodes + (i *
+                                                             hamil.numQubits),
+                                        hamil.numQubits, angle);
     }
 
     return CIRC_OK;
 }
 
-circ_result rayon_state_post(circ *c, void *data) {
-    rayon_CircData *circ_data = (rayon_CircData *) data;
+circ_result rayon_state_post(circ *c, circ_sample* sample) {
+
     Qureg qureg = circ_qureg(c);
     int *mea_qb = circ_mea_qb(c);
     int *sys_qb = circ_sys_qb(c);
@@ -89,7 +87,9 @@ circ_result rayon_state_post(circ *c, void *data) {
         hadamard(qureg, sys_qb[i]);
     }
 
-    if (circ_data->imag_switch == 1) {
+    rayon_circ_sample_data *sample_data = (rayon_circ_sample_data*)
+            sample->data;
+    if (sample_data->imag_switch == 1) {
         sGate(qureg, mea_qb[0]);
     }
     hadamard(qureg, mea_qb[0]);
@@ -97,36 +97,43 @@ circ_result rayon_state_post(circ *c, void *data) {
     return CIRC_OK;
 }
 
-circ_result rayon_measure(circ *c, void *data) {
-    rayon_CircData *circ_data = (rayon_CircData *) data;
+circ_result rayon_measure(circ *c, circ_sample* sample) {
+
     Qureg qureg = circ_qureg(c);
     int *mea_cl = circ_mea_cl(c);
     int *mea_qb = circ_mea_qb(c);
 
-    int outcome = measureWithStats(qureg, mea_qb[0], &circ_data->outcome_prob);
+    rayon_circ_sample_data *sample_data = (rayon_circ_sample_data*)
+            sample->data;
+    int outcome = measureWithStats(qureg, mea_qb[0],
+                                   &sample_data->outcome_prob);
     mea_cl[0] = outcome;
-    circ_data->outcome = outcome;
+    sample->outcome = outcome;
 
     return CIRC_OK;
 }
 
-circuit rayon_circuit = {
-        .name = RAYON_NAME,
-        .data = NULL,
-        .num_mea_cl = RAYON_DEFAULT_NUM_MEA_CL,
-        .num_mea_qb = RAYON_DEFAULT_NUM_MEA_QB,
-        .num_sys_qb = RAYON_DEFAULT_NUM_SYS_QB,
-        .num_anc_qb = RAYON_DEFAULT_NUM_ANC_QB,
-        .reset = rayon_reset,
-        .state_prep = rayon_state_prep,
-        .routine = rayon_routine,
-        .state_post = rayon_state_post,
-        .measure = rayon_measure};
 
-int simul_rayon(circ_env *env, char *h5file) {
+circuit rayon_circuit(circuit_data data) {
+    circuit ct = {
+            .name = RAYON_NAME,
+            .data = data,
+            .num_mea_cl = RAYON_DEFAULT_NUM_MEA_CL,
+            .num_mea_qb = RAYON_DEFAULT_NUM_MEA_QB,
+            .num_sys_qb = data.hamil.numQubits,
+            .num_anc_qb = RAYON_DEFAULT_NUM_ANC_QB,
+            .reset = rayon_reset,
+            .state_prep = rayon_state_prep,
+            .routine = rayon_routine,
+            .state_post = rayon_state_post,
+            .measure = rayon_measure};
+    return ct;
+}
+
+int rayon_simulate(circ_env *env, char *hamil_file) {
 
     log_info("open data file");
-    hid_t file_id = H5Fopen(h5file, H5F_ACC_RDWR, H5P_DEFAULT);
+    hid_t file_id = H5Fopen(hamil_file, H5F_ACC_RDWR, H5P_DEFAULT);
 
     log_info("reading hamiltonian data");
     hid_t group_id = H5Gopen1(file_id, "hamiltonian");
@@ -195,8 +202,8 @@ int simul_rayon(circ_env *env, char *h5file) {
     reportPauliHamil(hamil);
     free(coeffs);
     free(paulis);
-    circuit factory = rayon_circuit;
-    factory.data = &hamil;
+    circuit_data ct_data = {.hamil = hamil};
+    circuit factory = rayon_circuit(ct_data);
     factory.num_sys_qb = hamil.numQubits;
 
     log_info("read time_series/times");
@@ -218,26 +225,28 @@ int simul_rayon(circ_env *env, char *h5file) {
 
     double *values = malloc(sizeof(double) * steps);
     assert(values != NULL);
-    rayon_CircData circ_data = {
-            .time = times[0],
+
+    int outcome = 0;
+    rayon_circ_sample_data sample_data = {
             .imag_switch = 0,
-            .outcome = 0,
             .outcome_prob = 0.0,
     };
+    circ_sample sample = {.time = times[0], .outcome = outcome, .data =
+                           &sample_data};
     factory.num_sys_qb = num_qubits;
-    circ *circ = circ_create(factory, env, &circ_data);
+    circ *circ = circ_create(factory, env, &sample);
 
     log_info("evaluating real part of expectation value");
     for (size_t i = 0; i < steps; i++) {
-        circ_data.time = times[i];
+        sample.time = times[i];
         circ_reset(circ);
         circ_simulate(circ);
 
         double prob_0;
-        if (circ_data.outcome == 0) {
-            prob_0 = circ_data.outcome_prob;
+        if (sample.outcome == 0) {
+            prob_0 = sample_data.outcome_prob;
         } else {
-            prob_0 = 1.0 - circ_data.outcome_prob;
+            prob_0 = 1.0 - sample_data.outcome_prob;
         }
         values[i] = 2 * prob_0 - 1;
     }
@@ -251,17 +260,17 @@ int simul_rayon(circ_env *env, char *h5file) {
     status = H5Dclose(dset_values_id);
 
     log_info("evaluating imag part of expectation value");
-    circ_data.imag_switch = 1;
+    sample_data.imag_switch = 1;
     for (size_t i = 0; i < steps; i++) {
-        circ_data.time = times[i];
+        sample.time = times[i];
         circ_reset(circ);
         circ_simulate(circ);
 
         double prob_0;
-        if (circ_data.outcome == 0) {
-            prob_0 = circ_data.outcome_prob;
+        if (sample.outcome == 0) {
+            prob_0 = sample_data.outcome_prob;
         } else {
-            prob_0 = 1.0 - circ_data.outcome_prob;
+            prob_0 = 1.0 - sample_data.outcome_prob;
         }
         values[i] = 2 * prob_0 - 1;
     }
