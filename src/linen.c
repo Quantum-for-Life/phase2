@@ -3,9 +3,8 @@
  * Simple circuit implementation for testing.
  */
 
-#include <stdio.h>
-
 #include "circ.h"
+#include "linen.h"
 #include "log/log.h"
 
 #define LINEN_NAME "linen"
@@ -48,7 +47,7 @@ circ_result linen_measure(circ *c, void *data) {
 }
 
 circuit
-linen_circuit(void *data) {
+linen_circuit_factory(void *data) {
     circuit ct = {
             .name = LINEN_NAME,
             .data = data,

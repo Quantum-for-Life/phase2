@@ -3,9 +3,10 @@
 #include <assert.h>
 #include "hdf5.h"
 
-#include "log/log.h"
 #include "circ.h"
 #include "rayon.h"
+#include "linen.h"
+#include "log/log.h"
 
 #define SIMUL_DEFAULT_H5FILE "simul.h5"
 
@@ -14,8 +15,6 @@ circ_result linen_simulate(circ_env *env, void *data);
 circuit linen_circuit(void *data);
 
 circ_result rayon_simulate(circ_env *env, const char *hamil_file);
-
-circuit rayon_circuit(void *data);
 
 
 void exit_failure() {
@@ -99,7 +98,7 @@ linen_simulate(circ_env *env, void *data) {
 
     log_debug("Report simulation environment");
     circ_report_env(env);
-    circuit factory = linen_circuit(data);
+    circuit factory = linen_circuit_factory(data);
     circ *circ = circ_create(factory, env, NULL);
     if (circ == NULL) {
         log_error("Cannot initialize circuit");
@@ -188,7 +187,8 @@ circ_result rayon_simulate(circ_env *env, const char *hamil_file) {
     reportPauliHamil(hamil);
     free(coeffs);
     free(paulis);
-    circuit factory = rayon_circuit(&hamil);
+    rayon_circuit_data ct_data = {.hamil = hamil, .data = NULL};
+    circuit factory = rayon_circuit_factory(&ct_data);
     factory.num_sys_qb = hamil.numQubits;
 
     log_info("read time_series/times");

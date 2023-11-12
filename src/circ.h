@@ -1,15 +1,13 @@
 /** Circuit interface.
  */
 
-#ifndef CIRC_H
-#define CIRC_H
+#ifndef PHASE2_CIRC_H
+#define PHASE2_CIRC_H
 
 #include <stdlib.h>
 
 #include "QuEST.h"
 
-
-#define CIRC_ERRBUF_MAXLEN 1024
 
 typedef enum {
     CIRC_OK,
@@ -67,6 +65,7 @@ typedef struct circuit_ {
 
 } circuit;
 
+
 circ_env *circ_create_env();
 
 void circ_destroy_env(circ_env *);
@@ -107,4 +106,4 @@ circ_result circ_reset(circ *);
 
 circ_result circ_simulate(circ *);
 
-#endif // CIRC_H
+#endif //PHASE2_CIRC_H

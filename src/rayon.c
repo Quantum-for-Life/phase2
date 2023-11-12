@@ -9,7 +9,7 @@
 
 #define RAYON_NAME "rayon"
 #define RAYON_DEFAULT_NUM_MEA_QB 1
-#define RAYON_DEFAULT_NUM_SYS_QB 8
+// #define RAYON_DEFAULT_NUM_SYS_QB 8
 #define RAYON_DEFAULT_NUM_ANC_QB 0
 
 circ_result rayon_reset(circ *c) {
@@ -77,12 +77,12 @@ circ_result rayon_state_post(circ *c, void *data) {
     return CIRC_OK;
 }
 
-circuit rayon_circuit(void *data) {
+circuit rayon_circuit_factory(rayon_circuit_data *data) {
     circuit ct = {
             .name = RAYON_NAME,
             .data = data,
             .num_mea_qb = RAYON_DEFAULT_NUM_MEA_QB,
-            .num_sys_qb = RAYON_DEFAULT_NUM_SYS_QB,
+            .num_sys_qb = data->hamil.numQubits,
             .num_anc_qb = RAYON_DEFAULT_NUM_ANC_QB,
             .reset = rayon_reset,
             .state_prep = rayon_state_prep,
