@@ -7,9 +7,9 @@
 
 #define SIMUL_DEFAULT_H5FILE "simul.h5"
 
-int linen_simulate(circ_env *env, circuit_data data);
+circ_result linen_simulate(circ_env *env, void *data);
 
-int rayon_simulate(circ_env *env, const char *hamil_file);
+circ_result rayon_simulate(circ_env *env, const char *hamil_file);
 
 
 void exit_failure() {
@@ -64,10 +64,9 @@ int main(int argc, char **argv) {
 
     log_info("*** Circuit ***");
     // TODO: Initialize hamiltonian with data from file
-    circuit_data ct_data = {.data = NULL, .hamil = createPauliHamil(1,1)};
     if (strncmp(argv[1], "linen", 5) == 0) {
         log_info("Circuit: linen");
-        if (linen_simulate(env, ct_data) != 0) {
+        if (linen_simulate(env, NULL) != 0) {
             exit_failure();
         }
     }

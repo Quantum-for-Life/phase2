@@ -47,12 +47,13 @@ circ_result linen_measure(circ *c, void *data) {
     return CIRC_OK;
 }
 
-circuit linen_circuit(circuit_data data) {
+circuit
+linen_circuit(void *data) {
     circuit ct = {
             .name = LINEN_NAME,
             .data = data,
             .num_mea_qb = LINEN_DEFAULT_NUM_MEA_QB,
-            .num_sys_qb = data.hamil.numQubits,
+            .num_sys_qb = LINEN_DEFAULT_NUM_SYS_QB,
             .num_anc_qb = LINEN_DEFAULT_NUM_ANC_QB,
             .reset = linen_reset,
             .state_prep = linen_state_prep,
@@ -62,17 +63,16 @@ circuit linen_circuit(circuit_data data) {
     return ct;
 }
 
-int
-linen_simulate(circ_env *env, circuit_data data) {
+circ_result
+linen_simulate(circ_env *env, void *data) {
 
     log_debug("Report simulation environment");
     circ_report_env(env);
-
     circuit factory = linen_circuit(data);
     circ *circ = circ_create(factory, env, NULL);
     if (circ == NULL) {
         log_error("Cannot initialize circuit");
-        return -1;
+        return CIRC_ERR;
     }
     log_debug("\"linen\" circuit created");
     circ_report(circ);
@@ -81,5 +81,5 @@ linen_simulate(circ_env *env, circuit_data data) {
     log_debug("Free circuit instance");
     circ_destroy(circ);
 
-    return 0;
+    return CIRC_OK;
 }

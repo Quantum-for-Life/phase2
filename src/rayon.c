@@ -6,7 +6,6 @@
 #include <assert.h>
 #include <hdf5.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -15,7 +14,6 @@
 #include "log/log.h"
 
 #define RAYON_NAME "rayon"
-#define RAYON_DEFAULT_NUM_MEA_CL 1
 #define RAYON_DEFAULT_NUM_MEA_QB 1
 #define RAYON_DEFAULT_NUM_SYS_QB 8
 #define RAYON_DEFAULT_NUM_ANC_QB 0
@@ -49,7 +47,7 @@ circ_result rayon_state_prep(circ *c, void *data) {
 }
 
 circ_result rayon_routine(circ *c, void *data) {
-    PauliHamil hamil = circ_circuit_data(c).hamil;
+    PauliHamil *hamil = (PauliHamil *) circ_circuit_data(c);
 
     Qureg qureg = circ_qureg(c);
     int *mea_qb = circ_mea_qb(c);
@@ -57,13 +55,13 @@ circ_result rayon_routine(circ *c, void *data) {
 
     rayon_circ_sample_data *sample_data = (rayon_circ_sample_data *) data;
     double time = sample_data->time;
-    for (int i = 0; i < hamil.numSumTerms; i++) {
-        qreal angle = 2.0 * time * hamil.termCoeffs[i];
+    for (int i = 0; i < hamil->numSumTerms; i++) {
+        qreal angle = 2.0 * time * hamil->termCoeffs[i];
         multiControlledMultiRotatePauli(qureg, mea_qb, circ_num_mea_qb(c),
                                         sys_qb,
-                                        hamil.pauliCodes + (i *
-                                                            hamil.numQubits),
-                                        hamil.numQubits, angle);
+                                        hamil->pauliCodes + (i *
+                                                             hamil->numQubits),
+                                        hamil->numQubits, angle);
     }
 
     return CIRC_OK;
@@ -92,12 +90,12 @@ circ_result rayon_state_post(circ *c, void *data) {
     return CIRC_OK;
 }
 
-circuit rayon_circuit(circuit_data data) {
+circuit rayon_circuit(void *data) {
     circuit ct = {
             .name = RAYON_NAME,
             .data = data,
             .num_mea_qb = RAYON_DEFAULT_NUM_MEA_QB,
-            .num_sys_qb = data.hamil.numQubits,
+            .num_sys_qb = RAYON_DEFAULT_NUM_SYS_QB,
             .num_anc_qb = RAYON_DEFAULT_NUM_ANC_QB,
             .reset = rayon_reset,
             .state_prep = rayon_state_prep,
@@ -121,7 +119,7 @@ int rayon_simulate(circ_env *env, const char *hamil_file) {
     if ((status = H5Aread(num_qubits_attr_id, H5T_NATIVE_INT, &num_qubits)) <
         0) {
         log_error("no field: num_qubits");
-        return EXIT_FAILURE;
+        return CIRC_ERR;
     };
 
     hid_t num_sum_terms_attr_id = H5Aopen(group_id, "num_sum_terms",
@@ -179,8 +177,7 @@ int rayon_simulate(circ_env *env, const char *hamil_file) {
     reportPauliHamil(hamil);
     free(coeffs);
     free(paulis);
-    circuit_data ct_data = {.hamil = hamil};
-    circuit factory = rayon_circuit(ct_data);
+    circuit factory = rayon_circuit(&hamil);
     factory.num_sys_qb = hamil.numQubits;
 
     log_info("read time_series/times");
@@ -271,5 +268,5 @@ int rayon_simulate(circ_env *env, const char *hamil_file) {
     status = H5Gclose(time_series_id);
     status = H5Fclose(file_id);
 
-    return EXIT_SUCCESS;
+    return CIRC_OK;
 }

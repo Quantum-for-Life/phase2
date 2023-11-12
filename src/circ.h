@@ -8,6 +8,9 @@
 
 #include "QuEST.h"
 
+
+#define CIRC_ERRBUF_MAXLEN 1024
+
 typedef enum {
     CIRC_OK,
     CIRC_ERR,
@@ -24,16 +27,11 @@ typedef struct circ_env_ circ_env;
  */
 typedef struct circ_ circ;
 
-typedef struct circuit_data_ {
-    PauliHamil hamil;
-    void *data;
-} circuit_data;
-
 /** circuit specification.
  */
 typedef struct circuit_ {
     const char *name;
-    circuit_data data;
+    void *data;
 
     size_t num_mea_qb;
     size_t num_sys_qb;
@@ -41,7 +39,8 @@ typedef struct circuit_ {
 
     /** Reset the circuit.
      *
-     * If the pointer is NULL, this will only zero the mea_cl bits.
+     * On top of standard resetting the Qureg and mea_cl.
+     * This can be NULL.
      */
     circ_result (*reset)(circ *);
 
@@ -100,7 +99,7 @@ const char *circ_name(circ *);
 
 void circ_report(circ *);
 
-circuit_data circ_circuit_data(circ *);
+void *circ_circuit_data(circ *);
 
 Qureg circ_qureg(circ *);
 

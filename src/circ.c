@@ -34,6 +34,8 @@ struct circ_ {
     int *mea_qb;
     int *sys_qb;
     int *anc_qb;
+
+    // TODO: Allocate space for error message;
 };
 
 
@@ -58,7 +60,6 @@ void circ_destroy_env(circ_env *const env) {
     if (env == NULL) {
         return;
     }
-
     destroyQuESTEnv(env->quest_env);
     free(env);
 }
@@ -93,6 +94,9 @@ void init_anc_qb(circ *const c) {
 
 
 circ *circ_create(circuit const ct, circ_env *const env, void *data) {
+    if (env == NULL) {
+        return NULL;
+    }
     circ *c = malloc(sizeof(circ));
     int *mea_cl = malloc(sizeof(int) * ct.num_mea_qb);
     double *mea_cl_prob = malloc(sizeof(double) * ct.num_mea_qb);
@@ -127,6 +131,9 @@ circ *circ_create(circuit const ct, circ_env *const env, void *data) {
 }
 
 void circ_destroy(circ *c) {
+    if (c == NULL) {
+        return;
+    }
     destroyQureg(c->qureg, c->env->quest_env);
     free(c->mea_qb);
     free(c->mea_cl_prob);
@@ -206,7 +213,7 @@ void circ_report(circ *const c) {
     printf("----------------\n");
 }
 
-circuit_data circ_circuit_data(circ *const c) {
+void *circ_circuit_data(circ *const c) {
     return c->ct.data;
 }
 
@@ -224,10 +231,13 @@ circ_result circ_reset(circ *const c) {
 }
 
 circ_result circ_simulate(circ *const c) {
-    circ_result result;
+    if (c == NULL) {
+        return CIRC_ERR;
+    }
 
     circ_reset(c);
 
+    circ_result result;
     if (c->ct.state_prep != NULL) {
         result = c->ct.state_prep(c, c->data);
         if (result != CIRC_OK) {
