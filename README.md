@@ -1,4 +1,6 @@
-# pahse2
+# phase2
+
+[![CI](https://github.com/Quantum-for-Life/phase2/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/Quantum-for-Life/phase2/actions/workflows/CI.yml)
 
 Quantum phase estimation (QPE) with parallel computing.
 
