@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" , "next" ]
   pull_request:
     branches: [ "main" ]
 
@@ -19,10 +19,16 @@ jobs:
         submodules: recursive
 
     - name: Install HDF5
-      run: sudo apt install libhdf5-dev
+      run: |
+        sudo apt install libhdf5-dev
     - name: Set up nightly Rust toolchain
-      run: rustup install nightly && rustup default nightly
+      run: |
+        rustup install nightly && rustup default nightly
     - name: Build
-      run: cargo build --verbose
+      run: |
+        cargo build --all --verbose
+        cargo doc --all --verbose
     - name: Run tests
-      run: cargo test --verbose
+      run: |
+        cargo test --all --verbose 
+        
