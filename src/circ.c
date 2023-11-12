@@ -38,7 +38,7 @@ struct circ_ {
     int *sys_qb;
     int *anc_qb;
 
-    // TODO: Allocate space for error message;
+    size_t simul_counter;
 };
 
 
@@ -127,6 +127,7 @@ circ *circ_create(circuit const ct, circ_env *const env, void *data) {
     c->qureg = createQureg(
             circ_circuit_num_tot_qb(ct),
             env->quest_env);
+    c->simul_counter = 0;
 
     zero_mea_cl(c);
     init_mea_qb(c);
@@ -229,6 +230,7 @@ Qureg circ_qureg(circ *const c) {
 }
 
 circ_result circ_reset(circ *const c) {
+    log_trace(CIRC_LOG_TAG "reset");
     initZeroState(circ_qureg(c));
     zero_mea_cl(c);
     if (c->ct.reset != NULL) {
@@ -241,23 +243,28 @@ circ_result circ_simulate(circ *const c) {
     if (c == NULL) {
         return CIRC_ERR;
     }
+    c->simul_counter++;
+    log_trace(CIRC_LOG_TAG "simulate (%zu)", c->simul_counter);
 
     circ_reset(c);
 
     circ_result result;
     if (c->ct.state_prep != NULL) {
+        log_trace(CIRC_LOG_TAG "state_prep");
         result = c->ct.state_prep(c, c->data);
         if (result != CIRC_OK) {
             return result;
         }
     }
     if (c->ct.routine != NULL) {
+        log_trace(CIRC_LOG_TAG "routine");
         result = c->ct.routine(c, c->data);
         if (result != CIRC_OK) {
             return result;
         }
     }
     if (c->ct.state_post != NULL) {
+        log_trace(CIRC_LOG_TAG "state_post");
         result = c->ct.state_post(c, c->data);
         if (result != CIRC_OK) {
             return result;
@@ -265,6 +272,7 @@ circ_result circ_simulate(circ *const c) {
     }
 
     /* Measure qubits */
+    log_trace(CIRC_LOG_TAG "measure");
     int *mea_cl = circ_mea_cl(c);
     double *mea_cl_prob = circ_mea_cl_prob(c);
     int *mea_qb = circ_mea_qb(c);
