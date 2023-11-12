@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "log.h"
+#include "log/log.h"
 #include "circ.h"
 
 
@@ -12,6 +12,8 @@ int simul_rayon(circ_env *env, char *hamil_file);
 
 int main(int argc, char **argv) {
 
+    FILE *f_log = fopen("simul.log", "a");
+    log_add_fp(f_log, LOG_DEBUG);
     log_debug("init");
 
     log_info("initialize circ_env");
@@ -46,5 +48,6 @@ int main(int argc, char **argv) {
     circ_destroy_env(env);
 
     log_info("done");
+    fclose(f_log);
     return EXIT_SUCCESS;
 }

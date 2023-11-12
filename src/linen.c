@@ -8,7 +8,7 @@
 #include <stdlib.h>
 
 #include "circ.h"
-#include "log.h"
+#include "log/log.h"
 
 #define LINEN_NAME "linen"
 #define LINEN_DEFAULT_NUM_MEA_CL 3

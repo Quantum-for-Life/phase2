@@ -12,7 +12,7 @@
 
 #include "QuEST.h"
 #include "circ.h"
-#include "log.h"
+#include "log/log.h"
 
 #define RAYON_NAME "rayon"
 #define RAYON_DEFAULT_NUM_MEA_CL 1
@@ -32,7 +32,7 @@ circ_result rayon_reset(circ *c) {
     int *mea_cl = circ_mea_cl(c);
 
     initZeroState(qureg);
-    for (int i = 0; i < circ_num_mea_cl(c); i++) {
+    for (size_t i = 0; i < circ_num_mea_cl(c); i++) {
         mea_cl[i] = 0;
     }
 
@@ -49,7 +49,7 @@ circ_result rayon_state_prep(circ *c, void *data) {
 
 //    pauliX(qureg, sys_qb[0]);
 //    pauliX(qureg, sys_qb[2]);
-    for (int i = 0; i < circ_num_sys_qb(c); i++) {
+    for (size_t i = 0; i < circ_num_sys_qb(c); i++) {
         hadamard(qureg, sys_qb[i]);
     }
 
@@ -85,7 +85,7 @@ circ_result rayon_state_post(circ *c, void *data) {
 //    pauliX(qureg, sys_qb[0]);
 //    pauliX(qureg, sys_qb[2]);
 
-    for (int i = 0; i < circ_num_sys_qb(c); i++) {
+    for (size_t i = 0; i < circ_num_sys_qb(c); i++) {
         hadamard(qureg, sys_qb[i]);
     }
 
@@ -133,13 +133,20 @@ int simul_rayon(circ_env *env, char *h5file) {
 
     hid_t num_qubits_attr_id = H5Aopen(group_id, "num_qubits", H5P_DEFAULT);
     int num_qubits;
-    herr_t status = H5Aread(num_qubits_attr_id, H5T_NATIVE_INT, &num_qubits);
+    herr_t status;
+    if ((status = H5Aread(num_qubits_attr_id, H5T_NATIVE_INT, &num_qubits)) <
+        0) {
+        log_error("no field: num_qubits");
+        return EXIT_FAILURE;
+    };
+
     hid_t num_sum_terms_attr_id = H5Aopen(group_id, "num_sum_terms",
                                           H5P_DEFAULT);
     int num_sum_terms;
     status = H5Aread(num_sum_terms_attr_id, H5T_NATIVE_INT, &num_sum_terms);
     status = H5Aclose(num_sum_terms_attr_id);
     status = H5Aclose(num_qubits_attr_id);
+    assert(status >= 0);
 
     log_info("num qubits: %d, num_sum_terms: %d", num_qubits,
              num_sum_terms);
@@ -195,8 +202,11 @@ int simul_rayon(circ_env *env, char *h5file) {
     log_info("read time_series/times");
     hid_t time_series_id = H5Gopen1(file_id, "time_series");
     hid_t steps_attr_id = H5Aopen(time_series_id, "steps", H5P_DEFAULT);
-    int steps;
-    status = H5Aread(steps_attr_id, H5T_NATIVE_INT, &steps);
+    int steps_signed;
+    status = H5Aread(steps_attr_id, H5T_NATIVE_INT, &steps_signed);
+    size_t steps;
+    assert(steps_signed > 0);
+    steps = steps_signed;
     status = H5Aclose(steps_attr_id);
     log_info("number of steps: %d", steps);
     hid_t dset_times_id = H5Dopen1(time_series_id, "times");
