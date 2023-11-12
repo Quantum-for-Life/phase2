@@ -8,11 +8,12 @@
 #include "linen.h"
 #include "log/log.h"
 
+#define PHASE2_LOG_ENVVAR "PHASE2_LOG"
+#define PHASE2_LOG_FILE "simul.log"
+
 #define SIMUL_DEFAULT_H5FILE "simul.h5"
 
 circ_result linen_simulate(circ_env *env, void *data);
-
-circuit linen_circuit(void *data);
 
 circ_result rayon_simulate(circ_env *env, const char *hamil_file);
 
@@ -26,16 +27,55 @@ void print_help_page(int argc, char **argv) {
     (void) argc;
     fprintf(stderr, "usage: %s CIRCUIT [SIMUL_FILE_H5]\n\n", argv[0]);
     fprintf(stderr,
+            "where CIRCUIT is must be one of:\n"
+            "\n"
+            "    linen\n"
+            "    rayon\n"
+            "\n"
             "If no simulation input file (HDF5) is specified,\n"
             "the default is " SIMUL_DEFAULT_H5FILE " in the current directory.\n"
     );
+    fprintf(stderr,
+            "\n"
+            "To set logging level, set environment variable:\n"
+            "\n    "  PHASE2_LOG_ENVVAR
+            "={trace, debug, info, warn, error, fatal}"
+            "\n\n"
+    );
+}
+
+void simul_set_log_level() {
+    char *log_level = getenv(PHASE2_LOG_ENVVAR);
+    if (log_level == NULL) {
+        log_set_level(LOG_ERROR);
+        return;
+    }
+    if (strncmp(log_level, "trace", 5) == 0) {
+        log_set_level(LOG_TRACE);
+    }
+    if (strncmp(log_level, "debug", 5) == 0) {
+        log_set_level(LOG_DEBUG);
+    }
+    if (strncmp(log_level, "info", 4) == 0) {
+        log_set_level(LOG_INFO);
+    }
+    if (strncmp(log_level, "warn", 4) == 0) {
+        log_set_level(LOG_WARN);
+    }
+    if (strncmp(log_level, "error", 5) == 0) {
+        log_set_level(LOG_ERROR);
+    }
+    if (strncmp(log_level, "fatal", 5) == 0) {
+        log_set_level(LOG_FATAL);
+    }
 }
 
 int main(int argc, char **argv) {
 
+    simul_set_log_level();
     log_info("*** Init ***");
-    log_info("Open log file: simul.log");
-    FILE *log_file = fopen("simul.log", "a");
+    log_info("Open log file: " PHASE2_LOG_FILE);
+    FILE *log_file = fopen(PHASE2_LOG_FILE, "a");
     if (log_file == NULL) {
         log_error("Cannot open log file.");
         exit_failure();
@@ -51,9 +91,8 @@ int main(int argc, char **argv) {
 
     log_debug("Parsing command line arguments");
     if (argc < 2) {
-        log_error("No circuit name specified");
         print_help_page(argc, argv);
-        exit_failure();
+        return EXIT_FAILURE;
     }
     const char *h5filename = SIMUL_DEFAULT_H5FILE;
     if (argc < 3) {
@@ -66,21 +105,20 @@ int main(int argc, char **argv) {
 
     log_info("Open simulation input file: %s", h5filename);
 
-
     log_info("*** Circuit ***");
-    // TODO: Initialize hamiltonian with data from file
     if (strncmp(argv[1], "linen", 5) == 0) {
         log_info("Circuit: linen");
-        if (linen_simulate(env, NULL) != 0) {
+        if (linen_simulate(env, NULL) != CIRC_OK) {
             exit_failure();
         }
-    }
-
-    if (strncmp(argv[1], "rayon", 5) == 0) {
+    } else if (strncmp(argv[1], "rayon", 5) == 0) {
         log_info("Circuit: rayon");
-        if (rayon_simulate(env, h5filename) != 0) {
+        if (rayon_simulate(env, h5filename) != CIRC_OK) {
             exit_failure();
         }
+    } else {
+        log_error("No circuit named %s", argv[1]);
+        exit_failure();
     }
 
     log_info("*** Cleanup ***");
