@@ -103,8 +103,6 @@ int main(int argc, char **argv) {
         h5filename = argv[2];
     }
 
-    log_info("Open simulation input file: %s", h5filename);
-
     log_info("*** Circuit ***");
     if (strncmp(argv[1], "linen", 5) == 0) {
         log_info("Circuit: linen");
@@ -189,21 +187,21 @@ circ_result rayon_simulate(circ_env *env, const char *hamil_file) {
                      H5P_DEFAULT, coeffs);
     status = H5Dclose(dset_coeffs_id);
 
-    log_info("computing hamiltonian one-norm");
-    double hamil_one_norm = 0.0;
-    for (int i = 0; i < num_sum_terms; i++) {
-        hamil_one_norm += fabs(coeffs[i]);
-    }
-    log_info("norm: %f", hamil_one_norm);
-    hid_t dspace_hamil_one_norm_id = H5Screate(H5S_SCALAR);
-    hid_t attr_hamil_one_norm_id = H5Acreate1(group_id, "one_norm",
-                                              H5T_IEEE_F64LE,
-                                              dspace_hamil_one_norm_id,
-                                              H5P_DEFAULT);
-    status = H5Awrite(attr_hamil_one_norm_id, H5T_NATIVE_DOUBLE,
-                      &hamil_one_norm);
-    status = H5Sclose(dspace_hamil_one_norm_id);
-    status = H5Aclose(attr_hamil_one_norm_id);
+//    log_info("computing hamiltonian one-norm");
+//    double hamil_one_norm = 0.0;
+//    for (int i = 0; i < num_sum_terms; i++) {
+//        hamil_one_norm += fabs(coeffs[i]);
+//    }
+//    log_info("norm: %f", hamil_one_norm);
+//    hid_t dspace_hamil_one_norm_id = H5Screate(H5S_SCALAR);
+//    hid_t attr_hamil_one_norm_id = H5Acreate1(group_id, "one_norm",
+//                                              H5T_IEEE_F64LE,
+//                                              dspace_hamil_one_norm_id,
+//                                              H5P_DEFAULT);
+//    status = H5Awrite(attr_hamil_one_norm_id, H5T_NATIVE_DOUBLE,
+//                      &hamil_one_norm);
+//    status = H5Sclose(dspace_hamil_one_norm_id);
+//    status = H5Aclose(attr_hamil_one_norm_id);
 
     log_info("reading paulis");
     hid_t dset_paulis_id = H5Dopen2(group_id, "paulis", H5P_DEFAULT);
@@ -214,10 +212,10 @@ circ_result rayon_simulate(circ_env *env, const char *hamil_file) {
     status = H5Dclose(dset_paulis_id);
     status = H5Gclose(group_id);
 
-    log_debug("rescaling hamiltonian");
-    for (int i = 0; i < num_sum_terms; i++) {
-        coeffs[i] /= hamil_one_norm;
-    }
+//    log_debug("rescaling hamiltonian");
+//    for (int i = 0; i < num_sum_terms; i++) {
+//        coeffs[i] /= hamil_one_norm;
+//    }
 
     log_info("initialize Pauli Hamiltonian");
     PauliHamil hamil = createPauliHamil(num_qubits, num_sum_terms);

@@ -1,6 +1,7 @@
 #ifndef PHASE2_RAYON_H
 #define PHASE2_RAYON_H
 
+
 typedef struct rayon_circuit_data_ {
     PauliHamil hamil;
     void *data; // state preparation. TBA

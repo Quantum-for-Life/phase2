@@ -7,7 +7,7 @@ f = h5py.File("../../build/simul.h5", "r")
 times = list(f["time_series/times"])
 values_real = list(f["time_series/values_real"])
 values_imag = list(f["time_series/values_imag"])
-one_norm = f["hamiltonian"].attrs["one_norm"]
+# one_norm = f["hamiltonian"].attrs["one_norm"]
 f.close()
 
 values = np.array([complex(x, y) for (x, y) in zip(values_real, values_imag)])

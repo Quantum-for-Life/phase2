@@ -1,12 +1,14 @@
 find_package(HDF5 REQUIRED)
 include_directories(${HDF5_INCLUDE_DIRS})
 
-
 set(CMAKE_C_FLAGS "-Wall -Wextra -Werror")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror")
 
 add_library(circ SHARED
         circ.c
         log/log.c
+        h5.c
+        h5.h
 )
 target_link_libraries(circ
         QuEST m
@@ -33,11 +35,13 @@ target_link_libraries(rayon
 
 
 add_executable(phase2
-        simul.c
+        phase2.c
+        h5.c
         log/log.c
 )
 target_link_libraries(phase2
         circ
         linen
         rayon
+        ${HDF5_LIBRARIES}
 )
