@@ -20,6 +20,8 @@ jobs:
 
     - name: Install HDF5
       run: sudo apt install libhdf5-dev
+    - name: Set up nightly Rust toolchain
+      run: rustup install nightly && rustup default nightly
     - name: Build
       run: cargo build --verbose
     - name: Run tests
