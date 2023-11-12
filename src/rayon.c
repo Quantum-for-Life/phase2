@@ -12,7 +12,7 @@
 
 #include "QuEST.h"
 #include "circ.h"
-#include "logger.h"
+#include "log.h"
 
 #define RAYON_NAME "rayon"
 #define RAYON_DEFAULT_NUM_MEA_CL 1
@@ -125,10 +125,10 @@ circuit rayon_circuit = {
 
 int simul_rayon(circ_env *env, char *h5file) {
 
-    logger("info", "open data file");
+    log_info("open data file");
     hid_t file_id = H5Fopen(h5file, H5F_ACC_RDWR, H5P_DEFAULT);
 
-    logger("info", "reading hamiltonian data");
+    log_info("reading hamiltonian data");
     hid_t group_id = H5Gopen1(file_id, "hamiltonian");
 
     hid_t num_qubits_attr_id = H5Aopen(group_id, "num_qubits", H5P_DEFAULT);
@@ -141,12 +141,10 @@ int simul_rayon(circ_env *env, char *h5file) {
     status = H5Aclose(num_sum_terms_attr_id);
     status = H5Aclose(num_qubits_attr_id);
 
-    char buf[100];
-    snprintf(buf, 100, "num qubits: %d, num_sum_terms: %d", num_qubits,
+    log_info("num qubits: %d, num_sum_terms: %d", num_qubits,
              num_sum_terms);
-    logger("info", buf);
 
-    logger("info", "reading coeffs");
+    log_info("reading coeffs");
     hid_t dset_coeffs_id = H5Dopen2(group_id, "coeffs", H5P_DEFAULT);
     double *coeffs = (double *) malloc(sizeof(double) * num_sum_terms);
     assert(coeffs != NULL);
@@ -154,13 +152,12 @@ int simul_rayon(circ_env *env, char *h5file) {
                      H5P_DEFAULT, coeffs);
     status = H5Dclose(dset_coeffs_id);
 
-    logger("info", "computing hamiltonian one-norm");
+    log_info("computing hamiltonian one-norm");
     double hamil_one_norm = 0.0;
     for (int i = 0; i < num_sum_terms; i++) {
         hamil_one_norm += fabs(coeffs[i]);
     }
-    snprintf(buf, 100, "norm: %f", hamil_one_norm);
-    logger("debug", buf);
+    log_info("norm: %f", hamil_one_norm);
     hid_t dspace_hamil_one_norm_id = H5Screate(H5S_SCALAR);
     hid_t attr_hamil_one_norm_id = H5Acreate1(group_id, "one_norm",
                                               H5T_IEEE_F64LE,
@@ -171,7 +168,7 @@ int simul_rayon(circ_env *env, char *h5file) {
     status = H5Sclose(dspace_hamil_one_norm_id);
     status = H5Aclose(attr_hamil_one_norm_id);
 
-    logger("info", "reading paulis");
+    log_info("reading paulis");
     hid_t dset_paulis_id = H5Dopen2(group_id, "paulis", H5P_DEFAULT);
     int *paulis = (int *) malloc(sizeof(int) * num_sum_terms * num_qubits);
     assert(paulis != NULL);
@@ -180,12 +177,12 @@ int simul_rayon(circ_env *env, char *h5file) {
     status = H5Dclose(dset_paulis_id);
     status = H5Gclose(group_id);
 
-    logger("debug", "rescaling hamiltonian");
+    log_debug("rescaling hamiltonian");
     for (int i = 0; i < num_sum_terms; i++) {
         coeffs[i] /= hamil_one_norm;
     }
 
-    logger("info", "initialize Pauli Hamiltonian");
+    log_info("initialize Pauli Hamiltonian");
     PauliHamil hamil = createPauliHamil(num_qubits, num_sum_terms);
     initPauliHamil(hamil, coeffs, (enum pauliOpType *) paulis);
     reportPauliHamil(hamil);
@@ -195,14 +192,13 @@ int simul_rayon(circ_env *env, char *h5file) {
     factory.data = &hamil;
     factory.num_sys_qb = hamil.numQubits;
 
-    logger("info", "read time_series/times");
+    log_info("read time_series/times");
     hid_t time_series_id = H5Gopen1(file_id, "time_series");
     hid_t steps_attr_id = H5Aopen(time_series_id, "steps", H5P_DEFAULT);
     int steps;
     status = H5Aread(steps_attr_id, H5T_NATIVE_INT, &steps);
     status = H5Aclose(steps_attr_id);
-    snprintf(buf, 100, "number of steps: %d", steps);
-    logger("info", buf);
+    log_info("number of steps: %d", steps);
     hid_t dset_times_id = H5Dopen1(time_series_id, "times");
     double *times = malloc(sizeof(double) * steps);
     assert(times != NULL);
@@ -221,7 +217,7 @@ int simul_rayon(circ_env *env, char *h5file) {
     factory.num_sys_qb = num_qubits;
     circ *circ = circ_create(factory, env, &circ_data);
 
-    logger("info", "evaluating real part of expectation value");
+    log_info("evaluating real part of expectation value");
     for (size_t i = 0; i < steps; i++) {
         circ_data.time = times[i];
         circ_reset(circ);
@@ -244,7 +240,7 @@ int simul_rayon(circ_env *env, char *h5file) {
     status = H5Sclose(dspace_values_id);
     status = H5Dclose(dset_values_id);
 
-    logger("info", "evaluating imag part of expectation value");
+    log_info("evaluating imag part of expectation value");
     circ_data.imag_switch = 1;
     for (size_t i = 0; i < steps; i++) {
         circ_data.time = times[i];

@@ -4,7 +4,7 @@ include_directories(${HDF5_INCLUDE_DIRS})
 
 add_library(circ SHARED
         circ.c
-        logger.c
+        log.c
 )
 target_link_libraries(circ
         QuEST m
@@ -13,7 +13,7 @@ target_link_libraries(circ
 
 add_library(linen SHARED
         linen.c
-        logger.c
+        log.c
 )
 target_link_libraries(linen
         QuEST m
@@ -22,7 +22,7 @@ target_link_libraries(linen
 
 add_library(rayon SHARED
         rayon.c
-        logger.c
+        log.c
 )
 target_link_libraries(rayon
         QuEST m
@@ -32,7 +32,7 @@ target_link_libraries(rayon
 
 add_executable(phase2
         simul.c
-        logger.c
+        log.c
 )
 target_link_libraries(phase2
         circ
