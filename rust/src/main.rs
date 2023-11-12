@@ -45,7 +45,7 @@ struct circuit {
     measure:    extern "C" fn(*mut circ, *mut c_void) -> circ_result,
 }
 
-#[link(name = "QuEST")]
+// #[link(name = "QuEST")]
 #[link(name = "circ")]
 #[allow(non_snake_case)]
 extern "C" {
