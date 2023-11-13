@@ -220,13 +220,13 @@ circ_result rayon_simulate(circ_env *env, const char *h5filename) {
     factory.num_sys_qb = hamil.numQubits;
     circ *circ = circ_create(factory, env, &circ_data);
 
+    double prob_0;
+    int *mea_cl = circ_mea_cl(circ);
+    double *mea_cl_prob = circ_mea_cl_prob(circ);
+
     log_info("evaluating real part of expectation value");
     for (size_t i = 0; i < ts.num_steps; i++) {
         circ_data.time = ts.times[i];
-
-        double prob_0;
-        int *mea_cl = circ_mea_cl(circ);
-        double *mea_cl_prob = circ_mea_cl_prob(circ);
 
         circ_simulate(circ);
         if (mea_cl[0] == 0) {
@@ -235,7 +235,6 @@ circ_result rayon_simulate(circ_env *env, const char *h5filename) {
             prob_0 = 1.0 - mea_cl_prob[0];
         }
         ts.values[2 * i] = 2 * prob_0 - 1;
-        
     }
 
     log_info("evaluating imag part of expectation value");
@@ -244,9 +243,6 @@ circ_result rayon_simulate(circ_env *env, const char *h5filename) {
         circ_data.time = ts.times[i];
         circ_simulate(circ);
 
-        double prob_0;
-        int *mea_cl = circ_mea_cl(circ);
-        double *mea_cl_prob = circ_mea_cl_prob(circ);
         if (mea_cl[0] == 0) {
             prob_0 = mea_cl_prob[0];
         } else {
