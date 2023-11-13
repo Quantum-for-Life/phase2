@@ -147,9 +147,17 @@ linen_simulate(circ_env *env, const char *h5filename) {
     sdat_time_series_init(&ts);
     sdat_time_series_read(&ts, file_id);
     log_debug("Time series: num_steps=%zu", ts.num_steps);
-    sdat_time_series_drop(ts);
 
     H5Fclose(file_id);
+
+    for (size_t i = 0; i < ts.num_steps; i++) {
+        ts.values[i * 2] = 0.0;
+        ts.values[i * 2 + 1] = 10.0;
+    }
+    file_id = H5Fopen(h5filename, H5F_ACC_RDWR, H5P_DEFAULT);
+    sdat_time_series_write(ts, file_id);
+    H5Fclose(file_id);
+    sdat_time_series_drop(ts);
 
     log_debug("Report simulation environment");
     circ_report_env(env);

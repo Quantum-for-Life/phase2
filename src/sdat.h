@@ -49,4 +49,7 @@ sdat_time_series_drop(sdat_time_series);
 sdat_result
 sdat_time_series_read(sdat_time_series *, hid_t);
 
+sdat_result
+sdat_time_series_write(sdat_time_series, hid_t);
+
 #endif //PHASE2_SDAT_H

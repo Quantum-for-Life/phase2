@@ -165,3 +165,41 @@ sdat_time_series_read(sdat_time_series *dat, hid_t obj_id) {
     return res;
 }
 
+sdat_result sdat_time_series_write(sdat_time_series dat, hid_t obj_id) {
+    sdat_result res = SDAT_OK;
+
+    hid_t grp_id = H5Gopen2(obj_id, SDAT_TIME_SERIES, H5P_DEFAULT);
+    if (grp_id == H5I_INVALID_HID) {
+        res = SDAT_ERR;
+        goto grp_fail;
+    }
+    hid_t dset_times_id = H5Dopen2(grp_id, SDAT_TIME_SERIES_TIMES, H5P_DEFAULT);
+    if (dset_times_id == H5I_INVALID_HID) {
+        res = SDAT_ERR;
+        goto dset_times_fail;
+    }
+    if (H5Dwrite(dset_times_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
+                 H5P_DEFAULT, dat.times) < 0) {
+        res = SDAT_ERR;
+    }
+    H5Dclose(dset_times_id);
+
+    hid_t dset_values_id = H5Dopen2(grp_id, SDAT_TIME_SERIES_VALUES,
+                                    H5P_DEFAULT);
+    if (dset_values_id == H5I_INVALID_HID) {
+        res = SDAT_ERR;
+        goto dset_values_fail;
+    }
+    if (H5Dwrite(dset_values_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
+                 H5P_DEFAULT, dat.values) < 0) {
+        res = SDAT_ERR;
+    }
+    H5Dclose(dset_values_id);
+
+    dset_values_fail:
+    dset_times_fail:
+    H5Gclose(grp_id);
+    grp_fail:
+    return res;
+}
+
