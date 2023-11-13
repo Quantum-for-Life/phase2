@@ -7,8 +7,8 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror")
 add_library(circ SHARED
         circ.c
         log/log.c
-        simulh5.c
-        simulh5.h
+        sdat.c
+        sdat.h
 )
 target_link_libraries(circ
         QuEST m
@@ -36,7 +36,7 @@ target_link_libraries(rayon
 
 add_executable(phase2
         phase2.c
-        simulh5.c
+        sdat.c
         log/log.c
 )
 target_link_libraries(phase2
