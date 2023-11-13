@@ -42,6 +42,7 @@ sdat_pauli_hamil_read(sdat_pauli_hamil *dat, hid_t obj_id) {
         res = SDAT_ERR;
         goto coeffs_fail;
     }
+    dat->coeffs = coeffs;
     if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE,
                 H5S_ALL, H5S_ALL, H5P_DEFAULT, coeffs) < 0) {
         free(coeffs);
@@ -73,6 +74,7 @@ sdat_pauli_hamil_read(sdat_pauli_hamil *dat, hid_t obj_id) {
             H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
             H5P_DEFAULT,
             paulis);
+    dat->paulis = paulis;
 
     paulis_fail:
     dim_mismatch:
