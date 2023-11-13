@@ -6,8 +6,8 @@
 #include "circ.h"
 #include "rayon.h"
 #include "linen.h"
-#include "log/log.h"
 #include "sdat.h"
+#include "log/log.h"
 
 #define PHASE2_LOG_ENVVAR "PHASE2_LOG"
 #define PHASE2_LOG_FILE "simul.log"
@@ -133,18 +133,23 @@ circ_result
 linen_simulate(circ_env *env, const char *h5filename) {
     (void) h5filename;
 
-//    log_debug("Read simulation input file: %s", h5filename);
-//    hid_t sdatid = H5Fopen(h5filename, H5F_ACC_RDONLY, H5P_DEFAULT);
-//    simulh5 *sh = sdatcreate();
-//    sdatread(sh, sdatid);
-//
-//    log_debug("Hamiltonian: num_qubits=%zu, num_sum_terms=%zu",
-//              sh->pauli_hamil.num_qubits, sh->pauli_hamil.num_sum_terms);
-//    log_debug("Time series: num_steps=%zu",
-//              sh->time_series.num_steps);
-//
-//    sdatfree(sh);
-//    H5Fclose(sdatid);
+    log_debug("Read simulation input file: %s", h5filename);
+    hid_t file_id = H5Fopen(h5filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+
+    sdat_pauli_hamil ph;
+    sdat_pauli_hamil_init(&ph);
+    sdat_pauli_hamil_parse(&ph, file_id);
+    log_debug("Hamiltonian: num_qubits=%zu, num_sum_terms=%zu",
+              ph.num_qubits, ph.num_sum_terms);
+    sdat_pauli_hamil_drop(ph);
+
+    sdat_time_series ts;
+    sdat_time_series_init(&ts);
+    sdat_time_series_parse(&ts, file_id);
+    log_debug("Time series: num_steps=%zu", ts.num_steps);
+    sdat_time_series_drop(ts);
+
+    H5Fclose(file_id);
 
     log_debug("Report simulation environment");
     circ_report_env(env);

@@ -7,8 +7,6 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror")
 add_library(circ SHARED
         circ.c
         log/log.c
-        sdat.c
-        sdat.h
 )
 target_link_libraries(circ
         QuEST m
