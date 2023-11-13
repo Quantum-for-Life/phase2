@@ -7,7 +7,7 @@
 #include "rayon.h"
 #include "linen.h"
 #include "log/log.h"
-#include "h5.h"
+#include "simulh5.h"
 
 #define PHASE2_LOG_ENVVAR "PHASE2_LOG"
 #define PHASE2_LOG_FILE "simul.log"
@@ -104,6 +104,15 @@ int main(int argc, char **argv) {
         h5filename = argv[2];
     }
 
+    log_debug("Open file");
+    hid_t simulh5_id = H5Fopen(h5filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+    log_debug("Open group");
+    hid_t pauli_hamil_id = H5Gopen2(simulh5_id, SIMULH5_GRP_PAULI_HAMIL,
+                                    H5P_DEFAULT);
+    simulh5_grp_pauli_hamil ph;
+    simulh5_grp_hamiltonian_read(pauli_hamil_id, &ph);
+    simulh5_grp_hamiltonian_drop(ph);
+
     log_info("*** Circuit ***");
     if (strncmp(argv[1], "linen", 5) == 0) {
         log_info("Circuit: linen");
@@ -153,114 +162,116 @@ linen_simulate(circ_env *env, void *data) {
 
 
 circ_result rayon_simulate(circ_env *env, const char *hamil_file) {
-    herr_t status;
-    (void)status;
-    log_info("open data file");
-    hid_t file_id = H5Fopen(hamil_file, H5F_ACC_RDWR, H5P_DEFAULT);
-
-    log_info("reading hamiltonian data");
-    hid_t group_id = H5Gopen1(file_id, "hamiltonian");
-
-    h5_grp_hamiltonian grp_h;
-    h5_grp_hamiltonian_read(group_id, &grp_h);
-    log_info("num qubits: %d, num_sum_terms: %d", grp_h.num_qubits,
-             grp_h.num_sum_terms);
-    log_info("initialize Pauli Hamiltonian");
-    PauliHamil hamil = createPauliHamil(grp_h.num_qubits, grp_h.num_sum_terms);
-    initPauliHamil(hamil, grp_h.coeffs, (enum pauliOpType *) grp_h.paulis);
-    reportPauliHamil(hamil);
-    h5_grp_hamiltonian_free(grp_h);
-
-
-    rayon_circuit_data ct_data = {.hamil = hamil, .data = NULL};
-    circuit factory = rayon_circuit_factory(&ct_data);
-    factory.num_sys_qb = hamil.numQubits;
-
-    log_info("read time_series/times");
-    hid_t time_series_id = H5Gopen1(file_id, "time_series");
-    hid_t steps_attr_id = H5Aopen(time_series_id, "steps", H5P_DEFAULT);
-    int steps_signed;
-    status = H5Aread(steps_attr_id, H5T_NATIVE_INT, &steps_signed);
-    size_t steps;
-    assert(steps_signed > 0);
-    steps = steps_signed;
-    status = H5Aclose(steps_attr_id);
-    log_info("number of steps: %d", steps);
-    hid_t dset_times_id = H5Dopen1(time_series_id, "times");
-    double *times = malloc(sizeof(double) * steps);
-    assert(times != NULL);
-    status = H5Dread(dset_times_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-                     H5P_DEFAULT, times);
-    status = H5Dclose(dset_times_id);
-
-    double *values = malloc(sizeof(double) * steps);
-    assert(values != NULL);
-
-    rayon_circ_data circ_data = {
-            .time = times[0],
-            .imag_switch = 0,
-    };
-    factory.num_sys_qb = hamil.numQubits;
-    circ *circ = circ_create(factory, env, &circ_data);
-
-    log_info("evaluating real part of expectation value");
-    for (size_t i = 0; i < steps; i++) {
-        circ_data.time = times[i];
-        circ_reset(circ);
-        circ_simulate(circ);
-
-        double prob_0;
-        int *mea_cl = circ_mea_cl(circ);
-        double *mea_cl_prob = circ_mea_cl_prob(circ);
-        if (mea_cl[0] == 0) {
-            prob_0 = mea_cl_prob[0];
-        } else {
-            prob_0 = 1.0 - mea_cl_prob[0];
-        }
-        values[i] = 2 * prob_0 - 1;
-    }
-    hid_t dspace_values_id = H5Screate_simple(1, (hsize_t[]) {steps}, NULL);
-    hid_t dset_values_id = H5Dcreate1(time_series_id, "values_real",
-                                      H5T_IEEE_F64LE, dspace_values_id,
-                                      H5P_DEFAULT);
-    status = H5Dwrite(dset_values_id, H5T_NATIVE_DOUBLE, H5S_ALL,
-                      dspace_values_id, H5P_DEFAULT, values);
-    status = H5Sclose(dspace_values_id);
-    status = H5Dclose(dset_values_id);
-
-    log_info("evaluating imag part of expectation value");
-    circ_data.imag_switch = 1;
-    for (size_t i = 0; i < steps; i++) {
-        circ_data.time = times[i];
-        circ_reset(circ);
-        circ_simulate(circ);
-
-        double prob_0;
-        int *mea_cl = circ_mea_cl(circ);
-        double *mea_cl_prob = circ_mea_cl_prob(circ);
-        if (mea_cl[0] == 0) {
-            prob_0 = mea_cl_prob[0];
-        } else {
-            prob_0 = 1.0 - mea_cl_prob[0];
-        }
-        values[i] = 2 * prob_0 - 1;
-    }
-
-    dspace_values_id = H5Screate_simple(1, (hsize_t[]) {steps}, NULL);
-    dset_values_id = H5Dcreate1(time_series_id, "values_imag",
-                                H5T_IEEE_F64LE, dspace_values_id,
-                                H5P_DEFAULT);
-    status = H5Dwrite(dset_values_id, H5T_NATIVE_DOUBLE, H5S_ALL,
-                      dspace_values_id, H5P_DEFAULT, values);
-    status = H5Sclose(dspace_values_id);
-    status = H5Dclose(dset_values_id);
-
-    free(times);
-    free(values);
-    circ_destroy(circ);
-
-    status = H5Gclose(time_series_id);
-    status = H5Fclose(file_id);
+    (void) env;
+    (void) hamil_file;
+//    herr_t status;
+//    (void)status;
+//    log_info("open data file");
+//    hid_t file_id = H5Fopen(hamil_file, H5F_ACC_RDWR, H5P_DEFAULT);
+//
+//    log_info("reading hamiltonian data");
+//    hid_t group_id = H5Gopen1(file_id, "hamiltonian");
+//
+//    h5_grp_hamiltonian grp_h;
+//    h5_grp_hamiltonian_read(group_id, &grp_h);
+//    log_info("num qubits: %d, num_sum_terms: %d", grp_h.num_qubits,
+//             grp_h.num_sum_terms);
+//    log_info("initialize Pauli Hamiltonian");
+//    PauliHamil hamil = createPauliHamil(grp_h.num_qubits, grp_h.num_sum_terms);
+//    initPauliHamil(hamil, grp_h.coeffs, (enum pauliOpType *) grp_h.paulis);
+//    reportPauliHamil(hamil);
+//    h5_grp_hamiltonian_free(grp_h);
+//
+//
+//    rayon_circuit_data ct_data = {.hamil = hamil, .data = NULL};
+//    circuit factory = rayon_circuit_factory(&ct_data);
+//    factory.num_sys_qb = hamil.numQubits;
+//
+//    log_info("read time_series/times");
+//    hid_t time_series_id = H5Gopen1(file_id, "time_series");
+//    hid_t steps_attr_id = H5Aopen(time_series_id, "steps", H5P_DEFAULT);
+//    int steps_signed;
+//    status = H5Aread(steps_attr_id, H5T_NATIVE_INT, &steps_signed);
+//    size_t steps;
+//    assert(steps_signed > 0);
+//    steps = steps_signed;
+//    status = H5Aclose(steps_attr_id);
+//    log_info("number of steps: %d", steps);
+//    hid_t dset_times_id = H5Dopen1(time_series_id, "times");
+//    double *times = malloc(sizeof(double) * steps);
+//    assert(times != NULL);
+//    status = H5Dread(dset_times_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
+//                     H5P_DEFAULT, times);
+//    status = H5Dclose(dset_times_id);
+//
+//    double *values = malloc(sizeof(double) * steps);
+//    assert(values != NULL);
+//
+//    rayon_circ_data circ_data = {
+//            .time = times[0],
+//            .imag_switch = 0,
+//    };
+//    factory.num_sys_qb = hamil.numQubits;
+//    circ *circ = circ_create(factory, env, &circ_data);
+//
+//    log_info("evaluating real part of expectation value");
+//    for (size_t i = 0; i < steps; i++) {
+//        circ_data.time = times[i];
+//        circ_reset(circ);
+//        circ_simulate(circ);
+//
+//        double prob_0;
+//        int *mea_cl = circ_mea_cl(circ);
+//        double *mea_cl_prob = circ_mea_cl_prob(circ);
+//        if (mea_cl[0] == 0) {
+//            prob_0 = mea_cl_prob[0];
+//        } else {
+//            prob_0 = 1.0 - mea_cl_prob[0];
+//        }
+//        values[i] = 2 * prob_0 - 1;
+//    }
+//    hid_t dspace_values_id = H5Screate_simple(1, (hsize_t[]) {steps}, NULL);
+//    hid_t dset_values_id = H5Dcreate1(time_series_id, "values_real",
+//                                      H5T_IEEE_F64LE, dspace_values_id,
+//                                      H5P_DEFAULT);
+//    status = H5Dwrite(dset_values_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+//                      dspace_values_id, H5P_DEFAULT, values);
+//    status = H5Sclose(dspace_values_id);
+//    status = H5Dclose(dset_values_id);
+//
+//    log_info("evaluating imag part of expectation value");
+//    circ_data.imag_switch = 1;
+//    for (size_t i = 0; i < steps; i++) {
+//        circ_data.time = times[i];
+//        circ_reset(circ);
+//        circ_simulate(circ);
+//
+//        double prob_0;
+//        int *mea_cl = circ_mea_cl(circ);
+//        double *mea_cl_prob = circ_mea_cl_prob(circ);
+//        if (mea_cl[0] == 0) {
+//            prob_0 = mea_cl_prob[0];
+//        } else {
+//            prob_0 = 1.0 - mea_cl_prob[0];
+//        }
+//        values[i] = 2 * prob_0 - 1;
+//    }
+//
+//    dspace_values_id = H5Screate_simple(1, (hsize_t[]) {steps}, NULL);
+//    dset_values_id = H5Dcreate1(time_series_id, "values_imag",
+//                                H5T_IEEE_F64LE, dspace_values_id,
+//                                H5P_DEFAULT);
+//    status = H5Dwrite(dset_values_id, H5T_NATIVE_DOUBLE, H5S_ALL,
+//                      dspace_values_id, H5P_DEFAULT, values);
+//    status = H5Sclose(dspace_values_id);
+//    status = H5Dclose(dset_values_id);
+//
+//    free(times);
+//    free(values);
+//    circ_destroy(circ);
+//
+//    status = H5Gclose(time_series_id);
+//    status = H5Fclose(file_id);
 
     return CIRC_OK;
 }
