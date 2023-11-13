@@ -18,7 +18,7 @@ sdat_pauli_hamil_drop(sdat_pauli_hamil dat) {
 }
 
 sdat_result
-sdat_pauli_hamil_parse(sdat_pauli_hamil *dat, hid_t obj_id) {
+sdat_pauli_hamil_read(sdat_pauli_hamil *dat, hid_t obj_id) {
     sdat_result res = SDAT_OK;
 
     hid_t grp_id = H5Gopen2(obj_id, SDAT_PAULI_HAMIL, H5P_DEFAULT);
@@ -91,19 +91,17 @@ void
 sdat_time_series_init(sdat_time_series *dat) {
     dat->num_steps = 0;
     dat->times = NULL;
-    dat->values_real = NULL;
-    dat->values_imag = NULL;
+    dat->values = NULL;
 }
 
 void
 sdat_time_series_drop(sdat_time_series dat) {
     free(dat.times);
-    free(dat.values_real);
-    free(dat.values_imag);
+    free(dat.values);
 }
 
 sdat_result
-sdat_time_series_parse(sdat_time_series *dat, hid_t obj_id) {
+sdat_time_series_read(sdat_time_series *dat, hid_t obj_id) {
     sdat_result res = SDAT_OK;
 
     hid_t grp_id = H5Gopen2(obj_id, SDAT_TIME_SERIES, H5P_DEFAULT);
@@ -130,8 +128,34 @@ sdat_time_series_parse(sdat_time_series *dat, hid_t obj_id) {
             times);
     dat->times = times;
 
-    // TODO: read values too
+    hid_t dset_values_id = H5Dopen2(grp_id, SDAT_TIME_SERIES_VALUES,
+                                    H5P_DEFAULT);
+    if (dset_values_id == H5I_INVALID_HID) {
+        res = SDAT_ERR;
+        goto dset_values_fail;
+    }
+    hid_t dspace_values_id = H5Dget_space(dset_values_id);
+    hsize_t dspace_values_dims[2];
+    H5Sget_simple_extent_dims(dspace_values_id, dspace_values_dims, NULL);
+    if ((dspace_values_dims[0] != dat->num_steps) ||
+        (dspace_values_dims[1] != 2)) {
+        res = SDAT_ERR;
+        goto values_dims_mismatch;
+    }
+    double *values = malloc(sizeof(double) * dat->num_steps * 2);
+    if (values == NULL) {
+        res = SDAT_ERR;
+        goto values_fail;
+    }
+    H5Dread(dset_values_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+            values);
+    dat->values = values;
 
+    values_fail:
+    values_dims_mismatch:
+    H5Sclose(dspace_values_id);
+    H5Dclose(dset_values_id);
+    dset_values_fail:
     times_fail:
     H5Sclose(dspace_times_id);
     H5Dclose(dset_times_id);

@@ -138,14 +138,14 @@ linen_simulate(circ_env *env, const char *h5filename) {
 
     sdat_pauli_hamil ph;
     sdat_pauli_hamil_init(&ph);
-    sdat_pauli_hamil_parse(&ph, file_id);
+    sdat_pauli_hamil_read(&ph, file_id);
     log_debug("Hamiltonian: num_qubits=%zu, num_sum_terms=%zu",
               ph.num_qubits, ph.num_sum_terms);
     sdat_pauli_hamil_drop(ph);
 
     sdat_time_series ts;
     sdat_time_series_init(&ts);
-    sdat_time_series_parse(&ts, file_id);
+    sdat_time_series_read(&ts, file_id);
     log_debug("Time series: num_steps=%zu", ts.num_steps);
     sdat_time_series_drop(ts);
 
