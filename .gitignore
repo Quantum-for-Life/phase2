@@ -63,6 +63,7 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 
+*.bak
 
 build/
 cmake-build-*

@@ -52,28 +52,26 @@ def h5_output(fermionic_op: FermionicOp, outfile: str):
     eigs.sort()
     print(eigs)
 
-    coeffs = []
-    pauli_flatlist = []
-    for pauli, cf in zip(qubit_jw_op.paulis, qubit_jw_op.coeffs):
-        assert abs(cf.imag) < MARGIN
-        coeffs.append(cf.real)
-        # NOTE: Qiskit uses LE convention for numbering qubits. We reverse the
-        # string
-        for p in pauli.to_label()[::-1]:
-            pauli_flatlist.append(pauli_table[p])
-
     num_qubits = qubit_jw_op.num_qubits
-    num_sum_terms = len(coeffs)
+    num_sum_terms = len(qubit_jw_op.coeffs)
+    coeffs = []
+    paulis_shape = (num_sum_terms, num_qubits)
+    paulis = np.ndarray(paulis_shape, dtype='f')
+    for i in range(0, num_sum_terms):
+        coeffs.append(qubit_jw_op.coeffs[i].real)
+        # NOTE: Qiskit uses LE convention for numbering qubits. We reverse
+        # the string
+        for j, p in enumerate(qubit_jw_op.paulis[i].to_label()[::-1]):
+            paulis[i][j] = pauli_table[p]
+
     with h5py.File(outfile, "w") as f:
-        grp = f.create_group("hamiltonian")
-        grp.attrs['num_qubits'] = num_qubits
-        grp.attrs['num_sum_terms'] = num_sum_terms
+        grp = f.create_group("pauli_hamil")
         dset_coeffs = grp.create_dataset("coeffs", (num_sum_terms,), dtype='d')
         dset_coeffs[...] = coeffs
         dset_paulis = grp.create_dataset("paulis",
-                                         (num_sum_terms * num_qubits,),
-                                         dtype='i')
-        dset_paulis[...] = pauli_flatlist
+                                         paulis_shape,
+                                         dtype=np.dtype('u1'))
+        dset_paulis[...] = paulis
 
 
 if __name__ == "__main__":

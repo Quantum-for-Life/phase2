@@ -17,7 +17,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-VALUES = [float(x) for x in range(0, 10000)]
+VALUES = [float(x) for x in range(0, 100)]
 
 STEPS = len(VALUES)
 
@@ -25,7 +25,6 @@ STEPS = len(VALUES)
 def h5_output(outfile: str):
     with h5py.File(outfile, "a") as f:
         grp = f.create_group("time_series")
-        grp.attrs['steps'] = STEPS
         dset_times = grp.create_dataset("times", (STEPS,), dtype='d')
         dset_times[...] = VALUES
 
