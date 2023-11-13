@@ -14,6 +14,8 @@ typedef enum {
 } simulh5_res;
 
 typedef struct h5_grp_pauli_hamil {
+    size_t num_qubits;
+    size_t num_sum_terms;
     double *coeffs;
     unsigned char *paulis;
 } simulh5_grp_pauli_hamil;
