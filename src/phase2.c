@@ -104,14 +104,19 @@ int main(int argc, char **argv) {
         h5filename = argv[2];
     }
 
-    log_debug("Open file");
     hid_t simulh5_id = H5Fopen(h5filename, H5F_ACC_RDONLY, H5P_DEFAULT);
-    log_debug("Open group");
     hid_t pauli_hamil_id = H5Gopen2(simulh5_id, SIMULH5_GRP_PAULI_HAMIL,
                                     H5P_DEFAULT);
     simulh5_grp_pauli_hamil ph;
-    simulh5_grp_hamiltonian_read(pauli_hamil_id, &ph);
-    simulh5_grp_hamiltonian_drop(ph);
+    simulh5_grp_pauli_hamil_read(pauli_hamil_id, &ph);
+    simulh5_grp_pauli_hamil_drop(ph);
+    H5Gclose(pauli_hamil_id);
+
+    hid_t time_series_id = H5Gopen2(simulh5_id, SIMULH5_GRP_TIME_SERIES,
+                                    H5P_DEFAULT);
+    simulh5_grp_time_series ts;
+    simulh5_grp_time_series_read_times(time_series_id, &ts);
+    H5Gclose(time_series_id);
 
     log_info("*** Circuit ***");
     if (strncmp(argv[1], "linen", 5) == 0) {

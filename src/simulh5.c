@@ -8,7 +8,7 @@
 #include "log/log.h"
 
 simulh5_res
-simulh5_grp_hamiltonian_read(hid_t group_id, simulh5_grp_pauli_hamil *ph) {
+simulh5_grp_pauli_hamil_read(hid_t group_id, simulh5_grp_pauli_hamil *ph) {
 
     log_debug("Read group " SIMULH5_GRP_PAULI_HAMIL);
     hid_t dset_coeffs_id = H5Dopen2(group_id,
@@ -61,7 +61,7 @@ simulh5_grp_hamiltonian_read(hid_t group_id, simulh5_grp_pauli_hamil *ph) {
             paulis);
     H5Sclose(dspace_paulis_id);
     H5Dclose(dset_paulis_id);
-    
+
     ph->num_qubits = num_qubits;
     ph->num_sum_terms = num_sum_terms;
     ph->coeffs = coeffs;
@@ -70,7 +70,46 @@ simulh5_grp_hamiltonian_read(hid_t group_id, simulh5_grp_pauli_hamil *ph) {
     return SIMULH5_OK;
 }
 
-void simulh5_grp_hamiltonian_drop(simulh5_grp_pauli_hamil ph) {
+void simulh5_grp_pauli_hamil_drop(simulh5_grp_pauli_hamil ph) {
     free(ph.coeffs);
     free(ph.paulis);
+}
+
+simulh5_res
+simulh5_grp_time_series_read_times(hid_t group_id,
+                                   simulh5_grp_time_series *ts) {
+
+    hid_t dset_times_id = H5Dopen2(group_id, SIMULH5_GRP_TIME_SERIES_TIMES,
+                                   H5P_DEFAULT);
+    if (dset_times_id == H5I_INVALID_HID) {
+        log_error("Cannot open data set " SIMULH5_GRP_TIME_SERIES_TIMES);
+        return SIMULH5_ERR;
+    }
+    hid_t dspace_times_id = H5Dget_space(dset_times_id);
+    hsize_t dspace_times_dims[1];
+    H5Sget_simple_extent_dims(dspace_times_id, dspace_times_dims, NULL);
+    size_t num_steps = dspace_times_dims[0];
+
+    double *times = malloc(sizeof(double) * num_steps);
+    if (times == NULL) {
+        log_fatal("Cannot allocate memory for times data set");
+        H5Sclose(dspace_times_id);
+        H5Dclose(dset_times_id);
+        return SIMULH5_ERR;
+    }
+    H5Dread(dset_times_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+            times);
+    H5Sclose(dspace_times_id);
+    H5Dclose(dset_times_id);
+    
+    ts->num_steps = num_steps;
+    ts->times = times;
+
+    return SIMULH5_OK;
+}
+
+void simulh5_grp_time_series_drop(simulh5_grp_time_series ts) {
+    free(ts.times);
+    free(ts.values_real);
+    free(ts.values_imag);
 }
