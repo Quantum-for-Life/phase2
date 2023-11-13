@@ -1,17 +1,29 @@
-//
-// Created by mm on 11/12/23.
-//
-
 #include "hdf5.h"
 
 #include "simulh5.h"
 #include "log/log.h"
 
-simulh5_res
-simulh5_grp_pauli_hamil_read(hid_t group_id, simulh5_grp_pauli_hamil *ph) {
+
+typedef struct {
+    size_t num_qubits;
+    size_t num_sum_terms;
+    double *coeffs;
+    unsigned char *paulis;
+} simulh5_grp_pauli_hamil;
+
+typedef struct {
+    size_t num_steps;
+    double *times;
+    double *values_real;
+    double *values_imag;
+} simulh5_grp_time_series;
+
+
+simulh5_result
+simulh5_grp_pauli_hamil_read(hid_t grp_id, simulh5_grp_pauli_hamil *ph) {
 
     log_debug("Read group " SIMULH5_GRP_PAULI_HAMIL);
-    hid_t dset_coeffs_id = H5Dopen2(group_id,
+    hid_t dset_coeffs_id = H5Dopen2(grp_id,
                                     SIMULH5_GRP_PAULI_HAMIL_COEFFS,
                                     H5P_DEFAULT);
     if (dset_coeffs_id == H5I_INVALID_HID) {
@@ -36,7 +48,7 @@ simulh5_grp_pauli_hamil_read(hid_t group_id, simulh5_grp_pauli_hamil *ph) {
     H5Sclose(dspace_coeffs_id);
     H5Dclose(dset_coeffs_id);
 
-    hid_t dset_paulis_id = H5Dopen2(group_id, SIMULH5_GRP_PAULI_HAMIL_PAULIS,
+    hid_t dset_paulis_id = H5Dopen2(grp_id, SIMULH5_GRP_PAULI_HAMIL_PAULIS,
                                     H5P_DEFAULT);
     if (dset_paulis_id == H5I_INVALID_HID) {
         free(coeffs);
@@ -70,16 +82,12 @@ simulh5_grp_pauli_hamil_read(hid_t group_id, simulh5_grp_pauli_hamil *ph) {
     return SIMULH5_OK;
 }
 
-void simulh5_grp_pauli_hamil_drop(simulh5_grp_pauli_hamil ph) {
-    free(ph.coeffs);
-    free(ph.paulis);
-}
 
-simulh5_res
-simulh5_grp_time_series_read_times(hid_t group_id,
+simulh5_result
+simulh5_grp_time_series_read_times(hid_t grp_id,
                                    simulh5_grp_time_series *ts) {
 
-    hid_t dset_times_id = H5Dopen2(group_id, SIMULH5_GRP_TIME_SERIES_TIMES,
+    hid_t dset_times_id = H5Dopen2(grp_id, SIMULH5_GRP_TIME_SERIES_TIMES,
                                    H5P_DEFAULT);
     if (dset_times_id == H5I_INVALID_HID) {
         log_error("Cannot open data set " SIMULH5_GRP_TIME_SERIES_TIMES);
@@ -101,15 +109,69 @@ simulh5_grp_time_series_read_times(hid_t group_id,
             times);
     H5Sclose(dspace_times_id);
     H5Dclose(dset_times_id);
-    
+
     ts->num_steps = num_steps;
     ts->times = times;
 
     return SIMULH5_OK;
 }
 
-void simulh5_grp_time_series_drop(simulh5_grp_time_series ts) {
-    free(ts.times);
-    free(ts.values_real);
-    free(ts.values_imag);
+
+simulh5 *simulh5_create() {
+    simulh5 *sh = malloc(sizeof(simulh5));
+    if (sh == NULL) {
+        return NULL;
+    }
+
+    sh->time_series.values_real = NULL;
+    sh->time_series.values_imag = NULL;
+
+    return sh;
+}
+
+simulh5_result
+simulh5_read(simulh5 *sh, hid_t obj_id) {
+    simulh5_result res;
+
+    hid_t pauli_hamil_id = H5Gopen2(obj_id, SIMULH5_GRP_PAULI_HAMIL,
+                                    H5P_DEFAULT);
+    simulh5_grp_pauli_hamil pauli_hamil;
+    res = simulh5_grp_pauli_hamil_read(pauli_hamil_id, &pauli_hamil);
+    H5Gclose(pauli_hamil_id);
+    if (res != SIMULH5_OK) {
+        simulh5_free(sh);
+        return res;
+    }
+
+    hid_t time_series_id = H5Gopen2(obj_id, SIMULH5_GRP_TIME_SERIES,
+                                    H5P_DEFAULT);
+    simulh5_grp_time_series time_series;
+    res = simulh5_grp_time_series_read_times(time_series_id, &time_series);
+    H5Gclose(time_series_id);
+    if (res != SIMULH5_OK) {
+        simulh5_free(sh);
+        return res;
+    }
+
+    sh->pauli_hamil.num_qubits = pauli_hamil.num_qubits;
+    sh->pauli_hamil.num_sum_terms = pauli_hamil.num_sum_terms;
+    sh->pauli_hamil.coeffs = pauli_hamil.coeffs;
+    sh->pauli_hamil.paulis = pauli_hamil.paulis;
+
+    sh->time_series.num_steps = time_series.num_steps;
+    sh->time_series.times = time_series.times;
+    sh->time_series.values_real = NULL;
+    sh->time_series.values_imag = NULL;
+
+    return SIMULH5_OK;
+}
+
+
+void simulh5_free(simulh5 *sh) {
+    free(sh->pauli_hamil.coeffs);
+    free(sh->pauli_hamil.paulis);
+    free(sh->time_series.times);
+    free(sh->time_series.values_real);
+    free(sh->time_series.values_imag);
+    free(sh);
 }

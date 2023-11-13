@@ -13,39 +13,34 @@
 #define SIMULH5_GRP_TIME_SERIES_VALUES_REAL "values_real"
 #define SIMULH5_GRP_TIME_SERIES_VALUES_IMAG "values_imag"
 
-
 typedef enum {
     SIMULH5_OK,
     SIMULH5_ERR
-} simulh5_res;
+} simulh5_result;
 
 typedef struct {
-    size_t num_qubits;
-    size_t num_sum_terms;
-    double *coeffs;
-    unsigned char *paulis;
-} simulh5_grp_pauli_hamil;
 
-simulh5_res
-simulh5_grp_pauli_hamil_read(hid_t group_id, simulh5_grp_pauli_hamil *);
+    struct {
+        size_t num_qubits;
+        size_t num_sum_terms;
+        double *coeffs;
+        unsigned char *paulis;
+    } pauli_hamil;
 
-void
-simulh5_grp_pauli_hamil_drop(simulh5_grp_pauli_hamil);
+    struct {
+        size_t num_steps;
+        double *times;
+        double *values_real;
+        double *values_imag;
+    } time_series;
 
-typedef struct {
-    size_t num_steps;
-    double *times;
-    double *values_real;
-    double *values_imag;
-} simulh5_grp_time_series;
+} simulh5;
 
-simulh5_res
-simulh5_grp_time_series_read_times(hid_t group_id, simulh5_grp_time_series *);
+simulh5 *simulh5_create();
 
-simulh5_res
-simulh5_grp_time_series_write_values(hid_t group_id, simulh5_grp_time_series);
+simulh5_result
+simulh5_read(simulh5 *sh, hid_t obj_id);
 
-void
-simulh5_grp_time_series_drop(simulh5_grp_time_series);
+void simulh5_free(simulh5 *);
 
 #endif //PHASE2_SIMULH5_H

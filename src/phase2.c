@@ -83,7 +83,6 @@ int main(int argc, char **argv) {
     }
     log_add_fp(log_file, LOG_DEBUG);
 
-
     log_info("Initialize simulation environment");
     circ_env *env = circ_create_env();
     if (env == NULL) {
@@ -105,18 +104,10 @@ int main(int argc, char **argv) {
     }
 
     hid_t simulh5_id = H5Fopen(h5filename, H5F_ACC_RDONLY, H5P_DEFAULT);
-    hid_t pauli_hamil_id = H5Gopen2(simulh5_id, SIMULH5_GRP_PAULI_HAMIL,
-                                    H5P_DEFAULT);
-    simulh5_grp_pauli_hamil ph;
-    simulh5_grp_pauli_hamil_read(pauli_hamil_id, &ph);
-    simulh5_grp_pauli_hamil_drop(ph);
-    H5Gclose(pauli_hamil_id);
-
-    hid_t time_series_id = H5Gopen2(simulh5_id, SIMULH5_GRP_TIME_SERIES,
-                                    H5P_DEFAULT);
-    simulh5_grp_time_series ts;
-    simulh5_grp_time_series_read_times(time_series_id, &ts);
-    H5Gclose(time_series_id);
+    simulh5 *sh = simulh5_create();
+    simulh5_read(sh, simulh5_id);
+    simulh5_free(sh);
+    H5Fclose(simulh5_id);
 
     log_info("*** Circuit ***");
     if (strncmp(argv[1], "linen", 5) == 0) {
