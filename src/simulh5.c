@@ -22,7 +22,6 @@ typedef struct {
 simulh5_result
 simulh5_grp_pauli_hamil_read(hid_t grp_id, simulh5_grp_pauli_hamil *ph) {
 
-    log_debug("Read group " SIMULH5_GRP_PAULI_HAMIL);
     hid_t dset_coeffs_id = H5Dopen2(grp_id,
                                     SIMULH5_GRP_PAULI_HAMIL_COEFFS,
                                     H5P_DEFAULT);
@@ -34,7 +33,6 @@ simulh5_grp_pauli_hamil_read(hid_t grp_id, simulh5_grp_pauli_hamil *ph) {
     hsize_t dspace_coeffs_dims[1];
     H5Sget_simple_extent_dims(dspace_coeffs_id, dspace_coeffs_dims, NULL);
     size_t num_sum_terms = dspace_coeffs_dims[0];
-    log_debug("Number of coefficients: %zu", num_sum_terms);
 
     double *coeffs = malloc(sizeof(double) * num_sum_terms);
     if (coeffs == NULL) {
@@ -65,7 +63,6 @@ simulh5_grp_pauli_hamil_read(hid_t grp_id, simulh5_grp_pauli_hamil *ph) {
         return SIMULH5_ERR;
     }
     size_t num_qubits = dspace_paulis_dims[1];
-    log_debug("Number of qubits %zu", num_qubits);
     unsigned char *paulis = malloc(sizeof(unsigned char *) *
                                    num_sum_terms * num_qubits);
     H5Dread(dset_paulis_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,

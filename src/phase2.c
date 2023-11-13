@@ -14,9 +14,9 @@
 
 #define SIMUL_DEFAULT_H5FILE "simul.h5"
 
-circ_result linen_simulate(circ_env *env, void *data);
+circ_result linen_simulate(circ_env *env, const char *filename);
 
-circ_result rayon_simulate(circ_env *env, const char *hamil_file);
+circ_result rayon_simulate(circ_env *env, const char *filename);
 
 
 void exit_failure() {
@@ -103,16 +103,10 @@ int main(int argc, char **argv) {
         h5filename = argv[2];
     }
 
-    hid_t simulh5_id = H5Fopen(h5filename, H5F_ACC_RDONLY, H5P_DEFAULT);
-    simulh5 *sh = simulh5_create();
-    simulh5_read(sh, simulh5_id);
-    simulh5_free(sh);
-    H5Fclose(simulh5_id);
-
     log_info("*** Circuit ***");
     if (strncmp(argv[1], "linen", 5) == 0) {
         log_info("Circuit: linen");
-        if (linen_simulate(env, NULL) != CIRC_OK) {
+        if (linen_simulate(env, h5filename) != CIRC_OK) {
             exit_failure();
         }
     } else if (strncmp(argv[1], "rayon", 5) == 0) {
@@ -136,11 +130,24 @@ int main(int argc, char **argv) {
 
 
 circ_result
-linen_simulate(circ_env *env, void *data) {
+linen_simulate(circ_env *env, const char *h5filename) {
+
+    log_debug("Read simulation input file: %s", h5filename);
+    hid_t simulh5_id = H5Fopen(h5filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+    simulh5 *sh = simulh5_create();
+    simulh5_read(sh, simulh5_id);
+
+    log_debug("Hamiltonian: num_qubits=%zu, num_sum_terms=%zu",
+              sh->pauli_hamil.num_qubits, sh->pauli_hamil.num_sum_terms);
+    log_debug("Time series: num_steps=%zu",
+              sh->time_series.num_steps);
+
+    simulh5_free(sh);
+    H5Fclose(simulh5_id);
 
     log_debug("Report simulation environment");
     circ_report_env(env);
-    circuit factory = linen_circuit_factory(data);
+    circuit factory = linen_circuit_factory(NULL);
     circ *circ = circ_create(factory, env, NULL);
     if (circ == NULL) {
         log_error("Cannot initialize circuit");
