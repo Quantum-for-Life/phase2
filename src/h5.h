@@ -4,21 +4,19 @@
 #include <stdlib.h>
 #include "hdf5.h"
 
-typedef struct h5_group_hamiltonian_ {
-    size_t num_qubits;
-    size_t num_sum_terms;
+#define H5_GRP_HAMILTONIAN "hamiltonian"
+
+typedef struct h5_grp_hamiltonian {
+    int num_qubits;
+    int num_sum_terms;
     double *coeffs;
-    unsigned char *paulis;
-} h5_group_hamiltonian;
+    int *paulis;
+} h5_grp_hamiltonian;
 
-typedef struct h5_group_time_series_ {
-    size_t steps;
-    double *times;
-    double *values_real;
-    double *values_imag;
-} h5_group_time_series;
+int
+h5_grp_hamiltonian_read(hid_t group_id, h5_grp_hamiltonian *);
 
-h5_group_hamiltonian *
-h5_parse_group_hamiltonian(hid_t group_id);
+void
+h5_grp_hamiltonian_free(h5_grp_hamiltonian);
 
 #endif //PHASE2_H5_H

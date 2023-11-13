@@ -7,6 +7,7 @@
 #include "rayon.h"
 #include "linen.h"
 #include "log/log.h"
+#include "h5.h"
 
 #define PHASE2_LOG_ENVVAR "PHASE2_LOG"
 #define PHASE2_LOG_FILE "simul.log"
@@ -152,77 +153,25 @@ linen_simulate(circ_env *env, void *data) {
 
 
 circ_result rayon_simulate(circ_env *env, const char *hamil_file) {
-
+    herr_t status;
+    (void)status;
     log_info("open data file");
     hid_t file_id = H5Fopen(hamil_file, H5F_ACC_RDWR, H5P_DEFAULT);
 
     log_info("reading hamiltonian data");
     hid_t group_id = H5Gopen1(file_id, "hamiltonian");
 
-    hid_t num_qubits_attr_id = H5Aopen(group_id, "num_qubits", H5P_DEFAULT);
-    int num_qubits;
-    herr_t status;
-    if ((status = H5Aread(num_qubits_attr_id, H5T_NATIVE_INT, &num_qubits)) <
-        0) {
-        log_error("no field: num_qubits");
-        return CIRC_ERR;
-    };
-
-    hid_t num_sum_terms_attr_id = H5Aopen(group_id, "num_sum_terms",
-                                          H5P_DEFAULT);
-    int num_sum_terms;
-    status = H5Aread(num_sum_terms_attr_id, H5T_NATIVE_INT, &num_sum_terms);
-    status = H5Aclose(num_sum_terms_attr_id);
-    status = H5Aclose(num_qubits_attr_id);
-    assert(status >= 0);
-
-    log_info("num qubits: %d, num_sum_terms: %d", num_qubits,
-             num_sum_terms);
-
-    log_info("reading coeffs");
-    hid_t dset_coeffs_id = H5Dopen2(group_id, "coeffs", H5P_DEFAULT);
-    double *coeffs = (double *) malloc(sizeof(double) * num_sum_terms);
-    assert(coeffs != NULL);
-    status = H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-                     H5P_DEFAULT, coeffs);
-    status = H5Dclose(dset_coeffs_id);
-
-//    log_info("computing hamiltonian one-norm");
-//    double hamil_one_norm = 0.0;
-//    for (int i = 0; i < num_sum_terms; i++) {
-//        hamil_one_norm += fabs(coeffs[i]);
-//    }
-//    log_info("norm: %f", hamil_one_norm);
-//    hid_t dspace_hamil_one_norm_id = H5Screate(H5S_SCALAR);
-//    hid_t attr_hamil_one_norm_id = H5Acreate1(group_id, "one_norm",
-//                                              H5T_IEEE_F64LE,
-//                                              dspace_hamil_one_norm_id,
-//                                              H5P_DEFAULT);
-//    status = H5Awrite(attr_hamil_one_norm_id, H5T_NATIVE_DOUBLE,
-//                      &hamil_one_norm);
-//    status = H5Sclose(dspace_hamil_one_norm_id);
-//    status = H5Aclose(attr_hamil_one_norm_id);
-
-    log_info("reading paulis");
-    hid_t dset_paulis_id = H5Dopen2(group_id, "paulis", H5P_DEFAULT);
-    int *paulis = (int *) malloc(sizeof(int) * num_sum_terms * num_qubits);
-    assert(paulis != NULL);
-    status = H5Dread(dset_paulis_id, H5T_NATIVE_INT, H5S_ALL, H5S_ALL,
-                     H5P_DEFAULT, paulis);
-    status = H5Dclose(dset_paulis_id);
-    status = H5Gclose(group_id);
-
-//    log_debug("rescaling hamiltonian");
-//    for (int i = 0; i < num_sum_terms; i++) {
-//        coeffs[i] /= hamil_one_norm;
-//    }
-
+    h5_grp_hamiltonian grp_h;
+    h5_grp_hamiltonian_read(group_id, &grp_h);
+    log_info("num qubits: %d, num_sum_terms: %d", grp_h.num_qubits,
+             grp_h.num_sum_terms);
     log_info("initialize Pauli Hamiltonian");
-    PauliHamil hamil = createPauliHamil(num_qubits, num_sum_terms);
-    initPauliHamil(hamil, coeffs, (enum pauliOpType *) paulis);
+    PauliHamil hamil = createPauliHamil(grp_h.num_qubits, grp_h.num_sum_terms);
+    initPauliHamil(hamil, grp_h.coeffs, (enum pauliOpType *) grp_h.paulis);
     reportPauliHamil(hamil);
-    free(coeffs);
-    free(paulis);
+    h5_grp_hamiltonian_free(grp_h);
+
+
     rayon_circuit_data ct_data = {.hamil = hamil, .data = NULL};
     circuit factory = rayon_circuit_factory(&ct_data);
     factory.num_sys_qb = hamil.numQubits;
@@ -251,7 +200,7 @@ circ_result rayon_simulate(circ_env *env, const char *hamil_file) {
             .time = times[0],
             .imag_switch = 0,
     };
-    factory.num_sys_qb = num_qubits;
+    factory.num_sys_qb = hamil.numQubits;
     circ *circ = circ_create(factory, env, &circ_data);
 
     log_info("evaluating real part of expectation value");
