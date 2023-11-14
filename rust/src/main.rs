@@ -46,7 +46,8 @@ struct circuit {
 }
 
 // #[link(name = "QuEST")]
-#[link(name = "circ")]
+#[link(name = "phase2")]
+#[link(name = "QuEST")]
 #[allow(non_snake_case)]
 extern "C" {
     fn circ_create_env() -> *mut circ_env;

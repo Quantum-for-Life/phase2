@@ -3,7 +3,7 @@ use crate::circ::Circuit;
 mod ffi {
     use crate::circ::ffi::*;
 
-    #[link(name = "linen")]
+    #[link(name = "phase2")]
     extern "C" {
         pub(crate) static linen_circuit: circuit;
     }
