@@ -158,8 +158,7 @@ linen_simulate(circ_env env) {
     log_debug("Report simulation environment");
     circ_env_report(env);
 
-    circuit factory;
-    linen_circuit_init(&factory, NULL);
+    circuit factory = linen_circuit_factory(NULL);
 
     circ c;
     if (circ_init(&c, factory, env, NULL) != CIRC_OK) {

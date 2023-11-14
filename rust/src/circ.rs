@@ -36,7 +36,7 @@ pub(crate) mod ffi {
     #[derive(Debug, Copy, Clone)]
     #[repr(C)]
     pub(crate) struct circ_env {
-        env: quest_sys::QuESTEnv,
+        quest_env: quest_sys::QuESTEnv,
     }
 
     #[derive(Debug, Copy, Clone)]
@@ -49,6 +49,8 @@ pub(crate) mod ffi {
         pub(crate) num_sys_qb: usize,
         pub(crate) num_anc_qb: usize,
 
+        reset: extern "C" fn(c: circ),
+
         state_prep: extern "C" fn(c: circ, data: *mut c_void),
         routine:    extern "C" fn(c: circ, data: *mut c_void),
         state_post: extern "C" fn(c: circ, data: *mut c_void),
@@ -57,7 +59,9 @@ pub(crate) mod ffi {
     #[derive(Debug, Copy, Clone)]
     #[repr(C)]
     pub(crate) struct circ {
-        data:  *mut c_void,
+        ct:   circuit,
+        data: *mut c_void,
+
         env:   circ_env,
         qureg: quest_sys::Qureg,
 
@@ -89,7 +93,6 @@ pub(crate) mod ffi {
         pub(crate) fn circ_drop(c: circ);
 
         pub(crate) fn circ_num_tot_qb(c: circ) -> usize;
-
         pub(crate) fn circ_report(c: circ);
 
         pub(crate) fn circ_reset(c: circ) -> circ_result;
@@ -111,7 +114,7 @@ impl CircEnv {
         let mut env = MaybeUninit::uninit();
         let env_init = unsafe {
             (circ_env_init(env.as_mut_ptr()) == circ_result::CIRC_OK)
-                .then_some(env.assume_init())
+                .then(|| env.assume_init())
                 .ok_or(Error::Init {
                     msg: "cannot initialize environment".to_string(),
                 })
@@ -154,18 +157,17 @@ impl<'a, C, T> Circ<'a, C, T> {
         let mut circ_uninit = MaybeUninit::uninit();
         let mut data = data;
         let data_ptr: *mut T = &mut data;
-        let circ = unsafe {
-            (ffi::circ_init(
+
+        unsafe {
+            ffi::circ_init(
                 circ_uninit.as_mut_ptr(),
                 ct.circuit,
                 env.0,
                 mem::transmute(data_ptr),
-            ) == ffi::circ_result::CIRC_OK)
-                .then_some(circ_uninit.assume_init())
-                .ok_or(Error::Init {
-                    msg: "cannot intialize circuit".to_string(),
-                })
-        }?;
+            )
+        };
+
+        let circ = unsafe { circ_uninit.assume_init() };
 
         Ok(Self {
             env,

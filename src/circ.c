@@ -29,27 +29,27 @@ void circ_env_report(circ_env env) {
     reportQuESTEnv(env.quest_env);
 }
 
-void zero_mea_cl(circ c) {
-    for (size_t i = 0; i < c.ct.num_mea_qb; i++) {
-        c.mea_cl[i] = 0;
+void zero_mea_cl(circ *c) {
+    for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
+        c->mea_cl[i] = 0;
     }
 }
 
-void init_mea_qb(circ c) {
-    for (size_t i = 0; i < c.ct.num_mea_qb; i++) {
-        c.mea_qb[i] = i;
+void init_mea_qb(circ *c) {
+    for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
+        c->mea_qb[i] = i;
     }
 }
 
-void init_sys_qb(circ c) {
-    for (size_t i = 0; i < c.ct.num_sys_qb; i++) {
-        c.sys_qb[i] = c.ct.num_mea_qb + i;
+void init_sys_qb(circ *c) {
+    for (size_t i = 0; i < c->ct.num_sys_qb; i++) {
+        c->sys_qb[i] = c->ct.num_mea_qb + i;
     }
 }
 
-void init_anc_qb(circ c) {
-    for (size_t i = 0; i < c.ct.num_anc_qb; i++) {
-        c.anc_qb[i] = c.ct.num_mea_qb + c.ct.num_sys_qb + i;
+void init_anc_qb(circ *c) {
+    for (size_t i = 0; i < c->ct.num_anc_qb; i++) {
+        c->anc_qb[i] = c->ct.num_mea_qb + c->ct.num_sys_qb + i;
     }
 }
 
@@ -81,10 +81,10 @@ circ_init(circ *c, circuit const ct, circ_env env, void *data) {
             env.quest_env);
     c->simul_counter = 0;
 
-    zero_mea_cl(*c);
-    init_mea_qb(*c);
-    init_sys_qb(*c);
-    init_anc_qb(*c);
+    zero_mea_cl(c);
+    init_mea_qb(c);
+    init_sys_qb(c);
+    init_anc_qb(c);
 
     return CIRC_OK;
 }
@@ -144,7 +144,7 @@ void *circ_circuit_data(circ c) {
 circ_result circ_reset(circ c) {
     log_trace(CIRC_LOG_TAG "reset");
     initZeroState(c.qureg);
-    zero_mea_cl(c);
+    zero_mea_cl(&c);
     if (c.ct.reset != NULL) {
         return c.ct.reset(c);
     }
