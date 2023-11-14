@@ -14,6 +14,5 @@ fn main() {
         "cargo:rustc-link-search=native={}/build/src/",
         dst.display()
     );
-//     println!("cargo:rustc-link-lib=dylib=QuEST");
     println!("cargo:rustc-link-lib=dylib=phase2");
 }
