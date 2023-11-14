@@ -54,7 +54,7 @@ pub(crate) mod ffi {
     }
 
 //     #[link(name = "QuEST")]
-    #[link(name = "circ")]
+    #[link(name = "phase2")]
     #[allow(non_snake_case)]
     extern "C" {
         pub(crate) fn circ_create_env() -> *mut circ_env;
