@@ -1,14 +1,44 @@
+use std::mem;
+
 use crate::circ::Circuit;
 
 mod ffi {
-    use crate::circ::ffi::*;
+    use std::ffi::c_void;
 
-    #[link(name = "phase2")]
+    use crate::circ::ffi::circuit;
+
     extern "C" {
-        pub(crate) static linen_circuit: circuit;
+        pub(crate) fn linen_circuit_factory(data: *mut c_void) -> circuit;
+
     }
 }
 
-pub fn linen_circuit<T>(data: T) -> Circuit<T> {
-    Circuit::with_ffi_circuit_factory(unsafe { ffi::linen_circuit }, data)
+pub(crate) fn linen_circuit_factory<T>(data: T) -> Circuit<T> {
+    let mut data = data;
+    let data_ptr: *mut T = &mut data;
+    let circuit =
+        unsafe { ffi::linen_circuit_factory(mem::transmute(data_ptr)) };
+    Circuit {
+        circuit,
+        data,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use crate::circ::{
+        Circ,
+        CircEnv,
+    };
+
+    #[test]
+    fn linen_circuit() {
+        let env = CircEnv::try_new().unwrap();
+        let ct = linen_circuit_factory(());
+        dbg!(ct.circuit.num_mea_qb);
+        let c = Circ::try_new(&ct, &env, ()).unwrap();
+        c.report();
+    }
 }

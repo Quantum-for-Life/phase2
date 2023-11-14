@@ -56,6 +56,7 @@ void init_anc_qb(circ c) {
 circ_result
 circ_init(circ *c, circuit const ct, circ_env env, void *data) {
     log_debug(CIRC_LOG_TAG "Init circ");
+    log_debug("num_tot: %zu", circ_circuit_num_tot_qb(ct));
 
     int *mea_cl = malloc(sizeof(int) * ct.num_mea_qb);
     double *mea_cl_prob = malloc(sizeof(double) * ct.num_mea_qb);
@@ -77,7 +78,7 @@ circ_init(circ *c, circuit const ct, circ_env env, void *data) {
     c->env = env;
 
     c->qureg = createQureg(
-            circ_circuit_num_tot_qb(ct),
+            (int) circ_circuit_num_tot_qb(ct),
             env.quest_env);
     c->simul_counter = 0;
 
