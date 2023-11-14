@@ -20,7 +20,7 @@ circ_result circ_env_init(circ_env *env) {
     return CIRC_OK;
 }
 
-void circ_env_destroy(circ_env env) {
+void circ_env_drop(circ_env env) {
     log_debug(CIRC_LOG_TAG "Destroy circ_env");
     destroyQuESTEnv(env.quest_env);
 }
@@ -89,7 +89,7 @@ circ_init(circ *c, circuit const ct, circ_env env, void *data) {
     return CIRC_OK;
 }
 
-void circ_destroy(circ c) {
+void circ_drop(circ c) {
     log_debug(CIRC_LOG_TAG "Destroy circ");
     destroyQureg(c.qureg, c.env.quest_env);
     free(c.mea_qb);
