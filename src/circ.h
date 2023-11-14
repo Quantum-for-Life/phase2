@@ -8,6 +8,10 @@
 
 #include "QuEST.h"
 
+typedef struct circ_env_ circ_env;
+typedef struct circuit_ circuit;
+typedef struct circ_ circ;
+
 
 typedef enum {
     CIRC_OK,
@@ -19,15 +23,14 @@ typedef enum {
  * To be created and destroyed _only once_
  * during the experiment.
  */
-typedef struct circ_env_ circ_env;
 
-/** circuit instance.
- */
-typedef struct circ_ circ;
+struct circ_env_ {
+    QuESTEnv quest_env;
+};
 
 /** circuit specification.
  */
-typedef struct circuit_ {
+struct circuit_ {
     const char *name;
     void *data;
 
@@ -40,7 +43,7 @@ typedef struct circuit_ {
      * On top of standard resetting the Qureg and mea_cl.
      * This can be NULL.
      */
-    circ_result (*reset)(circ *);
+    circ_result (*reset)(circ);
 
     /** circuit specification divided into 4 steps.
      *
@@ -57,53 +60,64 @@ typedef struct circuit_ {
      *
      * There pointers can be NULL, meaning the step is not specified.
      */
-    circ_result (*state_prep)(circ *, void *);
+    circ_result (*state_prep)(circ, void *);
 
-    circ_result (*routine)(circ *, void *);
+    circ_result (*routine)(circ, void *);
 
-    circ_result (*state_post)(circ *, void *);
+    circ_result (*state_post)(circ, void *);
 
-} circuit;
+};
 
 
-circ_env *circ_create_env();
+/** circuit instance.
+ */
+struct circ_ {
+    circuit ct;
+    /** Arbitrary data passed during initialization.
+     *
+     * The user is responsible to manage the memory pointed to.
+     */
+    void *data;
 
-void circ_destroy_env(circ_env *);
+    circ_env env;
+    Qureg qureg;
 
-void circ_report_env(circ_env *);
+    /** Subregisters:
+     *
+     *    mea (measurement)
+     *       mea_cl - classical register
+     *       mea_qb - quantum register
+     *    sys (system)
+     *    anc (ancilla)
+     */
+    int *mea_cl;
+    double *mea_cl_prob;
 
-circ *circ_create(circuit, circ_env *, void *);
+    int *mea_qb;
+    int *sys_qb;
+    int *anc_qb;
 
-void circ_destroy(circ *);
+    size_t simul_counter;
+};
 
-int *circ_mea_cl(circ *);
+circ_result circ_env_init(circ_env *);
 
-double *circ_mea_cl_prob(circ *);
+void circ_env_destroy(circ_env);
 
-int *circ_mea_qb(circ *);
+void circ_env_report(circ_env);
 
-int *circ_sys_qb(circ *);
+circ_result circ_init(circ *, circuit, circ_env, void *);
 
-int *circ_anc_qb(circ *);
+void circ_destroy(circ);
 
-size_t circ_num_mea_qb(circ *);
+size_t circ_num_tot_qb(circ);
 
-size_t circ_num_sys_qb(circ *);
+void circ_report(circ);
 
-size_t circ_num_anc_qb(circ *);
+void *circ_circuit_data(circ);
 
-size_t circ_num_tot_qb(circ *);
+circ_result circ_reset(circ);
 
-const char *circ_name(circ *);
-
-void circ_report(circ *);
-
-void *circ_circuit_data(circ *);
-
-Qureg circ_qureg(circ *);
-
-circ_result circ_reset(circ *);
-
-circ_result circ_simulate(circ *);
+circ_result circ_simulate(circ);
 
 #endif //PHASE2_CIRC_H

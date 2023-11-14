@@ -13,9 +13,9 @@
 
 #define PHASE2_DEFAULT_H5FILE "simul.h5"
 
-circ_result linen_simulate(circ_env *env);
+circ_result linen_simulate(circ_env env);
 
-circ_result rayon_simulate(circ_env *env, sdat_pauli_hamil ph,
+circ_result rayon_simulate(circ_env env, sdat_pauli_hamil ph,
                            sdat_time_series *ts);
 
 void exit_failure() {
@@ -83,8 +83,8 @@ int main(int argc, char **argv) {
     log_add_fp(log_file, LOG_DEBUG);
 
     log_info("Initialize simulation environment");
-    circ_env *env = circ_create_env();
-    if (env == NULL) {
+    circ_env env;
+    if (circ_env_init(&env) != CIRC_OK) {
         exit_failure();
     }
 
@@ -144,7 +144,7 @@ int main(int argc, char **argv) {
     sdat_time_series_drop(dat_ts);
 
     log_info("Shut down simulation environment");
-    circ_destroy_env(env);
+    circ_env_destroy(env);
 
     log_info("Done");
     fclose(log_file);
@@ -153,22 +153,22 @@ int main(int argc, char **argv) {
 
 
 circ_result
-linen_simulate(circ_env *env) {
+linen_simulate(circ_env env) {
 
     log_debug("Report simulation environment");
-    circ_report_env(env);
+    circ_env_report(env);
     circuit factory = linen_circuit_factory(NULL);
-    circ *circ = circ_create(factory, env, NULL);
-    if (circ == NULL) {
+    circ c;
+    if (circ_init(&c, factory, env, NULL) != CIRC_OK) {
         log_error("Cannot initialize circuit");
         return CIRC_ERR;
     }
     log_debug("\"linen\" circuit created");
-    circ_report(circ);
+    circ_report(c);
     log_debug("Simulating circuit");
-    circ_simulate(circ);
+    circ_simulate(c);
     log_debug("Free circuit instance");
-    circ_destroy(circ);
+    circ_destroy(c);
 
     return CIRC_OK;
 }
@@ -180,7 +180,7 @@ rayon_simulate_cleanup(PauliHamil hamil) {
 }
 
 circ_result
-rayon_simulate(circ_env *env, sdat_pauli_hamil ph,
+rayon_simulate(circ_env env, sdat_pauli_hamil ph,
                sdat_time_series *ts) {
     log_info("initialize Pauli Hamiltonian");
     PauliHamil hamil = createPauliHamil(ph.num_qubits, ph.num_sum_terms);
@@ -196,24 +196,28 @@ rayon_simulate(circ_env *env, sdat_pauli_hamil ph,
     rayon_circuit_data ct_data = {.hamil = hamil, .data = NULL};
     circuit factory = rayon_circuit_factory(&ct_data);
     rayon_circ_data circ_data = {.imag_switch = 0, .time = 0.0};
-    circ *circ = circ_create(factory, env, &circ_data);
+    circ c;
+    if (circ_init(&c, factory, env, &circ_data) != CIRC_OK) {
+        log_error("Cannot initialize circuit");
+        return CIRC_ERR;
+    }
 
     double prob_0;
-    int *mea_cl = circ_mea_cl(circ);
-    double *mea_cl_prob = circ_mea_cl_prob(circ);
+
     circ_data.imag_switch = 0;
     while (circ_data.imag_switch <= 1) {
         size_t offset = circ_data.imag_switch == 0 ? 0 : 1;
         for (size_t i = 0; i < ts->num_steps; i++) {
             circ_data.time = ts->times[i];
 
-            if (circ_simulate(circ) != CIRC_OK) {
+            if (circ_simulate(c) != CIRC_OK) {
                 log_error("Simulation error");
                 rayon_simulate_cleanup(hamil);
                 return CIRC_ERR;
             }
 
-            prob_0 = mea_cl[0] == 0 ? mea_cl_prob[0] : 1.0 - mea_cl_prob[0];
+            prob_0 = c.mea_cl[0] == 0 ? c.mea_cl_prob[0] : 1.0 -
+                                                           c.mea_cl_prob[0];
             ts->values[2 * i + offset] = 2 * prob_0 - 1;
         }
         circ_data.imag_switch++;
