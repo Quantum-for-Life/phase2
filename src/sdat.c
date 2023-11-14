@@ -87,6 +87,7 @@ sdat_pauli_hamil_read(sdat_pauli_hamil *dat, hid_t obj_id) {
     dset_coeffs_fail:
     H5Gclose(grp_id);
     grp_fail:
+
     return res;
 }
 
@@ -168,6 +169,7 @@ sdat_time_series_read(sdat_time_series *dat, hid_t obj_id) {
     dset_times_fail:
     H5Gclose(grp_id);
     grp_fail:
+
     return res;
 }
 
@@ -211,6 +213,7 @@ sdat_result sdat_time_series_write(sdat_time_series dat, hid_t obj_id) {
     dset_times_fail:
     H5Gclose(grp_id);
     grp_fail:
+    
     return res;
 }
 

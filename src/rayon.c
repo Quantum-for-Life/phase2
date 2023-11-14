@@ -14,6 +14,7 @@
 
 circ_result rayon_reset(circ c) {
     (void) c;
+
     return CIRC_OK;
 }
 
@@ -32,7 +33,7 @@ circ_result rayon_state_prep(circ c, void *data) {
 }
 
 circ_result rayon_routine(circ c, void *data) {
-    PauliHamil *hamil = (PauliHamil *) circ_circuit_data(c);
+    PauliHamil *hamil = (PauliHamil *) c.data;
 
     rayon_circ_data *d = (rayon_circ_data *) data;
     double time = d->time;
@@ -79,5 +80,6 @@ circuit rayon_circuit_factory(rayon_circuit_data *data) {
             .routine = rayon_routine,
             .state_post = rayon_state_post,
     };
+    
     return ct;
 }

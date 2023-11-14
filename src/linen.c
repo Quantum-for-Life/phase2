@@ -15,6 +15,7 @@
 circ_result linen_reset(circ c) {
     (void) c;
     log_debug(">>> reset");
+
     return CIRC_OK;
 }
 
@@ -22,6 +23,7 @@ circ_result linen_state_prep(circ c, void *data) {
     (void) c;
     (void) data;
     log_debug(">>> state_prep");
+
     return CIRC_OK;
 }
 
@@ -29,6 +31,7 @@ circ_result linen_routine(circ c, void *data) {
     (void) c;
     (void) data;
     log_debug(">>> routine");
+
     return CIRC_OK;
 }
 
@@ -36,13 +39,7 @@ circ_result linen_state_post(circ c, void *data) {
     (void) c;
     (void) data;
     log_debug(">>> state_post");
-    return CIRC_OK;
-}
 
-circ_result linen_measure(circ c, void *data) {
-    (void) c;
-    (void) data;
-    log_debug(">>> measure");
     return CIRC_OK;
 }
 
@@ -59,5 +56,6 @@ linen_circuit_factory(void *data) {
             .routine = linen_routine,
             .state_post = linen_state_post,
     };
+    
     return ct;
 }

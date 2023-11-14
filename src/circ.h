@@ -12,7 +12,6 @@ typedef struct circ_env_ circ_env;
 typedef struct circuit_ circuit;
 typedef struct circ_ circ;
 
-
 typedef enum {
     CIRC_OK,
     CIRC_ERR,
@@ -65,7 +64,6 @@ struct circuit_ {
     circ_result (*routine)(circ, void *);
 
     circ_result (*state_post)(circ, void *);
-
 };
 
 
@@ -113,8 +111,6 @@ void circ_destroy(circ);
 size_t circ_num_tot_qb(circ);
 
 void circ_report(circ);
-
-void *circ_circuit_data(circ);
 
 circ_result circ_reset(circ);
 
