@@ -43,19 +43,15 @@ circ_result linen_state_post(circ c, void *data) {
     return CIRC_OK;
 }
 
-circuit
-linen_circuit_factory(void *data) {
-    circuit ct = {
-            .name = LINEN_NAME,
-            .data = data,
-            .num_mea_qb = LINEN_DEFAULT_NUM_MEA_QB,
-            .num_sys_qb = LINEN_DEFAULT_NUM_SYS_QB,
-            .num_anc_qb = LINEN_DEFAULT_NUM_ANC_QB,
-            .reset = linen_reset,
-            .state_prep = linen_state_prep,
-            .routine = linen_routine,
-            .state_post = linen_state_post,
-    };
-    
-    return ct;
+void
+linen_circuit_init(circuit *ct, void *data) {
+    ct->name = LINEN_NAME;
+    ct->data = data;
+    ct->num_mea_qb = LINEN_DEFAULT_NUM_MEA_QB;
+    ct->num_sys_qb = LINEN_DEFAULT_NUM_SYS_QB;
+    ct->num_anc_qb = LINEN_DEFAULT_NUM_ANC_QB;
+    ct->reset = linen_reset;
+    ct->state_prep = linen_state_prep;
+    ct->routine = linen_routine;
+    ct->state_post = linen_state_post;
 }

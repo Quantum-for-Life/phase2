@@ -151,17 +151,17 @@ impl<'a, C, T> Circ<'a, C, T> {
         env: &'a CircEnv,
         data: T,
     ) -> Result<Self, Error> {
-        let mut circ = MaybeUninit::uninit();
+        let mut circ_uninit = MaybeUninit::uninit();
         let mut data = data;
         let data_ptr: *mut T = &mut data;
-        let circ_init = unsafe {
+        let circ = unsafe {
             (ffi::circ_init(
-                circ.as_mut_ptr(),
+                circ_uninit.as_mut_ptr(),
                 ct.circuit,
                 env.0,
                 mem::transmute(data_ptr),
             ) == ffi::circ_result::CIRC_OK)
-                .then_some(circ.assume_init())
+                .then_some(circ_uninit.assume_init())
                 .ok_or(Error::Init {
                     msg: "cannot intialize circuit".to_string(),
                 })
@@ -170,7 +170,7 @@ impl<'a, C, T> Circ<'a, C, T> {
         Ok(Self {
             env,
             ct,
-            circ: circ_init,
+            circ,
             data,
         })
     }
