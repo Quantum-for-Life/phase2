@@ -18,7 +18,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-STEPS = 1111
+STEPS = 111
 TIMES = [float(x) for x in range(0, STEPS)]
 VALUES = np.zeros((STEPS, 2), dtype='d')
 

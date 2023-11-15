@@ -112,6 +112,6 @@ void circ_report(circ);
 
 circ_result circ_reset(circ);
 
-circ_result circ_simulate(circ);
+circ_result circ_simulate(circ *);
 
 #endif //PHASE2_CIRC_H

@@ -1,5 +1,3 @@
-find_package(HDF5 REQUIRED)
-include_directories(${HDF5_INCLUDE_DIRS})
 
 set(CMAKE_C_FLAGS "-Wall -Wextra -Werror")
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror")
