@@ -7,10 +7,6 @@
 #include "linen.h"
 #include "log/log.h"
 
-#define LINEN_NAME "linen"
-#define LINEN_DEFAULT_NUM_MEA_QB 3
-#define LINEN_DEFAULT_NUM_SYS_QB 3
-#define LINEN_DEFAULT_NUM_ANC_QB 3
 
 circ_result linen_reset(circ c) {
     (void) c;
@@ -56,6 +52,6 @@ linen_circuit_factory(void *data) {
             .routine = linen_routine,
             .state_post = linen_state_post,
     };
-    
+
     return ct;
 }

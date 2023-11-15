@@ -206,6 +206,7 @@ rayon_simulate(circ_env env, sdat_pauli_hamil ph,
 
     double prob_0;
 
+    log_debug("Iteration");
     circ_data.imag_switch = 0;
     while (circ_data.imag_switch <= 1) {
         size_t offset = circ_data.imag_switch == 0 ? 0 : 1;
