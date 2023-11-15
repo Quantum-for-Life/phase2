@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <mpi/mpi.h>
 #include "hdf5.h"
 
 #include "circ.h"
@@ -73,7 +74,29 @@ void set_log_level() {
 int main(int argc, char **argv) {
 
     set_log_level();
+
+#ifdef DISTRIBUTED
     log_info("*** Init ***");
+
+    log_info("Initialize MPI environment");
+    int initialized, rank, num_ranks;
+    MPI_Initialized(&initialized);
+    if (!initialized) {
+        MPI_Init(NULL, NULL);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    log_info("MPI num_ranks: %d", num_ranks);
+    log_info("This is rank no. %d", rank);
+#else
+    log_info("*** Init ***");
+
+    log_info("MPI mode not enabled.");
+    log_info("To enable distributed mode, use "
+             "-DDISTRIBUTED "
+             "flag during compilation");
+#endif
+
     log_info("Open log file: " PHASE2_LOG_FILE);
     FILE *log_file = fopen(PHASE2_LOG_FILE, "a");
     if (log_file == NULL) {

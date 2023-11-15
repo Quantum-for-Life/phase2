@@ -13,6 +13,7 @@ add_library(phase2 SHARED
 )
 target_link_libraries(phase2
         QuEST m
+        mpi
         ${HDF5_LIBRARIES}
 )
 
@@ -22,4 +23,5 @@ add_executable(ph2run
 target_link_libraries(ph2run
         phase2
         QuEST m
+        mpi
 )
