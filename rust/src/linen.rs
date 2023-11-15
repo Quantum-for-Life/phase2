@@ -1,14 +1,42 @@
-use crate::circ::Circuit;
+use std::{
+    mem,
+    mem::MaybeUninit,
+};
+
+use crate::circ::{
+    ffi::circuit,
+    Circuit,
+};
 
 mod ffi {
-    use crate::circ::ffi::*;
+    use std::ffi::c_void;
 
-    #[link(name = "phase2")]
+    use crate::circ::ffi::circuit;
+
     extern "C" {
-        pub(crate) static linen_circuit: circuit;
+        pub(crate) fn linen_circuit_factory(data: *mut c_void) -> circuit;
+
     }
 }
 
-pub fn linen_circuit<T>(data: T) -> Circuit<T> {
-    Circuit::with_ffi_circuit_factory(unsafe { ffi::linen_circuit }, data)
+#[derive(Debug)]
+pub struct LinenCircuit<T>(Circuit<T>);
+
+impl<T> LinenCircuit<T> {
+    pub fn new(data: T) -> Self {
+        let mut data = data;
+        let data_ptr: *mut T = &mut data;
+        let circuit =
+            unsafe { ffi::linen_circuit_factory(mem::transmute(data_ptr)) };
+        Self(Circuit {
+            ct: circuit,
+            data,
+        })
+    }
+}
+
+impl<T> AsRef<Circuit<T>> for LinenCircuit<T> {
+    fn as_ref(&self) -> &Circuit<T> {
+        &self.0
+    }
 }

@@ -3,6 +3,6 @@
 
 #include "circ.h"
 
-circuit linen_circuit_factory(void *);
+circuit linen_circuit_factory(void *data);
 
 #endif //PHASE2_LINEN_H

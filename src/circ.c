@@ -20,7 +20,7 @@ circ_result circ_env_init(circ_env *env) {
     return CIRC_OK;
 }
 
-void circ_env_destroy(circ_env env) {
+void circ_env_drop(circ_env env) {
     log_debug(CIRC_LOG_TAG "Destroy circ_env");
     destroyQuESTEnv(env.quest_env);
 }
@@ -29,48 +29,33 @@ void circ_env_report(circ_env env) {
     reportQuESTEnv(env.quest_env);
 }
 
-void zero_mea_cl(circ c) {
-    for (size_t i = 0; i < c.ct.num_mea_qb; i++) {
-        c.mea_cl[i] = 0;
+void zero_mea_cl(circ *c) {
+    for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
+        c->mea_cl[i] = 0;
     }
 }
 
-void init_mea_qb(circ c) {
-    for (size_t i = 0; i < c.ct.num_mea_qb; i++) {
-        c.mea_qb[i] = i;
+void init_mea_qb(circ *c) {
+    for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
+        c->mea_qb[i] = i;
     }
 }
 
-void init_sys_qb(circ c) {
-    for (size_t i = 0; i < c.ct.num_sys_qb; i++) {
-        c.sys_qb[i] = c.ct.num_mea_qb + i;
+void init_sys_qb(circ *c) {
+    for (size_t i = 0; i < c->ct.num_sys_qb; i++) {
+        c->sys_qb[i] = c->ct.num_mea_qb + i;
     }
 }
 
-void init_anc_qb(circ c) {
-    for (size_t i = 0; i < c.ct.num_anc_qb; i++) {
-        c.anc_qb[i] = c.ct.num_mea_qb + c.ct.num_sys_qb + i;
+void init_anc_qb(circ *c) {
+    for (size_t i = 0; i < c->ct.num_anc_qb; i++) {
+        c->anc_qb[i] = c->ct.num_mea_qb + c->ct.num_sys_qb + i;
     }
 }
 
 circ_result
 circ_init(circ *c, circuit const ct, circ_env env, void *data) {
     log_debug(CIRC_LOG_TAG "Init circ");
-
-    int *mea_cl = malloc(sizeof(int) * ct.num_mea_qb);
-    double *mea_cl_prob = malloc(sizeof(double) * ct.num_mea_qb);
-    int *mea_qb = malloc(sizeof(int) * circ_circuit_num_tot_qb(ct));
-    if (!(mea_cl && mea_cl_prob && mea_qb)) {
-        free(mea_qb);
-        free(mea_cl_prob);
-        free(mea_cl);
-        return CIRC_ERR;
-    }
-    c->mea_cl = mea_cl;
-    c->mea_cl_prob = mea_cl_prob;
-    c->mea_qb = mea_qb;
-    c->sys_qb = c->mea_qb + ct.num_mea_qb;
-    c->anc_qb = c->sys_qb + ct.num_sys_qb;
 
     c->ct = ct;
     c->data = data;
@@ -79,35 +64,49 @@ circ_init(circ *c, circuit const ct, circ_env env, void *data) {
     c->qureg = createQureg(
             circ_circuit_num_tot_qb(ct),
             env.quest_env);
+
+    int *mea_cl = malloc(sizeof(int) * ct.num_mea_qb);
+    double *mea_cl_prob = malloc(sizeof(double) * ct.num_mea_qb);
+    int *mea_qb = malloc(sizeof(int) * ct.num_mea_qb);
+    int *sys_qb = malloc(sizeof(int) * ct.num_sys_qb);
+    int *anc_qb = malloc(sizeof(int) * ct.num_anc_qb);
+    if (!(mea_cl && mea_cl_prob && mea_qb && sys_qb && anc_qb)) {
+        free(anc_qb);
+        free(sys_qb);
+        free(mea_qb);
+        free(mea_cl_prob);
+        free(mea_cl);
+        return CIRC_ERR;
+    }
+    c->mea_cl = mea_cl;
+    c->mea_cl_prob = mea_cl_prob;
+    c->mea_qb = mea_qb;
+    c->sys_qb = sys_qb;
+    c->anc_qb = anc_qb;
+
     c->simul_counter = 0;
 
-    zero_mea_cl(*c);
-    init_mea_qb(*c);
-    init_sys_qb(*c);
-    init_anc_qb(*c);
+    zero_mea_cl(c);
+    init_mea_qb(c);
+    init_sys_qb(c);
+    init_anc_qb(c);
 
     return CIRC_OK;
 }
 
-void circ_destroy(circ c) {
+void circ_drop(circ c) {
     log_debug(CIRC_LOG_TAG "Destroy circ");
     destroyQureg(c.qureg, c.env.quest_env);
     free(c.mea_qb);
+    free(c.sys_qb);
+    free(c.anc_qb);
     free(c.mea_cl_prob);
     free(c.mea_cl);
 }
 
-size_t circ_num_tot_qb(circ c) {
-    return circ_circuit_num_tot_qb(c.ct);
-}
-
-const char *circ_name(circ c) {
-    return c.ct.name;
-}
-
 void circ_report(circ c) {
     printf("----------------\n");
-    printf("CIRCUIT: %s\n", circ_name(c));
+    printf("CIRCUIT: %s\n", c.ct.name);
     reportQuregParams(c.qureg);
 
     printf("mea_cl register: [");
@@ -136,15 +135,10 @@ void circ_report(circ c) {
     printf("----------------\n");
 }
 
-void *circ_circuit_data(circ c) {
-    return c.ct.data;
-}
-
-
 circ_result circ_reset(circ c) {
     log_trace(CIRC_LOG_TAG "reset");
     initZeroState(c.qureg);
-    zero_mea_cl(c);
+    zero_mea_cl(&c);
     if (c.ct.reset != NULL) {
         return c.ct.reset(c);
     }

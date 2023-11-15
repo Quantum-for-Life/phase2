@@ -100,15 +100,13 @@ struct circ_ {
 
 circ_result circ_env_init(circ_env *);
 
-void circ_env_destroy(circ_env);
+void circ_env_drop(circ_env);
 
 void circ_env_report(circ_env);
 
 circ_result circ_init(circ *, circuit, circ_env, void *);
 
-void circ_destroy(circ);
-
-size_t circ_num_tot_qb(circ);
+void circ_drop(circ);
 
 void circ_report(circ);
 

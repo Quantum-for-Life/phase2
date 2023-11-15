@@ -1,214 +1,220 @@
+#![allow(non_snake_case)]
+#![allow(non_camel_case_types)]
+#![allow(dead_code)]
+#![allow(clippy::upper_case_acronyms)]
+
 use std::{
-    ffi::CStr,
     mem,
-    ops::DerefMut,
-    str::Utf8Error,
+    mem::MaybeUninit,
 };
 
 use crate::circ::ffi::{
-    circ_name,
+    circ_env_init,
     circ_report,
-    circ_reset,
-    circ_simulate,
+    circ_result,
 };
 
 pub(crate) mod ffi {
     use std::ffi::{
         c_char,
+        c_double,
         c_int,
         c_void,
     };
 
-    #[derive(Debug, Copy, Clone)]
+    use crate::{
+        quest_sys,
+        quest_sys::Qureg,
+    };
+
+    #[derive(Debug, Copy, Clone, PartialEq)]
     #[repr(C)]
-    #[allow(non_camel_case_types)]
     pub(crate) enum circ_result {
         CIRC_OK,
         CIRC_ERR,
     }
 
-    #[allow(non_camel_case_types)]
-    pub(crate) type circ_env = c_void;
-
-    #[allow(non_camel_case_types)]
-    pub(crate) type circ = c_void;
+    #[derive(Debug, Copy, Clone)]
+    #[repr(C)]
+    pub(crate) struct circ_env {
+        quest_env: quest_sys::QuESTEnv,
+    }
 
     #[derive(Debug, Copy, Clone)]
     #[repr(C)]
-    #[allow(non_camel_case_types)]
     pub(crate) struct circuit {
         pub(crate) name: *const c_char,
         pub(crate) data: *mut c_void,
 
-        pub(crate) num_mea_cl: usize,
         pub(crate) num_mea_qb: usize,
         pub(crate) num_sys_qb: usize,
         pub(crate) num_anc_qb: usize,
 
-        reset: extern "C" fn(*mut circ) -> circ_result,
+        reset: extern "C" fn(c: circ) -> circ_result,
 
-        state_prep: extern "C" fn(*mut circ, *mut c_void) -> circ_result,
-        routine:    extern "C" fn(*mut circ, *mut c_void) -> circ_result,
-        state_post: extern "C" fn(*mut circ, *mut c_void) -> circ_result,
-        measure:    extern "C" fn(*mut circ, *mut c_void) -> circ_result,
+        state_prep: extern "C" fn(c: circ, data: *mut c_void) -> circ_result,
+        routine:    extern "C" fn(c: circ, data: *mut c_void) -> circ_result,
+        state_post: extern "C" fn(c: circ, data: *mut c_void) -> circ_result,
     }
 
-//     #[link(name = "QuEST")]
-    #[link(name = "phase2")]
-    #[allow(non_snake_case)]
+    #[derive(Debug, Copy, Clone)]
+    #[repr(C)]
+    pub(crate) struct circ {
+        ct:   circuit,
+        data: *mut c_void,
+
+        env:   circ_env,
+        qureg: Qureg,
+
+        mea_cl:      *mut c_int,
+        mea_cl_prob: *mut c_double,
+
+        mea_qb: *mut c_int,
+        sys_qb: *mut c_int,
+        anc_qb: *mut c_int,
+
+        simul_counter: usize,
+    }
+
     extern "C" {
-        pub(crate) fn circ_create_env() -> *mut circ_env;
-        pub(crate) fn circ_destroy_env(env: *mut circ_env);
-        pub(crate) fn circ_report_env(env: *mut circ_env);
 
-        pub(crate) fn circ_create(
+        pub(crate) fn circ_env_init(env: *mut circ_env) -> circ_result;
+
+        pub(crate) fn circ_env_drop(env: circ_env);
+
+        pub(crate) fn circ_env_report(env: circ_env);
+
+        pub(crate) fn circ_init(
+            c: *mut circ,
             ct: circuit,
-            env: *const circ_env,
+            env: circ_env,
             data: *mut c_void,
-        ) -> *mut circ;
-        pub(crate) fn circ_destroy(c: *mut circ);
+        ) -> circ_result;
 
-        pub(crate) fn circ_mea_cl(c: *mut circ) -> *mut c_int;
-        pub(crate) fn circ_mea_qb(c: *mut circ) -> *mut c_int;
-        pub(crate) fn circ_sys_qb(c: *mut circ) -> *mut c_int;
-        pub(crate) fn circ_anc_qb(c: *mut circ) -> *mut c_int;
+        pub(crate) fn circ_drop(c: circ);
 
-        pub(crate) fn circ_num_mea_cl(c: *mut circ) -> usize;
-        pub(crate) fn circ_num_mea_qb(c: *mut circ) -> usize;
-        pub(crate) fn circ_num_sys_qb(c: *mut circ) -> usize;
-        pub(crate) fn circ_num_anc_qb(c: *mut circ) -> usize;
-        pub(crate) fn circ_num_tot_qb(c: *mut circ) -> usize;
+        pub(crate) fn circ_num_tot_qb(c: circ) -> usize;
+        pub(crate) fn circ_report(c: circ);
 
-        pub(crate) fn circ_name(c: *mut circ) -> *const c_char;
+        pub(crate) fn circ_reset(c: circ) -> circ_result;
 
-        pub(crate) fn circ_report(c: *mut circ);
+        pub(crate) fn circ_simulate(c: circ) -> circ_result;
 
-        pub(crate) fn circ_circuit_data(c: *mut circ) -> *mut c_void;
-
-        // Qureg circ_qureg(circ *);
-
-        pub(crate) fn circ_reset(c: *mut circ) -> circ_result;
-
-        pub(crate) fn circ_simulate(c: *mut circ) -> circ_result;
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug)]
 pub enum Error {
-    Reset,
-    Simulate,
+    Init { msg: String },
 }
 
-pub struct CircEnv(*mut ffi::circ_env);
+pub struct CircEnv {
+    env: ffi::circ_env,
+}
 
 impl CircEnv {
-    pub fn new() -> Self {
-        Self(unsafe { ffi::circ_create_env() })
+    pub fn try_new() -> Result<Self, Error> {
+        let mut env_uninit = MaybeUninit::uninit();
+
+        let env = (unsafe { circ_env_init(env_uninit.as_mut_ptr()) }
+            == circ_result::CIRC_OK)
+            .then(|| unsafe { env_uninit.assume_init() })
+            .ok_or(Error::Init {
+                msg: "cannot initialize environment".to_string(),
+            })?;
+
+        Ok(Self {
+            env,
+        })
     }
 
     pub fn report(&self) {
-        unsafe { ffi::circ_report_env(self.0) };
+        unsafe {
+            ffi::circ_env_report(self.env);
+        }
     }
 }
 
 impl Drop for CircEnv {
     fn drop(&mut self) {
-        unsafe { ffi::circ_destroy_env(self.0) }
+        unsafe { ffi::circ_env_drop(self.env) }
     }
 }
 
-pub struct Circ<'e, T> {
-    circ: *mut ffi::circ,
-    env:  &'e CircEnv,
+#[derive(Debug)]
+pub struct Circuit<T> {
+    pub(crate) ct:   ffi::circuit,
+    pub(crate) data: T,
+}
+
+pub struct Circ<'a, C, T> {
+    circ: ffi::circ,
+    env:  &'a CircEnv,
+    ct:   &'a Circuit<C>,
     data: T,
 }
 
-impl<'e, T> Circ<'e, T> {
-    pub fn new<K>(
-        ct: Circuit<K>,
-        env: &'e CircEnv,
+impl<'a, C, T> Circ<'a, C, T> {
+    pub fn try_new<Ct>(
+        ct: &'a Ct,
+        env: &'a CircEnv,
         data: T,
-    ) -> Self {
+    ) -> Result<Self, Error>
+    where
+        Ct: AsRef<Circuit<C>>,
+    {
         let mut data = data;
-        let circ = {
-            let data_ptr: *mut T = &mut data;
-            unsafe { ffi::circ_create(ct.ct, env.0, mem::transmute(data_ptr)) }
-        };
+        let data_ptr: *mut T = &mut data;
 
-        Self {
-            circ,
+        let mut circ_uninit = MaybeUninit::uninit();
+        let circ = (unsafe {
+            ffi::circ_init(
+                circ_uninit.as_mut_ptr(),
+                ct.as_ref().ct,
+                env.env,
+                mem::transmute(data_ptr),
+            )
+        } == circ_result::CIRC_OK)
+            .then(|| unsafe { circ_uninit.assume_init() })
+            .ok_or(Error::Init {
+                msg: "circ initialization".to_string(),
+            })?;
+
+        Ok(Self {
             env,
+            ct: ct.as_ref(),
+            circ,
             data,
-        }
-    }
-
-    pub fn name(&self) -> Result<&str, Utf8Error> {
-        let name_ptr = unsafe { circ_name(self.circ) };
-        unsafe { CStr::from_ptr(name_ptr) }.to_str()
+        })
     }
 
     pub fn report(&self) {
-        unsafe { circ_report(self.circ) }
-    }
-
-    pub fn data(&self) -> &T {
-        &self.data
-    }
-
-    pub fn data_mut(&mut self) -> &mut T {
-        &mut self.data
-    }
-
-    pub fn reset(&mut self) -> Result<(), Error> {
-        match unsafe { circ_reset(self.circ) } {
-            ffi::circ_result::CIRC_OK => Ok(()),
-            ffi::circ_result::CIRC_ERR => Err(Error::Reset),
-        }
-    }
-
-    pub fn simulate(&mut self) -> Result<(), Error> {
-        match unsafe { circ_simulate(self.circ) } {
-            ffi::circ_result::CIRC_OK => Ok(()),
-            ffi::circ_result::CIRC_ERR => Err(Error::Simulate),
-        }
-    }
-}
-
-impl<'e, T> Drop for Circ<'e, T> {
-    fn drop(&mut self) {
         unsafe {
-            ffi::circ_destroy(self.circ);
+            circ_report(self.circ);
         }
     }
 }
-
-#[derive(Copy, Clone)]
-pub struct Circuit<T> {
-    ct:   ffi::circuit,
-    data: T,
+impl<'a, C, T> Drop for Circ<'a, C, T> {
+    fn drop(&mut self) {
+        unsafe { ffi::circ_drop(self.circ) }
+    }
 }
 
-impl<T> Circuit<T> {
-    pub(crate) fn with_ffi_circuit_factory(
-        ct: ffi::circuit,
-        data: T,
-    ) -> Self {
-        let mut ct = ct;
-        let mut data = data;
-        let data_ptr: *mut T = &mut data;
-        ct.data = unsafe { mem::transmute(data_ptr) };
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::linen::LinenCircuit;
 
-        Self {
-            ct,
-            data,
-        }
+    #[test]
+    fn report_circ_env() {
+        let env = CircEnv::try_new().unwrap();
+        env.report();
     }
 
-    pub fn data(&self) -> &T {
-        &self.data
-    }
-
-    pub fn data_mut(&mut self) -> &mut T {
-        &mut self.data
+    #[test]
+    fn circ_init() {
+        let env = CircEnv::try_new().unwrap();
+        let ct = LinenCircuit::new(0);
+        let c = Circ::try_new(&ct, &env, 1).unwrap();
     }
 }

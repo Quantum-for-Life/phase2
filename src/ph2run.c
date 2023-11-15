@@ -144,7 +144,7 @@ int main(int argc, char **argv) {
     sdat_time_series_drop(dat_ts);
 
     log_info("Shut down simulation environment");
-    circ_env_destroy(env);
+    circ_env_drop(env);
 
     log_info("Done");
     fclose(log_file);
@@ -157,7 +157,9 @@ linen_simulate(circ_env env) {
 
     log_debug("Report simulation environment");
     circ_env_report(env);
+
     circuit factory = linen_circuit_factory(NULL);
+
     circ c;
     if (circ_init(&c, factory, env, NULL) != CIRC_OK) {
         log_error("Cannot initialize circuit");
@@ -168,7 +170,7 @@ linen_simulate(circ_env env) {
     log_debug("Simulating circuit");
     circ_simulate(c);
     log_debug("Free circuit instance");
-    circ_destroy(c);
+    circ_drop(c);
 
     return CIRC_OK;
 }
