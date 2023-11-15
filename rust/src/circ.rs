@@ -98,7 +98,7 @@ pub(crate) mod ffi {
 
         pub(crate) fn circ_reset(c: circ) -> circ_result;
 
-        pub(crate) fn circ_simulate(c: circ) -> circ_result;
+        pub(crate) fn circ_simulate(c: *mut circ) -> circ_result;
 
     }
 }
