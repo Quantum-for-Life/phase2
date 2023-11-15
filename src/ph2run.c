@@ -74,7 +74,6 @@ void set_log_level() {
 int main(int argc, char **argv) {
 
     set_log_level();
-    log_info("*** Init ***");
 
 #ifdef DISTRIBUTED
 
@@ -85,12 +84,12 @@ int main(int argc, char **argv) {
     }
     MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    log_info("*** Init ***");
     log_info("Initialize MPI environment");
     log_info("MPI num_ranks: %d", num_ranks);
     log_info("This is rank no. %d", rank);
 #else
     log_info("*** Init ***");
-
     log_info("MPI mode not enabled.");
     log_info("To enable distributed mode, use "
              "-DDISTRIBUTED "
@@ -126,16 +125,19 @@ int main(int argc, char **argv) {
     }
 
     log_debug("Read simulation input file: %s", h5filename);
+
+    hid_t file_id, access_plist;
 #ifdef DISTRIBUTED
     log_debug("Open H5 file in distributed mode");
-    hid_t access_plist = H5Pcreate(H5P_FILE_ACCESS);
+    access_plist = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
 
     // H5Fopen must be called collectively
-    hid_t file_id = H5Fopen(h5filename, H5F_ACC_RDONLY, access_plist);
 #else
-    hid_t file_id = H5Fopen(h5filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+    access_plist = H5P_DEFAULT;
 #endif
+    file_id = H5Fopen(h5filename, H5F_ACC_RDONLY, access_plist);
+
     sdat_pauli_hamil dat_ph;
     sdat_pauli_hamil_init(&dat_ph);
     sdat_pauli_hamil_read(&dat_ph, file_id);
@@ -172,10 +174,11 @@ int main(int argc, char **argv) {
     H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
 
     // H5Fopen must be called collectively
-    file_id = H5Fopen(h5filename, H5F_ACC_RDWR, access_plist);
 #else
-    hid_t file_id = H5Fopen(h5filename, H5F_ACC_RDWR, H5P_DEFAULT);
+    access_plist = H5P_DEFAULT;
 #endif
+    file_id = H5Fopen(h5filename, H5F_ACC_RDWR, access_plist);
+
     sdat_time_series_write(dat_ts, file_id);
     H5Fclose(file_id);
 

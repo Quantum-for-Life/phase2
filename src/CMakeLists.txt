@@ -1,6 +1,7 @@
-
 set(CMAKE_C_FLAGS "-Wall -Wextra -Werror")
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror")
+
+link_libraries(${HDF5_LIBRARIES})
 
 add_library(phase2 SHARED
         circ.c
@@ -11,8 +12,6 @@ add_library(phase2 SHARED
 )
 target_link_libraries(phase2
         QuEST m
-        mpi
-        ${HDF5_LIBRARIES}
 )
 
 add_executable(ph2run
@@ -21,5 +20,4 @@ add_executable(ph2run
 target_link_libraries(ph2run
         phase2
         QuEST m
-        mpi
 )
