@@ -108,8 +108,6 @@ circ_result circ_init(circ *, circuit, circ_env, void *);
 
 void circ_drop(circ);
 
-size_t circ_num_tot_qb(circ);
-
 void circ_report(circ);
 
 circ_result circ_reset(circ);

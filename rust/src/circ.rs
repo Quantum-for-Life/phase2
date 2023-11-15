@@ -6,11 +6,9 @@
 use std::{
     mem,
     mem::MaybeUninit,
-    ptr,
 };
 
 use crate::circ::ffi::{
-    circ_env,
     circ_env_init,
     circ_report,
     circ_result,
@@ -24,7 +22,10 @@ pub(crate) mod ffi {
         c_void,
     };
 
-    use crate::quest_sys;
+    use crate::{
+        quest_sys,
+        quest_sys::Qureg,
+    };
 
     #[derive(Debug, Copy, Clone, PartialEq)]
     #[repr(C)]
@@ -49,11 +50,11 @@ pub(crate) mod ffi {
         pub(crate) num_sys_qb: usize,
         pub(crate) num_anc_qb: usize,
 
-        reset: extern "C" fn(c: circ),
+        reset: extern "C" fn(c: circ) -> circ_result,
 
-        state_prep: extern "C" fn(c: circ, data: *mut c_void),
-        routine:    extern "C" fn(c: circ, data: *mut c_void),
-        state_post: extern "C" fn(c: circ, data: *mut c_void),
+        state_prep: extern "C" fn(c: circ, data: *mut c_void) -> circ_result,
+        routine:    extern "C" fn(c: circ, data: *mut c_void) -> circ_result,
+        state_post: extern "C" fn(c: circ, data: *mut c_void) -> circ_result,
     }
 
     #[derive(Debug, Copy, Clone)]
@@ -63,7 +64,7 @@ pub(crate) mod ffi {
         data: *mut c_void,
 
         env:   circ_env,
-        qureg: quest_sys::Qureg,
+        qureg: Qureg,
 
         mea_cl:      *mut c_int,
         mea_cl_prob: *mut c_double,
@@ -107,71 +108,81 @@ pub enum Error {
     Init { msg: String },
 }
 
-pub struct CircEnv(ffi::circ_env);
+pub struct CircEnv {
+    env: ffi::circ_env,
+}
 
 impl CircEnv {
     pub fn try_new() -> Result<Self, Error> {
-        let mut env = MaybeUninit::uninit();
-        let env_init = unsafe {
-            (circ_env_init(env.as_mut_ptr()) == circ_result::CIRC_OK)
-                .then(|| env.assume_init())
-                .ok_or(Error::Init {
-                    msg: "cannot initialize environment".to_string(),
-                })
-        }?;
+        let mut env_uninit = MaybeUninit::uninit();
 
-        Ok(Self(env_init))
+        let env = (unsafe { circ_env_init(env_uninit.as_mut_ptr()) }
+            == circ_result::CIRC_OK)
+            .then(|| unsafe { env_uninit.assume_init() })
+            .ok_or(Error::Init {
+                msg: "cannot initialize environment".to_string(),
+            })?;
+
+        Ok(Self {
+            env,
+        })
     }
 
     pub fn report(&self) {
         unsafe {
-            ffi::circ_env_report(self.0);
+            ffi::circ_env_report(self.env);
         }
     }
 }
 
 impl Drop for CircEnv {
     fn drop(&mut self) {
-        unsafe { ffi::circ_env_drop(self.0) }
+        unsafe { ffi::circ_env_drop(self.env) }
     }
 }
 
+#[derive(Debug)]
 pub struct Circuit<T> {
-    pub(crate) circuit: ffi::circuit,
-    pub(crate) data:    T,
+    pub(crate) ct:   ffi::circuit,
+    pub(crate) data: T,
 }
 
 pub struct Circ<'a, C, T> {
+    circ: ffi::circ,
     env:  &'a CircEnv,
     ct:   &'a Circuit<C>,
-    circ: ffi::circ,
     data: T,
 }
 
 impl<'a, C, T> Circ<'a, C, T> {
-    pub fn try_new(
-        ct: &'a Circuit<C>,
+    pub fn try_new<Ct>(
+        ct: &'a Ct,
         env: &'a CircEnv,
         data: T,
-    ) -> Result<Self, Error> {
-        let mut circ_uninit = MaybeUninit::uninit();
+    ) -> Result<Self, Error>
+    where
+        Ct: AsRef<Circuit<C>>,
+    {
         let mut data = data;
         let data_ptr: *mut T = &mut data;
 
-        unsafe {
+        let mut circ_uninit = MaybeUninit::uninit();
+        let circ = (unsafe {
             ffi::circ_init(
                 circ_uninit.as_mut_ptr(),
-                ct.circuit,
-                env.0,
+                ct.as_ref().ct,
+                env.env,
                 mem::transmute(data_ptr),
             )
-        };
-
-        let circ = unsafe { circ_uninit.assume_init() };
+        } == circ_result::CIRC_OK)
+            .then(|| unsafe { circ_uninit.assume_init() })
+            .ok_or(Error::Init {
+                msg: "circ initialization".to_string(),
+            })?;
 
         Ok(Self {
             env,
-            ct,
+            ct: ct.as_ref(),
             circ,
             data,
         })
@@ -183,7 +194,6 @@ impl<'a, C, T> Circ<'a, C, T> {
         }
     }
 }
-
 impl<'a, C, T> Drop for Circ<'a, C, T> {
     fn drop(&mut self) {
         unsafe { ffi::circ_drop(self.circ) }
@@ -193,10 +203,18 @@ impl<'a, C, T> Drop for Circ<'a, C, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::linen::LinenCircuit;
 
     #[test]
     fn report_circ_env() {
         let env = CircEnv::try_new().unwrap();
         env.report();
+    }
+
+    #[test]
+    fn circ_init() {
+        let env = CircEnv::try_new().unwrap();
+        let ct = LinenCircuit::new(0);
+        let c = Circ::try_new(&ct, &env, 1).unwrap();
     }
 }

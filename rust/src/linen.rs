@@ -19,31 +19,24 @@ mod ffi {
     }
 }
 
-pub(crate) fn linen_circuit_factory<T>(data: T) -> Circuit<T> {
-    let mut data = data;
-    let data_ptr: *mut T = &mut data;
-    let circuit =
-        unsafe { ffi::linen_circuit_factory(mem::transmute(data_ptr)) };
-    Circuit {
-        circuit,
-        data,
+#[derive(Debug)]
+pub struct LinenCircuit<T>(Circuit<T>);
+
+impl<T> LinenCircuit<T> {
+    pub fn new(data: T) -> Self {
+        let mut data = data;
+        let data_ptr: *mut T = &mut data;
+        let circuit =
+            unsafe { ffi::linen_circuit_factory(mem::transmute(data_ptr)) };
+        Self(Circuit {
+            ct: circuit,
+            data,
+        })
     }
 }
 
-#[cfg(test)]
-mod tests {
-
-    use super::*;
-    use crate::circ::{
-        Circ,
-        CircEnv,
-    };
-
-    #[test]
-    fn linen_circuit() {
-        let env = CircEnv::try_new().unwrap();
-        let ct = linen_circuit_factory(0);
-        let c = Circ::try_new(&ct, &env, ()).unwrap();
-        c.report();
+impl<T> AsRef<Circuit<T>> for LinenCircuit<T> {
+    fn as_ref(&self) -> &Circuit<T> {
+        &self.0
     }
 }

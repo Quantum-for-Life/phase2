@@ -57,10 +57,22 @@ circ_result
 circ_init(circ *c, circuit const ct, circ_env env, void *data) {
     log_debug(CIRC_LOG_TAG "Init circ");
 
+    c->ct = ct;
+    c->data = data;
+    c->env = env;
+
+    c->qureg = createQureg(
+            circ_circuit_num_tot_qb(ct),
+            env.quest_env);
+
     int *mea_cl = malloc(sizeof(int) * ct.num_mea_qb);
     double *mea_cl_prob = malloc(sizeof(double) * ct.num_mea_qb);
-    int *mea_qb = malloc(sizeof(int) * circ_circuit_num_tot_qb(ct));
-    if (!(mea_cl && mea_cl_prob && mea_qb)) {
+    int *mea_qb = malloc(sizeof(int) * ct.num_mea_qb);
+    int *sys_qb = malloc(sizeof(int) * ct.num_sys_qb);
+    int *anc_qb = malloc(sizeof(int) * ct.num_anc_qb);
+    if (!(mea_cl && mea_cl_prob && mea_qb && sys_qb && anc_qb)) {
+        free(anc_qb);
+        free(sys_qb);
         free(mea_qb);
         free(mea_cl_prob);
         free(mea_cl);
@@ -69,16 +81,9 @@ circ_init(circ *c, circuit const ct, circ_env env, void *data) {
     c->mea_cl = mea_cl;
     c->mea_cl_prob = mea_cl_prob;
     c->mea_qb = mea_qb;
-    c->sys_qb = c->mea_qb + ct.num_mea_qb;
-    c->anc_qb = c->sys_qb + ct.num_sys_qb;
+    c->sys_qb = sys_qb;
+    c->anc_qb = anc_qb;
 
-    c->ct = ct;
-    c->data = data;
-    c->env = env;
-
-    c->qureg = createQureg(
-            (int) circ_circuit_num_tot_qb(ct),
-            env.quest_env);
     c->simul_counter = 0;
 
     zero_mea_cl(c);
@@ -93,21 +98,15 @@ void circ_drop(circ c) {
     log_debug(CIRC_LOG_TAG "Destroy circ");
     destroyQureg(c.qureg, c.env.quest_env);
     free(c.mea_qb);
+    free(c.sys_qb);
+    free(c.anc_qb);
     free(c.mea_cl_prob);
     free(c.mea_cl);
 }
 
-size_t circ_num_tot_qb(circ c) {
-    return circ_circuit_num_tot_qb(c.ct);
-}
-
-const char *circ_name(circ c) {
-    return c.ct.name;
-}
-
 void circ_report(circ c) {
     printf("----------------\n");
-    printf("CIRCUIT: %s\n", circ_name(c));
+    printf("CIRCUIT: %s\n", c.ct.name);
     reportQuregParams(c.qureg);
 
     printf("mea_cl register: [");
@@ -135,11 +134,6 @@ void circ_report(circ c) {
     printf("}\n");
     printf("----------------\n");
 }
-
-void *circ_circuit_data(circ c) {
-    return c.ct.data;
-}
-
 
 circ_result circ_reset(circ c) {
     log_trace(CIRC_LOG_TAG "reset");
