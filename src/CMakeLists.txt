@@ -1,8 +1,7 @@
-find_package(HDF5 REQUIRED)
-include_directories(${HDF5_INCLUDE_DIRS})
-
 set(CMAKE_C_FLAGS "-Wall -Wextra -Werror")
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror")
+
+link_libraries(${HDF5_LIBRARIES})
 
 add_library(phase2 SHARED
         circ.c
@@ -13,7 +12,6 @@ add_library(phase2 SHARED
 )
 target_link_libraries(phase2
         QuEST m
-        ${HDF5_LIBRARIES}
 )
 
 add_executable(ph2run

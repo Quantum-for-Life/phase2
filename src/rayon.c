@@ -6,6 +6,7 @@
 #include "QuEST.h"
 #include "circ.h"
 #include "rayon.h"
+#include "log/log.h"
 
 #define RAYON_NAME "rayon"
 #define RAYON_DEFAULT_NUM_MEA_QB 1
@@ -45,6 +46,7 @@ circ_result rayon_routine(circ c, void *data) {
                                         (i * c.ct.num_sys_qb),
                                         c.ct.num_sys_qb, angle);
     }
+    log_trace("simul_round: %zu", c.simul_counter);
 
     return CIRC_OK;
 }

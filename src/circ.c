@@ -145,30 +145,30 @@ circ_result circ_reset(circ c) {
     return CIRC_OK;
 }
 
-circ_result circ_simulate(circ c) {
-    c.simul_counter++;
-    log_trace(CIRC_LOG_TAG "simulate (%zu)", c.simul_counter);
+circ_result circ_simulate(circ *c) {
+    c->simul_counter++;
+    log_trace(CIRC_LOG_TAG "simulate (%zu)", c->simul_counter);
 
-    circ_reset(c);
+    circ_reset(*c);
 
     circ_result result;
-    if (c.ct.state_prep != NULL) {
+    if (c->ct.state_prep != NULL) {
         log_trace(CIRC_LOG_TAG "state_prep");
-        result = c.ct.state_prep(c, c.data);
+        result = c->ct.state_prep(*c, c->data);
         if (result != CIRC_OK) {
             return result;
         }
     }
-    if (c.ct.routine != NULL) {
+    if (c->ct.routine != NULL) {
         log_trace(CIRC_LOG_TAG "routine");
-        result = c.ct.routine(c, c.data);
+        result = c->ct.routine(*c, c->data);
         if (result != CIRC_OK) {
             return result;
         }
     }
-    if (c.ct.state_post != NULL) {
+    if (c->ct.state_post != NULL) {
         log_trace(CIRC_LOG_TAG "state_post");
-        result = c.ct.state_post(c, c.data);
+        result = c->ct.state_post(*c, c->data);
         if (result != CIRC_OK) {
             return result;
         }
@@ -176,9 +176,9 @@ circ_result circ_simulate(circ c) {
 
     /* Measure qubits */
     log_trace(CIRC_LOG_TAG "measure");
-    for (size_t i = 0; i < c.ct.num_mea_qb; i++) {
-        c.mea_cl[i] = measureWithStats(c.qureg, c.mea_qb[i],
-                                       &c.mea_cl_prob[i]);
+    for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
+        c->mea_cl[i] = measureWithStats(c->qureg, c->mea_qb[i],
+                                        &c->mea_cl_prob[i]);
     }
 
     return CIRC_OK;

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
-#include "hdf5.h"
+#include <mpi/mpi.h>
+#include <hdf5.h>
 
 #include "circ.h"
 #include "rayon.h"
@@ -73,7 +74,28 @@ void set_log_level() {
 int main(int argc, char **argv) {
 
     set_log_level();
+
+#ifdef DISTRIBUTED
+
+    int initialized, rank, num_ranks;
+    MPI_Initialized(&initialized);
+    if (!initialized) {
+        MPI_Init(NULL, NULL);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     log_info("*** Init ***");
+    log_info("Initialize MPI environment");
+    log_info("MPI num_ranks: %d", num_ranks);
+    log_info("This is rank no. %d", rank);
+#else
+    log_info("*** Init ***");
+    log_info("MPI mode not enabled.");
+    log_info("To enable distributed mode, use "
+             "-DDISTRIBUTED "
+             "flag during compilation");
+#endif
+
     log_info("Open log file: " PHASE2_LOG_FILE);
     FILE *log_file = fopen(PHASE2_LOG_FILE, "a");
     if (log_file == NULL) {
@@ -103,7 +125,18 @@ int main(int argc, char **argv) {
     }
 
     log_debug("Read simulation input file: %s", h5filename);
-    hid_t file_id = H5Fopen(h5filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+
+    hid_t file_id, access_plist;
+#ifdef DISTRIBUTED
+    log_debug("Open H5 file in distributed mode");
+    access_plist = H5Pcreate(H5P_FILE_ACCESS);
+    H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
+
+    // H5Fopen must be called collectively
+#else
+    access_plist = H5P_DEFAULT;
+#endif
+    file_id = H5Fopen(h5filename, H5F_ACC_RDONLY, access_plist);
 
     sdat_pauli_hamil dat_ph;
     sdat_pauli_hamil_init(&dat_ph);
@@ -135,7 +168,17 @@ int main(int argc, char **argv) {
     }
 
     log_info("Saving data");
-    file_id = H5Fopen(h5filename, H5F_ACC_RDWR, H5P_DEFAULT);
+#ifdef DISTRIBUTED
+    log_debug("Open H5 file in distributed mode");
+    access_plist = H5Pcreate(H5P_FILE_ACCESS);
+    H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
+
+    // H5Fopen must be called collectively
+#else
+    access_plist = H5P_DEFAULT;
+#endif
+    file_id = H5Fopen(h5filename, H5F_ACC_RDWR, access_plist);
+
     sdat_time_series_write(dat_ts, file_id);
     H5Fclose(file_id);
 
@@ -168,7 +211,7 @@ linen_simulate(circ_env env) {
     log_debug("\"linen\" circuit created");
     circ_report(c);
     log_debug("Simulating circuit");
-    circ_simulate(c);
+    circ_simulate(&c);
     log_debug("Free circuit instance");
     circ_drop(c);
 
@@ -213,7 +256,7 @@ rayon_simulate(circ_env env, sdat_pauli_hamil ph,
         for (size_t i = 0; i < ts->num_steps; i++) {
             circ_data.time = ts->times[i];
 
-            if (circ_simulate(c) != CIRC_OK) {
+            if (circ_simulate(&c) != CIRC_OK) {
                 log_error("Simulation error");
                 rayon_simulate_cleanup(hamil);
                 return CIRC_ERR;
