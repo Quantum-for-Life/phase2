@@ -33,17 +33,17 @@ circ_result rayon_state_prep(circ c, void *data) {
 }
 
 circ_result rayon_routine(circ c, void *data) {
-    PauliHamil *hamil = (PauliHamil *) c.data;
+    rayon_circuit_data *ctdat = (rayon_circuit_data *) c.ct.data;
+    rayon_circ_data *dat = (rayon_circ_data *) data;
 
-    rayon_circ_data *d = (rayon_circ_data *) data;
-    double time = d->time;
-    for (int i = 0; i < hamil->numSumTerms; i++) {
-        qreal angle = 2.0 * time * hamil->termCoeffs[i];
+    double time = dat->time;
+    for (int i = 0; i < ctdat->hamil.numSumTerms; i++) {
+        qreal angle = 2.0 * time * ctdat->hamil.termCoeffs[i];
         multiControlledMultiRotatePauli(c.qureg, c.mea_qb, c.ct.num_mea_qb,
                                         c.sys_qb,
-                                        hamil->pauliCodes +
-                                        (i * hamil->numQubits),
-                                        hamil->numQubits, angle);
+                                        ctdat->hamil.pauliCodes +
+                                        (i * c.ct.num_sys_qb),
+                                        c.ct.num_sys_qb, angle);
     }
 
     return CIRC_OK;
@@ -80,6 +80,6 @@ circuit rayon_circuit_factory(rayon_circuit_data *data) {
             .routine = rayon_routine,
             .state_post = rayon_state_post,
     };
-    
+
     return ct;
 }
