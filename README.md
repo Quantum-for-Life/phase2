@@ -39,6 +39,7 @@ and optionally:
 
 ```bash
 sudo apt install libopenmpi-dev openmpi-common
+sudo apt install libhdf5-mpi-dev libhdf5-openmpi-dev 
 ```
 
 If you want to run the simulation on Euler cluster (ETHZ), you only need to load
