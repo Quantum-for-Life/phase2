@@ -20,7 +20,10 @@
  * IN THE SOFTWARE.
  */
 
+#ifdef DISTRIBUTED
 #include <mpi/mpi.h>
+#endif
+
 #include "log.h"
 
 #define MAX_CALLBACKS 32

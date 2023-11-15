@@ -16,7 +16,6 @@ if (DISTRIBUTED)
     include_directories(${MPI_C_INCLUDE_DIRS})
 
     set(HDF5_PREFER_PARALLEL TRUE)
-    #endif ()
 endif ()
 
 find_package(HDF5 REQUIRED)
