@@ -49,6 +49,7 @@ necessary modules:
 env2lmod
 module load gcc
 module load cmake
+module load hdf5
 module load openmpi
 ```
 
