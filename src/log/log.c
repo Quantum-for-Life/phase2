@@ -21,7 +21,9 @@
  */
 
 #ifdef DISTRIBUTED
-#include <mpi/mpi.h>
+
+#include "mpi.h"
+
 #endif
 
 #include "log.h"

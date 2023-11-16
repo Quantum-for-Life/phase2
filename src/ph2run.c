@@ -1,6 +1,12 @@
 #include <stdlib.h>
 #include <string.h>
-#include <mpi/mpi.h>
+
+#ifdef DISTRIBUTED
+
+#include "mpi.h"
+
+#endif
+
 #include <hdf5.h>
 
 #include "circ.h"
