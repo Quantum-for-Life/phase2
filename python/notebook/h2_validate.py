@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 
+from math import tau
+
+
 eigs = [-1.8382052561377937, -1.6712704942150265, -1.6712704942150265,
         -1.422886756088479, -1.422886756088479, -1.422886756088479,
         -1.3370700060532204, -1.2616776969141434, -1.2616776969141434,
@@ -19,8 +22,7 @@ sample_freq = np.fft.fftfreq(len(abs_values_fft))
 
 peaks = scipy.signal.find_peaks(abs_values_fft)[0]
 peak_freqs = [sample_freq[i] for i in peaks]
-alpha = (max(eigs) - min(eigs)) / (max(peak_freqs) - min(peak_freqs))
-peak_freqs_rescaled = [(x - max(peak_freqs)) * alpha + max(eigs) for x in
+peak_freqs_rescaled = [(x - max(peak_freqs)) * tau for x in
                        peak_freqs]
 plt.vlines(peak_freqs_rescaled, 0, 1, linestyles='dotted', colors="k")
 plt.show()

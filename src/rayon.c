@@ -3,6 +3,7 @@
  *  Quantum phase estimation with Hadamard test.
  */
 
+#include <float.h>
 #include "QuEST.h"
 #include "circ.h"
 #include "rayon.h"
@@ -38,12 +39,15 @@ circ_result rayon_routine(circ c, void *data) {
     rayon_circ_data *dat = (rayon_circ_data *) data;
 
     double time = dat->time;
+    if (fabs(time) < DBL_EPSILON) {
+        return CIRC_OK;
+    }
+
     const double REPS = time * time;
-
     for (size_t r = 0; r < (size_t) REPS; r++) {
-
         for (int i = 0; i < ctdat->hamil.numSumTerms; i++) {
-            qreal angle = 2.0 * time / REPS * ctdat->hamil.termCoeffs[i];
+            // angle is proportional to time/REPS = 1/time
+            qreal angle = 2.0 / time * ctdat->hamil.termCoeffs[i];
             multiControlledMultiRotatePauli(c.qureg, c.mea_qb, c.ct.num_mea_qb,
                                             c.sys_qb,
                                             ctdat->hamil.pauliCodes +
@@ -51,9 +55,7 @@ circ_result rayon_routine(circ c, void *data) {
                                             c.ct.num_sys_qb, angle);
         }
         log_trace("simul round: %zu, rep: %d", c.simul_counter, r);
-
     }
-
 
     return CIRC_OK;
 }
