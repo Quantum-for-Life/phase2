@@ -86,13 +86,13 @@ int main(int argc, char **argv) {
 
 #ifdef DISTRIBUTED
 
-        int rank, num_ranks;
-        MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        log_info("*** Init ***");
-        log_info("Initialize MPI environment");
-        log_info("MPI num_ranks: %d", num_ranks);
-        log_info("This is rank no. %d", rank);
+                int rank, num_ranks;
+                MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+                MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+                log_info("*** Init ***");
+                log_info("Initialize MPI environment");
+                log_info("MPI num_ranks: %d", num_ranks);
+                log_info("This is rank no. %d", rank);
 #else
         log_info("*** Init ***");
         log_info("MPI mode not enabled.");
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
 
         struct sdat_pauli_hamil dat_ph;
         sdat_pauli_hamil_init(&dat_ph);
-        if (sdat_pauli_hamil_read(&dat_ph, file_id) != sdat_ok) {
+        if (sdat_pauli_hamil_read(&dat_ph, file_id) != SDAT_OK) {
                 exit_failure("read Hamiltonian data");
         }
         log_debug("Hamiltonian: num_qubits=%zu, num_sum_terms=%zu",
@@ -144,7 +144,7 @@ int main(int argc, char **argv) {
 
         struct sdat_time_series dat_ts;
         sdat_time_series_init(&dat_ts);
-        if (sdat_time_series_read(&dat_ts, file_id) != sdat_ok) {
+        if (sdat_time_series_read(&dat_ts, file_id) != SDAT_OK) {
                 exit_failure("read time series data");
         }
         log_debug("Time series: num_steps=%zu", dat_ts.num_steps);
