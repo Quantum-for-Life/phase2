@@ -24,7 +24,7 @@ typedef enum {
  */
 
 struct circ_env_ {
-    QuESTEnv quest_env;
+    QuESTEnv *quest_env;
 };
 
 /** circuit specification.
@@ -71,31 +71,17 @@ struct circuit_ {
  */
 struct circ_ {
     circuit ct;
-    /** Arbitrary data passed during initialization.
-     *
-     * The user is responsible to manage the memory pointed to.
-     */
     void *data;
 
     circ_env env;
-    Qureg qureg;
+    Qureg *qureg;
 
-    /** Subregisters:
-     *
-     *    mea (measurement)
-     *       mea_cl - classical register
-     *       mea_qb - quantum register
-     *    sys (system)
-     *    anc (ancilla)
-     */
     int *mea_cl;
     double *mea_cl_prob;
 
     int *mea_qb;
     int *sys_qb;
     int *anc_qb;
-
-    size_t simul_counter;
 };
 
 circ_result circ_env_init(circ_env *);

@@ -22,10 +22,8 @@ pub(crate) mod ffi {
         c_void,
     };
 
-    use crate::{
-        quest_sys,
-        quest_sys::Qureg,
-    };
+    type QuESTEnv = c_void;
+    type Qureg = c_void;
 
     #[derive(Debug, Copy, Clone, PartialEq)]
     #[repr(C)]
@@ -37,7 +35,7 @@ pub(crate) mod ffi {
     #[derive(Debug, Copy, Clone)]
     #[repr(C)]
     pub(crate) struct circ_env {
-        quest_env: quest_sys::QuESTEnv,
+        quest_env: *mut QuESTEnv,
     }
 
     #[derive(Debug, Copy, Clone)]
@@ -64,7 +62,7 @@ pub(crate) mod ffi {
         data: *mut c_void,
 
         env:   circ_env,
-        qureg: Qureg,
+        qureg: *mut Qureg,
 
         mea_cl:      *mut c_int,
         mea_cl_prob: *mut c_double,
@@ -72,8 +70,6 @@ pub(crate) mod ffi {
         mea_qb: *mut c_int,
         sys_qb: *mut c_int,
         anc_qb: *mut c_int,
-
-        simul_counter: usize,
     }
 
     extern "C" {

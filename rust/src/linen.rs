@@ -1,12 +1,6 @@
-use std::{
-    mem,
-    mem::MaybeUninit,
-};
+use std::mem;
 
-use crate::circ::{
-    ffi::circuit,
-    Circuit,
-};
+use crate::circ::Circuit;
 
 mod ffi {
     use std::ffi::c_void;

@@ -7,7 +7,6 @@
 #include "QuEST.h"
 #include "circ.h"
 #include "rayon.h"
-#include "log/log.h"
 
 #define RAYON_NAME "rayon"
 #define RAYON_DEFAULT_NUM_MEA_QB 1
@@ -23,12 +22,12 @@ circ_result rayon_reset(circ c) {
 circ_result rayon_state_prep(circ c, void *data) {
     (void) data;
 
-    hadamard(c.qureg, c.mea_qb[0]);
+    hadamard(*c.qureg, c.mea_qb[0]);
 
     //    pauliX(c.qureg, c.sys_qb[0]);
     //    pauliX(c.qureg, c.sys_qb[2]);
     for (size_t i = 0; i < c.ct.num_sys_qb; i++) {
-        hadamard(c.qureg, c.sys_qb[i]);
+        hadamard(*c.qureg, c.sys_qb[i]);
     }
 
     return CIRC_OK;
@@ -48,13 +47,12 @@ circ_result rayon_routine(circ c, void *data) {
         for (int i = 0; i < ctdat->hamil.numSumTerms; i++) {
             // angle is proportional to time/REPS = 1/time
             qreal angle = 2.0 / time * ctdat->hamil.termCoeffs[i];
-            multiControlledMultiRotatePauli(c.qureg, c.mea_qb, c.ct.num_mea_qb,
+            multiControlledMultiRotatePauli(*c.qureg, c.mea_qb, c.ct.num_mea_qb,
                                             c.sys_qb,
                                             ctdat->hamil.pauliCodes +
                                             (i * c.ct.num_sys_qb),
                                             c.ct.num_sys_qb, angle);
         }
-        log_trace("simul round: %zu, rep: %d", c.simul_counter, r);
     }
 
     return CIRC_OK;
@@ -64,13 +62,13 @@ circ_result rayon_state_post(circ c, void *data) {
     //    pauliX(c.qureg, c.sys_qb[0]);
     //    pauliX(c.qureg, c.sys_qb[2]);
     for (size_t i = 0; i < c.ct.num_sys_qb; i++) {
-        hadamard(c.qureg, c.sys_qb[i]);
+        hadamard(*c.qureg, c.sys_qb[i]);
     }
     rayon_circ_data *d = (rayon_circ_data *) data;
     if (d->imag_switch == 1) {
-        sGate(c.qureg, c.mea_qb[0]);
+        sGate(*c.qureg, c.mea_qb[0]);
     }
-    hadamard(c.qureg, c.mea_qb[0]);
+    hadamard(*c.qureg, c.mea_qb[0]);
 
     return CIRC_OK;
 }

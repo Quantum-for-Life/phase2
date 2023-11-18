@@ -14,7 +14,11 @@ size_t circ_circuit_num_tot_qb(circuit ct) {
 
 circ_result circ_env_init(circ_env *env) {
     log_debug(CIRC_LOG_TAG "Init circ_env");
-    QuESTEnv quest_env = createQuESTEnv();
+    QuESTEnv *quest_env = malloc(sizeof(QuESTEnv));
+    if (!quest_env) {
+        return CIRC_ERR;
+    }
+    *quest_env = createQuESTEnv();
     env->quest_env = quest_env;
 
     return CIRC_OK;
@@ -22,11 +26,12 @@ circ_result circ_env_init(circ_env *env) {
 
 void circ_env_drop(circ_env env) {
     log_debug(CIRC_LOG_TAG "Destroy circ_env");
-    destroyQuESTEnv(env.quest_env);
+    destroyQuESTEnv(*env.quest_env);
+    free(env.quest_env);
 }
 
 void circ_env_report(circ_env env) {
-    reportQuESTEnv(env.quest_env);
+    reportQuESTEnv(*env.quest_env);
 }
 
 void zero_mea_cl(circ *c) {
@@ -61,9 +66,14 @@ circ_init(circ *c, circuit const ct, circ_env env, void *data) {
     c->data = data;
     c->env = env;
 
-    c->qureg = createQureg(
+    Qureg *qureg = malloc(sizeof(Qureg));
+    if (!qureg) {
+        return CIRC_ERR;
+    }
+    *qureg = createQureg(
             circ_circuit_num_tot_qb(ct),
-            env.quest_env);
+            *env.quest_env);
+    c->qureg = qureg;
 
     int *mea_cl = malloc(sizeof(int) * ct.num_mea_qb);
     double *mea_cl_prob = malloc(sizeof(double) * ct.num_mea_qb);
@@ -83,7 +93,6 @@ circ_init(circ *c, circuit const ct, circ_env env, void *data) {
     c->mea_qb = mea_qb;
     c->sys_qb = sys_qb;
     c->anc_qb = anc_qb;
-    c->simul_counter = 0;
 
     zero_mea_cl(c);
     init_mea_qb(c);
@@ -95,7 +104,8 @@ circ_init(circ *c, circuit const ct, circ_env env, void *data) {
 
 void circ_drop(circ c) {
     log_debug(CIRC_LOG_TAG "Destroy circ");
-    destroyQureg(c.qureg, c.env.quest_env);
+    destroyQureg(*c.qureg, *c.env.quest_env);
+    free(c.qureg);
     free(c.mea_qb);
     free(c.sys_qb);
     free(c.anc_qb);
@@ -106,7 +116,7 @@ void circ_drop(circ c) {
 void circ_report(circ c) {
     printf("----------------\n");
     printf("CIRCUIT: %s\n", c.ct.name);
-    reportQuregParams(c.qureg);
+    reportQuregParams(*c.qureg);
 
     printf("mea_cl register: [");
     for (size_t i = 0; i < c.ct.num_mea_qb; i++) {
@@ -136,7 +146,7 @@ void circ_report(circ c) {
 
 circ_result circ_reset(circ c) {
     log_trace(CIRC_LOG_TAG "reset");
-    initZeroState(c.qureg);
+    initZeroState(*c.qureg);
     zero_mea_cl(&c);
     if (c.ct.reset) {
         return c.ct.reset(c);
@@ -145,9 +155,6 @@ circ_result circ_reset(circ c) {
 }
 
 circ_result circ_simulate(circ *c) {
-    c->simul_counter++;
-    log_trace(CIRC_LOG_TAG "simulate (%zu)", c->simul_counter);
-
     circ_reset(*c);
 
     circ_result result;
@@ -176,7 +183,7 @@ circ_result circ_simulate(circ *c) {
     /* Measure qubits */
     log_trace(CIRC_LOG_TAG "measure");
     for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
-        c->mea_cl[i] = measureWithStats(c->qureg, c->mea_qb[i],
+        c->mea_cl[i] = measureWithStats(*c->qureg, c->mea_qb[i],
                                         &c->mea_cl_prob[i]);
     }
 
