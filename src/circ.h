@@ -12,10 +12,10 @@ typedef struct circ_env_ circ_env;
 typedef struct circuit_ circuit;
 typedef struct circ_ circ;
 
-typedef enum {
-    CIRC_OK,
-    CIRC_ERR,
-} circ_result;
+enum {
+    circ_ok,
+    circ_err,
+};
 
 /** circuit environment for a run on MPI cluster.
  *
@@ -42,7 +42,7 @@ struct circuit_ {
      * On top of standard resetting the Qureg and mea_cl.
      * This can be NULL.
      */
-    circ_result (*reset)(circ);
+    int (*reset)(circ *);
 
     /** circuit specification divided into 4 steps.
      *
@@ -59,11 +59,11 @@ struct circuit_ {
      *
      * There pointers can be NULL, meaning the step is not specified.
      */
-    circ_result (*state_prep)(circ, void *);
+    int (*state_prep)(circ *, void *);
 
-    circ_result (*routine)(circ, void *);
+    int (*routine)(circ *, void *);
 
-    circ_result (*state_post)(circ, void *);
+    int (*state_post)(circ *, void *);
 };
 
 
@@ -84,20 +84,20 @@ struct circ_ {
     int *anc_qb;
 };
 
-circ_result circ_env_init(circ_env *);
+int circ_env_init(circ_env *);
 
-void circ_env_drop(circ_env);
+void circ_env_destroy(circ_env *);
 
 void circ_env_report(circ_env);
 
-circ_result circ_init(circ *, circuit, circ_env, void *);
+int circ_init(circ *, circuit, circ_env, void *);
 
-void circ_drop(circ);
+void circ_destroy(circ *);
 
 void circ_report(circ);
 
-circ_result circ_reset(circ);
+int circ_reset(circ *);
 
-circ_result circ_simulate(circ *);
+int circ_simulate(circ *);
 
 #endif //PHASE2_CIRC_H

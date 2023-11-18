@@ -9,6 +9,7 @@ use std::{
 };
 
 use crate::circ::ffi::{
+    circ_env,
     circ_env_init,
     circ_report,
     circ_result,
@@ -28,8 +29,8 @@ pub(crate) mod ffi {
     #[derive(Debug, Copy, Clone, PartialEq)]
     #[repr(C)]
     pub(crate) enum circ_result {
-        CIRC_OK,
-        CIRC_ERR,
+        circ_ok,
+        circ_err,
     }
 
     #[derive(Debug, Copy, Clone)]
@@ -76,7 +77,7 @@ pub(crate) mod ffi {
 
         pub(crate) fn circ_env_init(env: *mut circ_env) -> circ_result;
 
-        pub(crate) fn circ_env_drop(env: circ_env);
+        pub(crate) fn circ_env_destroy(env: *mut circ_env);
 
         pub(crate) fn circ_env_report(env: circ_env);
 
@@ -87,7 +88,7 @@ pub(crate) mod ffi {
             data: *mut c_void,
         ) -> circ_result;
 
-        pub(crate) fn circ_drop(c: circ);
+        pub(crate) fn circ_destroy(c: *mut circ);
 
         pub(crate) fn circ_num_tot_qb(c: circ) -> usize;
         pub(crate) fn circ_report(c: circ);
@@ -113,7 +114,7 @@ impl CircEnv {
         let mut env_uninit = MaybeUninit::uninit();
 
         let env = (unsafe { circ_env_init(env_uninit.as_mut_ptr()) }
-            == circ_result::CIRC_OK)
+            == circ_result::circ_ok)
             .then(|| unsafe { env_uninit.assume_init() })
             .ok_or(Error::Init {
                 msg: "cannot initialize environment".to_string(),
@@ -133,7 +134,8 @@ impl CircEnv {
 
 impl Drop for CircEnv {
     fn drop(&mut self) {
-        unsafe { ffi::circ_env_drop(self.env) }
+        let env_ptr = &mut self.env as *mut _;
+        unsafe { ffi::circ_env_destroy(env_ptr) }
     }
 }
 
@@ -170,7 +172,7 @@ impl<'a, C, T> Circ<'a, C, T> {
                 env.env,
                 mem::transmute(data_ptr),
             )
-        } == circ_result::CIRC_OK)
+        } == circ_result::circ_ok)
             .then(|| unsafe { circ_uninit.assume_init() })
             .ok_or(Error::Init {
                 msg: "circ initialization".to_string(),
@@ -192,7 +194,8 @@ impl<'a, C, T> Circ<'a, C, T> {
 }
 impl<'a, C, T> Drop for Circ<'a, C, T> {
     fn drop(&mut self) {
-        unsafe { ffi::circ_drop(self.circ) }
+        let circ_ptr = &mut self.circ as *mut _;
+        unsafe { ffi::circ_destroy(circ_ptr) }
     }
 }
 

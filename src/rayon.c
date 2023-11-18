@@ -13,33 +13,28 @@
 // #define RAYON_DEFAULT_NUM_SYS_QB 8
 #define RAYON_DEFAULT_NUM_ANC_QB 0
 
-circ_result rayon_reset(circ c) {
-    (void) c;
 
-    return CIRC_OK;
-}
-
-circ_result rayon_state_prep(circ c, void *data) {
+int rayon_state_prep(circ *c, void *data) {
     (void) data;
 
-    hadamard(*c.qureg, c.mea_qb[0]);
+    hadamard(*c->qureg, c->mea_qb[0]);
 
     //    pauliX(c.qureg, c.sys_qb[0]);
     //    pauliX(c.qureg, c.sys_qb[2]);
-    for (size_t i = 0; i < c.ct.num_sys_qb; i++) {
-        hadamard(*c.qureg, c.sys_qb[i]);
+    for (size_t i = 0; i < c->ct.num_sys_qb; i++) {
+        hadamard(*c->qureg, c->sys_qb[i]);
     }
 
-    return CIRC_OK;
+    return circ_ok;
 }
 
-circ_result rayon_routine(circ c, void *data) {
-    rayon_circuit_data *ctdat = (rayon_circuit_data *) c.ct.data;
+int rayon_routine(circ *c, void *data) {
+    rayon_circuit_data *ctdat = (rayon_circuit_data *) c->ct.data;
     rayon_circ_data *dat = (rayon_circ_data *) data;
 
     double time = dat->time;
     if (fabs(time) < DBL_EPSILON) {
-        return CIRC_OK;
+        return circ_ok;
     }
 
     const double REPS = time * time;
@@ -47,30 +42,31 @@ circ_result rayon_routine(circ c, void *data) {
         for (int i = 0; i < ctdat->hamil.numSumTerms; i++) {
             // angle is proportional to time/REPS = 1/time
             qreal angle = 2.0 / time * ctdat->hamil.termCoeffs[i];
-            multiControlledMultiRotatePauli(*c.qureg, c.mea_qb, c.ct.num_mea_qb,
-                                            c.sys_qb,
+            multiControlledMultiRotatePauli(*c->qureg, c->mea_qb,
+                                            c->ct.num_mea_qb,
+                                            c->sys_qb,
                                             ctdat->hamil.pauliCodes +
-                                            (i * c.ct.num_sys_qb),
-                                            c.ct.num_sys_qb, angle);
+                                            (i * c->ct.num_sys_qb),
+                                            c->ct.num_sys_qb, angle);
         }
     }
 
-    return CIRC_OK;
+    return circ_ok;
 }
 
-circ_result rayon_state_post(circ c, void *data) {
+int rayon_state_post(circ *c, void *data) {
     //    pauliX(c.qureg, c.sys_qb[0]);
     //    pauliX(c.qureg, c.sys_qb[2]);
-    for (size_t i = 0; i < c.ct.num_sys_qb; i++) {
-        hadamard(*c.qureg, c.sys_qb[i]);
+    for (size_t i = 0; i < c->ct.num_sys_qb; i++) {
+        hadamard(*c->qureg, c->sys_qb[i]);
     }
     rayon_circ_data *d = (rayon_circ_data *) data;
     if (d->imag_switch == 1) {
-        sGate(*c.qureg, c.mea_qb[0]);
+        sGate(*c->qureg, c->mea_qb[0]);
     }
-    hadamard(*c.qureg, c.mea_qb[0]);
+    hadamard(*c->qureg, c->mea_qb[0]);
 
-    return CIRC_OK;
+    return circ_ok;
 }
 
 circuit rayon_circuit_factory(rayon_circuit_data *data) {
@@ -80,7 +76,7 @@ circuit rayon_circuit_factory(rayon_circuit_data *data) {
             .num_mea_qb = RAYON_DEFAULT_NUM_MEA_QB,
             .num_sys_qb = data->hamil.numQubits,
             .num_anc_qb = RAYON_DEFAULT_NUM_ANC_QB,
-            .reset = rayon_reset,
+            .reset = NULL,
             .state_prep = rayon_state_prep,
             .routine = rayon_routine,
             .state_post = rayon_state_post,

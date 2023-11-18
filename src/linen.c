@@ -8,35 +8,35 @@
 #include "log/log.h"
 
 
-circ_result linen_reset(circ c) {
+int linen_reset(circ *c) {
     (void) c;
     log_debug(">>> reset");
 
-    return CIRC_OK;
+    return circ_ok;
 }
 
-circ_result linen_state_prep(circ c, void *data) {
+int linen_state_prep(circ *c, void *data) {
     (void) c;
     (void) data;
     log_debug(">>> state_prep");
 
-    return CIRC_OK;
+    return circ_ok;
 }
 
-circ_result linen_routine(circ c, void *data) {
+int linen_routine(circ *c, void *data) {
     (void) c;
     (void) data;
     log_debug(">>> routine");
 
-    return CIRC_OK;
+    return circ_ok;
 }
 
-circ_result linen_state_post(circ c, void *data) {
+int linen_state_post(circ *c, void *data) {
     (void) c;
     (void) data;
     log_debug(">>> state_post");
 
-    return CIRC_OK;
+    return circ_ok;
 }
 
 circuit

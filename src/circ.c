@@ -12,22 +12,22 @@ size_t circ_circuit_num_tot_qb(circuit ct) {
     return ct.num_mea_qb + ct.num_sys_qb + ct.num_anc_qb;
 }
 
-circ_result circ_env_init(circ_env *env) {
+int circ_env_init(circ_env *env) {
     log_debug(CIRC_LOG_TAG "Init circ_env");
     QuESTEnv *quest_env = malloc(sizeof(QuESTEnv));
     if (!quest_env) {
-        return CIRC_ERR;
+        return circ_err;
     }
     *quest_env = createQuESTEnv();
     env->quest_env = quest_env;
 
-    return CIRC_OK;
+    return circ_ok;
 }
 
-void circ_env_drop(circ_env env) {
-    log_debug(CIRC_LOG_TAG "Destroy circ_env");
-    destroyQuESTEnv(*env.quest_env);
-    free(env.quest_env);
+void circ_env_destroy(circ_env *env) {
+    destroyQuESTEnv(*env->quest_env);
+    free(env->quest_env);
+    env->quest_env = NULL;
 }
 
 void circ_env_report(circ_env env) {
@@ -58,7 +58,7 @@ void init_anc_qb(circ *c) {
     }
 }
 
-circ_result
+int
 circ_init(circ *c, circuit const ct, circ_env env, void *data) {
     log_debug(CIRC_LOG_TAG "Init circ");
 
@@ -68,7 +68,7 @@ circ_init(circ *c, circuit const ct, circ_env env, void *data) {
 
     Qureg *qureg = malloc(sizeof(Qureg));
     if (!qureg) {
-        return CIRC_ERR;
+        return circ_err;
     }
     *qureg = createQureg(
             circ_circuit_num_tot_qb(ct),
@@ -86,7 +86,7 @@ circ_init(circ *c, circuit const ct, circ_env env, void *data) {
         free(mea_qb);
         free(mea_cl_prob);
         free(mea_cl);
-        return CIRC_ERR;
+        return circ_err;
     }
     c->mea_cl = mea_cl;
     c->mea_cl_prob = mea_cl_prob;
@@ -99,18 +99,23 @@ circ_init(circ *c, circuit const ct, circ_env env, void *data) {
     init_sys_qb(c);
     init_anc_qb(c);
 
-    return CIRC_OK;
+    return circ_ok;
 }
 
-void circ_drop(circ c) {
-    log_debug(CIRC_LOG_TAG "Destroy circ");
-    destroyQureg(*c.qureg, *c.env.quest_env);
-    free(c.qureg);
-    free(c.mea_qb);
-    free(c.sys_qb);
-    free(c.anc_qb);
-    free(c.mea_cl_prob);
-    free(c.mea_cl);
+void circ_destroy(circ *c) {
+    destroyQureg(*c->qureg, *c->env.quest_env);
+    free(c->qureg);
+    c->qureg = NULL;
+    free(c->mea_qb);
+    c->mea_qb = NULL;
+    free(c->sys_qb);
+    c->sys_qb = NULL;
+    free(c->anc_qb);
+    c->anc_qb = NULL;
+    free(c->mea_cl_prob);
+    c->mea_cl_prob = NULL;
+    free(c->mea_cl);
+    c->mea_cl = NULL;
 }
 
 void circ_report(circ c) {
@@ -144,38 +149,38 @@ void circ_report(circ c) {
     printf("----------------\n");
 }
 
-circ_result circ_reset(circ c) {
+int circ_reset(circ *c) {
     log_trace(CIRC_LOG_TAG "reset");
-    initZeroState(*c.qureg);
-    zero_mea_cl(&c);
-    if (c.ct.reset) {
-        return c.ct.reset(c);
+    initZeroState(*c->qureg);
+    zero_mea_cl(c);
+    if (c->ct.reset) {
+        return c->ct.reset(c);
     }
-    return CIRC_OK;
+    return circ_ok;
 }
 
-circ_result circ_simulate(circ *c) {
-    circ_reset(*c);
+int circ_simulate(circ *c) {
+    circ_reset(c);
 
-    circ_result result;
+    int result;
     if (c->ct.state_prep) {
         log_trace(CIRC_LOG_TAG "state_prep");
-        result = c->ct.state_prep(*c, c->data);
-        if (result != CIRC_OK) {
+        result = c->ct.state_prep(c, c->data);
+        if (result != circ_ok) {
             return result;
         }
     }
     if (c->ct.routine) {
         log_trace(CIRC_LOG_TAG "routine");
-        result = c->ct.routine(*c, c->data);
-        if (result != CIRC_OK) {
+        result = c->ct.routine(c, c->data);
+        if (result != circ_ok) {
             return result;
         }
     }
     if (c->ct.state_post) {
         log_trace(CIRC_LOG_TAG "state_post");
-        result = c->ct.state_post(*c, c->data);
-        if (result != CIRC_OK) {
+        result = c->ct.state_post(c, c->data);
+        if (result != circ_ok) {
             return result;
         }
     }
@@ -187,5 +192,5 @@ circ_result circ_simulate(circ *c) {
                                         &c->mea_cl_prob[i]);
     }
 
-    return CIRC_OK;
+    return circ_ok;
 }

@@ -4,10 +4,10 @@
 #include <stdlib.h>
 #include "hdf5.h"
 
-typedef enum {
-    SDAT_OK,
-    SDAT_ERR
-} sdat_result;
+enum {
+    sdat_ok,
+    sdat_err
+};
 
 #define SDAT_PAULI_HAMIL "pauli_hamil"
 #define SDAT_PAULI_HAMIL_COEFFS "coeffs"
@@ -26,7 +26,7 @@ sdat_pauli_hamil_init(sdat_pauli_hamil *);
 void
 sdat_pauli_hamil_drop(sdat_pauli_hamil);
 
-sdat_result
+int
 sdat_pauli_hamil_read(sdat_pauli_hamil *, hid_t);
 
 
@@ -46,10 +46,10 @@ sdat_time_series_init(sdat_time_series *);
 void
 sdat_time_series_drop(sdat_time_series);
 
-sdat_result
+int
 sdat_time_series_read(sdat_time_series *, hid_t);
 
-sdat_result
+int
 sdat_time_series_write(sdat_time_series, hid_t);
 
 #endif //PHASE2_SDAT_H
