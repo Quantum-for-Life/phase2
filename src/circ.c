@@ -14,17 +14,19 @@ size_t circ_circuit_num_tot_qb(circuit ct) {
 
 int circ_env_init(circ_env *env) {
     log_debug(CIRC_LOG_TAG "Init circ_env");
-    QuESTEnv *quest_env = malloc(sizeof(QuESTEnv));
-    if (!quest_env) {
+    env->quest_env = malloc(sizeof(QuESTEnv));
+    if (!env->quest_env) {
         return circ_err;
     }
-    *quest_env = createQuESTEnv();
-    env->quest_env = quest_env;
+    *env->quest_env = createQuESTEnv();
 
     return circ_ok;
 }
 
 void circ_env_destroy(circ_env *env) {
+    if (!env->quest_env) {
+        return;
+    }
     destroyQuESTEnv(*env->quest_env);
     free(env->quest_env);
     env->quest_env = NULL;

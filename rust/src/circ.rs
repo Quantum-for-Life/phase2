@@ -90,10 +90,9 @@ pub(crate) mod ffi {
 
         pub(crate) fn circ_destroy(c: *mut circ);
 
-        pub(crate) fn circ_num_tot_qb(c: circ) -> usize;
         pub(crate) fn circ_report(c: circ);
 
-        pub(crate) fn circ_reset(c: circ) -> circ_result;
+        pub(crate) fn circ_reset(c: *mut circ) -> circ_result;
 
         pub(crate) fn circ_simulate(c: *mut circ) -> circ_result;
 
