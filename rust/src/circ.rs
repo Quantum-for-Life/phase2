@@ -9,6 +9,7 @@ use std::{
 };
 
 use crate::circ::ffi::{
+    circ_env,
     circ_env_init,
     circ_report,
     circ_result,
@@ -22,10 +23,8 @@ pub(crate) mod ffi {
         c_void,
     };
 
-    use crate::{
-        quest_sys,
-        quest_sys::Qureg,
-    };
+    type QuESTEnv = c_void;
+    type Qureg = c_void;
 
     #[derive(Debug, Copy, Clone, PartialEq)]
     #[repr(C)]
@@ -37,7 +36,7 @@ pub(crate) mod ffi {
     #[derive(Debug, Copy, Clone)]
     #[repr(C)]
     pub(crate) struct circ_env {
-        quest_env: quest_sys::QuESTEnv,
+        quest_env: *mut QuESTEnv,
     }
 
     #[derive(Debug, Copy, Clone)]
@@ -64,7 +63,7 @@ pub(crate) mod ffi {
         data: *mut c_void,
 
         env:   circ_env,
-        qureg: Qureg,
+        qureg: *mut Qureg,
 
         mea_cl:      *mut c_int,
         mea_cl_prob: *mut c_double,
@@ -72,15 +71,13 @@ pub(crate) mod ffi {
         mea_qb: *mut c_int,
         sys_qb: *mut c_int,
         anc_qb: *mut c_int,
-
-        simul_counter: usize,
     }
 
     extern "C" {
 
         pub(crate) fn circ_env_init(env: *mut circ_env) -> circ_result;
 
-        pub(crate) fn circ_env_drop(env: circ_env);
+        pub(crate) fn circ_env_destroy(env: *mut circ_env);
 
         pub(crate) fn circ_env_report(env: circ_env);
 
@@ -91,12 +88,11 @@ pub(crate) mod ffi {
             data: *mut c_void,
         ) -> circ_result;
 
-        pub(crate) fn circ_drop(c: circ);
+        pub(crate) fn circ_destroy(c: *mut circ);
 
-        pub(crate) fn circ_num_tot_qb(c: circ) -> usize;
         pub(crate) fn circ_report(c: circ);
 
-        pub(crate) fn circ_reset(c: circ) -> circ_result;
+        pub(crate) fn circ_reset(c: *mut circ) -> circ_result;
 
         pub(crate) fn circ_simulate(c: *mut circ) -> circ_result;
 
@@ -137,7 +133,8 @@ impl CircEnv {
 
 impl Drop for CircEnv {
     fn drop(&mut self) {
-        unsafe { ffi::circ_env_drop(self.env) }
+        let env_ptr = &mut self.env as *mut _;
+        unsafe { ffi::circ_env_destroy(env_ptr) }
     }
 }
 
@@ -196,7 +193,8 @@ impl<'a, C, T> Circ<'a, C, T> {
 }
 impl<'a, C, T> Drop for Circ<'a, C, T> {
     fn drop(&mut self) {
-        unsafe { ffi::circ_drop(self.circ) }
+        let circ_ptr = &mut self.circ as *mut _;
+        unsafe { ffi::circ_destroy(circ_ptr) }
     }
 }
 

@@ -8,14 +8,11 @@
 
 #include "QuEST.h"
 
-typedef struct circ_env_ circ_env;
-typedef struct circuit_ circuit;
-typedef struct circ_ circ;
+enum {
+        CIRC_OK,
+        CIRC_ERR,
+};
 
-typedef enum {
-    CIRC_OK,
-    CIRC_ERR,
-} circ_result;
 
 /** circuit environment for a run on MPI cluster.
  *
@@ -23,95 +20,83 @@ typedef enum {
  * during the experiment.
  */
 
-struct circ_env_ {
-    QuESTEnv quest_env;
+struct circ_env {
+        QuESTEnv *quest_env;
 };
+
+struct circ;
 
 /** circuit specification.
  */
-struct circuit_ {
-    const char *name;
-    void *data;
+struct circuit {
+        const char *name;
+        void *data;
 
-    size_t num_mea_qb;
-    size_t num_sys_qb;
-    size_t num_anc_qb;
+        size_t num_mea_qb;
+        size_t num_sys_qb;
+        size_t num_anc_qb;
 
-    /** Reset the circuit.
-     *
-     * On top of standard resetting the Qureg and mea_cl.
-     * This can be NULL.
-     */
-    circ_result (*reset)(circ);
+        /** Reset the circuit.
+         *
+         * On top of standard resetting the Qureg and mea_cl.
+         * This can be NULL.
+         */
+        int (*reset)(struct circ *);
 
-    /** circuit specification divided into 4 steps.
-     *
-     * The order of execution of these steps in circ_simulate() is always:
-     *   1. state_prep()
-     *   2. routine()
-     *   3. state_post()
-     *   4. measure()
-     *
-     * The cicuit is _not_ reset before the call to circ_simulate().
-     *
-     * The data pointer passed to these function is the same stored in
-     * circ.data, and the same as passed to circ_create_circuit().
-     *
-     * There pointers can be NULL, meaning the step is not specified.
-     */
-    circ_result (*state_prep)(circ, void *);
+        /** circuit specification divided into 4 steps.
+         *
+         * The order of execution of these steps in circ_simulate() is always:
+         *   1. state_prep()
+         *   2. routine()
+         *   3. state_post()
+         *
+         * The cicuit is _not_ reset before the call to circ_simulate().
+         *
+         * The data pointer passed to these function is the same stored in
+         * circ.data, and the same as passed to circ_create_circuit().
+         *
+         * There pointers can be NULL, meaning the step is not specified.
+         */
+        int (*state_prep)(struct circ *, void *);
 
-    circ_result (*routine)(circ, void *);
+        int (*routine)(struct circ *, void *);
 
-    circ_result (*state_post)(circ, void *);
+        int (*state_post)(struct circ *, void *);
 };
 
 
 /** circuit instance.
  */
-struct circ_ {
-    circuit ct;
-    /** Arbitrary data passed during initialization.
-     *
-     * The user is responsible to manage the memory pointed to.
-     */
-    void *data;
+struct circ {
+        struct circuit ct;
+        void *data;
 
-    circ_env env;
-    Qureg qureg;
+        struct circ_env env;
+        Qureg *qureg;
 
-    /** Subregisters:
-     *
-     *    mea (measurement)
-     *       mea_cl - classical register
-     *       mea_qb - quantum register
-     *    sys (system)
-     *    anc (ancilla)
-     */
-    int *mea_cl;
-    double *mea_cl_prob;
+        int *mea_cl;
+        double *mea_cl_prob;
 
-    int *mea_qb;
-    int *sys_qb;
-    int *anc_qb;
-
-    size_t simul_counter;
+        int *mea_qb;
+        int *sys_qb;
+        int *anc_qb;
 };
 
-circ_result circ_env_init(circ_env *);
 
-void circ_env_drop(circ_env);
+int circ_env_init(struct circ_env *);
 
-void circ_env_report(circ_env);
+void circ_env_destroy(struct circ_env *);
 
-circ_result circ_init(circ *, circuit, circ_env, void *);
+void circ_env_report(struct circ_env);
 
-void circ_drop(circ);
+int circ_init(struct circ *, struct circuit, struct circ_env, void *);
 
-void circ_report(circ);
+void circ_destroy(struct circ *);
 
-circ_result circ_reset(circ);
+void circ_report(struct circ);
 
-circ_result circ_simulate(circ *);
+int circ_reset(struct circ *);
+
+int circ_simulate(struct circ *);
 
 #endif //PHASE2_CIRC_H
