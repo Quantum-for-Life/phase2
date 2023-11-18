@@ -80,7 +80,7 @@ void set_log_level() {
 int main(int argc, char **argv) {
 
     struct circ_env env;
-    if (circ_env_init(&env) != circ_ok) {
+    if (circ_env_init(&env) != CIRC_OK) {
         exit_failure("initialize environment");
     }
 
@@ -154,11 +154,11 @@ int main(int argc, char **argv) {
     int sucess;
     if (strncmp(argv[1], "linen", 5) == 0) {
         log_info("Circuit: linen");
-        sucess = linen_simulate(env) == circ_ok;
+        sucess = linen_simulate(env) == CIRC_OK;
 
     } else if (strncmp(argv[1], "rayon", 5) == 0) {
         log_info("Circuit: rayon");
-        sucess = rayon_simulate(env, dat_ph, &dat_ts) != circ_ok;
+        sucess = rayon_simulate(env, dat_ph, &dat_ts) != CIRC_OK;
     } else {
         log_error("No circuit named %s", argv[1]);
         sucess = 0;
@@ -199,9 +199,9 @@ linen_simulate(struct circ_env env) {
 
     struct circuit factory = linen_circuit_factory(NULL);
     struct circ c;
-    if (circ_init(&c, factory, env, NULL) != circ_ok) {
+    if (circ_init(&c, factory, env, NULL) != CIRC_OK) {
         log_error("Cannot initialize circuit");
-        return circ_err;
+        return CIRC_ERR;
     }
     log_debug("\"linen\" circuit created");
     circ_report(c);
@@ -210,7 +210,7 @@ linen_simulate(struct circ_env env) {
     log_debug("Free circuit instance");
     circ_destroy(&c);
 
-    return circ_ok;
+    return CIRC_OK;
 }
 
 
@@ -237,9 +237,9 @@ rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
     struct circuit factory = rayon_circuit_factory(&ct_data);
     struct rayon_circ_data circ_data = {.imag_switch = 0, .time = 0.0};
     struct circ c;
-    if (circ_init(&c, factory, env, &circ_data) != circ_ok) {
+    if (circ_init(&c, factory, env, &circ_data) != CIRC_OK) {
         log_error("Cannot initialize circuit");
-        return circ_err;
+        return CIRC_ERR;
     }
 
     log_info("Computing expectation value");
@@ -249,10 +249,10 @@ rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
         size_t offset = circ_data.imag_switch == 0 ? 0 : 1;
         for (size_t i = 0; i < ts->num_steps; i++) {
             circ_data.time = ts->times[i];
-            if (circ_simulate(&c) != circ_ok) {
+            if (circ_simulate(&c) != CIRC_OK) {
                 log_error("Simulation error");
                 rayon_simulate_cleanup(hamil);
-                return circ_err;
+                return CIRC_ERR;
             }
             prob_0 = c.mea_cl[0] == 0 ? c.mea_cl_prob[0] : 1.0 -
                                                            c.mea_cl_prob[0];
@@ -264,5 +264,5 @@ rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
     log_info("End of simulation");
     rayon_simulate_cleanup(hamil);
 
-    return circ_ok;
+    return CIRC_OK;
 }

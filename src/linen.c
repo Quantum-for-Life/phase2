@@ -12,7 +12,7 @@ int linen_reset(struct circ *c) {
     (void) c;
     log_debug(">>> reset");
 
-    return circ_ok;
+    return CIRC_OK;
 }
 
 int linen_state_prep(struct circ *c, void *data) {
@@ -20,7 +20,7 @@ int linen_state_prep(struct circ *c, void *data) {
     (void) data;
     log_debug(">>> state_prep");
 
-    return circ_ok;
+    return CIRC_OK;
 }
 
 int linen_routine(struct circ *c, void *data) {
@@ -28,7 +28,7 @@ int linen_routine(struct circ *c, void *data) {
     (void) data;
     log_debug(">>> routine");
 
-    return circ_ok;
+    return CIRC_OK;
 }
 
 int linen_state_post(struct circ *c, void *data) {
@@ -36,7 +36,7 @@ int linen_state_post(struct circ *c, void *data) {
     (void) data;
     log_debug(">>> state_post");
 
-    return circ_ok;
+    return CIRC_OK;
 }
 
 struct circuit linen_circuit_factory(void *data) {

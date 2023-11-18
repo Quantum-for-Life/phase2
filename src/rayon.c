@@ -25,7 +25,7 @@ int rayon_state_prep(struct circ *c, void *data) {
         hadamard(*c->qureg, c->sys_qb[i]);
     }
 
-    return circ_ok;
+    return CIRC_OK;
 }
 
 int rayon_routine(struct circ *c, void *data) {
@@ -34,7 +34,7 @@ int rayon_routine(struct circ *c, void *data) {
 
     double time = dat->time;
     if (fabs(time) < DBL_EPSILON) {
-        return circ_ok;
+        return CIRC_OK;
     }
 
     const double REPS = time * time;
@@ -51,7 +51,7 @@ int rayon_routine(struct circ *c, void *data) {
         }
     }
 
-    return circ_ok;
+    return CIRC_OK;
 }
 
 int rayon_state_post(struct circ *c, void *data) {
@@ -66,7 +66,7 @@ int rayon_state_post(struct circ *c, void *data) {
     }
     hadamard(*c->qureg, c->mea_qb[0]);
 
-    return circ_ok;
+    return CIRC_OK;
 }
 
 struct circuit rayon_circuit_factory(struct rayon_circuit_data *data) {

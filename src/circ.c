@@ -16,11 +16,11 @@ int circ_env_init(struct circ_env *env) {
     log_debug(CIRC_LOG_TAG "Init struct circ_env");
     env->quest_env = malloc(sizeof(QuESTEnv));
     if (!env->quest_env) {
-        return circ_err;
+        return CIRC_ERR;
     }
     *env->quest_env = createQuESTEnv();
 
-    return circ_ok;
+    return CIRC_OK;
 }
 
 void circ_env_destroy(struct circ_env *env) {
@@ -71,7 +71,7 @@ circ_init(struct circ *c, struct circuit const ct, struct circ_env env, void
 
     Qureg *qureg = malloc(sizeof(Qureg));
     if (!qureg) {
-        return circ_err;
+        return CIRC_ERR;
     }
     *qureg = createQureg(
             circ_circuit_num_tot_qb(ct),
@@ -89,7 +89,7 @@ circ_init(struct circ *c, struct circuit const ct, struct circ_env env, void
         free(mea_qb);
         free(mea_cl_prob);
         free(mea_cl);
-        return circ_err;
+        return CIRC_ERR;
     }
     c->mea_cl = mea_cl;
     c->mea_cl_prob = mea_cl_prob;
@@ -102,7 +102,7 @@ circ_init(struct circ *c, struct circuit const ct, struct circ_env env, void
     init_sys_qb(c);
     init_anc_qb(c);
 
-    return circ_ok;
+    return CIRC_OK;
 }
 
 void circ_destroy(struct circ *c) {
@@ -159,7 +159,7 @@ int circ_reset(struct circ *c) {
     if (c->ct.reset) {
         return c->ct.reset(c);
     }
-    return circ_ok;
+    return CIRC_OK;
 }
 
 int circ_simulate(struct circ *c) {
@@ -169,21 +169,21 @@ int circ_simulate(struct circ *c) {
     if (c->ct.state_prep) {
         log_trace(CIRC_LOG_TAG "state_prep");
         result = c->ct.state_prep(c, c->data);
-        if (result != circ_ok) {
+        if (result != CIRC_OK) {
             return result;
         }
     }
     if (c->ct.routine) {
         log_trace(CIRC_LOG_TAG "routine");
         result = c->ct.routine(c, c->data);
-        if (result != circ_ok) {
+        if (result != CIRC_OK) {
             return result;
         }
     }
     if (c->ct.state_post) {
         log_trace(CIRC_LOG_TAG "state_post");
         result = c->ct.state_post(c, c->data);
-        if (result != circ_ok) {
+        if (result != CIRC_OK) {
             return result;
         }
     }
@@ -195,5 +195,5 @@ int circ_simulate(struct circ *c) {
                                         &c->mea_cl_prob[i]);
     }
 
-    return circ_ok;
+    return CIRC_OK;
 }

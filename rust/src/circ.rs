@@ -29,8 +29,8 @@ pub(crate) mod ffi {
     #[derive(Debug, Copy, Clone, PartialEq)]
     #[repr(C)]
     pub(crate) enum circ_result {
-        circ_ok,
-        circ_err,
+        CIRC_OK,
+        CIRC_ERR,
     }
 
     #[derive(Debug, Copy, Clone)]
@@ -113,7 +113,7 @@ impl CircEnv {
         let mut env_uninit = MaybeUninit::uninit();
 
         let env = (unsafe { circ_env_init(env_uninit.as_mut_ptr()) }
-            == circ_result::circ_ok)
+            == circ_result::CIRC_OK)
             .then(|| unsafe { env_uninit.assume_init() })
             .ok_or(Error::Init {
                 msg: "cannot initialize environment".to_string(),
@@ -171,7 +171,7 @@ impl<'a, C, T> Circ<'a, C, T> {
                 env.env,
                 mem::transmute(data_ptr),
             )
-        } == circ_result::circ_ok)
+        } == circ_result::CIRC_OK)
             .then(|| unsafe { circ_uninit.assume_init() })
             .ok_or(Error::Init {
                 msg: "circ initialization".to_string(),

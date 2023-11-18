@@ -5,8 +5,8 @@
 #include "hdf5.h"
 
 enum {
-    sdat_ok,
-    sdat_err
+    SDAT_OK = 0,
+    SDAT_ERR,
 };
 
 #define SDAT_PAULI_HAMIL "pauli_hamil"

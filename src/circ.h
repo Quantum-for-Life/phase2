@@ -9,11 +9,10 @@
 #include "QuEST.h"
 
 enum {
-    circ_ok,
-    circ_err,
+    CIRC_OK,
+    CIRC_ERR,
 };
 
-struct circ;
 
 /** circuit environment for a run on MPI cluster.
  *
@@ -24,6 +23,8 @@ struct circ;
 struct circ_env {
     QuESTEnv *quest_env;
 };
+
+struct circ;
 
 /** circuit specification.
  */
@@ -80,6 +81,7 @@ struct circ {
     int *sys_qb;
     int *anc_qb;
 };
+
 
 int circ_env_init(struct circ_env *);
 
