@@ -6,14 +6,14 @@
 #include "circ.h"
 #include "log/log.h"
 
-#define CIRC_LOG_TAG "[circ] "
+#define CIRC_LOG_TAG "[struct circ] "
 
-size_t circ_circuit_num_tot_qb(circuit ct) {
+size_t circ_circuit_num_tot_qb(struct circuit ct) {
     return ct.num_mea_qb + ct.num_sys_qb + ct.num_anc_qb;
 }
 
-int circ_env_init(circ_env *env) {
-    log_debug(CIRC_LOG_TAG "Init circ_env");
+int circ_env_init(struct circ_env *env) {
+    log_debug(CIRC_LOG_TAG "Init struct circ_env");
     env->quest_env = malloc(sizeof(QuESTEnv));
     if (!env->quest_env) {
         return circ_err;
@@ -23,7 +23,7 @@ int circ_env_init(circ_env *env) {
     return circ_ok;
 }
 
-void circ_env_destroy(circ_env *env) {
+void circ_env_destroy(struct circ_env *env) {
     if (!env->quest_env) {
         return;
     }
@@ -32,37 +32,38 @@ void circ_env_destroy(circ_env *env) {
     env->quest_env = NULL;
 }
 
-void circ_env_report(circ_env env) {
+void circ_env_report(struct circ_env env) {
     reportQuESTEnv(*env.quest_env);
 }
 
-void zero_mea_cl(circ *c) {
+void zero_mea_cl(struct circ *c) {
     for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
         c->mea_cl[i] = 0;
     }
 }
 
-void init_mea_qb(circ *c) {
+void init_mea_qb(struct circ *c) {
     for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
         c->mea_qb[i] = i;
     }
 }
 
-void init_sys_qb(circ *c) {
+void init_sys_qb(struct circ *c) {
     for (size_t i = 0; i < c->ct.num_sys_qb; i++) {
         c->sys_qb[i] = c->ct.num_mea_qb + i;
     }
 }
 
-void init_anc_qb(circ *c) {
+void init_anc_qb(struct circ *c) {
     for (size_t i = 0; i < c->ct.num_anc_qb; i++) {
         c->anc_qb[i] = c->ct.num_mea_qb + c->ct.num_sys_qb + i;
     }
 }
 
 int
-circ_init(circ *c, circuit const ct, circ_env env, void *data) {
-    log_debug(CIRC_LOG_TAG "Init circ");
+circ_init(struct circ *c, struct circuit const ct, struct circ_env env, void
+*data) {
+    log_debug(CIRC_LOG_TAG "Init struct circ");
 
     c->ct = ct;
     c->data = data;
@@ -104,7 +105,7 @@ circ_init(circ *c, circuit const ct, circ_env env, void *data) {
     return circ_ok;
 }
 
-void circ_destroy(circ *c) {
+void circ_destroy(struct circ *c) {
     destroyQureg(*c->qureg, *c->env.quest_env);
     free(c->qureg);
     c->qureg = NULL;
@@ -120,7 +121,7 @@ void circ_destroy(circ *c) {
     c->mea_cl = NULL;
 }
 
-void circ_report(circ c) {
+void circ_report(struct circ c) {
     printf("----------------\n");
     printf("CIRCUIT: %s\n", c.ct.name);
     reportQuregParams(*c.qureg);
@@ -151,7 +152,7 @@ void circ_report(circ c) {
     printf("----------------\n");
 }
 
-int circ_reset(circ *c) {
+int circ_reset(struct circ *c) {
     log_trace(CIRC_LOG_TAG "reset");
     initZeroState(*c->qureg);
     zero_mea_cl(c);
@@ -161,7 +162,7 @@ int circ_reset(circ *c) {
     return circ_ok;
 }
 
-int circ_simulate(circ *c) {
+int circ_simulate(struct circ *c) {
     circ_reset(c);
 
     int result;

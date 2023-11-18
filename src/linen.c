@@ -8,14 +8,14 @@
 #include "log/log.h"
 
 
-int linen_reset(circ *c) {
+int linen_reset(struct circ *c) {
     (void) c;
     log_debug(">>> reset");
 
     return circ_ok;
 }
 
-int linen_state_prep(circ *c, void *data) {
+int linen_state_prep(struct circ *c, void *data) {
     (void) c;
     (void) data;
     log_debug(">>> state_prep");
@@ -23,7 +23,7 @@ int linen_state_prep(circ *c, void *data) {
     return circ_ok;
 }
 
-int linen_routine(circ *c, void *data) {
+int linen_routine(struct circ *c, void *data) {
     (void) c;
     (void) data;
     log_debug(">>> routine");
@@ -31,7 +31,7 @@ int linen_routine(circ *c, void *data) {
     return circ_ok;
 }
 
-int linen_state_post(circ *c, void *data) {
+int linen_state_post(struct circ *c, void *data) {
     (void) c;
     (void) data;
     log_debug(">>> state_post");
@@ -39,9 +39,8 @@ int linen_state_post(circ *c, void *data) {
     return circ_ok;
 }
 
-circuit
-linen_circuit_factory(void *data) {
-    circuit ct = {
+struct circuit linen_circuit_factory(void *data) {
+    struct circuit ct = {
             .name = LINEN_NAME,
             .data = data,
             .num_mea_qb = LINEN_DEFAULT_NUM_MEA_QB,

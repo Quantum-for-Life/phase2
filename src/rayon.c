@@ -14,7 +14,7 @@
 #define RAYON_DEFAULT_NUM_ANC_QB 0
 
 
-int rayon_state_prep(circ *c, void *data) {
+int rayon_state_prep(struct circ *c, void *data) {
     (void) data;
 
     hadamard(*c->qureg, c->mea_qb[0]);
@@ -28,9 +28,9 @@ int rayon_state_prep(circ *c, void *data) {
     return circ_ok;
 }
 
-int rayon_routine(circ *c, void *data) {
-    rayon_circuit_data *ctdat = (rayon_circuit_data *) c->ct.data;
-    rayon_circ_data *dat = (rayon_circ_data *) data;
+int rayon_routine(struct circ *c, void *data) {
+    struct rayon_circuit_data *ctdat = (struct rayon_circuit_data *) c->ct.data;
+    struct rayon_circ_data *dat = (struct rayon_circ_data *) data;
 
     double time = dat->time;
     if (fabs(time) < DBL_EPSILON) {
@@ -54,13 +54,13 @@ int rayon_routine(circ *c, void *data) {
     return circ_ok;
 }
 
-int rayon_state_post(circ *c, void *data) {
+int rayon_state_post(struct circ *c, void *data) {
     //    pauliX(c.qureg, c.sys_qb[0]);
     //    pauliX(c.qureg, c.sys_qb[2]);
     for (size_t i = 0; i < c->ct.num_sys_qb; i++) {
         hadamard(*c->qureg, c->sys_qb[i]);
     }
-    rayon_circ_data *d = (rayon_circ_data *) data;
+    struct rayon_circ_data *d = (struct rayon_circ_data *) data;
     if (d->imag_switch == 1) {
         sGate(*c->qureg, c->mea_qb[0]);
     }
@@ -69,8 +69,8 @@ int rayon_state_post(circ *c, void *data) {
     return circ_ok;
 }
 
-circuit rayon_circuit_factory(rayon_circuit_data *data) {
-    circuit ct = {
+struct circuit rayon_circuit_factory(struct rayon_circuit_data *data) {
+    struct circuit ct = {
             .name = RAYON_NAME,
             .data = data,
             .num_mea_qb = RAYON_DEFAULT_NUM_MEA_QB,

@@ -20,9 +20,9 @@
 
 #define PHASE2_DEFAULT_H5FILE "simul.h5"
 
-int linen_simulate(circ_env env);
+int linen_simulate(struct circ_env env);
 
-int rayon_simulate(circ_env env, sdat_pauli_hamil ph,
+int rayon_simulate(struct circ_env env, sdat_pauli_hamil ph,
                    sdat_time_series *ts);
 
 void exit_failure(const char *msg) {
@@ -79,7 +79,7 @@ void set_log_level() {
 
 int main(int argc, char **argv) {
 
-    circ_env env;
+    struct circ_env env;
     if (circ_env_init(&env) != circ_ok) {
         exit_failure("initialize environment");
     }
@@ -192,13 +192,13 @@ int main(int argc, char **argv) {
 
 
 int
-linen_simulate(circ_env env) {
+linen_simulate(struct circ_env env) {
 
     log_debug("Report simulation environment");
     circ_env_report(env);
 
-    circuit factory = linen_circuit_factory(NULL);
-    circ c;
+    struct circuit factory = linen_circuit_factory(NULL);
+    struct circ c;
     if (circ_init(&c, factory, env, NULL) != circ_ok) {
         log_error("Cannot initialize circuit");
         return circ_err;
@@ -220,7 +220,7 @@ rayon_simulate_cleanup(PauliHamil hamil) {
 }
 
 int
-rayon_simulate(circ_env env, sdat_pauli_hamil ph,
+rayon_simulate(struct circ_env env, sdat_pauli_hamil ph,
                sdat_time_series *ts) {
     log_info("Initialize Pauli Hamiltonian");
     PauliHamil hamil = createPauliHamil(ph.num_qubits, ph.num_sum_terms);
@@ -233,10 +233,10 @@ rayon_simulate(circ_env env, sdat_pauli_hamil ph,
     }
 
     log_info("Initialize circuit");
-    rayon_circuit_data ct_data = {.hamil = hamil, .data = NULL};
-    circuit factory = rayon_circuit_factory(&ct_data);
-    rayon_circ_data circ_data = {.imag_switch = 0, .time = 0.0};
-    circ c;
+    struct rayon_circuit_data ct_data = {.hamil = hamil, .data = NULL};
+    struct circuit factory = rayon_circuit_factory(&ct_data);
+    struct rayon_circ_data circ_data = {.imag_switch = 0, .time = 0.0};
+    struct circ c;
     if (circ_init(&c, factory, env, &circ_data) != circ_ok) {
         log_error("Cannot initialize circuit");
         return circ_err;

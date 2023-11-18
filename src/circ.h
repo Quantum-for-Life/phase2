@@ -8,14 +8,12 @@
 
 #include "QuEST.h"
 
-typedef struct circ_env_ circ_env;
-typedef struct circuit_ circuit;
-typedef struct circ_ circ;
-
 enum {
     circ_ok,
     circ_err,
 };
+
+struct circ;
 
 /** circuit environment for a run on MPI cluster.
  *
@@ -23,13 +21,13 @@ enum {
  * during the experiment.
  */
 
-struct circ_env_ {
+struct circ_env {
     QuESTEnv *quest_env;
 };
 
 /** circuit specification.
  */
-struct circuit_ {
+struct circuit {
     const char *name;
     void *data;
 
@@ -42,7 +40,7 @@ struct circuit_ {
      * On top of standard resetting the Qureg and mea_cl.
      * This can be NULL.
      */
-    int (*reset)(circ *);
+    int (*reset)(struct circ *);
 
     /** circuit specification divided into 4 steps.
      *
@@ -59,21 +57,21 @@ struct circuit_ {
      *
      * There pointers can be NULL, meaning the step is not specified.
      */
-    int (*state_prep)(circ *, void *);
+    int (*state_prep)(struct circ *, void *);
 
-    int (*routine)(circ *, void *);
+    int (*routine)(struct circ *, void *);
 
-    int (*state_post)(circ *, void *);
+    int (*state_post)(struct circ *, void *);
 };
 
 
 /** circuit instance.
  */
-struct circ_ {
-    circuit ct;
+struct circ {
+    struct circuit ct;
     void *data;
 
-    circ_env env;
+    struct circ_env env;
     Qureg *qureg;
 
     int *mea_cl;
@@ -84,20 +82,20 @@ struct circ_ {
     int *anc_qb;
 };
 
-int circ_env_init(circ_env *);
+int circ_env_init(struct circ_env *);
 
-void circ_env_destroy(circ_env *);
+void circ_env_destroy(struct circ_env *);
 
-void circ_env_report(circ_env);
+void circ_env_report(struct circ_env);
 
-int circ_init(circ *, circuit, circ_env, void *);
+int circ_init(struct circ *, struct circuit, struct circ_env, void *);
 
-void circ_destroy(circ *);
+void circ_destroy(struct circ *);
 
-void circ_report(circ);
+void circ_report(struct circ);
 
-int circ_reset(circ *);
+int circ_reset(struct circ *);
 
-int circ_simulate(circ *);
+int circ_simulate(struct circ *);
 
 #endif //PHASE2_CIRC_H
