@@ -48,7 +48,6 @@ struct circuit {
      *   1. state_prep()
      *   2. routine()
      *   3. state_post()
-     *   4. measure()
      *
      * The cicuit is _not_ reset before the call to circ_simulate().
      *

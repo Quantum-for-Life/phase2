@@ -4,7 +4,7 @@
 #include "log/log.h"
 
 void
-sdat_pauli_hamil_init(sdat_pauli_hamil *dat) {
+sdat_pauli_hamil_init(struct sdat_pauli_hamil *dat) {
     dat->num_qubits = 0;
     dat->num_sum_terms = 0;
     dat->coeffs = NULL;
@@ -12,13 +12,13 @@ sdat_pauli_hamil_init(sdat_pauli_hamil *dat) {
 }
 
 void
-sdat_pauli_hamil_drop(sdat_pauli_hamil dat) {
+sdat_pauli_hamil_drop(struct sdat_pauli_hamil dat) {
     free(dat.coeffs);
     free(dat.paulis);
 }
 
 int
-sdat_pauli_hamil_read(sdat_pauli_hamil *dat, hid_t obj_id) {
+sdat_pauli_hamil_read(struct sdat_pauli_hamil *dat, hid_t obj_id) {
     int res = sdat_ok;
 
     hid_t grp_id = H5Gopen2(obj_id, SDAT_PAULI_HAMIL, H5P_DEFAULT);
@@ -93,20 +93,20 @@ sdat_pauli_hamil_read(sdat_pauli_hamil *dat, hid_t obj_id) {
 
 
 void
-sdat_time_series_init(sdat_time_series *dat) {
+sdat_time_series_init(struct sdat_time_series *dat) {
     dat->num_steps = 0;
     dat->times = NULL;
     dat->values = NULL;
 }
 
 void
-sdat_time_series_drop(sdat_time_series dat) {
+sdat_time_series_drop(struct sdat_time_series dat) {
     free(dat.times);
     free(dat.values);
 }
 
 int
-sdat_time_series_read(sdat_time_series *dat, hid_t obj_id) {
+sdat_time_series_read(struct sdat_time_series *dat, hid_t obj_id) {
     int res = sdat_ok;
 
     hid_t grp_id = H5Gopen2(obj_id, SDAT_TIME_SERIES, H5P_DEFAULT);
@@ -173,7 +173,7 @@ sdat_time_series_read(sdat_time_series *dat, hid_t obj_id) {
     return res;
 }
 
-int sdat_time_series_write(sdat_time_series dat, hid_t obj_id) {
+int sdat_time_series_write(struct sdat_time_series dat, hid_t obj_id) {
     int res = sdat_ok;
 
     hid_t grp_id = H5Gopen2(obj_id, SDAT_TIME_SERIES, H5P_DEFAULT);

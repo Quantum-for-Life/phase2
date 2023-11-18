@@ -22,8 +22,8 @@
 
 int linen_simulate(struct circ_env env);
 
-int rayon_simulate(struct circ_env env, sdat_pauli_hamil ph,
-                   sdat_time_series *ts);
+int rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
+                   struct sdat_time_series *ts);
 
 void exit_failure(const char *msg) {
     log_error("Failure: %s", msg);
@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
 #endif
     file_id = H5Fopen(h5filename, H5F_ACC_RDONLY, access_plist);
 
-    sdat_pauli_hamil dat_ph;
+    struct sdat_pauli_hamil dat_ph;
     sdat_pauli_hamil_init(&dat_ph);
     if (sdat_pauli_hamil_read(&dat_ph, file_id) != sdat_ok) {
         exit_failure("read Hamiltonian data");
@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
     log_debug("Hamiltonian: num_qubits=%zu, num_sum_terms=%zu",
               dat_ph.num_qubits, dat_ph.num_sum_terms);
 
-    sdat_time_series dat_ts;
+    struct sdat_time_series dat_ts;
     sdat_time_series_init(&dat_ts);
     if (sdat_time_series_read(&dat_ts, file_id) != sdat_ok) {
         exit_failure("read time series data");
@@ -220,8 +220,8 @@ rayon_simulate_cleanup(PauliHamil hamil) {
 }
 
 int
-rayon_simulate(struct circ_env env, sdat_pauli_hamil ph,
-               sdat_time_series *ts) {
+rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
+               struct sdat_time_series *ts) {
     log_info("Initialize Pauli Hamiltonian");
     PauliHamil hamil = createPauliHamil(ph.num_qubits, ph.num_sum_terms);
     for (size_t i = 0; i < ph.num_sum_terms; i++) {
