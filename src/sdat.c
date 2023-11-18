@@ -12,9 +12,11 @@ sdat_pauli_hamil_init(struct sdat_pauli_hamil *dat) {
 }
 
 void
-sdat_pauli_hamil_drop(struct sdat_pauli_hamil dat) {
-    free(dat.coeffs);
-    free(dat.paulis);
+sdat_pauli_hamil_destroy(struct sdat_pauli_hamil *dat) {
+    free(dat->coeffs);
+    dat->coeffs = NULL;
+    free(dat->paulis);
+    dat->paulis = NULL;
 }
 
 int
@@ -100,9 +102,11 @@ sdat_time_series_init(struct sdat_time_series *dat) {
 }
 
 void
-sdat_time_series_drop(struct sdat_time_series dat) {
-    free(dat.times);
-    free(dat.values);
+sdat_time_series_destroy(struct sdat_time_series *dat) {
+    free(dat->times);
+    dat->times = NULL;
+    free(dat->values);
+    dat->values = NULL;
 }
 
 int

@@ -24,7 +24,7 @@ void
 sdat_pauli_hamil_init(struct sdat_pauli_hamil *);
 
 void
-sdat_pauli_hamil_drop(struct sdat_pauli_hamil);
+sdat_pauli_hamil_destroy(struct sdat_pauli_hamil *);
 
 int
 sdat_pauli_hamil_read(struct sdat_pauli_hamil *, hid_t);
@@ -44,7 +44,7 @@ void
 sdat_time_series_init(struct sdat_time_series *);
 
 void
-sdat_time_series_drop(struct sdat_time_series);
+sdat_time_series_destroy(struct sdat_time_series *);
 
 int
 sdat_time_series_read(struct sdat_time_series *, hid_t);

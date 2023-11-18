@@ -179,8 +179,8 @@ int main(int argc, char **argv) {
     H5Fclose(file_id);
 
     log_info("*** Cleanup ***");
-    sdat_pauli_hamil_drop(dat_ph);
-    sdat_time_series_drop(dat_ts);
+    sdat_pauli_hamil_destroy(&dat_ph);
+    sdat_time_series_destroy(&dat_ts);
 
     log_info("Shut down simulation environment");
     circ_env_destroy(&env);
