@@ -83,7 +83,6 @@ circ_init(circ *c, circuit const ct, circ_env env, void *data) {
     c->mea_qb = mea_qb;
     c->sys_qb = sys_qb;
     c->anc_qb = anc_qb;
-
     c->simul_counter = 0;
 
     zero_mea_cl(c);
@@ -139,7 +138,7 @@ circ_result circ_reset(circ c) {
     log_trace(CIRC_LOG_TAG "reset");
     initZeroState(c.qureg);
     zero_mea_cl(&c);
-    if (c.ct.reset != NULL) {
+    if (c.ct.reset) {
         return c.ct.reset(c);
     }
     return CIRC_OK;
@@ -152,21 +151,21 @@ circ_result circ_simulate(circ *c) {
     circ_reset(*c);
 
     circ_result result;
-    if (c->ct.state_prep != NULL) {
+    if (c->ct.state_prep) {
         log_trace(CIRC_LOG_TAG "state_prep");
         result = c->ct.state_prep(*c, c->data);
         if (result != CIRC_OK) {
             return result;
         }
     }
-    if (c->ct.routine != NULL) {
+    if (c->ct.routine) {
         log_trace(CIRC_LOG_TAG "routine");
         result = c->ct.routine(*c, c->data);
         if (result != CIRC_OK) {
             return result;
         }
     }
-    if (c->ct.state_post != NULL) {
+    if (c->ct.state_post) {
         log_trace(CIRC_LOG_TAG "state_post");
         result = c->ct.state_post(*c, c->data);
         if (result != CIRC_OK) {

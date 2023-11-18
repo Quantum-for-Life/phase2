@@ -24,9 +24,9 @@ circ_result rayon_state_prep(circ c, void *data) {
     (void) data;
 
     hadamard(c.qureg, c.mea_qb[0]);
-//
-//    pauliX(c.qureg, c.sys_qb[0]);
-//    pauliX(c.qureg, c.sys_qb[2]);
+
+    //    pauliX(c.qureg, c.sys_qb[0]);
+    //    pauliX(c.qureg, c.sys_qb[2]);
     for (size_t i = 0; i < c.ct.num_sys_qb; i++) {
         hadamard(c.qureg, c.sys_qb[i]);
     }
@@ -61,15 +61,11 @@ circ_result rayon_routine(circ c, void *data) {
 }
 
 circ_result rayon_state_post(circ c, void *data) {
-
-
-//    pauliX(c.qureg, c.sys_qb[0]);
-//    pauliX(c.qureg, c.sys_qb[2]);
-//
+    //    pauliX(c.qureg, c.sys_qb[0]);
+    //    pauliX(c.qureg, c.sys_qb[2]);
     for (size_t i = 0; i < c.ct.num_sys_qb; i++) {
         hadamard(c.qureg, c.sys_qb[i]);
     }
-
     rayon_circ_data *d = (rayon_circ_data *) data;
     if (d->imag_switch == 1) {
         sGate(c.qureg, c.mea_qb[0]);
