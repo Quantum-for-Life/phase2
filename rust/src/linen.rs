@@ -8,7 +8,6 @@ mod ffi {
 
     extern "C" {
         pub static linen_circuit: circuit;
-
     }
 }
 

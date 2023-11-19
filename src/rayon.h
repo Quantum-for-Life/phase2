@@ -22,7 +22,7 @@ int rayon_routine(struct circ *c, void *data);
 
 int rayon_state_post(struct circ *c, void *data);
 
-struct circuit rayon_circuit = {
+const struct circuit rayon_circuit = {
         .name = RAYON_NAME,
         .data = NULL,
         .num_mea_qb = RAYON_DEFAULT_NUM_MEA_QB,
