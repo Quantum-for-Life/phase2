@@ -68,15 +68,14 @@ struct circuit {
 /** circuit instance.
  */
 struct circ {
+        struct circ_env env;
         struct circuit ct;
         void *data;
 
-        struct circ_env env;
         Qureg *qureg;
 
         int *mea_cl;
         double *mea_cl_prob;
-
         int *mea_qb;
         int *sys_qb;
         int *anc_qb;
@@ -89,7 +88,7 @@ void circ_env_destroy(struct circ_env *);
 
 void circ_env_report(struct circ_env);
 
-int circ_init(struct circ *, struct circuit, struct circ_env, void *);
+int circ_init(struct circ *, struct circ_env, struct circuit, void *);
 
 void circ_destroy(struct circ *);
 

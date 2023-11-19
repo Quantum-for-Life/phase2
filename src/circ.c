@@ -61,13 +61,13 @@ void init_anc_qb(struct circ *c) {
 }
 
 int
-circ_init(struct circ *c, struct circuit const ct, struct circ_env env, void
-*data) {
+circ_init(struct circ *c,
+          struct circ_env env, struct circuit const ct, void *data) {
         log_debug(CIRC_LOG_TAG "Init struct circ");
 
+        c->env = env;
         c->ct = ct;
         c->data = data;
-        c->env = env;
 
         Qureg *qureg = malloc(sizeof(Qureg));
         if (!qureg) {

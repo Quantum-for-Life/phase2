@@ -83,8 +83,8 @@ pub(crate) mod ffi {
 
         pub(crate) fn circ_init(
             c: *mut circ,
-            ct: circuit,
             env: circ_env,
+            ct: circuit,
             data: *mut c_void,
         ) -> circ_result;
 
@@ -167,8 +167,8 @@ impl<'a, C, T> Circ<'a, C, T> {
         let circ = (unsafe {
             ffi::circ_init(
                 circ_uninit.as_mut_ptr(),
-                ct.as_ref().ct,
                 env.env,
+                ct.as_ref().ct,
                 mem::transmute(data_ptr),
             )
         } == circ_result::CIRC_OK)
