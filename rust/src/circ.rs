@@ -45,7 +45,7 @@ impl CircEnv {
 
     pub fn report(&self) {
         unsafe {
-            ffi::circ_env_report(self.env);
+            ffi::circ_env_report(&self.env as *const _);
         }
     }
 }
@@ -106,7 +106,7 @@ impl<'a, C, T> Circ<'a, C, T> {
 
     pub fn report(&self) {
         unsafe {
-            circ_report(self.circ);
+            circ_report(&self.circ as *const _);
         }
     }
 }

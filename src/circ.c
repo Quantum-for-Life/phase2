@@ -28,8 +28,8 @@ void circ_env_destroy(struct circ_env *env) {
         env->quest_env = NULL;
 }
 
-void circ_env_report(struct circ_env env) {
-        reportQuESTEnv(*env.quest_env);
+void circ_env_report(struct circ_env const *env) {
+        reportQuESTEnv(*env->quest_env);
 }
 
 void zero_mea_cl(struct circ *c) {
@@ -115,32 +115,32 @@ void circ_destroy(struct circ *c) {
         c->mea_cl = NULL;
 }
 
-void circ_report(struct circ c) {
+void circ_report(struct circ const *c) {
         printf("----------------\n");
-        printf("CIRCUIT: %s\n", c.ct.name);
-        reportQuregParams(*c.qureg);
+        printf("CIRCUIT: %s\n", c->ct.name);
+        reportQuregParams(*c->qureg);
 
         printf("mea_cl register: [");
-        for (size_t i = 0; i < c.ct.num_mea_qb; i++) {
-                printf("%d", c.mea_cl[i]);
+        for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
+                printf("%d", c->mea_cl[i]);
         }
         printf("]\n");
 
         printf("mea_qb indices: { ");
-        for (size_t i = 0; i < c.ct.num_mea_qb; i++) {
-                printf("%d ", c.mea_qb[i]);
+        for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
+                printf("%d ", c->mea_qb[i]);
         }
         printf("}\n");
 
         printf("sys_qb indices: { ");
-        for (size_t i = 0; i < c.ct.num_sys_qb; i++) {
-                printf("%d ", c.sys_qb[i]);
+        for (size_t i = 0; i < c->ct.num_sys_qb; i++) {
+                printf("%d ", c->sys_qb[i]);
         }
         printf("}\n");
 
         printf("anc_qb indices: { ");
-        for (size_t i = 0; i < c.ct.num_anc_qb; i++) {
-                printf("%d ", c.anc_qb[i]);
+        for (size_t i = 0; i < c->ct.num_anc_qb; i++) {
+                printf("%d ", c->anc_qb[i]);
         }
         printf("}\n");
         printf("----------------\n");

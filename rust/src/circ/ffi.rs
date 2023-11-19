@@ -61,7 +61,7 @@ extern "C" {
 
     pub(crate) fn circ_env_destroy(env: *mut circ_env);
 
-    pub(crate) fn circ_env_report(env: circ_env);
+    pub(crate) fn circ_env_report(env: *const circ_env);
 
     pub(crate) fn circ_init(
         c: *mut circ,
@@ -72,7 +72,7 @@ extern "C" {
 
     pub(crate) fn circ_destroy(c: *mut circ);
 
-    pub(crate) fn circ_report(c: circ);
+    pub(crate) fn circ_report(c: *const circ);
 
     pub(crate) fn circ_reset(c: *mut circ) -> circ_result;
 

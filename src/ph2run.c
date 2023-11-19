@@ -86,13 +86,13 @@ int main(int argc, char **argv) {
 
 #ifdef DISTRIBUTED
 
-        int rank, num_ranks;
-        MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        log_info("*** Init ***");
-        log_info("Initialize MPI environment");
-        log_info("MPI num_ranks: %d", num_ranks);
-        log_info("This is rank no. %d", rank);
+                int rank, num_ranks;
+                MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+                MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+                log_info("*** Init ***");
+                log_info("Initialize MPI environment");
+                log_info("MPI num_ranks: %d", num_ranks);
+                log_info("This is rank no. %d", rank);
 #else
         log_info("*** Init ***");
         log_info("MPI mode not enabled.");
@@ -195,7 +195,7 @@ int
 linen_simulate(struct circ_env env) {
 
         log_debug("Report simulation environment");
-        circ_env_report(env);
+        circ_env_report(&env);
 
         struct circuit factory = linen_circuit;
         struct circ c;
@@ -204,7 +204,7 @@ linen_simulate(struct circ_env env) {
                 return CIRC_ERR;
         }
         log_debug("\"linen\" circ created");
-        circ_report(c);
+        circ_report(&c);
         log_debug("Simulating circ");
         circ_simulate(&c);
         log_debug("Free circ instance");
