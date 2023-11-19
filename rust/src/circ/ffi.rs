@@ -24,37 +24,38 @@ pub(crate) struct circ_env {
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub(crate) struct circuit {
-    pub(crate) name: *const c_char,
+    name: *const c_char,
+
     pub(crate) data: *mut c_void,
 
-    pub(crate) num_mea_qb: usize,
-    pub(crate) num_sys_qb: usize,
-    pub(crate) num_anc_qb: usize,
+    num_mea_qb: usize,
+    num_sys_qb: usize,
+    num_anc_qb: usize,
 
-    reset: extern "C" fn(c: circ) -> circ_result,
+    reset: extern "C" fn(c: *mut circ) -> c_int,
 
-    state_prep: extern "C" fn(c: circ, data: *mut c_void) -> circ_result,
-    routine:    extern "C" fn(c: circ, data: *mut c_void) -> circ_result,
-    state_post: extern "C" fn(c: circ, data: *mut c_void) -> circ_result,
+    state_prep: extern "C" fn(c: *mut circ, data: *mut c_void) -> c_int,
+    routine:    extern "C" fn(c: *mut circ, data: *mut c_void) -> c_int,
+    state_post: extern "C" fn(c: *mut circ, data: *mut c_void) -> c_int,
 }
 
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub(crate) struct circ {
+    env:  circ_env,
     ct:   circuit,
     data: *mut c_void,
 
-    env:   circ_env,
     qureg: *mut Qureg,
 
     mea_cl:      *mut c_int,
     mea_cl_prob: *mut c_double,
-
-    mea_qb: *mut c_int,
-    sys_qb: *mut c_int,
-    anc_qb: *mut c_int,
+    mea_qb:      *mut c_int,
+    sys_qb:      *mut c_int,
+    anc_qb:      *mut c_int,
 }
 
+#[link(name = "phase2")]
 extern "C" {
 
     pub(crate) fn circ_env_init(env: *mut circ_env) -> circ_result;
@@ -80,6 +81,7 @@ extern "C" {
 
 }
 
+#[link(name = "phase2")]
 extern "C" {
     pub static linen_circuit: circuit;
 }

@@ -132,6 +132,6 @@ mod tests {
     fn circ_init() {
         let env = CircEnv::try_new().unwrap();
         let ct = LinenCircuit::new(0);
-        let c = Circ::try_new(&env, &ct, 1).unwrap();
+        let _ = Circ::try_new(&env, &ct, 1).unwrap();
     }
 }
