@@ -1,15 +1,9 @@
 use std::mem;
 
-use crate::circ::Circuit;
-
-mod ffi {
-
-    use crate::circ::ffi::circuit;
-
-    extern "C" {
-        pub static linen_circuit: circuit;
-    }
-}
+use crate::circ::{
+    ffi,
+    Circuit,
+};
 
 #[derive(Debug)]
 pub struct LinenCircuit<T>(Circuit<T>);

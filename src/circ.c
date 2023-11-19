@@ -4,16 +4,12 @@
 #include "QuEST.h"
 
 #include "circ.h"
-#include "log/log.h"
-
-#define CIRC_LOG_TAG "[circ] "
 
 size_t circ_circuit_num_tot_qb(struct circuit ct) {
         return ct.num_mea_qb + ct.num_sys_qb + ct.num_anc_qb;
 }
 
 int circ_env_init(struct circ_env *env) {
-        log_debug(CIRC_LOG_TAG "Init struct circ_env");
         env->quest_env = malloc(sizeof(QuESTEnv));
         if (!env->quest_env) {
                 return CIRC_ERR;
@@ -63,8 +59,6 @@ void init_anc_qb(struct circ *c) {
 int
 circ_init(struct circ *c,
           struct circ_env env, struct circuit const ct, void *data) {
-        log_debug(CIRC_LOG_TAG "Init struct circ");
-
         c->env = env;
         c->ct = ct;
         c->data = data;
@@ -153,7 +147,6 @@ void circ_report(struct circ c) {
 }
 
 int circ_reset(struct circ *c) {
-        log_trace(CIRC_LOG_TAG "reset");
         initZeroState(*c->qureg);
         zero_mea_cl(c);
         if (c->ct.reset) {
@@ -167,21 +160,18 @@ int circ_simulate(struct circ *c) {
 
         int result;
         if (c->ct.state_prep) {
-                log_trace(CIRC_LOG_TAG "state_prep");
                 result = c->ct.state_prep(c, c->data);
                 if (result != CIRC_OK) {
                         return result;
                 }
         }
         if (c->ct.routine) {
-                log_trace(CIRC_LOG_TAG "routine");
                 result = c->ct.routine(c, c->data);
                 if (result != CIRC_OK) {
                         return result;
                 }
         }
         if (c->ct.state_post) {
-                log_trace(CIRC_LOG_TAG "state_post");
                 result = c->ct.state_post(c, c->data);
                 if (result != CIRC_OK) {
                         return result;
@@ -189,7 +179,6 @@ int circ_simulate(struct circ *c) {
         }
 
         /* Measure qubits */
-        log_trace(CIRC_LOG_TAG "measure");
         for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
                 c->mea_cl[i] = measureWithStats(*c->qureg, c->mea_qb[i],
                                                 &c->mea_cl_prob[i]);

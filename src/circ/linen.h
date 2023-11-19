@@ -1,7 +1,7 @@
 #ifndef PHASE2_LINEN_H
 #define PHASE2_LINEN_H
 
-#include "circ.h"
+#include "../circ.h"
 
 #define LINEN_NAME "linen"
 #define LINEN_DEFAULT_NUM_MEA_QB 4

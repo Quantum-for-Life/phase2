@@ -10,8 +10,8 @@
 #include "hdf5.h"
 
 #include "circ.h"
-#include "rayon.h"
-#include "linen.h"
+#include "circ/rayon.h"
+#include "circ/linen.h"
 #include "sdat.h"
 #include "log/log.h"
 
@@ -86,13 +86,13 @@ int main(int argc, char **argv) {
 
 #ifdef DISTRIBUTED
 
-                int rank, num_ranks;
-                MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
-                MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-                log_info("*** Init ***");
-                log_info("Initialize MPI environment");
-                log_info("MPI num_ranks: %d", num_ranks);
-                log_info("This is rank no. %d", rank);
+        int rank, num_ranks;
+        MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        log_info("*** Init ***");
+        log_info("Initialize MPI environment");
+        log_info("MPI num_ranks: %d", num_ranks);
+        log_info("This is rank no. %d", rank);
 #else
         log_info("*** Init ***");
         log_info("MPI mode not enabled.");
@@ -160,7 +160,7 @@ int main(int argc, char **argv) {
                 log_info("Circuit: rayon");
                 sucess = rayon_simulate(env, dat_ph, &dat_ts) != CIRC_OK;
         } else {
-                log_error("No circuit named %s", argv[1]);
+                log_error("No circ named %s", argv[1]);
                 sucess = 0;
         }
         if (!sucess) {
@@ -200,14 +200,14 @@ linen_simulate(struct circ_env env) {
         struct circuit factory = linen_circuit;
         struct circ c;
         if (circ_init(&c, env, factory, NULL) != CIRC_OK) {
-                log_error("Cannot initialize circuit");
+                log_error("Cannot initialize circ");
                 return CIRC_ERR;
         }
-        log_debug("\"linen\" circuit created");
+        log_debug("\"linen\" circ created");
         circ_report(c);
-        log_debug("Simulating circuit");
+        log_debug("Simulating circ");
         circ_simulate(&c);
-        log_debug("Free circuit instance");
+        log_debug("Free circ instance");
         circ_destroy(&c);
 
         return CIRC_OK;
@@ -232,7 +232,7 @@ rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
                 }
         }
 
-        log_info("Initialize circuit");
+        log_info("Initialize circ");
         struct rayon_circuit_data ct_data = {.hamil = hamil, .data = NULL};
         struct circuit factory = rayon_circuit;
         factory.data = &ct_data;
@@ -240,7 +240,7 @@ rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
         struct rayon_circ_data circ_data = {.imag_switch = 0, .time = 0.0};
         struct circ c;
         if (circ_init(&c, env, factory, &circ_data) != CIRC_OK) {
-                log_error("Cannot initialize circuit");
+                log_error("Cannot initialize circ");
                 return CIRC_ERR;
         }
 

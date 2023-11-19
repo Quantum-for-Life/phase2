@@ -1,11 +1,11 @@
-/** circuit: linen.
+/** circ: linen.
  *
- * Simple circuit implementation for testing.
+ * Simple circ implementation for testing.
  */
 
-#include "circ.h"
+#include "../circ.h"
 #include "linen.h"
-#include "log/log.h"
+#include "../log/log.h"
 
 
 int linen_reset(struct circ *c) {

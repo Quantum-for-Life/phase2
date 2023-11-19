@@ -5,8 +5,8 @@ link_libraries(${HDF5_LIBRARIES})
 
 add_library(phase2 SHARED
         circ.c
-        linen.c
-        rayon.c
+        circ/linen.c
+        circ/rayon.c
         sdat.c
         log/log.c
 )

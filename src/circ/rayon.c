@@ -1,11 +1,11 @@
-/** circuit: rayon
+/** circ: rayon
  *
  *  Quantum phase estimation with Hadamard test.
  */
 
 #include <float.h>
 #include "QuEST.h"
-#include "circ.h"
+#include "../circ.h"
 #include "rayon.h"
 
 
