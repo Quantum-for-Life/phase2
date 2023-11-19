@@ -6,7 +6,7 @@
 #include "circ.h"
 #include "log/log.h"
 
-#define CIRC_LOG_TAG "[struct circ] "
+#define CIRC_LOG_TAG "[circ] "
 
 size_t circ_circuit_num_tot_qb(struct circuit ct) {
         return ct.num_mea_qb + ct.num_sys_qb + ct.num_anc_qb;

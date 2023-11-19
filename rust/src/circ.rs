@@ -153,8 +153,8 @@ pub struct Circ<'a, C, T> {
 
 impl<'a, C, T> Circ<'a, C, T> {
     pub fn try_new<Ct>(
-        ct: &'a Ct,
         env: &'a CircEnv,
+        ct: &'a Ct,
         data: T,
     ) -> Result<Self, Error>
     where
@@ -213,6 +213,6 @@ mod tests {
     fn circ_init() {
         let env = CircEnv::try_new().unwrap();
         let ct = LinenCircuit::new(0);
-        let c = Circ::try_new(&ct, &env, 1).unwrap();
+        let c = Circ::try_new(&env, &ct, 1).unwrap();
     }
 }

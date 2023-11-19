@@ -197,7 +197,7 @@ linen_simulate(struct circ_env env) {
         log_debug("Report simulation environment");
         circ_env_report(env);
 
-        struct circuit factory = linen_circuit_factory(NULL);
+        struct circuit factory = linen_circuit;
         struct circ c;
         if (circ_init(&c, factory, env, NULL) != CIRC_OK) {
                 log_error("Cannot initialize circuit");
@@ -234,7 +234,9 @@ rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
 
         log_info("Initialize circuit");
         struct rayon_circuit_data ct_data = {.hamil = hamil, .data = NULL};
-        struct circuit factory = rayon_circuit_factory(&ct_data);
+        struct circuit factory = rayon_circuit;
+        factory.data = &ct_data;
+        factory.num_sys_qb = ct_data.hamil.numQubits;
         struct rayon_circ_data circ_data = {.imag_switch = 0, .time = 0.0};
         struct circ c;
         if (circ_init(&c, factory, env, &circ_data) != CIRC_OK) {
