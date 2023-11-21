@@ -13,6 +13,7 @@
 #include "circ/rayon.h"
 #include "circ/linen.h"
 #include "sdat.h"
+
 #include "log.h"
 
 #define PHASE2_LOG_ENVVAR "PHASE2_LOG"

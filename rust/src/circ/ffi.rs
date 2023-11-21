@@ -34,9 +34,9 @@ pub(crate) struct circuit {
 
     reset: extern "C" fn(c: *mut circ) -> c_int,
 
-    state_prep: extern "C" fn(c: *mut circ, data: *mut c_void) -> c_int,
-    routine:    extern "C" fn(c: *mut circ, data: *mut c_void) -> c_int,
-    state_post: extern "C" fn(c: *mut circ, data: *mut c_void) -> c_int,
+    state_prep: extern "C" fn(c: *mut circ) -> c_int,
+    routine:    extern "C" fn(c: *mut circ) -> c_int,
+    state_post: extern "C" fn(c: *mut circ) -> c_int,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -79,6 +79,22 @@ extern "C" {
 
     pub(crate) fn circ_simulate(c: *mut circ) -> circ_result;
 
+}
+
+#[derive(Debug)]
+#[repr(C)]
+pub(crate) struct linen_circuit_data {
+    pub(crate) state_prep_value: c_int,
+    pub(crate) routine_value:    c_int,
+    pub(crate) state_post_value: c_int,
+}
+
+#[derive(Debug)]
+#[repr(C)]
+pub(crate) struct linen_circ_data {
+    pub(crate) state_prep_value: c_int,
+    pub(crate) routine_value:    c_int,
+    pub(crate) state_post_value: c_int,
 }
 
 #[link(name = "phase2")]

@@ -21,6 +21,7 @@ use crate::circ::ffi::{
 #[derive(Debug)]
 pub enum Error {
     Init { msg: String },
+    Simulate,
 }
 
 pub struct CircEnv {
@@ -58,30 +59,28 @@ impl Drop for CircEnv {
 }
 
 #[derive(Debug)]
-pub struct Circuit<T> {
+pub struct Circuit<'a, T> {
     pub(crate) ct:   ffi::circuit,
-    pub(crate) data: T,
+    pub(crate) data: &'a mut T,
 }
 
-pub struct Circ<'a, C, T> {
+pub struct Circ<'a, 'b: 'a, C, T> {
     circ: ffi::circ,
     env:  &'a CircEnv,
-    ct:   &'a Circuit<C>,
-    data: T,
+    ct:   &'a Circuit<'b, C>,
+    data: &'a mut T,
 }
 
-impl<'a, C, T> Circ<'a, C, T> {
+impl<'a, 'b: 'a, C, T> Circ<'a, 'b, C, T> {
     pub fn try_new<Ct>(
         env: &'a CircEnv,
         ct: &'a Ct,
-        data: T,
+        data: &'a mut T,
     ) -> Result<Self, Error>
     where
-        Ct: AsRef<Circuit<C>>,
+        Ct: AsRef<Circuit<'b, C>>,
     {
-        let mut data = data;
-        let data_ptr: *mut T = &mut data;
-
+        let data_ptr = data as *mut _;
         let mut circ_uninit = MaybeUninit::uninit();
         let circ = (unsafe {
             ffi::circ_init(
@@ -109,8 +108,16 @@ impl<'a, C, T> Circ<'a, C, T> {
             circ_report(&self.circ as *const _);
         }
     }
+
+    pub fn simulate(&mut self) -> Result<(), Error> {
+        let circ_ptr = &mut self.circ as *mut _;
+        match unsafe { ffi::circ_simulate(circ_ptr) } {
+            circ_result::CIRC_OK => Ok(()),
+            circ_result::CIRC_ERR => Err(Error::Simulate),
+        }
+    }
 }
-impl<'a, C, T> Drop for Circ<'a, C, T> {
+impl<'a, 'b: 'a, C, T> Drop for Circ<'a, 'b, C, T> {
     fn drop(&mut self) {
         let circ_ptr = &mut self.circ as *mut _;
         unsafe { ffi::circ_destroy(circ_ptr) }
@@ -129,9 +136,29 @@ mod tests {
     }
 
     #[test]
-    fn circ_init() {
+    fn linen_circ_01() {
         let env = CircEnv::try_new().unwrap();
-        let ct = LinenCircuit::new(0);
-        let _ = Circ::try_new(&env, &ct, 1).unwrap();
+        let mut ct_data = ffi::linen_circuit_data {
+            state_prep_value: 0,
+            routine_value:    11,
+            state_post_value: 222,
+        };
+        let ct = LinenCircuit::new(&mut ct_data);
+        assert_eq!(ct.0.data.state_prep_value, 0);
+        assert_eq!(ct.0.data.routine_value, 11);
+        assert_eq!(ct.0.data.state_post_value, 222);
+
+        let mut dat = ffi::linen_circ_data {
+            state_prep_value: -1,
+            routine_value:    -1,
+            state_post_value: -1,
+        };
+        let mut c = Circ::try_new(&env, &ct, &mut dat).unwrap();
+        c.simulate().unwrap();
+        drop(c);
+
+        assert_eq!(dat.state_prep_value, 0);
+        assert_eq!(dat.routine_value, 11);
+        assert_eq!(dat.state_post_value, 222);
     }
 }

@@ -6,5 +6,3 @@ resolver = "2"
 
 [build-dependencies]
 cmake = "0.1.50"
-[dependencies]
-log = "0.4.20"

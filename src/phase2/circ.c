@@ -160,19 +160,19 @@ int circ_simulate(struct circ *c) {
 
         int result;
         if (c->ct.state_prep) {
-                result = c->ct.state_prep(c, c->data);
+                result = c->ct.state_prep(c);
                 if (result != CIRC_OK) {
                         return result;
                 }
         }
         if (c->ct.routine) {
-                result = c->ct.routine(c, c->data);
+                result = c->ct.routine(c);
                 if (result != CIRC_OK) {
                         return result;
                 }
         }
         if (c->ct.state_post) {
-                result = c->ct.state_post(c, c->data);
+                result = c->ct.state_post(c);
                 if (result != CIRC_OK) {
                         return result;
                 }

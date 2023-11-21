@@ -57,11 +57,11 @@ struct circuit {
          *
          * There pointers can be NULL, meaning the step is not specified.
          */
-        int (*state_prep)(struct circ *, void *);
+        int (*state_prep)(struct circ *);
 
-        int (*routine)(struct circ *, void *);
+        int (*routine)(struct circ *);
 
-        int (*state_post)(struct circ *, void *);
+        int (*state_post)(struct circ *);
 };
 
 

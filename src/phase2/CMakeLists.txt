@@ -12,4 +12,7 @@ target_link_libraries(phase2
         log
         QuEST m
 )
-target_include_directories(phase2 PRIVATE ${LOG_INCLUDE_DIRS})
+target_include_directories(phase2 PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${LOG_INCLUDE_DIRS}
+)

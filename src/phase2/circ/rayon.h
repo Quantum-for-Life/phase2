@@ -16,11 +16,11 @@ struct rayon_circ_data {
         int imag_switch;
 };
 
-int rayon_state_prep(struct circ *c, void *data);
+int rayon_state_prep(struct circ *c);
 
-int rayon_routine(struct circ *c, void *data);
+int rayon_routine(struct circ *c);
 
-int rayon_state_post(struct circ *c, void *data);
+int rayon_state_post(struct circ *c);
 
 const struct circuit rayon_circuit = {
         .name = RAYON_NAME,

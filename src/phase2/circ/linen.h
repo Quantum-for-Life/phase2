@@ -1,20 +1,32 @@
 #ifndef PHASE2_LINEN_H
 #define PHASE2_LINEN_H
 
-#include "../circ.h"
+#include "circ.h"
 
 #define LINEN_NAME "linen"
 #define LINEN_DEFAULT_NUM_MEA_QB 4
 #define LINEN_DEFAULT_NUM_SYS_QB 8
 #define LINEN_DEFAULT_NUM_ANC_QB 4
 
+struct linen_circuit_data {
+        int state_prep_value;
+        int routine_value;
+        int state_post_value;
+};
+
+struct linen_circ_data {
+        int state_prep_value;
+        int routine_value;
+        int state_post_value;
+};
+
 int linen_reset(struct circ *c);
 
-int linen_state_prep(struct circ *c, void *data);
+int linen_state_prep(struct circ *c);
 
-int linen_routine(struct circ *c, void *data);
+int linen_routine(struct circ *c);
 
-int linen_state_post(struct circ *c, void *data);
+int linen_state_post(struct circ *c);
 
 const struct circuit linen_circuit = {
         .name = LINEN_NAME,
