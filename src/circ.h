@@ -14,7 +14,7 @@ enum {
 };
 
 
-/** circuit environment for a run on MPI cluster.
+/** circ environment for a run on MPI cluster.
  *
  * To be created and destroyed _only once_
  * during the experiment.
@@ -26,7 +26,7 @@ struct circ_env {
 
 struct circ;
 
-/** circuit specification.
+/** circ specification.
  */
 struct circuit {
         const char *name;
@@ -36,14 +36,14 @@ struct circuit {
         size_t num_sys_qb;
         size_t num_anc_qb;
 
-        /** Reset the circuit.
+        /** Reset the circ.
          *
          * On top of standard resetting the Qureg and mea_cl.
          * This can be NULL.
          */
         int (*reset)(struct circ *);
 
-        /** circuit specification divided into 4 steps.
+        /** circ specification divided into 4 steps.
          *
          * The order of execution of these steps in circ_simulate() is always:
          *   1. state_prep()
@@ -65,38 +65,38 @@ struct circuit {
 };
 
 
-/** circuit instance.
+/** circ instance.
  */
 struct circ {
+        struct circ_env env;
         struct circuit ct;
         void *data;
 
-        struct circ_env env;
         Qureg *qureg;
 
         int *mea_cl;
         double *mea_cl_prob;
-
         int *mea_qb;
         int *sys_qb;
         int *anc_qb;
 };
 
 
-int circ_env_init(struct circ_env *);
+int circ_env_init(struct circ_env *env);
 
-void circ_env_destroy(struct circ_env *);
+void circ_env_destroy(struct circ_env *env);
 
-void circ_env_report(struct circ_env);
+void circ_env_report(struct circ_env const *env);
 
-int circ_init(struct circ *, struct circuit, struct circ_env, void *);
+int circ_init(struct circ *c,
+              struct circ_env env, struct circuit ct, void *data);
 
-void circ_destroy(struct circ *);
+void circ_destroy(struct circ *c);
 
-void circ_report(struct circ);
+void circ_report(struct circ const *c);
 
-int circ_reset(struct circ *);
+int circ_reset(struct circ *c);
 
-int circ_simulate(struct circ *);
+int circ_simulate(struct circ *c);
 
 #endif //PHASE2_CIRC_H

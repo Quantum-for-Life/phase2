@@ -1,17 +1,12 @@
-/** circuit: rayon
+/** circ: rayon
  *
  *  Quantum phase estimation with Hadamard test.
  */
 
 #include <float.h>
 #include "QuEST.h"
-#include "circ.h"
+#include "../circ.h"
 #include "rayon.h"
-
-#define RAYON_NAME "rayon"
-#define RAYON_DEFAULT_NUM_MEA_QB 1
-// #define RAYON_DEFAULT_NUM_SYS_QB 8
-#define RAYON_DEFAULT_NUM_ANC_QB 0
 
 
 int rayon_state_prep(struct circ *c, void *data) {
@@ -68,20 +63,4 @@ int rayon_state_post(struct circ *c, void *data) {
         hadamard(*c->qureg, c->mea_qb[0]);
 
         return CIRC_OK;
-}
-
-struct circuit rayon_circuit_factory(struct rayon_circuit_data *data) {
-        struct circuit ct = {
-                .name = RAYON_NAME,
-                .data = data,
-                .num_mea_qb = RAYON_DEFAULT_NUM_MEA_QB,
-                .num_sys_qb = data->hamil.numQubits,
-                .num_anc_qb = RAYON_DEFAULT_NUM_ANC_QB,
-                .reset = NULL,
-                .state_prep = rayon_state_prep,
-                .routine = rayon_routine,
-                .state_post = rayon_state_post,
-        };
-
-        return ct;
 }

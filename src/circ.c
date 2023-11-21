@@ -4,16 +4,12 @@
 #include "QuEST.h"
 
 #include "circ.h"
-#include "log/log.h"
-
-#define CIRC_LOG_TAG "[struct circ] "
 
 size_t circ_circuit_num_tot_qb(struct circuit ct) {
         return ct.num_mea_qb + ct.num_sys_qb + ct.num_anc_qb;
 }
 
 int circ_env_init(struct circ_env *env) {
-        log_debug(CIRC_LOG_TAG "Init struct circ_env");
         env->quest_env = malloc(sizeof(QuESTEnv));
         if (!env->quest_env) {
                 return CIRC_ERR;
@@ -32,8 +28,8 @@ void circ_env_destroy(struct circ_env *env) {
         env->quest_env = NULL;
 }
 
-void circ_env_report(struct circ_env env) {
-        reportQuESTEnv(*env.quest_env);
+void circ_env_report(struct circ_env const *env) {
+        reportQuESTEnv(*env->quest_env);
 }
 
 void zero_mea_cl(struct circ *c) {
@@ -61,13 +57,11 @@ void init_anc_qb(struct circ *c) {
 }
 
 int
-circ_init(struct circ *c, struct circuit const ct, struct circ_env env, void
-*data) {
-        log_debug(CIRC_LOG_TAG "Init struct circ");
-
+circ_init(struct circ *c,
+          struct circ_env env, struct circuit const ct, void *data) {
+        c->env = env;
         c->ct = ct;
         c->data = data;
-        c->env = env;
 
         Qureg *qureg = malloc(sizeof(Qureg));
         if (!qureg) {
@@ -121,39 +115,38 @@ void circ_destroy(struct circ *c) {
         c->mea_cl = NULL;
 }
 
-void circ_report(struct circ c) {
+void circ_report(struct circ const *c) {
         printf("----------------\n");
-        printf("CIRCUIT: %s\n", c.ct.name);
-        reportQuregParams(*c.qureg);
+        printf("CIRCUIT: %s\n", c->ct.name);
+        reportQuregParams(*c->qureg);
 
         printf("mea_cl register: [");
-        for (size_t i = 0; i < c.ct.num_mea_qb; i++) {
-                printf("%d", c.mea_cl[i]);
+        for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
+                printf("%d", c->mea_cl[i]);
         }
         printf("]\n");
 
         printf("mea_qb indices: { ");
-        for (size_t i = 0; i < c.ct.num_mea_qb; i++) {
-                printf("%d ", c.mea_qb[i]);
+        for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
+                printf("%d ", c->mea_qb[i]);
         }
         printf("}\n");
 
         printf("sys_qb indices: { ");
-        for (size_t i = 0; i < c.ct.num_sys_qb; i++) {
-                printf("%d ", c.sys_qb[i]);
+        for (size_t i = 0; i < c->ct.num_sys_qb; i++) {
+                printf("%d ", c->sys_qb[i]);
         }
         printf("}\n");
 
         printf("anc_qb indices: { ");
-        for (size_t i = 0; i < c.ct.num_anc_qb; i++) {
-                printf("%d ", c.anc_qb[i]);
+        for (size_t i = 0; i < c->ct.num_anc_qb; i++) {
+                printf("%d ", c->anc_qb[i]);
         }
         printf("}\n");
         printf("----------------\n");
 }
 
 int circ_reset(struct circ *c) {
-        log_trace(CIRC_LOG_TAG "reset");
         initZeroState(*c->qureg);
         zero_mea_cl(c);
         if (c->ct.reset) {
@@ -167,21 +160,18 @@ int circ_simulate(struct circ *c) {
 
         int result;
         if (c->ct.state_prep) {
-                log_trace(CIRC_LOG_TAG "state_prep");
                 result = c->ct.state_prep(c, c->data);
                 if (result != CIRC_OK) {
                         return result;
                 }
         }
         if (c->ct.routine) {
-                log_trace(CIRC_LOG_TAG "routine");
                 result = c->ct.routine(c, c->data);
                 if (result != CIRC_OK) {
                         return result;
                 }
         }
         if (c->ct.state_post) {
-                log_trace(CIRC_LOG_TAG "state_post");
                 result = c->ct.state_post(c, c->data);
                 if (result != CIRC_OK) {
                         return result;
@@ -189,7 +179,6 @@ int circ_simulate(struct circ *c) {
         }
 
         /* Measure qubits */
-        log_trace(CIRC_LOG_TAG "measure");
         for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
                 c->mea_cl[i] = measureWithStats(*c->qureg, c->mea_qb[i],
                                                 &c->mea_cl_prob[i]);
