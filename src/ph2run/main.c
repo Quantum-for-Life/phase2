@@ -24,15 +24,15 @@
 int linen_simulate(struct circ_env env);
 
 int rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
-                   struct sdat_time_series *ts);
+                   const struct sdat_time_series* ts);
 
-void exit_failure(const char *msg) {
+void exit_failure(const char* msg) {
         log_error("Failure: %s", msg);
         exit(EXIT_FAILURE);
 }
 
-void help_page(int argc, char **argv) {
-        (void) argc;
+void help_page(const int argc, char** argv) {
+        (void)argc;
         fprintf(stderr, "usage: %s CIRCUIT [SIMUL_FILE_H5]\n\n", argv[0]);
         fprintf(stderr,
                 "where CIRCUIT is must be one of:\n"
@@ -41,19 +41,20 @@ void help_page(int argc, char **argv) {
                 "    rayon\n"
                 "\n"
                 "If no simulation input file (HDF5) is specified,\n"
-                "the default is " PHASE2_DEFAULT_H5FILE " in the current directory.\n"
+                "the default is " PHASE2_DEFAULT_H5FILE
+                " in the current directory.\n"
         );
         fprintf(stderr,
                 "\n"
                 "To set logging level, set environment variable:\n"
-                "\n    "  PHASE2_LOG_ENVVAR
+                "\n    " PHASE2_LOG_ENVVAR
                 "={trace, debug, info, warn, error, fatal}"
                 "\n\n"
         );
 }
 
 void set_log_level() {
-        char *log_level = getenv(PHASE2_LOG_ENVVAR);
+        const char* log_level = getenv(PHASE2_LOG_ENVVAR);
         if (log_level == NULL) {
                 log_set_level(LOG_ERROR);
                 return;
@@ -78,8 +79,7 @@ void set_log_level() {
         }
 }
 
-int main(int argc, char **argv) {
-
+int main(const int argc, char** argv) {
         struct circ_env env;
         if (circ_env_init(&env) != CIRC_OK) {
                 exit_failure("initialize environment");
@@ -98,13 +98,13 @@ int main(int argc, char **argv) {
         log_info("*** Init ***");
         log_info("MPI mode not enabled.");
         log_info("To enable distributed mode, set "
-                 "-DDISTRIBUTED "
-                 "flag during compilation");
+                "-DDISTRIBUTED "
+                "flag during compilation");
 #endif
 
         set_log_level();
         log_info("Open log file: " PHASE2_LOG_FILE);
-        FILE *log_file = fopen(PHASE2_LOG_FILE, "a");
+        FILE* log_file = fopen(PHASE2_LOG_FILE, "a");
         if (!log_file) {
                 exit_failure("open log file");
         }
@@ -115,12 +115,13 @@ int main(int argc, char **argv) {
                 help_page(argc, argv);
                 return EXIT_FAILURE;
         }
-        const char *h5filename = PHASE2_DEFAULT_H5FILE;
+        const char* h5filename = PHASE2_DEFAULT_H5FILE;
         if (argc < 3) {
                 log_debug("No simulation input file specified; "
                           "using default: %s",
                           PHASE2_DEFAULT_H5FILE);
-        } else {
+        }
+        else {
                 h5filename = argv[2];
         }
 
@@ -156,11 +157,12 @@ int main(int argc, char **argv) {
         if (strncmp(argv[1], "linen", 5) == 0) {
                 log_info("Circuit: linen");
                 sucess = linen_simulate(env) == CIRC_OK;
-
-        } else if (strncmp(argv[1], "rayon", 5) == 0) {
+        }
+        else if (strncmp(argv[1], "rayon", 5) == 0) {
                 log_info("Circuit: rayon");
                 sucess = rayon_simulate(env, dat_ph, &dat_ts) != CIRC_OK;
-        } else {
+        }
+        else {
                 log_error("No circ named %s", argv[1]);
                 sucess = 0;
         }
@@ -193,12 +195,11 @@ int main(int argc, char **argv) {
 
 
 int
-linen_simulate(struct circ_env env) {
-
+linen_simulate(const struct circ_env env) {
         log_debug("Report simulation environment");
         circ_env_report(&env);
 
-        struct circuit factory = linen_circuit;
+        const struct circuit factory = linen_circuit;
         struct circ c;
         if (circ_init(&c, env, factory, NULL) != CIRC_OK) {
                 log_error("Cannot initialize circ");
@@ -216,20 +217,22 @@ linen_simulate(struct circ_env env) {
 
 
 void
-rayon_simulate_cleanup(PauliHamil hamil) {
+rayon_simulate_cleanup(const PauliHamil hamil) {
         destroyPauliHamil(hamil);
 }
 
 int
-rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
-               struct sdat_time_series *ts) {
+rayon_simulate(const struct circ_env env, const struct sdat_pauli_hamil ph,
+               const struct sdat_time_series* ts) {
         log_info("Initialize Pauli Hamiltonian");
-        PauliHamil hamil = createPauliHamil(ph.num_qubits, ph.num_sum_terms);
+        const PauliHamil hamil = createPauliHamil(
+                ph.num_qubits, ph.num_sum_terms);
         for (size_t i = 0; i < ph.num_sum_terms; i++) {
                 hamil.termCoeffs[i] = ph.coeffs[i];
                 for (size_t j = 0; j < ph.num_qubits; j++) {
-                        size_t pauli_idx = i * ph.num_qubits + j;
-                        hamil.pauliCodes[pauli_idx] = (enum pauliOpType) ph.paulis[pauli_idx];
+                        const size_t pauli_idx = i * ph.num_qubits + j;
+                        hamil.pauliCodes[pauli_idx] = (enum pauliOpType)ph.
+                                paulis[pauli_idx];
                 }
         }
 
@@ -246,10 +249,9 @@ rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
         }
 
         log_info("Computing expectation value");
-        double prob_0;
         circ_data.imag_switch = 0;
         while (circ_data.imag_switch <= 1) {
-                size_t offset = circ_data.imag_switch == 0 ? 0 : 1;
+                const size_t offset = circ_data.imag_switch == 0 ? 0 : 1;
                 for (size_t i = 0; i < ts->num_steps; i++) {
                         circ_data.time = ts->times[i];
                         if (circ_simulate(&c) != CIRC_OK) {
@@ -257,8 +259,9 @@ rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
                                 rayon_simulate_cleanup(hamil);
                                 return CIRC_ERR;
                         }
-                        prob_0 = c.mea_cl[0] == 0 ? c.mea_cl_prob[0] : 1.0 -
-                                                                       c.mea_cl_prob[0];
+                        const double prob_0 = c.mea_cl[0] == 0
+                                                      ? c.mea_cl_prob[0]
+                                                      : 1.0 - c.mea_cl_prob[0];
                         ts->values[2 * i + offset] = 2 * prob_0 - 1;
                 }
                 circ_data.imag_switch++;

@@ -5,11 +5,11 @@
 
 #include "circ.h"
 
-size_t circ_circuit_num_tot_qb(struct circuit ct) {
+size_t circ_circuit_num_tot_qb(const struct circuit ct) {
         return ct.num_mea_qb + ct.num_sys_qb + ct.num_anc_qb;
 }
 
-int circ_env_init(struct circ_env *env) {
+int circ_env_init(struct circ_env* env) {
         env->quest_env = malloc(sizeof(QuESTEnv));
         if (!env->quest_env) {
                 return CIRC_ERR;
@@ -19,7 +19,7 @@ int circ_env_init(struct circ_env *env) {
         return CIRC_OK;
 }
 
-void circ_env_destroy(struct circ_env *env) {
+void circ_env_destroy(struct circ_env* env) {
         if (!env->quest_env) {
                 return;
         }
@@ -28,42 +28,42 @@ void circ_env_destroy(struct circ_env *env) {
         env->quest_env = NULL;
 }
 
-void circ_env_report(struct circ_env const *env) {
+void circ_env_report(struct circ_env const* env) {
         reportQuESTEnv(*env->quest_env);
 }
 
-void zero_mea_cl(struct circ *c) {
+void zero_mea_cl(const struct circ* c) {
         for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
                 c->mea_cl[i] = 0;
         }
 }
 
-void init_mea_qb(struct circ *c) {
+void init_mea_qb(const struct circ* c) {
         for (size_t i = 0; i < c->ct.num_mea_qb; i++) {
                 c->mea_qb[i] = i;
         }
 }
 
-void init_sys_qb(struct circ *c) {
+void init_sys_qb(const struct circ* c) {
         for (size_t i = 0; i < c->ct.num_sys_qb; i++) {
                 c->sys_qb[i] = c->ct.num_mea_qb + i;
         }
 }
 
-void init_anc_qb(struct circ *c) {
+void init_anc_qb(const struct circ* c) {
         for (size_t i = 0; i < c->ct.num_anc_qb; i++) {
                 c->anc_qb[i] = c->ct.num_mea_qb + c->ct.num_sys_qb + i;
         }
 }
 
 int
-circ_init(struct circ *c,
-          struct circ_env env, struct circuit const ct, void *data) {
+circ_init(struct circ* c,
+          const struct circ_env env, struct circuit const ct, void* data) {
         c->env = env;
         c->ct = ct;
         c->data = data;
 
-        Qureg *qureg = malloc(sizeof(Qureg));
+        Qureg* qureg = malloc(sizeof(Qureg));
         if (!qureg) {
                 return CIRC_ERR;
         }
@@ -72,11 +72,11 @@ circ_init(struct circ *c,
                 *env.quest_env);
         c->qureg = qureg;
 
-        int *mea_cl = malloc(sizeof(int) * ct.num_mea_qb);
-        double *mea_cl_prob = malloc(sizeof(double) * ct.num_mea_qb);
-        int *mea_qb = malloc(sizeof(int) * ct.num_mea_qb);
-        int *sys_qb = malloc(sizeof(int) * ct.num_sys_qb);
-        int *anc_qb = malloc(sizeof(int) * ct.num_anc_qb);
+        int* mea_cl = malloc(sizeof(int) * ct.num_mea_qb);
+        double* mea_cl_prob = malloc(sizeof(double) * ct.num_mea_qb);
+        int* mea_qb = malloc(sizeof(int) * ct.num_mea_qb);
+        int* sys_qb = malloc(sizeof(int) * ct.num_sys_qb);
+        int* anc_qb = malloc(sizeof(int) * ct.num_anc_qb);
         if (!(mea_cl && mea_cl_prob && mea_qb && sys_qb && anc_qb)) {
                 free(anc_qb);
                 free(sys_qb);
@@ -99,7 +99,7 @@ circ_init(struct circ *c,
         return CIRC_OK;
 }
 
-void circ_destroy(struct circ *c) {
+void circ_destroy(struct circ* c) {
         destroyQureg(*c->qureg, *c->env.quest_env);
         free(c->qureg);
         c->qureg = NULL;
@@ -115,7 +115,7 @@ void circ_destroy(struct circ *c) {
         c->mea_cl = NULL;
 }
 
-void circ_report(struct circ const *c) {
+void circ_report(struct circ const* c) {
         printf("----------------\n");
         printf("CIRCUIT: %s\n", c->ct.name);
         reportQuregParams(*c->qureg);
@@ -146,7 +146,7 @@ void circ_report(struct circ const *c) {
         printf("----------------\n");
 }
 
-int circ_reset(struct circ *c) {
+int circ_reset(struct circ* c) {
         initZeroState(*c->qureg);
         zero_mea_cl(c);
         if (c->ct.reset) {
@@ -155,7 +155,7 @@ int circ_reset(struct circ *c) {
         return CIRC_OK;
 }
 
-int circ_simulate(struct circ *c) {
+int circ_simulate(struct circ* c) {
         circ_reset(c);
 
         int result;

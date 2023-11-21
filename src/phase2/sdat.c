@@ -3,40 +3,40 @@
 #include "sdat.h"
 #include "log.h"
 
-void sdat_pauli_hamil_init(struct sdat_pauli_hamil *dat) {
+void sdat_pauli_hamil_init(struct sdat_pauli_hamil* dat) {
         dat->num_qubits = 0;
         dat->num_sum_terms = 0;
         dat->coeffs = NULL;
         dat->paulis = NULL;
 }
 
-void sdat_pauli_hamil_destroy(struct sdat_pauli_hamil *dat) {
+void sdat_pauli_hamil_destroy(struct sdat_pauli_hamil* dat) {
         free(dat->coeffs);
         dat->coeffs = NULL;
         free(dat->paulis);
         dat->paulis = NULL;
 }
 
-int sdat_pauli_hamil_read(struct sdat_pauli_hamil *dat, hid_t obj_id) {
+int sdat_pauli_hamil_read(struct sdat_pauli_hamil* dat, const hid_t obj_id) {
         int res = SDAT_OK;
 
-        hid_t grp_id = H5Gopen2(obj_id, SDAT_PAULI_HAMIL, H5P_DEFAULT);
+        const hid_t grp_id = H5Gopen2(obj_id, SDAT_PAULI_HAMIL, H5P_DEFAULT);
         if (grp_id == H5I_INVALID_HID) {
                 res = SDAT_ERR;
                 goto grp_fail;
         }
-        hid_t dset_coeffs_id = H5Dopen2(grp_id,
-                                        SDAT_PAULI_HAMIL_COEFFS,
-                                        H5P_DEFAULT);
+        const hid_t dset_coeffs_id = H5Dopen2(grp_id,
+                                              SDAT_PAULI_HAMIL_COEFFS,
+                                              H5P_DEFAULT);
         if (dset_coeffs_id == H5I_INVALID_HID) {
                 res = SDAT_ERR;
                 goto dset_coeffs_fail;
         }
-        hid_t dspace_coeffs_id = H5Dget_space(dset_coeffs_id);
+        const hid_t dspace_coeffs_id = H5Dget_space(dset_coeffs_id);
         hsize_t dspace_coeffs_dims[1];
         H5Sget_simple_extent_dims(dspace_coeffs_id, dspace_coeffs_dims, NULL);
         dat->num_sum_terms = dspace_coeffs_dims[0];
-        double *coeffs = malloc(sizeof(double) * dat->num_sum_terms);
+        double* coeffs = malloc(sizeof(double) * dat->num_sum_terms);
         if (coeffs == NULL) {
                 res = SDAT_ERR;
                 goto coeffs_fail;
@@ -48,14 +48,14 @@ int sdat_pauli_hamil_read(struct sdat_pauli_hamil *dat, hid_t obj_id) {
                 res = SDAT_ERR;
         }
 
-        hid_t dset_paulis_id = H5Dopen2(grp_id,
-                                        SDAT_PAULI_HAMIL_PAULIS,
-                                        H5P_DEFAULT);
+        const hid_t dset_paulis_id = H5Dopen2(grp_id,
+                                              SDAT_PAULI_HAMIL_PAULIS,
+                                              H5P_DEFAULT);
         if (dset_paulis_id == H5I_INVALID_HID) {
                 res = SDAT_ERR;
                 goto dset_paulis_fail;
         }
-        hid_t dspace_paulis_id = H5Dget_space(dset_paulis_id);
+        const hid_t dspace_paulis_id = H5Dget_space(dset_paulis_id);
         hsize_t dspace_paulis_dims[2];
         H5Sget_simple_extent_dims(dspace_paulis_id, dspace_paulis_dims, NULL);
         if (dspace_paulis_dims[0] != dat->num_sum_terms) {
@@ -63,7 +63,7 @@ int sdat_pauli_hamil_read(struct sdat_pauli_hamil *dat, hid_t obj_id) {
                 goto dim_mismatch;
         }
         dat->num_qubits = dspace_paulis_dims[1];
-        unsigned char *paulis = malloc(sizeof(unsigned char *) *
+        unsigned char* paulis = malloc(sizeof(unsigned char *) *
                                        dat->num_sum_terms * dat->num_qubits);
         if (paulis == NULL) {
                 res = SDAT_ERR;
@@ -91,38 +91,38 @@ grp_fail:
 }
 
 
-void sdat_time_series_init(struct sdat_time_series *dat) {
+void sdat_time_series_init(struct sdat_time_series* dat) {
         dat->num_steps = 0;
         dat->times = NULL;
         dat->values = NULL;
 }
 
-void sdat_time_series_destroy(struct sdat_time_series *dat) {
+void sdat_time_series_destroy(struct sdat_time_series* dat) {
         free(dat->times);
         dat->times = NULL;
         free(dat->values);
         dat->values = NULL;
 }
 
-int sdat_time_series_read(struct sdat_time_series *dat, hid_t obj_id) {
+int sdat_time_series_read(struct sdat_time_series* dat, const hid_t obj_id) {
         int res = SDAT_OK;
 
-        hid_t grp_id = H5Gopen2(obj_id, SDAT_TIME_SERIES, H5P_DEFAULT);
+        const hid_t grp_id = H5Gopen2(obj_id, SDAT_TIME_SERIES, H5P_DEFAULT);
         if (grp_id == H5I_INVALID_HID) {
                 res = SDAT_ERR;
                 goto grp_fail;
         }
-        hid_t dset_times_id = H5Dopen2(grp_id, SDAT_TIME_SERIES_TIMES,
-                                       H5P_DEFAULT);
+        const hid_t dset_times_id = H5Dopen2(grp_id, SDAT_TIME_SERIES_TIMES,
+                                             H5P_DEFAULT);
         if (dset_times_id == H5I_INVALID_HID) {
                 res = SDAT_ERR;
                 goto dset_times_fail;
         }
-        hid_t dspace_times_id = H5Dget_space(dset_times_id);
+        const hid_t dspace_times_id = H5Dget_space(dset_times_id);
         hsize_t dspace_times_dims[1];
         H5Sget_simple_extent_dims(dspace_times_id, dspace_times_dims, NULL);
         dat->num_steps = dspace_times_dims[0];
-        double *times = malloc(sizeof(double) * dat->num_steps);
+        double* times = malloc(sizeof(double) * dat->num_steps);
         if (times == NULL) {
                 res = SDAT_ERR;
                 goto times_fail;
@@ -132,22 +132,22 @@ int sdat_time_series_read(struct sdat_time_series *dat, hid_t obj_id) {
                 times);
         dat->times = times;
 
-        hid_t dset_values_id = H5Dopen2(grp_id,
-                                        SDAT_TIME_SERIES_VALUES,
-                                        H5P_DEFAULT);
+        const hid_t dset_values_id = H5Dopen2(grp_id,
+                                              SDAT_TIME_SERIES_VALUES,
+                                              H5P_DEFAULT);
         if (dset_values_id == H5I_INVALID_HID) {
                 res = SDAT_ERR;
                 goto dset_values_fail;
         }
-        hid_t dspace_values_id = H5Dget_space(dset_values_id);
+        const hid_t dspace_values_id = H5Dget_space(dset_values_id);
         hsize_t dspace_values_dims[2];
         H5Sget_simple_extent_dims(dspace_values_id, dspace_values_dims, NULL);
-        if ((dspace_values_dims[0] != dat->num_steps) ||
-            (dspace_values_dims[1] != 2)) {
+        if (dspace_values_dims[0] != dat->num_steps ||
+            dspace_values_dims[1] != 2) {
                 res = SDAT_ERR;
                 goto values_dims_mismatch;
         }
-        double *values = malloc(sizeof(double) * dat->num_steps * 2);
+        double* values = malloc(sizeof(double) * dat->num_steps * 2);
         if (values == NULL) {
                 res = SDAT_ERR;
                 goto values_fail;
@@ -172,17 +172,18 @@ grp_fail:
         return res;
 }
 
-int sdat_time_series_write(struct sdat_time_series dat, hid_t obj_id) {
+int sdat_time_series_write(const struct sdat_time_series dat,
+                           const hid_t obj_id) {
         int res = SDAT_OK;
 
-        hid_t grp_id = H5Gopen2(obj_id, SDAT_TIME_SERIES, H5P_DEFAULT);
+        const hid_t grp_id = H5Gopen2(obj_id, SDAT_TIME_SERIES, H5P_DEFAULT);
         if (grp_id == H5I_INVALID_HID) {
                 res = SDAT_ERR;
                 goto grp_fail;
         }
-        hid_t dset_times_id = H5Dopen2(grp_id,
-                                       SDAT_TIME_SERIES_TIMES,
-                                       H5P_DEFAULT);
+        const hid_t dset_times_id = H5Dopen2(grp_id,
+                                             SDAT_TIME_SERIES_TIMES,
+                                             H5P_DEFAULT);
         if (dset_times_id == H5I_INVALID_HID) {
                 res = SDAT_ERR;
                 goto dset_times_fail;
@@ -194,9 +195,9 @@ int sdat_time_series_write(struct sdat_time_series dat, hid_t obj_id) {
         }
         H5Dclose(dset_times_id);
 
-        hid_t dset_values_id = H5Dopen2(grp_id,
-                                        SDAT_TIME_SERIES_VALUES,
-                                        H5P_DEFAULT);
+        const hid_t dset_values_id = H5Dopen2(grp_id,
+                                              SDAT_TIME_SERIES_VALUES,
+                                              H5P_DEFAULT);
         if (dset_values_id == H5I_INVALID_HID) {
                 res = SDAT_ERR;
                 goto dset_values_fail;
@@ -215,4 +216,3 @@ grp_fail:
 
         return res;
 }
-
