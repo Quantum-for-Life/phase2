@@ -1,7 +1,7 @@
 #include "hdf5.h"
 
 #include "sdat.h"
-#include "log/log.h"
+#include "log.h"
 
 void sdat_pauli_hamil_init(struct sdat_pauli_hamil *dat) {
         dat->num_qubits = 0;

@@ -1,32 +1,29 @@
 cmake_minimum_required(VERSION 3.9.0)
 project(phase2 VERSION 0.1.0 LANGUAGES C)
 
-option(LOG_USE_COLOR "enable color output for logging" ON)
-if (LOG_USE_COLOR)
-    message("-- Color mode for logging enabled")
-    add_definitions(-DLOG_USE_COLOR)
-endif ()
 
 option(DISTRIBUTED "enable distributed mode (MPI)" OFF)
 if (DISTRIBUTED)
-    message("-- MPI mode enabled")
+    message(STATUS "MPI mode enabled")
     add_definitions(-DDISTRIBUTED)
 
     find_package(MPI)
     include_directories(${MPI_C_INCLUDE_DIRS})
+    link_libraries(${MPI_C_LIBRARIES})
 
     set(HDF5_PREFER_PARALLEL TRUE)
 endif ()
 
 find_package(HDF5 REQUIRED)
 include_directories(${HDF5_INCLUDE_DIRS})
-
+link_libraries(${HDF5_LIBRARIES})
 if (HDF5_IS_PARALLEL)
-    message("-- Parallel HDF5 found")
+    message(STATUS "Parallel HDF5 found")
 else ()
-    message("-- Serial HDF5 found")
+    message(STATUS "Serial HDF5 found")
 endif ()
 
-add_subdirectory(src)
-
+message(STATUS "Configuring QuEST")
 add_subdirectory(lib/QuEST)
+
+add_subdirectory(src)

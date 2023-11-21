@@ -3,7 +3,7 @@ extern crate cmake;
 fn main() {
 
     let mut config = cmake::Config::new("..");
-    // This will also compile QuEST
+    // This will also compile QuEST and log
     config.build_target("phase2");
     let dst = config.build();
     println!(
@@ -11,7 +11,7 @@ fn main() {
         dst.display()
     );
     println!(
-        "cargo:rustc-link-search=native={}/build/src/",
+        "cargo:rustc-link-search=native={}/build/src/phase2",
         dst.display()
     );
     println!("cargo:rustc-link-lib=dylib=phase2");
