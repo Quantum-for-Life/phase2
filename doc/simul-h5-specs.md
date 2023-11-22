@@ -2,42 +2,9 @@
 
 This document describes the format and the content of the _simulation
 worksheet_ file. The file represents the state of the collective work of several
-applications to obtain ground state energy estimation for a
-Hamiltonian modelling a electronic system in quantum chemistry via
-simulation of algorithms related to quantum phase estimation
-(QPE).
-
-# Definitions
-
-The specification refers to the described files as the _simulation file_.
-
-Any application working on the simulation file is in this document referred
-to collectively as _the application_.
-
-The simulation _data_ means the content of the simulation file. The data
-can be:
-
-- _well-defined_, i.e. structured correctly, according to this specification
-- _unspecified_, i.e. having property that is beyond the scope of this
-  specification. The application providing data that is unspecified
-  here is required to document it explicitly.
-- _undefined_, i.e. not conforming to this specification.
-
-The application is free to assume that the data is well-defined at all times.
-This allows optimisations and simplifies the program. Any undefined data must be
-explicitly mentioned in by this specification.
-
-*Example. It is an undefined situation when the length of the array
-specifying the real coefficients of the Hamiltonian, the array of
-Pauli strings to be multiplied by those coefficient do not match. Thus, the
-application need not check if the arrays have the same
-length and can always assume this property holds. It is free to
-deduce the size of the Hamiltonian from either of the arrays without
-performing bound checks. If the data was undefined this could lead to
-incorrect result, a crash of the application or even corruption of the
-data. It is therefore the responsibility of the application that
-_writes_ into the simulation file to assure that the data is
-well-defined.*
+applications to obtain ground state energy estimation for a Hamiltonian,
+modelling an electronic system in quantum chemistry by simulating
+an algorithm related to quantum phase estimation (QPE).
 
 # Format and file name
 
@@ -49,23 +16,78 @@ documentation. If no such argument is given, the simulation file name
 defaults to `sumul.h5` in the working directory, i.e. the directory the
 application was invoked from.
 
+# Data types
+
+For the description of data types, see the list
+of [HDF5 Predefined Datatypes][hdf5-data-types].
+
 # Structure
 
 The simulation file contains named *groups* that consist of other
 groups, *datasets*, i.e. homogenous multidimensional arrays of elements, and
-*attributes*, i.e. metadata describing properties of data. The main group
-of the simulation file is called *root* group and has the name: `/`.
+*attributes*, i.e. metadata describing properties of dataset. The main group
+of the simulation file is called the *root* group and has the name: `/`.
 
 Names of other groups and attributes consist of only lowercase letters, numbers
-and underscore: `_`.
+and the underscore: `_`.
 
-## Attribute: `name`
+## Attribute: `/name`
 
-## Attribute: `circuit`
+- Type: string, `H5T_C_S1`
+- Comment: Name given to the simulation run
 
-## Group: `state_prep`
+## Attribute: `/circuit_name`
 
-## Group: `pauli_hamil`
+- Type: string, `H5T_C_S1`
+- Comment: Name of a circuit (algorithm) simulated
 
-## Group: `time_series`
+## Group: `/state_prep`
 
+This group contains datasets representing a sequence of unitary operations.
+The sequence, when applied in the correct order on
+the zero state of a quantum register, effects the state preparation stage.
+
+Each data set in the group has an attribute (`index = 0,1,2,..`), which
+specifies the order of applying the operator on the input state.
+
+- Dataset
+    - Type: double, `H5T_IEEE_F64LE`
+    - Shape: `(N,N)`, where `N>= 2`
+    - Attribute: `index`:
+        - Type: unsigned long, `H5T_STD_U64LE`
+
+## Group: `/pauli_hamil`
+
+For given integers `NUM_TERMS, NUM_QUBITS >=1`:
+
+- Dataset: `coeffs`
+    - Type: double, `H5T_IEEE_F64LE`
+    - Shape: `(NUN_TERMS, 1)`
+
+
+- Dataset: `paulis`
+    - Type: unsigned char, `H5T_STD_U8LE`
+    - Shape: `(NUM_TERMS, NUM_QUBITS)`
+    - Comment: Elements in the dataset denote single-qubit Pauli operators
+      according to the convention:
+      ```text
+      Id = 0, X = 1, Y = 2, Z = 3
+      ```
+
+## Group: `/time_series`
+
+For a given integer `NUM_TERMS >= 1`:
+
+- Dataset: `times`
+    - Type: double, `H5T_IEEE_F64LE`
+    - Shape: `(NUM_TERMS, 1)`
+
+
+- Dataset: `values`
+    - Type: double, `H5T_IEEE_F64LE`
+    - Shape: `(NUM_TERMS, 2)`
+    - Comment: Columns specify the real (column 1) and imaginary (column 2)
+      part of a complex number. Uninitialized values (values to be computed)
+      are designated by `NaN`.
+
+[hdf5-data-types]: https://docs.hdfgroup.org/hdf5/v1_14/predefined_datatypes_tables.html
