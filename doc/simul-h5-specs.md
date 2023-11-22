@@ -13,7 +13,7 @@ The format of the simulation file is HDF5.
 The simulation file name is provided to the application as a command line
 argument, as specified in the application help page or
 documentation. If no such argument is given, the simulation file name
-defaults to `sumul.h5` in the working directory, i.e. the directory the
+defaults to `simul.h5` in the working directory, i.e. the directory the
 application was invoked from.
 
 # Data types
@@ -43,18 +43,26 @@ and the underscore: `_`.
 
 ## Group: `/state_prep`
 
-This group contains datasets representing a sequence of unitary operations.
-The sequence, when applied in the correct order on
-the zero state of a quantum register, effects the state preparation stage.
+Contains groups representing together a sequence of unitary
+operations acting on specified parts of a quantum register. The sequence, when
+applied in the correct order on the zero state of the quantum register, effects
+the state preparation stage.
 
-Each data set in the group has an attribute (`index = 0,1,2,..`), which
-specifies the order of applying the operator on the input state.
+Each group must have a unique name starting with `unitary_`.
 
-- Dataset
-    - Type: double, `H5T_IEEE_F64LE`
-    - Shape: `(N,N)`, where `N>= 2`
+- Group: `unitary_ID`, where `ID` is a unitary identifier, e.g. its index.
+
+  For a given integer `N >= 2`:
+
     - Attribute: `index`:
         - Type: unsigned long, `H5T_STD_U64LE`
+    - Dataset: `matrix`
+        - Type: double, `H5T_IEEE_F64LE`
+        - Shape: `(N,N)`
+    - Dataset: `qubits`
+        - Type: unsigned long, `H5T_STD_U64LE`
+        - Shape: `(N, 1)`
+        - Comment: Unique indices of qubit sites in the register to act on.
 
 ## Group: `/pauli_hamil`
 
@@ -89,5 +97,9 @@ For a given integer `NUM_TERMS >= 1`:
     - Comment: Columns specify the real (column 1) and imaginary (column 2)
       part of a complex number. Uninitialized values (values to be computed)
       are designated by `NaN`.
+
+# Validation
+
+[TBA]
 
 [hdf5-data-types]: https://docs.hdfgroup.org/hdf5/v1_14/predefined_datatypes_tables.html
