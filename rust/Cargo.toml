@@ -1,8 +1,14 @@
+[workspace] 
+members = [".", "ph2test"] 
+resolver="2"
+
+
+
 [package]
 name = "phase2"
 version = "0.1.0"
 edition = "2021"
-resolver = "2"
+
 
 [build-dependencies]
 cmake = "0.1.50"
