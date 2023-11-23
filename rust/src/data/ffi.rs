@@ -5,18 +5,20 @@
 
 use libc::c_char;
 
+pub(crate) const DATA_INVALID_OBJID: i64 = -1;
+
 #[derive(Debug, PartialEq)]
 #[repr(C)]
-enum data_result {
+pub(crate) enum data_result {
     DATA_ERR = -1,
     DATA_OK = 0,
 }
 
-type dataid_t = i64;
+pub(crate) type dataid_t = i64;
 
 extern "C" {
-    fn data_file_open(filename: *const c_char) -> dataid_t;
-    fn data_file_close(file_id: dataid_t);
+    pub(crate) fn data_file_open(filename: *const c_char) -> dataid_t;
+    pub(crate) fn data_file_close(file_id: dataid_t);
 }
 
 // #define DATA_INVALID_OBJID  (-1)
