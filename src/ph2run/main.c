@@ -12,7 +12,7 @@
 #include "circ.h"
 #include "circ/rayon.h"
 #include "circ/linen.h"
-#include "sdat.h"
+#include "data.h"
 
 #include "log.h"
 
@@ -23,15 +23,17 @@
 
 int linen_simulate(struct circ_env env);
 
-int rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
-                   const struct sdat_time_series* ts);
+int rayon_simulate(struct circ_env env, struct data_pauli_hamil ph,
+                   const struct data_time_series* ts);
 
-void exit_failure(const char* msg) {
+void exit_failure(const char* msg)
+{
         log_error("Failure: %s", msg);
         exit(EXIT_FAILURE);
 }
 
-void help_page(const int argc, char** argv) {
+void help_page(const int argc, char** argv)
+{
         (void)argc;
         fprintf(stderr, "usage: %s CIRCUIT [SIMUL_FILE_H5]\n\n", argv[0]);
         fprintf(stderr,
@@ -53,35 +55,45 @@ void help_page(const int argc, char** argv) {
         );
 }
 
-void set_log_level() {
+void set_log_level()
+{
         const char* log_level = getenv(PHASE2_LOG_ENVVAR);
-        if (log_level == NULL) {
+        if (log_level == NULL)
+        {
                 log_set_level(LOG_ERROR);
                 return;
         }
-        if (strncmp(log_level, "trace", 5) == 0) {
+        if (strncmp(log_level, "trace", 5) == 0)
+        {
                 log_set_level(LOG_TRACE);
         }
-        if (strncmp(log_level, "debug", 5) == 0) {
+        if (strncmp(log_level, "debug", 5) == 0)
+        {
                 log_set_level(LOG_DEBUG);
         }
-        if (strncmp(log_level, "info", 4) == 0) {
+        if (strncmp(log_level, "info", 4) == 0)
+        {
                 log_set_level(LOG_INFO);
         }
-        if (strncmp(log_level, "warn", 4) == 0) {
+        if (strncmp(log_level, "warn", 4) == 0)
+        {
                 log_set_level(LOG_WARN);
         }
-        if (strncmp(log_level, "error", 5) == 0) {
+        if (strncmp(log_level, "error", 5) == 0)
+        {
                 log_set_level(LOG_ERROR);
         }
-        if (strncmp(log_level, "fatal", 5) == 0) {
+        if (strncmp(log_level, "fatal", 5) == 0)
+        {
                 log_set_level(LOG_FATAL);
         }
 }
 
-int main(const int argc, char** argv) {
+int main(const int argc, char** argv)
+{
         struct circ_env env;
-        if (circ_env_init(&env) != CIRC_OK) {
+        if (circ_env_init(&env) != CIRC_OK)
+        {
                 exit_failure("initialize environment");
         }
 
@@ -105,23 +117,27 @@ int main(const int argc, char** argv) {
         set_log_level();
         log_info("Open log file: " PHASE2_LOG_FILE);
         FILE* log_file = fopen(PHASE2_LOG_FILE, "a");
-        if (!log_file) {
+        if (!log_file)
+        {
                 exit_failure("open log file");
         }
         log_add_fp(log_file, LOG_DEBUG);
 
         log_debug("Parsing command line arguments");
-        if (argc < 2) {
+        if (argc < 2)
+        {
                 help_page(argc, argv);
                 return EXIT_FAILURE;
         }
         const char* h5filename = PHASE2_DEFAULT_H5FILE;
-        if (argc < 3) {
+        if (argc < 3)
+        {
                 log_debug("No simulation input file specified; "
                           "using default: %s",
                           PHASE2_DEFAULT_H5FILE);
         }
-        else {
+        else
+        {
                 h5filename = argv[2];
         }
 
@@ -136,17 +152,19 @@ int main(const int argc, char** argv) {
 #endif
         file_id = H5Fopen(h5filename, H5F_ACC_RDONLY, access_plist);
 
-        struct sdat_pauli_hamil dat_ph;
-        sdat_pauli_hamil_init(&dat_ph);
-        if (sdat_pauli_hamil_read(&dat_ph, file_id) != SDAT_OK) {
+        struct data_pauli_hamil dat_ph;
+        data_pauli_hamil_init(&dat_ph);
+        if (data_pauli_hamil_read(&dat_ph, file_id) != DATA_OK)
+        {
                 exit_failure("read Hamiltonian data");
         }
         log_debug("Hamiltonian: num_qubits=%zu, num_sum_terms=%zu",
                   dat_ph.num_qubits, dat_ph.num_sum_terms);
 
-        struct sdat_time_series dat_ts;
-        sdat_time_series_init(&dat_ts);
-        if (sdat_time_series_read(&dat_ts, file_id) != SDAT_OK) {
+        struct data_time_series dat_ts;
+        data_time_series_init(&dat_ts);
+        if (data_time_series_read(&dat_ts, file_id) != DATA_OK)
+        {
                 exit_failure("read time series data");
         }
         log_debug("Time series: num_steps=%zu", dat_ts.num_steps);
@@ -154,19 +172,23 @@ int main(const int argc, char** argv) {
 
         log_info("*** Circuit ***");
         int sucess;
-        if (strncmp(argv[1], "linen", 5) == 0) {
+        if (strncmp(argv[1], "linen", 5) == 0)
+        {
                 log_info("Circuit: linen");
                 sucess = linen_simulate(env) == CIRC_OK;
         }
-        else if (strncmp(argv[1], "rayon", 5) == 0) {
+        else if (strncmp(argv[1], "rayon", 5) == 0)
+        {
                 log_info("Circuit: rayon");
                 sucess = rayon_simulate(env, dat_ph, &dat_ts) != CIRC_OK;
         }
-        else {
+        else
+        {
                 log_error("No circ named %s", argv[1]);
                 sucess = 0;
         }
-        if (!sucess) {
+        if (!sucess)
+        {
                 exit_failure("simulation error");
         }
 
@@ -178,12 +200,12 @@ int main(const int argc, char** argv) {
         access_plist = H5P_DEFAULT;
 #endif
         file_id = H5Fopen(h5filename, H5F_ACC_RDWR, access_plist);
-        sdat_time_series_write(dat_ts, file_id);
+        data_time_series_write(dat_ts, file_id);
         H5Fclose(file_id);
 
         log_info("*** Cleanup ***");
-        sdat_pauli_hamil_destroy(&dat_ph);
-        sdat_time_series_destroy(&dat_ts);
+        data_pauli_hamil_destroy(&dat_ph);
+        data_time_series_destroy(&dat_ts);
 
         log_info("Shut down simulation environment");
         circ_env_destroy(&env);
@@ -195,13 +217,15 @@ int main(const int argc, char** argv) {
 
 
 int
-linen_simulate(const struct circ_env env) {
+linen_simulate(const struct circ_env env)
+{
         log_debug("Report simulation environment");
         circ_env_report(&env);
 
         const struct circuit factory = linen_circuit;
         struct circ c;
-        if (circ_init(&c, env, factory, NULL) != CIRC_OK) {
+        if (circ_init(&c, env, factory, NULL) != CIRC_OK)
+        {
                 log_error("Cannot initialize circ");
                 return CIRC_ERR;
         }
@@ -217,19 +241,23 @@ linen_simulate(const struct circ_env env) {
 
 
 void
-rayon_simulate_cleanup(const PauliHamil hamil) {
+rayon_simulate_cleanup(const PauliHamil hamil)
+{
         destroyPauliHamil(hamil);
 }
 
 int
-rayon_simulate(const struct circ_env env, const struct sdat_pauli_hamil ph,
-               const struct sdat_time_series* ts) {
+rayon_simulate(const struct circ_env env, const struct data_pauli_hamil ph,
+               const struct data_time_series* ts)
+{
         log_info("Initialize Pauli Hamiltonian");
         const PauliHamil hamil = createPauliHamil(
                 ph.num_qubits, ph.num_sum_terms);
-        for (size_t i = 0; i < ph.num_sum_terms; i++) {
+        for (size_t i = 0; i < ph.num_sum_terms; i++)
+        {
                 hamil.termCoeffs[i] = ph.coeffs[i];
-                for (size_t j = 0; j < ph.num_qubits; j++) {
+                for (size_t j = 0; j < ph.num_qubits; j++)
+                {
                         const size_t pauli_idx = i * ph.num_qubits + j;
                         hamil.pauliCodes[pauli_idx] = (enum pauliOpType)ph.
                                 paulis[pauli_idx];
@@ -243,18 +271,22 @@ rayon_simulate(const struct circ_env env, const struct sdat_pauli_hamil ph,
         factory.num_sys_qb = ct_data.hamil.numQubits;
         struct rayon_circ_data circ_data = {.imag_switch = 0, .time = 0.0};
         struct circ c;
-        if (circ_init(&c, env, factory, &circ_data) != CIRC_OK) {
+        if (circ_init(&c, env, factory, &circ_data) != CIRC_OK)
+        {
                 log_error("Cannot initialize circ");
                 return CIRC_ERR;
         }
 
         log_info("Computing expectation value");
         circ_data.imag_switch = 0;
-        while (circ_data.imag_switch <= 1) {
+        while (circ_data.imag_switch <= 1)
+        {
                 const size_t offset = circ_data.imag_switch == 0 ? 0 : 1;
-                for (size_t i = 0; i < ts->num_steps; i++) {
+                for (size_t i = 0; i < ts->num_steps; i++)
+                {
                         circ_data.time = ts->times[i];
-                        if (circ_simulate(&c) != CIRC_OK) {
+                        if (circ_simulate(&c) != CIRC_OK)
+                        {
                                 log_error("Simulation error");
                                 rayon_simulate_cleanup(hamil);
                                 return CIRC_ERR;

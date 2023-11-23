@@ -6,7 +6,7 @@ add_library(phase2 SHARED
         circ.c
         circ/linen.c
         circ/rayon.c
-        sdat.c
+        data.c
 )
 target_link_libraries(phase2
         log
