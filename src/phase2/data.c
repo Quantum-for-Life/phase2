@@ -34,7 +34,7 @@ int data_close_file(dataid_t file_id) {
 
 void data_pauli_hamil_init(struct data_pauli_hamil* dat) {
         dat->num_qubits = 0;
-        dat->num_sum_terms = 0;
+        dat->num_terms = 0;
         dat->coeffs = NULL;
         dat->paulis = NULL;
 }
@@ -64,8 +64,8 @@ int data_pauli_hamil_read(struct data_pauli_hamil* dat, const dataid_t obj_id) {
         const hid_t dspace_coeffs_id = H5Dget_space(dset_coeffs_id);
         hsize_t dspace_coeffs_dims[1];
         H5Sget_simple_extent_dims(dspace_coeffs_id, dspace_coeffs_dims, NULL);
-        dat->num_sum_terms = dspace_coeffs_dims[0];
-        double* coeffs = malloc(sizeof(double) * dat->num_sum_terms);
+        dat->num_terms = dspace_coeffs_dims[0];
+        double* coeffs = malloc(sizeof(double) * dat->num_terms);
         if (coeffs == NULL) {
                 res = DATA_ERR;
                 goto coeffs_fail;
@@ -87,13 +87,13 @@ int data_pauli_hamil_read(struct data_pauli_hamil* dat, const dataid_t obj_id) {
         const hid_t dspace_paulis_id = H5Dget_space(dset_paulis_id);
         hsize_t dspace_paulis_dims[2];
         H5Sget_simple_extent_dims(dspace_paulis_id, dspace_paulis_dims, NULL);
-        if (dspace_paulis_dims[0] != dat->num_sum_terms) {
+        if (dspace_paulis_dims[0] != dat->num_terms) {
                 res = DATA_ERR;
                 goto dim_mismatch;
         }
         dat->num_qubits = dspace_paulis_dims[1];
         unsigned char* paulis = malloc(sizeof(unsigned char*) *
-                dat->num_sum_terms * dat->num_qubits);
+                dat->num_terms * dat->num_qubits);
         if (paulis == NULL) {
                 res = DATA_ERR;
                 goto paulis_fail;
@@ -201,7 +201,7 @@ grp_fail:
         return res;
 }
 
-int data_time_series_write(const struct data_time_series dat,
+int data_time_series_write(const struct data_time_series* dat,
                            const hid_t obj_id) {
         int res = DATA_OK;
 
@@ -219,7 +219,7 @@ int data_time_series_write(const struct data_time_series dat,
         }
         if (H5Dwrite(dset_times_id,
                      H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-                     H5P_DEFAULT, dat.times) < 0) {
+                     H5P_DEFAULT, dat->times) < 0) {
                 res = DATA_ERR;
         }
         H5Dclose(dset_times_id);
@@ -233,7 +233,7 @@ int data_time_series_write(const struct data_time_series dat,
         }
         if (H5Dwrite(dset_values_id,
                      H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-                     H5P_DEFAULT, dat.values) < 0) {
+                     H5P_DEFAULT, dat->values) < 0) {
                 res = DATA_ERR;
         }
         H5Dclose(dset_values_id);
