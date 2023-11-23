@@ -41,7 +41,36 @@ and the underscore: `_`.
 - Type: string, `H5T_C_S1`
 - Comment: Name of a circuit (algorithm) simulated
 
-## Group: `/state_prep`
+## Group: `/fermion`
+
+### Attribute: `/fermion/f2q_map`
+
+- Type: string, `H5T_C_S1`
+- Comment: Kind of fermion-to-qubit mapping used to obtain Pauli Hamiltonian.
+
+### Dataset: `/fermion/fcidump`
+
+[TBA]
+
+## Group `/state_prep`
+
+### Group: `/state_prep/multidet`
+
+Contains a description of initial simulation state as a linear combination of
+Slater determinants.
+
+For given integers `NUM_TERMS, NUM_QUBITS >=1`:
+
+- Dataset: `coeffs`
+    - Type: double, `H5T_IEEE_F64LE`
+    - Shape: `(NUN_TERMS,)`
+
+- Dataset: `dets`
+    - Type: unsigned char, `H5T_STD_U8LE`
+    - Shape: `(NUM_TERMS, NUM_QUBITS)`
+    - Comment: Rows denote computational basis states.
+
+### Group: `/state_prep/mps`
 
 Contains groups representing together a sequence of unitary
 operations acting on specified parts of a quantum register. The sequence, when
@@ -50,7 +79,8 @@ the state preparation stage.
 
 Each group must have a unique name starting with `unitary_`.
 
-- Group: `unitary_ID`, where `ID` is a unitary identifier, e.g. its index.
+- Group: `/state_prep/mps/unitary_ID`
+  (where `ID` is a unitary identifier, e.g. its index)
 
   For a given integer `N >= 2`:
 
@@ -61,7 +91,7 @@ Each group must have a unique name starting with `unitary_`.
         - Shape: `(N,N)`
     - Dataset: `qubits`
         - Type: unsigned long, `H5T_STD_U64LE`
-        - Shape: `(N, 1)`
+        - Shape: `(N,)`
         - Comment: Unique indices of qubit sites in the register to act on.
 
 ## Group: `/pauli_hamil`
@@ -70,7 +100,7 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
 
 - Dataset: `coeffs`
     - Type: double, `H5T_IEEE_F64LE`
-    - Shape: `(NUN_TERMS, 1)`
+    - Shape: `(NUN_TERMS,)`
 
 
 - Dataset: `paulis`
@@ -88,7 +118,7 @@ For a given integer `NUM_TERMS >= 1`:
 
 - Dataset: `times`
     - Type: double, `H5T_IEEE_F64LE`
-    - Shape: `(NUM_TERMS, 1)`
+    - Shape: `(NUM_TERMS,)`
 
 
 - Dataset: `values`
@@ -97,6 +127,10 @@ For a given integer `NUM_TERMS >= 1`:
     - Comment: Columns specify the real (column 1) and imaginary (column 2)
       part of a complex number. Uninitialized values (values to be computed)
       are designated by `NaN`.
+
+## Group: `/log`
+
+[TBA]
 
 # Validation
 
