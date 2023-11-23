@@ -91,6 +91,7 @@ void set_log_level()
 
 int main(const int argc, char** argv)
 {
+        dataid_t file_id;
         struct circ_env env;
         if (circ_env_init(&env) != CIRC_OK)
         {
@@ -142,15 +143,7 @@ int main(const int argc, char** argv)
         }
 
         log_debug("Read simulation input file: %s", h5filename);
-        hid_t file_id, access_plist;
-#ifdef DISTRIBUTED
-        access_plist = H5Pcreate(H5P_FILE_ACCESS);
-        log_debug("H5P_FILE_ACCESS: %" PRId64, access_plist);
-        H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
-#else
-        access_plist = H5P_DEFAULT;
-#endif
-        file_id = H5Fopen(h5filename, H5F_ACC_RDONLY, access_plist);
+        file_id = data_open_file(h5filename);
 
         struct data_pauli_hamil dat_ph;
         data_pauli_hamil_init(&dat_ph);
@@ -168,7 +161,7 @@ int main(const int argc, char** argv)
                 exit_failure("read time series data");
         }
         log_debug("Time series: num_steps=%zu", dat_ts.num_steps);
-        H5Fclose(file_id);
+        data_close_file(file_id);
 
         log_info("*** Circuit ***");
         int sucess;
@@ -193,15 +186,10 @@ int main(const int argc, char** argv)
         }
 
         log_info("Saving data");
-#ifdef DISTRIBUTED
-        access_plist = H5Pcreate(H5P_FILE_ACCESS);
-        H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
-#else
-        access_plist = H5P_DEFAULT;
-#endif
-        file_id = H5Fopen(h5filename, H5F_ACC_RDWR, access_plist);
+        file_id = data_open_file(h5filename);
+
         data_time_series_write(dat_ts, file_id);
-        H5Fclose(file_id);
+        data_close_file(file_id);
 
         log_info("*** Cleanup ***");
         data_pauli_hamil_destroy(&dat_ph);
