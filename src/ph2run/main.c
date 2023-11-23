@@ -126,7 +126,7 @@ int main(const int argc, char** argv) {
         }
 
         log_debug("Read simulation input file: %s", h5filename);
-        file_id = data_open_file(h5filename);
+        file_id = data_file_open(h5filename);
 
         struct data_pauli_hamil dat_ph;
         data_pauli_hamil_init(&dat_ph);
@@ -142,7 +142,7 @@ int main(const int argc, char** argv) {
                 exit_failure("read time series data");
         }
         log_debug("Time series: num_steps=%zu", dat_ts.num_steps);
-        data_close_file(file_id);
+        data_file_close(file_id);
 
         log_info("*** Circuit ***");
         int sucess;
@@ -163,10 +163,10 @@ int main(const int argc, char** argv) {
         }
 
         log_info("Saving data");
-        file_id = data_open_file(h5filename);
+        file_id = data_file_open(h5filename);
 
         data_time_series_write(&dat_ts, file_id);
-        data_close_file(file_id);
+        data_file_close(file_id);
 
         log_info("*** Cleanup ***");
         data_pauli_hamil_destroy(&dat_ph);

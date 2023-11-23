@@ -104,5 +104,5 @@ pub(crate) struct linen_circ_data {
 
 #[link(name = "phase2")]
 extern "C" {
-    pub static linen_circuit: circuit;
+    pub(crate) static linen_circuit: circuit;
 }

@@ -7,7 +7,7 @@
 #include "data.h"
 
 
-dataid_t data_open_file(const char* filename) {
+dataid_t data_file_open(const char* filename) {
         hid_t file_id, access_plist;
 #ifdef DISTRIBUTED
         access_plist = H5Pcreate(H5P_FILE_ACCESS);
@@ -24,7 +24,7 @@ dataid_t data_open_file(const char* filename) {
         return file_id;
 }
 
-int data_close_file(dataid_t file_id) {
+int data_file_close(dataid_t file_id) {
         if (H5Fclose(file_id) < 0) {
                 return DATA_ERR;
         }

@@ -14,9 +14,9 @@ enum {
 
 typedef int64_t dataid_t; // This is the same as HDF5's hid_t
 
-dataid_t data_open_file(const char* filename);
+dataid_t data_file_open(const char* filename);
 
-int data_close_file(dataid_t);
+int data_file_close(dataid_t);
 
 
 #define DATA_PAULI_HAMIL "pauli_hamil"
