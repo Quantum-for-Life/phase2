@@ -20,7 +20,11 @@ def parse_arguments():
 
 STEPS = 111
 TIMES = [float(x) for x in range(0, STEPS)]
-VALUES = np.zeros((STEPS, 2), dtype='d')
+VALUES = np.ndarray((STEPS, 2), dtype='d')
+
+for i in range(0, STEPS):
+    VALUES[i, 0] = np.nan
+    VALUES[i, 1] = np.nan
 
 
 def h5_output(outfile: str):
