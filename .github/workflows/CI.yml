@@ -40,4 +40,8 @@ jobs:
         run: |
           cd rust/
           cargo run --release --package ph2test
+      - name: Run ph2test (MPI)
+        run: |
+          cd rust/
+          cargo run --release --package ph2test --features="mpi"
         

@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.9.0)
 project(phase2 VERSION 0.1.0 LANGUAGES C)
 
-
 option(DISTRIBUTED "enable distributed mode (MPI)" OFF)
 if (DISTRIBUTED)
     message(STATUS "MPI mode enabled")
@@ -27,3 +26,4 @@ message(STATUS "Configuring QuEST")
 add_subdirectory(lib/QuEST)
 
 add_subdirectory(src)
+

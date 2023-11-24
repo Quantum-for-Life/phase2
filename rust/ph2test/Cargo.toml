@@ -6,3 +6,6 @@ default-run = "ph2test"
 
 [dependencies]
 phase2 = { path = "../phase2" }
+
+[features]
+mpi = ["phase2/mpi"]

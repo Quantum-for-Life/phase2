@@ -2,6 +2,12 @@ extern crate cmake;
 
 fn main() {
     let mut config = cmake::Config::new("../../");
+
+    config.define("DISTRIBUTED", "OFF");
+
+    #[cfg(feature = "mpi")]
+    config.define("DISTRIBUTED", "ON");
+
     // This will also compile QuEST and log
     config.build_target("phase2");
     let dst = config.build();
