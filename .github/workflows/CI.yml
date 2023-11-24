@@ -37,6 +37,7 @@ jobs:
           cd rust/
           cargo test --all --verbose
       - name: Run ph2test
+        run: |
           cd rust/
           cargo run --release --package ph2test
         
