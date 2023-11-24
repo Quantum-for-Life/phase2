@@ -242,7 +242,6 @@ mod tests {
         for (time, exp_time) in zip(data.times(), expected_times) {
             assert!(f64::abs(time - exp_time) < MARGIN);
         }
-
         for v in data.values() {
             assert!(v.is_nan());
         }
