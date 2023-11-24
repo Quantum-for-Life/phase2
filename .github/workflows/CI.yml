@@ -28,6 +28,7 @@ jobs:
           rustup install nightly && rustup default nightly
       - name: Build
         run: |
+          cd rust/
           cargo build --all --verbose
           cargo doc --all --verbose
       - name: Run tests
