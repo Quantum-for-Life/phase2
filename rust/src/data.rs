@@ -5,7 +5,7 @@ use std::{
     ptr::slice_from_raw_parts,
 };
 
-use crate::data::ffi::data_result::DATA_OK;
+use crate::data::ffi::data_result;
 
 mod ffi;
 
@@ -13,6 +13,7 @@ mod ffi;
 pub enum Error {
     FileOpen,
     FileRead,
+    FileWrite,
 }
 
 pub struct Empty<T>(T);
@@ -95,6 +96,64 @@ impl Drop for PauliHamil {
     }
 }
 
+#[derive(Debug)]
+pub struct TimeSeries(ffi::data_time_series);
+
+impl TimeSeries {
+    pub fn new() -> Empty<TimeSeries> {
+        let mut dat_uninit = MaybeUninit::uninit();
+        unsafe { ffi::data_time_series_init(dat_uninit.as_mut_ptr()) };
+        Empty(Self(unsafe { dat_uninit.assume_init() }))
+    }
+
+    pub fn write(
+        &mut self,
+        handle: &mut DataHandle,
+    ) -> Result<(), Error> {
+        let res = unsafe {
+            ffi::data_time_series_write(&mut self.0 as *mut _, handle.0)
+        };
+        (res == data_result::DATA_OK)
+            .then_some(())
+            .ok_or(Error::FileWrite)
+    }
+
+    pub fn num_steps(&self) -> usize {
+        self.0.num_steps
+    }
+
+    pub fn times(&self) -> &[f64] {
+        let slice_ptr = slice_from_raw_parts(self.0.times, self.0.num_steps);
+        unsafe { &*slice_ptr }
+    }
+
+    pub fn values(&self) -> &[f64] {
+        let slice_ptr =
+            slice_from_raw_parts(self.0.values, self.0.num_steps * 2);
+        unsafe { &*slice_ptr }
+    }
+}
+
+impl Drop for TimeSeries {
+    fn drop(&mut self) {
+        unsafe { ffi::data_time_series_destroy(&mut self.0 as *mut _) };
+    }
+}
+
+impl Empty<TimeSeries> {
+    pub fn read(
+        mut self,
+        handle: &mut DataHandle,
+    ) -> Result<TimeSeries, Error> {
+        let res = unsafe {
+            ffi::data_time_series_read(&mut self.0 .0 as *mut _, handle.0)
+        };
+        (res == ffi::data_result::DATA_OK)
+            .then_some(self.0)
+            .ok_or(Error::FileRead)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -138,5 +197,34 @@ mod tests {
             1, 1, 1, 1, 0, 3, 3, 0, 0, 3, 0, 3, 0, 0, 3, 3,
         ];
         assert_eq!(data.paulis(), &expected_paulis);
+    }
+
+    #[test]
+    fn data_time_series_read() {
+        let data_dir = PathBuf::from("./dat");
+        let filename = data_dir.join("./simul_H2_2.h5");
+        let mut handle = DataHandle::open(&filename).unwrap();
+
+        let data = TimeSeries::new().read(&mut handle).unwrap();
+        assert_eq!(data.num_steps(), 111);
+
+        let expected_times = [
+            0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14.,
+            15., 16., 17., 18., 19., 20., 21., 22., 23., 24., 25., 26., 27.,
+            28., 29., 30., 31., 32., 33., 34., 35., 36., 37., 38., 39., 40.,
+            41., 42., 43., 44., 45., 46., 47., 48., 49., 50., 51., 52., 53.,
+            54., 55., 56., 57., 58., 59., 60., 61., 62., 63., 64., 65., 66.,
+            67., 68., 69., 70., 71., 72., 73., 74., 75., 76., 77., 78., 79.,
+            80., 81., 82., 83., 84., 85., 86., 87., 88., 89., 90., 91., 92.,
+            93., 94., 95., 96., 97., 98., 99., 100., 101., 102., 103., 104.,
+            105., 106., 107., 108., 109., 110.,
+        ];
+        for (time, exp_time) in zip(data.times(), expected_times) {
+            assert!(f64::abs(time - exp_time) < MARGIN);
+        }
+
+        for v in data.values() {
+            assert!(v.is_nan());
+        }
     }
 }

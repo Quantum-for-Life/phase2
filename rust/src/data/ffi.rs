@@ -26,7 +26,7 @@ extern "C" {
     pub(crate) fn data_file_close(file_id: dataid_t);
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 #[repr(C)]
 pub(crate) struct data_pauli_hamil {
     pub(crate) num_qubits: usize,
@@ -37,29 +37,35 @@ pub(crate) struct data_pauli_hamil {
 
 extern "C" {
     pub(crate) fn data_pauli_hamil_init(dat: *mut data_pauli_hamil);
+
     pub(crate) fn data_pauli_hamil_destroy(dat: *mut data_pauli_hamil);
+
     pub(crate) fn data_pauli_hamil_read(
         dat: *mut data_pauli_hamil,
         file_id: dataid_t,
     ) -> data_result;
 }
 
-// #define DATA_TIME_SERIES "time_series"
-// #define DATA_TIME_SERIES_TIMES "times"
-// #define DATA_TIME_SERIES_VALUES "values"
-//
-// struct data_time_series {
-//     size_t num_steps;
-//     double* times;
-//     double* values;
-// };
-//
-// void data_time_series_init(struct data_time_series*);
-//
-// void data_time_series_destroy(struct data_time_series*);
-//
-// int data_time_series_read(struct data_time_series*, dataid_t);
-//
-// int data_time_series_write(const struct data_time_series*, dataid_t);
-//
-// #endif //PHASE2_DATA_H
+#[derive(Debug)]
+#[repr(C)]
+pub(crate) struct data_time_series {
+    pub(crate) num_steps: usize,
+    pub(crate) times:     *mut c_double,
+    pub(crate) values:    *mut c_double,
+}
+
+extern "C" {
+    pub(crate) fn data_time_series_init(dat: *mut data_time_series);
+
+    pub(crate) fn data_time_series_destroy(dat: *mut data_time_series);
+
+    pub(crate) fn data_time_series_read(
+        dat: *mut data_time_series,
+        file_id: dataid_t,
+    ) -> data_result;
+
+    pub(crate) fn data_time_series_write(
+        dat: *mut data_time_series,
+        file_id: dataid_t,
+    ) -> data_result;
+}
