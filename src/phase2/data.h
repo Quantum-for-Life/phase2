@@ -43,12 +43,12 @@ struct data_state_prep_multidet {
         unsigned char *dets;
 };
 
-void data_state_prep_mutidet_init(struct data_state_prep_multidet *dat);
+void data_state_prep_multidet_init(struct data_state_prep_multidet *dat);
 
-void data_state_prep_mutidet_destroy(struct data_state_prep_multidet *dat);
+void data_state_prep_multidet_destroy(struct data_state_prep_multidet *dat);
 
-int data_state_prep_mutidet_read(struct data_state_prep_multidet *dat,
-                                 dataid_t obj_id);
+int data_state_prep_multidet_read(struct data_state_prep_multidet *dat,
+                                  dataid_t obj_id);
 
 #define DATA_PAULI_HAMIL "pauli_hamil"
 #define DATA_PAULI_HAMIL_COEFFS "coeffs"

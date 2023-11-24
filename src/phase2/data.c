@@ -36,7 +36,7 @@ void data_state_prep_init(struct data_state_prep *dat) {
 
 void data_state_prep_destroy(struct data_state_prep *dat) {
         if (dat->multidet) {
-                data_state_prep_mutidet_destroy(dat->multidet);
+                data_state_prep_multidet_destroy(dat->multidet);
                 free(dat->multidet);
         }
         dat->multidet = NULL;
@@ -59,9 +59,9 @@ int data_state_prep_read(struct data_state_prep *dat, dataid_t obj_id) {
                 res = DATA_ERR;
                 goto multidet_alloc_fail;
         }
-        data_state_prep_mutidet_init(multidet);
-        if (data_state_prep_mutidet_read(multidet, grp_id) != DATA_OK) {
-                data_state_prep_mutidet_destroy(multidet);
+        data_state_prep_multidet_init(multidet);
+        if (data_state_prep_multidet_read(multidet, grp_id) != DATA_OK) {
+                data_state_prep_multidet_destroy(multidet);
                 free(multidet);
                 res = DATA_ERR;
                 goto multidet_read_fail;
@@ -77,22 +77,22 @@ grp_fail:
 }
 
 
-void data_state_prep_mutidet_init(struct data_state_prep_multidet *dat) {
+void data_state_prep_multidet_init(struct data_state_prep_multidet *dat) {
         dat->num_qubits = 0;
         dat->num_terms = 0;
         dat->coeffs = NULL;
         dat->dets = NULL;
 }
 
-void data_state_prep_mutidet_destroy(struct data_state_prep_multidet *dat) {
+void data_state_prep_multidet_destroy(struct data_state_prep_multidet *dat) {
         free(dat->coeffs);
         dat->coeffs = NULL;
         free(dat->dets);
         dat->dets = NULL;
 }
 
-int data_state_prep_mutidet_read(struct data_state_prep_multidet *dat,
-                                 dataid_t obj_id) {
+int data_state_prep_multidet_read(struct data_state_prep_multidet *dat,
+                                  dataid_t obj_id) {
         hid_t grp_id,
                 dset_coeffs_id, dspace_coeffs_id,
                 dset_dets_id, dspace_dets_id;

@@ -4,10 +4,16 @@ use std::{
         Display,
         Formatter,
     },
-    mem::MaybeUninit,
+    mem,
+    mem::{
+        ManuallyDrop,
+        MaybeUninit,
+    },
     path::Path,
     ptr::slice_from_raw_parts,
 };
+
+use crate::data::ffi::data_state_prep_multidet_init;
 
 mod ffi;
 
@@ -70,6 +76,88 @@ impl Drop for Handle {
         unsafe {
             ffi::data_file_close(self.0);
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct StatePrep(ffi::data_state_prep);
+
+impl StatePrep {
+    pub fn new() -> Empty<Self> {
+        let mut state_prep_uninit = MaybeUninit::uninit();
+        unsafe { ffi::data_state_prep_init(state_prep_uninit.as_mut_ptr()) };
+        let state_prep = unsafe { state_prep_uninit.assume_init() };
+
+        Empty(Self(state_prep))
+    }
+
+    pub fn for_multidet(
+        &self,
+        f: impl FnOnce(Option<&MultiDet>),
+    ) {
+        let multidet_ptr = self.0.multidet;
+        let multidet = (!multidet_ptr.is_null())
+            .then(|| ManuallyDrop::new(MultiDet(unsafe { *multidet_ptr })));
+
+        f(multidet.as_deref());
+    }
+}
+
+impl Empty<StatePrep> {
+    pub fn read(
+        mut self,
+        handle: &mut Handle,
+    ) -> Result<StatePrep, Error> {
+        unsafe { ffi::data_state_prep_read(&mut self.0 .0 as *mut _, handle.0) }
+            .is_data_ok()
+            .then_some(self.0)
+            .ok_or(Error::FileRead)
+    }
+}
+
+impl Drop for StatePrep {
+    fn drop(&mut self) {
+        unsafe { ffi::data_state_prep_destroy(&mut self.0 as *mut _) };
+    }
+}
+
+#[derive(Debug)]
+pub struct MultiDet(ffi::data_state_prep_multidet);
+
+impl MultiDet {
+    pub fn new() -> Empty<Self> {
+        let mut dat_uninit = MaybeUninit::uninit();
+        unsafe { data_state_prep_multidet_init(dat_uninit.as_mut_ptr()) };
+        let dat = unsafe { dat_uninit.assume_init() };
+
+        Empty(Self(dat))
+    }
+
+    pub fn num_qubits(&self) -> usize {
+        self.0.num_qubits
+    }
+
+    pub fn num_terms(&self) -> usize {
+        self.0.num_terms
+    }
+
+    pub fn coeffs(&self) -> &[f64] {
+        let slice_ptr = slice_from_raw_parts(self.0.coeffs, self.0.num_terms);
+        unsafe { &*slice_ptr }
+    }
+
+    pub fn dets(&self) -> &[u8] {
+        let slice_ptr = slice_from_raw_parts(
+            self.0.dets,
+            self.0.num_terms * self.0.num_qubits,
+        );
+        unsafe { &*slice_ptr }
+    }
+}
+
+impl Drop for MultiDet {
+    fn drop(&mut self) {
+        unsafe { ffi::data_state_prep_multidet_destroy(&mut self.0 as *mut _) };
     }
 }
 
@@ -246,5 +334,23 @@ mod tests {
         for v in data.values() {
             assert!(v.is_nan());
         }
+    }
+
+    #[test]
+    fn data_state_prep_read() {
+        let data_dir = PathBuf::from(TEST_DAT_DIR);
+        let filename = data_dir.join("./simul_H2_2.h5");
+        let mut handle = Handle::open(&filename).unwrap();
+
+        let state_prep = StatePrep::new().read(&mut handle).unwrap();
+        state_prep.for_multidet(|m| {
+            if let Some(multidet) = m {
+                assert_eq!(multidet.num_qubits(), 4);
+                assert_eq!(multidet.num_terms(), 1);
+
+                assert!(f64::abs(multidet.coeffs()[0] - 1.0) < f64::EPSILON);
+                assert_eq!(multidet.dets(), &[1, 0, 1, 0]);
+            }
+        });
     }
 }

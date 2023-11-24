@@ -31,7 +31,48 @@ extern "C" {
     pub(crate) fn data_file_close(file_id: dataid_t);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub(crate) struct data_state_prep {
+    pub(crate) multidet: *mut data_state_prep_multidet,
+}
+
+extern "C" {
+    pub(crate) fn data_state_prep_init(dat: *mut data_state_prep);
+
+    pub(crate) fn data_state_prep_destroy(dat: *mut data_state_prep);
+
+    pub(crate) fn data_state_prep_read(
+        dat: *mut data_state_prep,
+        obj_id: dataid_t,
+    ) -> data_result;
+}
+
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub(crate) struct data_state_prep_multidet {
+    pub(crate) num_qubits: usize,
+    pub(crate) num_terms:  usize,
+    pub(crate) coeffs:     *mut c_double,
+    pub(crate) dets:       *mut c_uchar,
+}
+
+extern "C" {
+    pub(crate) fn data_state_prep_multidet_init(
+        dat: *mut data_state_prep_multidet
+    );
+
+    pub(crate) fn data_state_prep_multidet_destroy(
+        dat: *mut data_state_prep_multidet
+    );
+
+    pub(crate) fn data_state_prep_multidet_read(
+        dat: *mut data_state_prep_multidet,
+        obj_id: dataid_t,
+    ) -> data_result;
+}
+
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub(crate) struct data_pauli_hamil {
     pub(crate) num_qubits: usize,
@@ -51,7 +92,7 @@ extern "C" {
     ) -> data_result;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub(crate) struct data_time_series {
     pub(crate) num_steps: usize,
