@@ -1,11 +1,13 @@
 use std::{
     ffi::CString,
+    fmt::{
+        Display,
+        Formatter,
+    },
     mem::MaybeUninit,
     path::Path,
     ptr::slice_from_raw_parts,
 };
-
-use crate::data::ffi::data_result;
 
 mod ffi;
 
@@ -16,24 +18,54 @@ pub enum Error {
     FileWrite,
 }
 
-pub struct Empty<T>(T);
-
-pub struct DataHandle(ffi::dataid_t);
-
-impl DataHandle {
-    pub fn open(path: &Path) -> Result<Self, Error> {
-        let path_str = path.to_str().ok_or(Error::FileOpen)?;
-        let filename = CString::new(path_str).map_err(|_| Error::FileOpen)?;
-        let file_id = unsafe { ffi::data_file_open(filename.as_ptr()) };
-        if file_id == ffi::DATA_INVALID_OBJID {
-            return Err(Error::FileOpen);
+impl Display for Error {
+    fn fmt(
+        &self,
+        f: &mut Formatter<'_>,
+    ) -> std::fmt::Result {
+        match self {
+            Self::FileOpen => write!(f, "file open error"),
+            Self::FileRead => write!(f, "file read error"),
+            Self::FileWrite => write!(f, "file write error"),
         }
-
-        Ok(Self(file_id))
     }
 }
 
-impl Drop for DataHandle {
+impl std::error::Error for Error {}
+
+#[derive(Debug, PartialEq)]
+pub struct Empty<T>(T);
+
+pub(crate) trait DataId: Sized {
+    fn is_valid(&self) -> bool;
+
+    fn valid_then<T>(
+        self,
+        f: impl FnOnce(Self) -> T,
+    ) -> Option<T> {
+        self.is_valid().then(|| f(self))
+    }
+}
+
+impl DataId for ffi::dataid_t {
+    fn is_valid(&self) -> bool {
+        *self != ffi::DATA_INVALID_OBJID
+    }
+}
+
+pub struct Handle(ffi::dataid_t);
+
+impl Handle {
+    pub fn open(path: &Path) -> Result<Self, Error> {
+        let path_str = path.to_str().ok_or(Error::FileOpen)?;
+        let filename = CString::new(path_str).map_err(|_| Error::FileOpen)?;
+        unsafe { ffi::data_file_open(filename.as_ptr()) }
+            .valid_then(Self)
+            .ok_or(Error::FileOpen)
+    }
+}
+
+impl Drop for Handle {
     fn drop(&mut self) {
         unsafe {
             ffi::data_file_close(self.0);
@@ -79,14 +111,14 @@ impl PauliHamil {
 impl Empty<PauliHamil> {
     pub fn read(
         mut self,
-        handle: &mut DataHandle,
+        handle: &mut Handle,
     ) -> Result<PauliHamil, Error> {
-        let res = unsafe {
+        unsafe {
             ffi::data_pauli_hamil_read(&mut self.0 .0 as *mut _, handle.0)
-        };
-        (res == ffi::data_result::DATA_OK)
-            .then_some(self.0)
-            .ok_or(Error::FileRead)
+        }
+        .is_data_ok()
+        .then_some(self.0)
+        .ok_or(Error::FileRead)
     }
 }
 
@@ -108,12 +140,10 @@ impl TimeSeries {
 
     pub fn write(
         &mut self,
-        handle: &mut DataHandle,
+        handle: &mut Handle,
     ) -> Result<(), Error> {
-        let res = unsafe {
-            ffi::data_time_series_write(&mut self.0 as *mut _, handle.0)
-        };
-        (res == data_result::DATA_OK)
+        unsafe { ffi::data_time_series_write(&mut self.0 as *mut _, handle.0) }
+            .is_data_ok()
             .then_some(())
             .ok_or(Error::FileWrite)
     }
@@ -143,14 +173,14 @@ impl Drop for TimeSeries {
 impl Empty<TimeSeries> {
     pub fn read(
         mut self,
-        handle: &mut DataHandle,
+        handle: &mut Handle,
     ) -> Result<TimeSeries, Error> {
-        let res = unsafe {
+        unsafe {
             ffi::data_time_series_read(&mut self.0 .0 as *mut _, handle.0)
-        };
-        (res == ffi::data_result::DATA_OK)
-            .then_some(self.0)
-            .ok_or(Error::FileRead)
+        }
+        .is_data_ok()
+        .then_some(self.0)
+        .ok_or(Error::FileRead)
     }
 }
 
@@ -169,14 +199,14 @@ mod tests {
     fn data_file_open() {
         let data_dir = PathBuf::from("./dat");
         let filename = data_dir.join("./simul_H2_2.h5");
-        let handle = DataHandle::open(&filename).unwrap();
+        Handle::open(&filename).unwrap();
     }
 
     #[test]
     fn data_pauli_hamil_read() {
         let data_dir = PathBuf::from("./dat");
         let filename = data_dir.join("./simul_H2_2.h5");
-        let mut handle = DataHandle::open(&filename).unwrap();
+        let mut handle = Handle::open(&filename).unwrap();
 
         let data = PauliHamil::new().read(&mut handle).unwrap();
         assert_eq!(data.num_qubits(), 4);
@@ -203,22 +233,12 @@ mod tests {
     fn data_time_series_read() {
         let data_dir = PathBuf::from("./dat");
         let filename = data_dir.join("./simul_H2_2.h5");
-        let mut handle = DataHandle::open(&filename).unwrap();
+        let mut handle = Handle::open(&filename).unwrap();
 
         let data = TimeSeries::new().read(&mut handle).unwrap();
         assert_eq!(data.num_steps(), 111);
 
-        let expected_times = [
-            0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14.,
-            15., 16., 17., 18., 19., 20., 21., 22., 23., 24., 25., 26., 27.,
-            28., 29., 30., 31., 32., 33., 34., 35., 36., 37., 38., 39., 40.,
-            41., 42., 43., 44., 45., 46., 47., 48., 49., 50., 51., 52., 53.,
-            54., 55., 56., 57., 58., 59., 60., 61., 62., 63., 64., 65., 66.,
-            67., 68., 69., 70., 71., 72., 73., 74., 75., 76., 77., 78., 79.,
-            80., 81., 82., 83., 84., 85., 86., 87., 88., 89., 90., 91., 92.,
-            93., 94., 95., 96., 97., 98., 99., 100., 101., 102., 103., 104.,
-            105., 106., 107., 108., 109., 110.,
-        ];
+        let expected_times: Vec<_> = (0..111).map(f64::from).collect();
         for (time, exp_time) in zip(data.times(), expected_times) {
             assert!(f64::abs(time - exp_time) < MARGIN);
         }

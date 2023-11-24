@@ -6,7 +6,6 @@
 use std::ffi::{
     c_char,
     c_double,
-    c_int,
     c_uchar,
 };
 
@@ -17,6 +16,12 @@ pub(crate) const DATA_INVALID_OBJID: i64 = -1;
 pub(crate) enum data_result {
     DATA_ERR = -1,
     DATA_OK = 0,
+}
+
+impl data_result {
+    pub(crate) fn is_data_ok(&self) -> bool {
+        *self == Self::DATA_OK
+    }
 }
 
 pub(crate) type dataid_t = i64;
