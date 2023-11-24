@@ -9,7 +9,6 @@ import numpy as np
 def parse_arguments():
     parser = argparse.ArgumentParser(
         prog="jw_map",
-        description="Parse FCIDUMP to JW mapping",
         epilog="Quantum-for-Life",
     )
 
@@ -18,20 +17,12 @@ def parse_arguments():
     return parser.parse_args()
 
 
-STEPS = 111
-TIMES = [float(x) for x in range(0, STEPS)]
-VALUES = np.ndarray((STEPS, 2), dtype='d')
-
-for i in range(0, STEPS):
-    VALUES[i, 0] = np.nan
-    VALUES[i, 1] = np.nan
-
-
 def h5_output(outfile: str):
     with h5py.File(outfile, "a") as f:
-        grp = f.create_group("time_series")
-        grp.create_dataset("times", (STEPS,), dtype='d')[...] = TIMES
-        grp.create_dataset("values", (STEPS, 2), dtype='f')[...] = VALUES
+        state_prep = f.create_group("state_prep")
+        multidet = state_prep.create_group("multidet")
+        multidet.create_dataset("coeffs", (1,), dtype='d')[...] = [1.0]
+        multidet.create_dataset("dets", (1,4), dtype='u1')[...] = [1, 0, 1, 0]
 
 
 if __name__ == "__main__":

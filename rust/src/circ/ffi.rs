@@ -1,3 +1,8 @@
+#![allow(non_snake_case)]
+#![allow(non_camel_case_types)]
+#![allow(dead_code)]
+#![allow(clippy::upper_case_acronyms)]
+
 use std::ffi::{
     c_char,
     c_double,
@@ -99,5 +104,5 @@ pub(crate) struct linen_circ_data {
 
 #[link(name = "phase2")]
 extern "C" {
-    pub static linen_circuit: circuit;
+    pub(crate) static linen_circuit: circuit;
 }

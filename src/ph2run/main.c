@@ -12,7 +12,7 @@
 #include "circ.h"
 #include "circ/rayon.h"
 #include "circ/linen.h"
-#include "sdat.h"
+#include "data.h"
 
 #include "log.h"
 
@@ -23,8 +23,8 @@
 
 int linen_simulate(struct circ_env env);
 
-int rayon_simulate(struct circ_env env, struct sdat_pauli_hamil ph,
-                   const struct sdat_time_series* ts);
+int rayon_simulate(struct circ_env env, struct data_pauli_hamil ph,
+                   const struct data_time_series* ts);
 
 void exit_failure(const char* msg) {
         log_error("Failure: %s", msg);
@@ -80,20 +80,20 @@ void set_log_level() {
 }
 
 int main(const int argc, char** argv) {
+        dataid_t file_id;
         struct circ_env env;
         if (circ_env_init(&env) != CIRC_OK) {
                 exit_failure("initialize environment");
         }
 
 #ifdef DISTRIBUTED
-
-                int rank, num_ranks;
-                MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
-                MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-                log_info("*** Init ***");
-                log_info("Initialize MPI environment");
-                log_info("MPI num_ranks: %d", num_ranks);
-                log_info("This is rank no. %d", rank);
+        int rank, num_ranks;
+        MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        log_info("*** Init ***");
+        log_info("Initialize MPI environment");
+        log_info("MPI num_ranks: %d", num_ranks);
+        log_info("This is rank no. %d", rank);
 #else
         log_info("*** Init ***");
         log_info("MPI mode not enabled.");
@@ -126,31 +126,23 @@ int main(const int argc, char** argv) {
         }
 
         log_debug("Read simulation input file: %s", h5filename);
-        hid_t file_id, access_plist;
-#ifdef DISTRIBUTED
-        access_plist = H5Pcreate(H5P_FILE_ACCESS);
-        log_debug("H5P_FILE_ACCESS: %" PRId64, access_plist);
-        H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
-#else
-        access_plist = H5P_DEFAULT;
-#endif
-        file_id = H5Fopen(h5filename, H5F_ACC_RDONLY, access_plist);
+        file_id = data_file_open(h5filename);
 
-        struct sdat_pauli_hamil dat_ph;
-        sdat_pauli_hamil_init(&dat_ph);
-        if (sdat_pauli_hamil_read(&dat_ph, file_id) != SDAT_OK) {
+        struct data_pauli_hamil dat_ph;
+        data_pauli_hamil_init(&dat_ph);
+        if (data_pauli_hamil_read(&dat_ph, file_id) != DATA_OK) {
                 exit_failure("read Hamiltonian data");
         }
-        log_debug("Hamiltonian: num_qubits=%zu, num_sum_terms=%zu",
-                  dat_ph.num_qubits, dat_ph.num_sum_terms);
+        log_debug("Hamiltonian: num_qubits=%zu, num_terms=%zu",
+                  dat_ph.num_qubits, dat_ph.num_terms);
 
-        struct sdat_time_series dat_ts;
-        sdat_time_series_init(&dat_ts);
-        if (sdat_time_series_read(&dat_ts, file_id) != SDAT_OK) {
+        struct data_time_series dat_ts;
+        data_time_series_init(&dat_ts);
+        if (data_time_series_read(&dat_ts, file_id) != DATA_OK) {
                 exit_failure("read time series data");
         }
         log_debug("Time series: num_steps=%zu", dat_ts.num_steps);
-        H5Fclose(file_id);
+        data_file_close(file_id);
 
         log_info("*** Circuit ***");
         int sucess;
@@ -171,19 +163,14 @@ int main(const int argc, char** argv) {
         }
 
         log_info("Saving data");
-#ifdef DISTRIBUTED
-        access_plist = H5Pcreate(H5P_FILE_ACCESS);
-        H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
-#else
-        access_plist = H5P_DEFAULT;
-#endif
-        file_id = H5Fopen(h5filename, H5F_ACC_RDWR, access_plist);
-        sdat_time_series_write(dat_ts, file_id);
-        H5Fclose(file_id);
+        file_id = data_file_open(h5filename);
+
+        data_time_series_write(&dat_ts, file_id);
+        data_file_close(file_id);
 
         log_info("*** Cleanup ***");
-        sdat_pauli_hamil_destroy(&dat_ph);
-        sdat_time_series_destroy(&dat_ts);
+        data_pauli_hamil_destroy(&dat_ph);
+        data_time_series_destroy(&dat_ts);
 
         log_info("Shut down simulation environment");
         circ_env_destroy(&env);
@@ -222,12 +209,12 @@ rayon_simulate_cleanup(const PauliHamil hamil) {
 }
 
 int
-rayon_simulate(const struct circ_env env, const struct sdat_pauli_hamil ph,
-               const struct sdat_time_series* ts) {
+rayon_simulate(const struct circ_env env, const struct data_pauli_hamil ph,
+               const struct data_time_series* ts) {
         log_info("Initialize Pauli Hamiltonian");
         const PauliHamil hamil = createPauliHamil(
-                ph.num_qubits, ph.num_sum_terms);
-        for (size_t i = 0; i < ph.num_sum_terms; i++) {
+                ph.num_qubits, ph.num_terms);
+        for (size_t i = 0; i < ph.num_terms; i++) {
                 hamil.termCoeffs[i] = ph.coeffs[i];
                 for (size_t j = 0; j < ph.num_qubits; j++) {
                         const size_t pauli_idx = i * ph.num_qubits + j;

@@ -1,3 +1,0 @@
-[workspace]
-members = ["rust", "rust/ttt"]
-resolver = "2"
