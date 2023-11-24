@@ -24,15 +24,15 @@
 int linen_simulate(struct circ_env env);
 
 int rayon_simulate(struct circ_env env, struct data_pauli_hamil ph,
-                   const struct data_time_series* ts);
+                   const struct data_time_series *ts);
 
-void exit_failure(const char* msg) {
+void exit_failure(const char *msg) {
         log_error("Failure: %s", msg);
         exit(EXIT_FAILURE);
 }
 
-void help_page(const int argc, char** argv) {
-        (void)argc;
+void help_page(const int argc, char **argv) {
+        (void) argc;
         fprintf(stderr, "usage: %s CIRCUIT [SIMUL_FILE_H5]\n\n", argv[0]);
         fprintf(stderr,
                 "where CIRCUIT is must be one of:\n"
@@ -54,7 +54,7 @@ void help_page(const int argc, char** argv) {
 }
 
 void set_log_level() {
-        const char* log_level = getenv(PHASE2_LOG_ENVVAR);
+        const char *log_level = getenv(PHASE2_LOG_ENVVAR);
         if (log_level == NULL) {
                 log_set_level(LOG_ERROR);
                 return;
@@ -79,7 +79,7 @@ void set_log_level() {
         }
 }
 
-int main(const int argc, char** argv) {
+int main(const int argc, char **argv) {
         dataid_t file_id;
         struct circ_env env;
         if (circ_env_init(&env) != CIRC_OK) {
@@ -87,24 +87,24 @@ int main(const int argc, char** argv) {
         }
 
 #ifdef DISTRIBUTED
-        int rank, num_ranks;
-        MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        log_info("*** Init ***");
-        log_info("Initialize MPI environment");
-        log_info("MPI num_ranks: %d", num_ranks);
-        log_info("This is rank no. %d", rank);
+                int rank, num_ranks;
+                MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+                MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+                log_info("*** Init ***");
+                log_info("Initialize MPI environment");
+                log_info("MPI num_ranks: %d", num_ranks);
+                log_info("This is rank no. %d", rank);
 #else
         log_info("*** Init ***");
         log_info("MPI mode not enabled.");
         log_info("To enable distributed mode, set "
-                "-DDISTRIBUTED "
-                "flag during compilation");
+                 "-DDISTRIBUTED "
+                 "flag during compilation");
 #endif
 
         set_log_level();
         log_info("Open log file: " PHASE2_LOG_FILE);
-        FILE* log_file = fopen(PHASE2_LOG_FILE, "a");
+        FILE *log_file = fopen(PHASE2_LOG_FILE, "a");
         if (!log_file) {
                 exit_failure("open log file");
         }
@@ -115,18 +115,30 @@ int main(const int argc, char** argv) {
                 help_page(argc, argv);
                 return EXIT_FAILURE;
         }
-        const char* h5filename = PHASE2_DEFAULT_H5FILE;
+        const char *h5filename = PHASE2_DEFAULT_H5FILE;
         if (argc < 3) {
                 log_debug("No simulation input file specified; "
                           "using default: %s",
                           PHASE2_DEFAULT_H5FILE);
-        }
-        else {
+        } else {
                 h5filename = argv[2];
         }
 
         log_debug("Read simulation input file: %s", h5filename);
         file_id = data_file_open(h5filename);
+
+        struct data_state_prep dat_sp;
+        data_state_prep_init(&dat_sp);
+        if (data_state_prep_read(&dat_sp, file_id) != DATA_OK) {
+                exit_failure("read state_prep data");
+        }
+        log_debug("State preparation:");
+        if (dat_sp.multidet) {
+                log_debug("multidet, num_qubits=%zu, num_terms=%zu",
+                          dat_sp.multidet->num_qubits,
+                          dat_sp.multidet->num_terms);
+        }
+
 
         struct data_pauli_hamil dat_ph;
         data_pauli_hamil_init(&dat_ph);
@@ -149,12 +161,16 @@ int main(const int argc, char** argv) {
         if (strncmp(argv[1], "linen", 5) == 0) {
                 log_info("Circuit: linen");
                 sucess = linen_simulate(env) == CIRC_OK;
-        }
-        else if (strncmp(argv[1], "rayon", 5) == 0) {
+        } else if (strncmp(argv[1], "rayon", 5) == 0) {
                 log_info("Circuit: rayon");
                 sucess = rayon_simulate(env, dat_ph, &dat_ts) != CIRC_OK;
-        }
-        else {
+
+                log_info("Saving data");
+                file_id = data_file_open(h5filename);
+
+                data_time_series_write(&dat_ts, file_id);
+                data_file_close(file_id);
+        } else {
                 log_error("No circ named %s", argv[1]);
                 sucess = 0;
         }
@@ -162,13 +178,8 @@ int main(const int argc, char** argv) {
                 exit_failure("simulation error");
         }
 
-        log_info("Saving data");
-        file_id = data_file_open(h5filename);
-
-        data_time_series_write(&dat_ts, file_id);
-        data_file_close(file_id);
-
         log_info("*** Cleanup ***");
+        data_state_prep_destroy(&dat_sp);
         data_pauli_hamil_destroy(&dat_ph);
         data_time_series_destroy(&dat_ts);
 
@@ -186,9 +197,16 @@ linen_simulate(const struct circ_env env) {
         log_debug("Report simulation environment");
         circ_env_report(&env);
 
-        const struct circuit factory = linen_circuit;
+        struct circuit factory = linen_circuit;
+        struct linen_circuit_data circuit_dat = {
+                .state_prep_value = 1,
+                .routine_value = 22,
+                .state_post_value = 333
+        };
+        factory.data = &circuit_dat;
         struct circ c;
-        if (circ_init(&c, env, factory, NULL) != CIRC_OK) {
+        struct linen_circ_data circ_dat;
+        if (circ_init(&c, env, factory, &circ_dat) != CIRC_OK) {
                 log_error("Cannot initialize circ");
                 return CIRC_ERR;
         }
@@ -210,7 +228,7 @@ rayon_simulate_cleanup(const PauliHamil hamil) {
 
 int
 rayon_simulate(const struct circ_env env, const struct data_pauli_hamil ph,
-               const struct data_time_series* ts) {
+               const struct data_time_series *ts) {
         log_info("Initialize Pauli Hamiltonian");
         const PauliHamil hamil = createPauliHamil(
                 ph.num_qubits, ph.num_terms);
@@ -218,7 +236,7 @@ rayon_simulate(const struct circ_env env, const struct data_pauli_hamil ph,
                 hamil.termCoeffs[i] = ph.coeffs[i];
                 for (size_t j = 0; j < ph.num_qubits; j++) {
                         const size_t pauli_idx = i * ph.num_qubits + j;
-                        hamil.pauliCodes[pauli_idx] = (enum pauliOpType)ph.
+                        hamil.pauliCodes[pauli_idx] = (enum pauliOpType) ph.
                                 paulis[pauli_idx];
                 }
         }
@@ -247,8 +265,8 @@ rayon_simulate(const struct circ_env env, const struct data_pauli_hamil ph,
                                 return CIRC_ERR;
                         }
                         const double prob_0 = c.mea_cl[0] == 0
-                                                      ? c.mea_cl_prob[0]
-                                                      : 1.0 - c.mea_cl_prob[0];
+                                              ? c.mea_cl_prob[0]
+                                              : 1.0 - c.mea_cl_prob[0];
                         ts->values[2 * i + offset] = 2 * prob_0 - 1;
                 }
                 circ_data.imag_switch++;

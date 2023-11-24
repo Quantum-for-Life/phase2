@@ -1,7 +1,9 @@
 #include "hdf5.h"
 
 #ifdef DISTRIBUTED
+
 #include "log.h"
+
 #endif
 
 #include "data.h"
@@ -11,7 +13,6 @@ dataid_t data_file_open(const char *filename) {
         hid_t file_id, access_plist;
 #ifdef DISTRIBUTED
         access_plist = H5Pcreate(H5P_FILE_ACCESS);
-        log_debug("H5P_FILE_ACCESS: %" PRId64, access_plist);
         H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
 #else
         access_plist = H5P_DEFAULT;
@@ -26,6 +27,147 @@ dataid_t data_file_open(const char *filename) {
 
 void data_file_close(dataid_t file_id) {
         H5Fclose(file_id);
+}
+
+
+void data_state_prep_init(struct data_state_prep *dat) {
+        dat->multidet = NULL;
+}
+
+void data_state_prep_destroy(struct data_state_prep *dat) {
+        if (dat->multidet) {
+                data_state_prep_mutidet_destroy(dat->multidet);
+                free(dat->multidet);
+        }
+        dat->multidet = NULL;
+}
+
+int data_state_prep_read(struct data_state_prep *dat, dataid_t obj_id) {
+        hid_t grp_id;
+
+        int res = DATA_OK;
+
+        grp_id = H5Gopen2(obj_id, DATA_STATE_PREP, H5P_DEFAULT);
+        if (grp_id == H5I_INVALID_HID) {
+                res = DATA_ERR;
+                goto grp_fail;
+        }
+
+        /* multidet */
+        struct data_state_prep_multidet *multidet = malloc(sizeof(*multidet));
+        if (!multidet) {
+                res = DATA_ERR;
+                goto multidet_alloc_fail;
+        }
+        data_state_prep_mutidet_init(multidet);
+        if (data_state_prep_mutidet_read(multidet, grp_id) != DATA_OK) {
+                data_state_prep_mutidet_destroy(multidet);
+                free(multidet);
+                res = DATA_ERR;
+                goto multidet_read_fail;
+        }
+        dat->multidet = multidet;
+
+
+multidet_read_fail:
+multidet_alloc_fail:
+        H5Gclose(grp_id);
+grp_fail:
+        return res;
+}
+
+
+void data_state_prep_mutidet_init(struct data_state_prep_multidet *dat) {
+        dat->num_qubits = 0;
+        dat->num_terms = 0;
+        dat->coeffs = NULL;
+        dat->dets = NULL;
+}
+
+void data_state_prep_mutidet_destroy(struct data_state_prep_multidet *dat) {
+        free(dat->coeffs);
+        dat->coeffs = NULL;
+        free(dat->dets);
+        dat->dets = NULL;
+}
+
+int data_state_prep_mutidet_read(struct data_state_prep_multidet *dat,
+                                 dataid_t obj_id) {
+        hid_t grp_id,
+                dset_coeffs_id, dspace_coeffs_id,
+                dset_dets_id, dspace_dets_id;
+
+
+        int res = DATA_OK;
+        grp_id = H5Gopen2(obj_id, DATA_STATE_PREP_MULTIDET, H5P_DEFAULT);
+        if (grp_id == H5I_INVALID_HID) {
+                res = DATA_ERR;
+                goto grp_fail;
+        }
+
+        dset_coeffs_id = H5Dopen2(grp_id, DATA_STATE_PREP_MULTIDET_COEFFS,
+                                  H5P_DEFAULT);
+        if (dset_coeffs_id == H5I_INVALID_HID) {
+                res = DATA_ERR;
+                goto dset_coeffs_fail;
+        }
+        dspace_coeffs_id = H5Dget_space(dset_coeffs_id);
+        hsize_t dspace_coeffs_dims[1];
+        H5Sget_simple_extent_dims(dspace_coeffs_id, dspace_coeffs_dims, NULL);
+        size_t num_terms = dspace_coeffs_dims[0];
+        double *coeffs = malloc(sizeof(*coeffs) * num_terms);
+        if (!coeffs) {
+                res = DATA_ERR;
+                goto coeffs_alloc_fail;
+        }
+        if (H5Dread(dset_coeffs_id,
+                    H5T_IEEE_F64LE,
+                    H5S_ALL, H5S_ALL, H5P_DEFAULT, coeffs) < 0) {
+                free(coeffs);
+                coeffs = NULL;
+                res = DATA_ERR;
+        }
+
+        dset_dets_id = H5Dopen2(grp_id, DATA_STATE_PREP_MULTIDET_DETS,
+                                H5P_DEFAULT);
+        if (dset_dets_id == H5I_INVALID_HID) {
+                res = DATA_ERR;
+                goto dset_dets_fail;
+        }
+        dspace_dets_id = H5Dget_space(dset_dets_id);
+        hsize_t dspace_dets_dims[2];
+        H5Sget_simple_extent_dims(dspace_dets_id, dspace_dets_dims, NULL);
+        /* It must be that:
+         * dspace_dets_dims[0] = dspace_coeffs_dims[0] = num_terms */
+        size_t num_qubits = dspace_dets_dims[1];
+        unsigned char *dets = malloc(sizeof(*dets) * num_terms * num_qubits);
+        if (!dets) {
+                res = DATA_ERR;
+                goto dets_alloc_fail;
+        }
+        if (H5Dread(dset_dets_id, H5T_STD_U8LE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                    dets) < 0) {
+                free(dets);
+                dets = NULL;
+                res = DATA_ERR;
+        }
+
+        dat->num_qubits = num_qubits;
+        dat->num_terms = num_terms;
+        dat->coeffs = coeffs;
+        dat->dets = dets;
+
+dets_alloc_fail:
+        H5Sclose(dspace_dets_id);
+        H5Dclose(dset_dets_id);
+dset_dets_fail:
+coeffs_alloc_fail:
+        H5Sclose(dspace_coeffs_id);
+        H5Dclose(dset_coeffs_id);
+dset_coeffs_fail:
+        H5Gclose(grp_id);
+grp_fail:
+        return res;
 }
 
 
@@ -71,6 +213,7 @@ int data_pauli_hamil_read(struct data_pauli_hamil *dat, const dataid_t obj_id) {
         if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE,
                     H5S_ALL, H5S_ALL, H5P_DEFAULT, coeffs) < 0) {
                 free(coeffs);
+                coeffs = NULL;
                 res = DATA_ERR;
         }
 
@@ -84,10 +227,7 @@ int data_pauli_hamil_read(struct data_pauli_hamil *dat, const dataid_t obj_id) {
         const hid_t dspace_paulis_id = H5Dget_space(dset_paulis_id);
         hsize_t dspace_paulis_dims[2];
         H5Sget_simple_extent_dims(dspace_paulis_id, dspace_paulis_dims, NULL);
-        if (dspace_paulis_dims[0] != dat->num_terms) {
-                res = DATA_ERR;
-                goto dim_mismatch;
-        }
+
         dat->num_qubits = dspace_paulis_dims[1];
         unsigned char *paulis = malloc(sizeof(unsigned char *) *
                                        dat->num_terms * dat->num_qubits);
@@ -102,7 +242,6 @@ int data_pauli_hamil_read(struct data_pauli_hamil *dat, const dataid_t obj_id) {
         dat->paulis = paulis;
 
 paulis_fail:
-dim_mismatch:
         H5Sclose(dspace_paulis_id);
         H5Dclose(dset_paulis_id);
 dset_paulis_fail:
