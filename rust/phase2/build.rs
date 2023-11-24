@@ -1,8 +1,7 @@
 extern crate cmake;
 
 fn main() {
-
-    let mut config = cmake::Config::new("..");
+    let mut config = cmake::Config::new("../../");
     // This will also compile QuEST and log
     config.build_target("phase2");
     let dst = config.build();

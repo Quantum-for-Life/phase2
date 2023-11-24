@@ -1,14 +1,7 @@
 [workspace]
-members = [".", "ph2test"]
-resolver="2"
+members = ["phase2", "ttt", "ph2test"]
+resolver = "2"
 
-[package]
-name = "phase2"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-libc = "0.2.150"
-
-[build-dependencies]
-cmake = "0.1.50"
+[profile.release]
+codegen-units = 1
+lto = "fat"

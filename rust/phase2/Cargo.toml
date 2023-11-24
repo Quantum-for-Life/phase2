@@ -1,0 +1,10 @@
+[package]
+name = "phase2"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "phase2"
+
+[build-dependencies]
+cmake = "0.1.50"

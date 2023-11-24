@@ -193,18 +193,19 @@ mod tests {
 
     use super::*;
 
+    const TEST_DAT_DIR: &str = "../dat";
     const MARGIN: f64 = 1e-4;
 
     #[test]
     fn data_file_open() {
-        let data_dir = PathBuf::from("./dat");
+        let data_dir = PathBuf::from(TEST_DAT_DIR);
         let filename = data_dir.join("./simul_H2_2.h5");
         Handle::open(&filename).unwrap();
     }
 
     #[test]
     fn data_pauli_hamil_read() {
-        let data_dir = PathBuf::from("./dat");
+        let data_dir = PathBuf::from(TEST_DAT_DIR);
         let filename = data_dir.join("./simul_H2_2.h5");
         let mut handle = Handle::open(&filename).unwrap();
 
@@ -231,7 +232,7 @@ mod tests {
 
     #[test]
     fn data_time_series_read() {
-        let data_dir = PathBuf::from("./dat");
+        let data_dir = PathBuf::from(TEST_DAT_DIR);
         let filename = data_dir.join("./simul_H2_2.h5");
         let mut handle = Handle::open(&filename).unwrap();
 

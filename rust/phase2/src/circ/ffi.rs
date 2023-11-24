@@ -88,7 +88,7 @@ extern "C" {
 
 #[derive(Debug)]
 #[repr(C)]
-pub(crate) struct linen_circuit_data {
+pub struct linen_circuit_data {
     pub(crate) state_prep_value: c_int,
     pub(crate) routine_value:    c_int,
     pub(crate) state_post_value: c_int,

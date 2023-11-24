@@ -55,14 +55,19 @@ impl Drop for CircEnv {
 
 #[derive(Debug)]
 pub struct Circuit<'a, T> {
-    pub(crate) ct:   ffi::circuit,
-    pub(crate) data: &'a mut T,
+    #[allow(dead_code)]
+    ct:   ffi::circuit,
+    #[allow(dead_code)]
+    data: &'a mut T,
 }
 
 pub struct Circ<'a, 'b: 'a, C, T> {
     circ: ffi::circ,
+    #[allow(dead_code)]
     env:  &'a CircEnv,
+    #[allow(dead_code)]
     ct:   &'a Circuit<'b, C>,
+    #[allow(dead_code)]
     data: &'a mut T,
 }
 

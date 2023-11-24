@@ -2,6 +2,7 @@
 name = "ph2test"
 version = "0.1.0"
 edition = "2021"
+default-run = "ph2test"
 
 [dependencies]
-phase2 = { path = ".." }
+phase2 = { path = "../phase2" }

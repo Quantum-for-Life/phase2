@@ -30,9 +30,13 @@ jobs:
         run: |
           cd rust/
           cargo build --all --verbose
+          cargo build --release --all --verbose
           cargo doc --all --verbose
       - name: Run tests
         run: |
           cd rust/
           cargo test --all --verbose
+      - name: Run ph2test
+          cd rust/
+          cargo run --release --package ph2test
         
