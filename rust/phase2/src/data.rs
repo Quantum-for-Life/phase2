@@ -295,7 +295,7 @@ mod tests {
     }
 
     #[test]
-    fn data_pauli_hamil_read() {
+    fn data_pauli_hamil_parse() {
         let data_dir = PathBuf::from(TEST_DAT_DIR);
         let filename = data_dir.join("./simul_H2_2.h5");
         let mut handle = Handle::open(&filename).unwrap();
@@ -323,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn data_time_series_read() {
+    fn data_time_series_parse() {
         let data_dir = PathBuf::from(TEST_DAT_DIR);
         let filename = data_dir.join("./simul_H2_2.h5");
         let mut handle = Handle::open(&filename).unwrap();
@@ -341,7 +341,7 @@ mod tests {
     }
 
     #[test]
-    fn data_state_prep_read() {
+    fn data_state_prep_parse() {
         let data_dir = PathBuf::from(TEST_DAT_DIR);
         let filename = data_dir.join("./simul_H2_2.h5");
         let mut handle = Handle::open(&filename).unwrap();

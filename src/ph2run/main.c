@@ -130,35 +130,23 @@ int main(const int argc, char **argv) {
         log_debug("Read simulation input file: %s", h5filename);
         file_id = data_file_open(h5filename);
 
-        struct data_state_prep dat_sp;
-        data_state_prep_init(&dat_sp);
-        if (data_state_prep_read(&dat_sp, file_id) != DATA_OK) {
-                exit_failure("read state_prep data");
+        struct data dat;
+        data_init(&dat);
+        if (data_parse(&dat, file_id) != DATA_OK) {
+                exit_failure("read data file");
         }
+        data_file_close(file_id);
+
         log_debug("State preparation:");
-        if (dat_sp.multidet) {
-                log_debug("multidet, num_qubits=%zu, num_terms=%zu",
-                          dat_sp.multidet->num_qubits,
-                          dat_sp.multidet->num_terms);
-        }
-
-
-        struct data_pauli_hamil dat_ph;
-        data_pauli_hamil_init(&dat_ph);
-        if (data_pauli_hamil_read(&dat_ph, file_id) != DATA_OK) {
-                exit_failure("read Hamiltonian data");
-        }
+        log_debug("multidet, num_qubits=%zu, num_terms=%zu",
+                  dat.state_prep->multidet->num_qubits,
+                  dat.state_prep->multidet->num_terms);
         log_debug("Hamiltonian: num_qubits=%zu, num_terms=%zu, "
                   "norm=%f",
-                  dat_ph.num_qubits, dat_ph.num_terms, dat_ph.norm);
-
-        struct data_time_series dat_ts;
-        data_time_series_init(&dat_ts);
-        if (data_time_series_read(&dat_ts, file_id) != DATA_OK) {
-                exit_failure("read time series data");
-        }
-        log_debug("Time series: num_steps=%zu", dat_ts.num_steps);
-        data_file_close(file_id);
+                  dat.pauli_hamil->num_qubits,
+                  dat.pauli_hamil->num_terms,
+                  dat.pauli_hamil->norm);
+        log_debug("Time series: num_steps=%zu", dat.time_series->num_steps);
 
         log_info("*** Circuit ***");
         int sucess;
@@ -167,10 +155,11 @@ int main(const int argc, char **argv) {
                 sucess = linen_simulate(env) == CIRC_OK;
         } else if (strncmp(argv[1], "rayon", 5) == 0) {
                 log_info("Circuit: rayon");
-                sucess = rayon_simulate(env, &dat_ph, &dat_sp, &dat_ts,
-                                        h5filename) ==
-                         CIRC_OK;
-
+                sucess = rayon_simulate(env,
+                                        dat.pauli_hamil,
+                                        dat.state_prep,
+                                        dat.time_series,
+                                        h5filename) == CIRC_OK;
         } else {
                 log_error("No circ named %s", argv[1]);
                 sucess = 0;
@@ -180,9 +169,7 @@ int main(const int argc, char **argv) {
         }
 
         log_info("*** Cleanup ***");
-        data_state_prep_destroy(&dat_sp);
-        data_pauli_hamil_destroy(&dat_ph);
-        data_time_series_destroy(&dat_ts);
+        data_destroy(&dat);
 
         log_info("Shut down simulation environment");
         circ_env_destroy(&env);
@@ -236,7 +223,7 @@ rayon_simulate(const struct circ_env env,
 
         struct circuit ct;
         rayon_circuit_init(&ct, &ct_dat);
-        
+
         log_info("Initialize circ");
         struct rayon_circ_data circ_data = {.imag_switch = 0, .time = 0.0};
         struct circ c;

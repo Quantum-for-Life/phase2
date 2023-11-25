@@ -42,7 +42,7 @@ extern "C" {
 
     pub(crate) fn data_state_prep_destroy(dat: *mut data_state_prep);
 
-    pub(crate) fn data_state_prep_read(
+    pub(crate) fn data_state_prep_parse(
         dat: *mut data_state_prep,
         obj_id: dataid_t,
     ) -> data_result;
@@ -66,7 +66,7 @@ extern "C" {
         dat: *mut data_state_prep_multidet
     );
 
-    pub(crate) fn data_state_prep_multidet_read(
+    pub(crate) fn data_state_prep_multidet_parse(
         dat: *mut data_state_prep_multidet,
         obj_id: dataid_t,
     ) -> data_result;
@@ -87,7 +87,7 @@ extern "C" {
 
     pub(crate) fn data_pauli_hamil_destroy(dat: *mut data_pauli_hamil);
 
-    pub(crate) fn data_pauli_hamil_read(
+    pub(crate) fn data_pauli_hamil_parse(
         dat: *mut data_pauli_hamil,
         file_id: dataid_t,
     ) -> data_result;
@@ -106,7 +106,7 @@ extern "C" {
 
     pub(crate) fn data_time_series_destroy(dat: *mut data_time_series);
 
-    pub(crate) fn data_time_series_read(
+    pub(crate) fn data_time_series_parse(
         dat: *mut data_time_series,
         file_id: dataid_t,
     ) -> data_result;
