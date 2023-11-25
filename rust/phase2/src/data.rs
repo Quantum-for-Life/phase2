@@ -52,13 +52,13 @@ pub(crate) trait DataId: Sized {
     }
 }
 
-impl DataId for ffi::dataid_t {
+impl DataId for ffi::data_id {
     fn is_valid(&self) -> bool {
-        *self != ffi::DATA_INVALID_OBJID
+        *self != ffi::DATA_INVALID_FID
     }
 }
 
-pub struct Handle(ffi::dataid_t);
+pub struct Handle(ffi::data_id);
 
 impl Handle {
     pub fn open(path: &Path) -> Result<Self, Error> {
@@ -92,25 +92,24 @@ impl StatePrep {
 
     pub fn for_multidet(
         &self,
-        f: impl FnOnce(Option<&MultiDet>),
+        f: impl FnOnce(&MultiDet),
     ) {
-        let multidet_ptr = self.0.multidet;
-        let multidet = (!multidet_ptr.is_null())
-            .then(|| ManuallyDrop::new(MultiDet(unsafe { *multidet_ptr })));
-
-        f(multidet.as_deref());
+        let multidet = ManuallyDrop::new(MultiDet(unsafe { self.0.multidet }));
+        f(&multidet);
     }
 }
 
 impl Empty<StatePrep> {
-    pub fn read(
+    pub fn parse(
         mut self,
         handle: &mut Handle,
     ) -> Result<StatePrep, Error> {
-        unsafe { ffi::data_state_prep_read(&mut self.0 .0 as *mut _, handle.0) }
-            .is_data_ok()
-            .then_some(self.0)
-            .ok_or(Error::FileRead)
+        unsafe {
+            ffi::data_state_prep_parse(&mut self.0 .0 as *mut _, handle.0)
+        }
+        .is_data_ok()
+        .then_some(self.0)
+        .ok_or(Error::FileRead)
     }
 }
 
@@ -200,12 +199,12 @@ impl PauliHamil {
 }
 
 impl Empty<PauliHamil> {
-    pub fn read(
+    pub fn parse(
         mut self,
         handle: &mut Handle,
     ) -> Result<PauliHamil, Error> {
         unsafe {
-            ffi::data_pauli_hamil_read(&mut self.0 .0 as *mut _, handle.0)
+            ffi::data_pauli_hamil_parse(&mut self.0 .0 as *mut _, handle.0)
         }
         .is_data_ok()
         .then_some(self.0)
@@ -262,12 +261,12 @@ impl Drop for TimeSeries {
 }
 
 impl Empty<TimeSeries> {
-    pub fn read(
+    pub fn parse(
         mut self,
         handle: &mut Handle,
     ) -> Result<TimeSeries, Error> {
         unsafe {
-            ffi::data_time_series_read(&mut self.0 .0 as *mut _, handle.0)
+            ffi::data_time_series_parse(&mut self.0 .0 as *mut _, handle.0)
         }
         .is_data_ok()
         .then_some(self.0)
@@ -300,7 +299,7 @@ mod tests {
         let filename = data_dir.join("./simul_H2_2.h5");
         let mut handle = Handle::open(&filename).unwrap();
 
-        let data = PauliHamil::new().read(&mut handle).unwrap();
+        let data = PauliHamil::new().parse(&mut handle).unwrap();
         assert_eq!(data.num_qubits(), 4);
         assert_eq!(data.num_terms(), 15);
         assert!(f64::abs(data.norm() - 2.370806) < MARGIN);
@@ -328,7 +327,7 @@ mod tests {
         let filename = data_dir.join("./simul_H2_2.h5");
         let mut handle = Handle::open(&filename).unwrap();
 
-        let data = TimeSeries::new().read(&mut handle).unwrap();
+        let data = TimeSeries::new().parse(&mut handle).unwrap();
         assert_eq!(data.num_steps(), 111);
 
         let expected_times: Vec<_> = (0..111).map(f64::from).collect();
@@ -346,15 +345,13 @@ mod tests {
         let filename = data_dir.join("./simul_H2_2.h5");
         let mut handle = Handle::open(&filename).unwrap();
 
-        let state_prep = StatePrep::new().read(&mut handle).unwrap();
+        let state_prep = StatePrep::new().parse(&mut handle).unwrap();
         state_prep.for_multidet(|m| {
-            if let Some(multidet) = m {
-                assert_eq!(multidet.num_qubits(), 4);
-                assert_eq!(multidet.num_terms(), 1);
+            assert_eq!(m.num_qubits(), 4);
+            assert_eq!(m.num_terms(), 1);
 
-                assert!(f64::abs(multidet.coeffs()[0] - 1.0) < f64::EPSILON);
-                assert_eq!(multidet.dets(), &[1, 0, 1, 0]);
-            }
+            assert!(f64::abs(m.coeffs()[0] - 1.0) < f64::EPSILON);
+            assert_eq!(m.dets(), &[1, 0, 1, 0]);
         });
     }
 }

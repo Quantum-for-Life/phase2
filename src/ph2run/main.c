@@ -7,8 +7,6 @@
 
 #endif
 
-#include "hdf5.h"
-
 #include "circ.h"
 #include "circ/rayon.h"
 #include "circ/linen.h"
@@ -24,8 +22,7 @@
 int linen_simulate(struct circ_env env);
 
 int rayon_simulate(struct circ_env env,
-                   const struct data *dat,
-                   const char *filename);
+                   const struct data *dat);
 
 void exit_failure(const char *msg) {
         log_error("Failure: %s", msg);
@@ -81,7 +78,7 @@ void set_log_level() {
 }
 
 int main(const int argc, char **argv) {
-        dataid_t file_id;
+        data_id fid;
         struct circ_env env;
         if (circ_env_init(&env) != CIRC_OK) {
                 exit_failure("initialize environment");
@@ -116,24 +113,24 @@ int main(const int argc, char **argv) {
                 help_page(argc, argv);
                 return EXIT_FAILURE;
         }
-        const char *h5filename = PHASE2_DEFAULT_H5FILE;
+        const char *dat_filename = PHASE2_DEFAULT_H5FILE;
         if (argc < 3) {
                 log_debug("No simulation input file specified; "
                           "using default: %s",
                           PHASE2_DEFAULT_H5FILE);
         } else {
-                h5filename = argv[2];
+                dat_filename = argv[2];
         }
 
-        log_debug("Read simulation input file: %s", h5filename);
-        file_id = data_file_open(h5filename);
+        log_debug("Read simulation input file: %s", dat_filename);
+        fid = data_file_open(dat_filename);
 
         struct data dat;
         data_init(&dat);
-        if (data_parse(&dat, file_id) != DATA_OK) {
+        if (data_parse(&dat, fid) != DATA_OK) {
                 exit_failure("read data file");
         }
-        data_file_close(file_id);
+        data_file_close(fid);
 
         log_debug("State preparation:");
         log_debug("multidet, num_qubits=%zu, num_terms=%zu",
@@ -153,9 +150,7 @@ int main(const int argc, char **argv) {
                 sucess = linen_simulate(env) == CIRC_OK;
         } else if (strncmp(argv[1], "rayon", 5) == 0) {
                 log_info("Circuit: rayon");
-                sucess = rayon_simulate(env,
-                                        &dat,
-                                        h5filename) == CIRC_OK;
+                sucess = rayon_simulate(env, &dat) == CIRC_OK;
         } else {
                 log_error("No circ named %s", argv[1]);
                 sucess = 0;
@@ -163,6 +158,11 @@ int main(const int argc, char **argv) {
         if (!sucess) {
                 exit_failure("simulation error");
         }
+
+        log_debug("Saving data");
+        fid = data_file_open(dat_filename);
+        data_time_series_write(fid, &dat.time_series);
+        data_file_close(fid);
 
         log_info("*** Cleanup ***");
         data_destroy(&dat);
@@ -207,8 +207,7 @@ linen_simulate(const struct circ_env env) {
 
 int
 rayon_simulate(const struct circ_env env,
-               const struct data *dat,
-               const char *filename) {
+               const struct data *dat) {
         log_info("Initialize Pauli Hamiltonian");
 
         struct rayon_circuit_data ct_dat;
@@ -254,11 +253,6 @@ rayon_simulate(const struct circ_env env,
                         circ_data.imag_switch++;
                 }
 
-                log_trace("Saving data");
-                hid_t file_id = data_file_open(filename);
-
-                data_time_series_write(&dat->time_series, file_id);
-                data_file_close(file_id);
         }
         circ_destroy(&c);
         log_info("End of simulation");

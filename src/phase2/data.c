@@ -9,7 +9,7 @@
 #include "data.h"
 
 
-dataid_t data_file_open(const char *filename) {
+data_id data_file_open(const char *filename) {
         hid_t file_id, access_plist;
 #ifdef DISTRIBUTED
         access_plist = H5Pcreate(H5P_FILE_ACCESS);
@@ -19,107 +19,14 @@ dataid_t data_file_open(const char *filename) {
 #endif
         file_id = H5Fopen(filename, H5F_ACC_RDWR, access_plist);
         if (file_id == H5I_INVALID_HID) {
-                return DATA_INVALID_OBJID;
+                return DATA_INVALID_FID;
         }
 
         return file_id;
 }
 
-void data_file_close(dataid_t file_id) {
-        H5Fclose(file_id);
-}
-
-
-void data_init(struct data *dat) {
-        (void) dat;
-}
-
-void data_destroy(struct data *dat) {
-        data_state_prep_destroy(&dat->state_prep);
-        data_pauli_hamil_destroy(&dat->pauli_hamil);
-        data_time_series_destroy(&dat->time_series);
-}
-
-int data_parse(struct data *dat, dataid_t obj_id) {
-        int res;
-        hid_t state_prep_id, pauli_hamil_id, time_series_id;
-
-        state_prep_id = H5Gopen2(obj_id, DATA_STATE_PREP, H5P_DEFAULT);
-        if (state_prep_id == H5I_INVALID_HID) {
-                res = DATA_ERR;
-                goto state_prep_fail;
-        }
-        struct data_state_prep state_prep;
-        data_state_prep_init(&state_prep);
-        res = data_state_prep_parse(&state_prep, state_prep_id);
-        if (res != DATA_OK) {
-                data_state_prep_destroy(&state_prep);
-        }
-
-        pauli_hamil_id = H5Gopen2(obj_id, DATA_PAULI_HAMIL, H5P_DEFAULT);
-        if (pauli_hamil_id == H5I_INVALID_HID) {
-                res = DATA_ERR;
-                goto pauli_hamil_fail;
-        }
-        struct data_pauli_hamil pauli_hamil;
-        data_pauli_hamil_init(&pauli_hamil);
-        res = data_pauli_hamil_parse(&pauli_hamil, pauli_hamil_id);
-        if (res != DATA_OK) {
-                data_pauli_hamil_destroy(&pauli_hamil);
-        }
-
-        time_series_id = H5Gopen2(obj_id, DATA_TIME_SERIES, H5P_DEFAULT);
-        if (time_series_id == H5I_INVALID_HID) {
-                res = DATA_ERR;
-                goto time_series_fail;
-        }
-        struct data_time_series time_series;
-        data_time_series_init(&time_series);
-        res = data_time_series_parse(&time_series, time_series_id);
-        if (res != DATA_OK) {
-                data_time_series_destroy(&time_series);
-        }
-
-        dat->time_series = time_series;
-        H5Gclose(time_series_id);
-time_series_fail:
-        dat->pauli_hamil = pauli_hamil;
-        H5Gclose(pauli_hamil_id);
-pauli_hamil_fail:
-        dat->state_prep = state_prep;
-        H5Gclose(state_prep_id);
-state_prep_fail:
-        return res;
-}
-
-void data_state_prep_init(struct data_state_prep *dat) {
-        (void) dat;
-}
-
-void data_state_prep_destroy(struct data_state_prep *dat) {
-        data_state_prep_multidet_destroy(&dat->multidet);
-}
-
-int data_state_prep_parse(struct data_state_prep *dat, dataid_t obj_id) {
-        int res;
-        hid_t multidet_id;
-
-        multidet_id = H5Gopen2(obj_id, DATA_STATE_PREP_MULTIDET, H5P_DEFAULT);
-        if (multidet_id == H5I_INVALID_HID) {
-                res = DATA_ERR;
-                goto multidet_fail;
-        }
-        struct data_state_prep_multidet multidet;
-        data_state_prep_multidet_init(&multidet);
-        res = data_state_prep_multidet_parse(&multidet, multidet_id);
-        if (res != DATA_OK) {
-                data_state_prep_multidet_destroy(&multidet);
-        }
-
-        dat->multidet = multidet;
-        H5Gclose(multidet_id);
-multidet_fail:
-        return res;
+void data_file_close(data_id fid) {
+        H5Fclose(fid);
 }
 
 
@@ -144,7 +51,7 @@ void data_state_prep_multidet_destroy(struct data_state_prep_multidet *dat) {
 }
 
 int data_state_prep_multidet_parse(struct data_state_prep_multidet *dat,
-                                   dataid_t obj_id) {
+                                   data_id obj_id) {
         int res = DATA_OK;
         hid_t dset_coeffs_id, dspace_coeffs_id,
                 dset_dets_id, dspace_dets_id;
@@ -213,6 +120,36 @@ dset_coeffs_fail:
         return res;
 }
 
+void data_state_prep_init(struct data_state_prep *dat) {
+        (void) dat;
+}
+
+void data_state_prep_destroy(struct data_state_prep *dat) {
+        data_state_prep_multidet_destroy(&dat->multidet);
+}
+
+int data_state_prep_parse(struct data_state_prep *dat, data_id obj_id) {
+        int res;
+        hid_t multidet_id;
+
+        multidet_id = H5Gopen2(obj_id, DATA_STATE_PREP_MULTIDET, H5P_DEFAULT);
+        if (multidet_id == H5I_INVALID_HID) {
+                res = DATA_ERR;
+                goto multidet_fail;
+        }
+        struct data_state_prep_multidet multidet;
+        data_state_prep_multidet_init(&multidet);
+        res = data_state_prep_multidet_parse(&multidet, multidet_id);
+        if (res != DATA_OK) {
+                data_state_prep_multidet_destroy(&multidet);
+        }
+
+        dat->multidet = multidet;
+        H5Gclose(multidet_id);
+multidet_fail:
+        return res;
+}
+
 
 void data_pauli_hamil_init(struct data_pauli_hamil *dat) {
         dat->num_qubits = 0;
@@ -234,7 +171,7 @@ void data_pauli_hamil_destroy(struct data_pauli_hamil *dat) {
         dat->num_qubits = 0;
 }
 
-int data_pauli_hamil_parse(struct data_pauli_hamil *dat, dataid_t obj_id) {
+int data_pauli_hamil_parse(struct data_pauli_hamil *dat, data_id obj_id) {
         int res = DATA_OK;
         size_t num_qubits, num_terms;
 
@@ -331,7 +268,7 @@ void data_time_series_destroy(struct data_time_series *dat) {
         dat->num_steps = 0;
 }
 
-int data_time_series_parse(struct data_time_series *dat, dataid_t obj_id) {
+int data_time_series_parse(struct data_time_series *dat, data_id obj_id) {
         int res = DATA_OK;
         hid_t dset_times_id, dspace_times_id,
                 dset_values_id, dspace_values_id;
@@ -390,11 +327,11 @@ times_fail:
         return res;
 }
 
-int data_time_series_write(const struct data_time_series *dat,
-                           const hid_t obj_id) {
+int data_time_series_write(const hid_t fid,
+                           const struct data_time_series *dat) {
         int res = DATA_OK;
 
-        const hid_t grp_id = H5Gopen2(obj_id, DATA_TIME_SERIES, H5P_DEFAULT);
+        const hid_t grp_id = H5Gopen2(fid, DATA_TIME_SERIES, H5P_DEFAULT);
         if (grp_id == H5I_INVALID_HID) {
                 res = DATA_ERR;
                 goto grp_fail;
@@ -434,3 +371,65 @@ grp_fail:
         return res;
 }
 
+
+void data_init(struct data *dat) {
+        (void) dat;
+}
+
+void data_destroy(struct data *dat) {
+        data_state_prep_destroy(&dat->state_prep);
+        data_pauli_hamil_destroy(&dat->pauli_hamil);
+        data_time_series_destroy(&dat->time_series);
+}
+
+int data_parse(struct data *dat, data_id fid) {
+        int res;
+        hid_t state_prep_id, pauli_hamil_id, time_series_id;
+
+        state_prep_id = H5Gopen2(fid, DATA_STATE_PREP, H5P_DEFAULT);
+        if (state_prep_id == H5I_INVALID_HID) {
+                res = DATA_ERR;
+                goto state_prep_fail;
+        }
+        struct data_state_prep state_prep;
+        data_state_prep_init(&state_prep);
+        res = data_state_prep_parse(&state_prep, state_prep_id);
+        if (res != DATA_OK) {
+                data_state_prep_destroy(&state_prep);
+        }
+
+        pauli_hamil_id = H5Gopen2(fid, DATA_PAULI_HAMIL, H5P_DEFAULT);
+        if (pauli_hamil_id == H5I_INVALID_HID) {
+                res = DATA_ERR;
+                goto pauli_hamil_fail;
+        }
+        struct data_pauli_hamil pauli_hamil;
+        data_pauli_hamil_init(&pauli_hamil);
+        res = data_pauli_hamil_parse(&pauli_hamil, pauli_hamil_id);
+        if (res != DATA_OK) {
+                data_pauli_hamil_destroy(&pauli_hamil);
+        }
+
+        time_series_id = H5Gopen2(fid, DATA_TIME_SERIES, H5P_DEFAULT);
+        if (time_series_id == H5I_INVALID_HID) {
+                res = DATA_ERR;
+                goto time_series_fail;
+        }
+        struct data_time_series time_series;
+        data_time_series_init(&time_series);
+        res = data_time_series_parse(&time_series, time_series_id);
+        if (res != DATA_OK) {
+                data_time_series_destroy(&time_series);
+        }
+
+        dat->time_series = time_series;
+        H5Gclose(time_series_id);
+time_series_fail:
+        dat->pauli_hamil = pauli_hamil;
+        H5Gclose(pauli_hamil_id);
+pauli_hamil_fail:
+        dat->state_prep = state_prep;
+        H5Gclose(state_prep_id);
+state_prep_fail:
+        return res;
+}

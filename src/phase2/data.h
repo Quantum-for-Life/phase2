@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 
-#define DATA_INVALID_OBJID  (-1)
+#define DATA_INVALID_FID  (-1)
 
 #define DATA_STATE_PREP "state_prep"
 
@@ -20,18 +20,14 @@
 #define DATA_TIME_SERIES_TIMES "times"
 #define DATA_TIME_SERIES_VALUES "values"
 
-typedef int64_t dataid_t; // This is the same as HDF5's hid_t
+typedef int64_t data_id; // This is the same as HDF5's hid_t
 
-enum {
+enum data_result {
         // Unspecified error
         DATA_ERR = -1,
         // Success
         DATA_OK = 0,
 };
-
-dataid_t data_file_open(const char *filename);
-
-void data_file_close(dataid_t file_id);
 
 struct data_state_prep_multidet {
         size_t num_qubits;
@@ -64,42 +60,17 @@ struct data {
         struct data_time_series time_series;
 };
 
+data_id data_file_open(const char *filename);
+
+void data_file_close(data_id fid);
+
 
 void data_init(struct data *dat);
 
 void data_destroy(struct data *dat);
 
-int data_parse(struct data *dat, dataid_t obj_id);
+int data_parse(struct data *dat, data_id fid);
 
-
-void data_state_prep_init(struct data_state_prep *dat);
-
-void data_state_prep_destroy(struct data_state_prep *dat);
-
-int data_state_prep_parse(struct data_state_prep *dat, dataid_t obj_id);
-
-
-void data_state_prep_multidet_init(struct data_state_prep_multidet *dat);
-
-void data_state_prep_multidet_destroy(struct data_state_prep_multidet *dat);
-
-int data_state_prep_multidet_parse(struct data_state_prep_multidet *dat,
-                                   dataid_t obj_id);
-
-
-void data_pauli_hamil_init(struct data_pauli_hamil *dat);
-
-void data_pauli_hamil_destroy(struct data_pauli_hamil *dat);
-
-int data_pauli_hamil_parse(struct data_pauli_hamil *, dataid_t obj_id);
-
-
-void data_time_series_init(struct data_time_series *dat);
-
-void data_time_series_destroy(struct data_time_series *dat);
-
-int data_time_series_parse(struct data_time_series *dat, dataid_t obj_id);
-
-int data_time_series_write(const struct data_time_series *dat, dataid_t obj_id);
+int data_time_series_write(data_id fid, const struct data_time_series *dat);
 
 #endif //PHASE2_DATA_H
