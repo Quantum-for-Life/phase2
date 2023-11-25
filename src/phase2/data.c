@@ -29,28 +29,15 @@ void data_file_close(dataid_t file_id) {
         H5Fclose(file_id);
 }
 
+
 void data_init(struct data *dat) {
-        dat->state_prep = NULL;
-        dat->pauli_hamil = NULL;
-        dat->time_series = NULL;
+        (void) dat;
 }
 
 void data_destroy(struct data *dat) {
-        if (dat->state_prep) {
-                data_state_prep_destroy(dat->state_prep);
-                free(dat->state_prep);
-                dat->state_prep = NULL;
-        }
-        if (dat->pauli_hamil) {
-                data_pauli_hamil_destroy(dat->pauli_hamil);
-                free(dat->pauli_hamil);
-                dat->pauli_hamil = NULL;
-        }
-        if (dat->time_series) {
-                data_time_series_destroy(dat->time_series);
-                free(dat->time_series);
-                dat->time_series = NULL;
-        }
+        data_state_prep_destroy(&dat->state_prep);
+        data_pauli_hamil_destroy(&dat->pauli_hamil);
+        data_time_series_destroy(&dat->time_series);
 }
 
 int data_parse(struct data *dat, dataid_t obj_id) {
@@ -62,17 +49,11 @@ int data_parse(struct data *dat, dataid_t obj_id) {
                 res = DATA_ERR;
                 goto state_prep_fail;
         }
-        struct data_state_prep *state_prep = malloc(sizeof(*state_prep));
-        if (!state_prep) {
-                res = DATA_ERR;
-                goto state_prep_alloc_fail;
-        }
-        data_state_prep_init(state_prep);
-        res = data_state_prep_parse(state_prep, state_prep_id);
+        struct data_state_prep state_prep;
+        data_state_prep_init(&state_prep);
+        res = data_state_prep_parse(&state_prep, state_prep_id);
         if (res != DATA_OK) {
-                data_state_prep_destroy(state_prep);
-                free(state_prep);
-                state_prep = NULL;
+                data_state_prep_destroy(&state_prep);
         }
 
         pauli_hamil_id = H5Gopen2(obj_id, DATA_PAULI_HAMIL, H5P_DEFAULT);
@@ -80,17 +61,11 @@ int data_parse(struct data *dat, dataid_t obj_id) {
                 res = DATA_ERR;
                 goto pauli_hamil_fail;
         }
-        struct data_pauli_hamil *pauli_hamil = malloc(sizeof(*pauli_hamil));
-        if (!pauli_hamil) {
-                res = DATA_ERR;
-                goto pauli_hamil_alloc_fail;
-        }
-        data_pauli_hamil_init(pauli_hamil);
-        res = data_pauli_hamil_parse(pauli_hamil, pauli_hamil_id);
+        struct data_pauli_hamil pauli_hamil;
+        data_pauli_hamil_init(&pauli_hamil);
+        res = data_pauli_hamil_parse(&pauli_hamil, pauli_hamil_id);
         if (res != DATA_OK) {
-                data_pauli_hamil_destroy(pauli_hamil);
-                free(pauli_hamil);
-                pauli_hamil = NULL;
+                data_pauli_hamil_destroy(&pauli_hamil);
         }
 
         time_series_id = H5Gopen2(obj_id, DATA_TIME_SERIES, H5P_DEFAULT);
@@ -98,45 +73,31 @@ int data_parse(struct data *dat, dataid_t obj_id) {
                 res = DATA_ERR;
                 goto time_series_fail;
         }
-        struct data_time_series *time_series = malloc(sizeof(*time_series));
-        if (!time_series) {
-                res = DATA_ERR;
-                goto time_series_alloc_fail;
-        }
-        data_time_series_init(time_series);
-        res = data_time_series_parse(time_series, time_series_id);
+        struct data_time_series time_series;
+        data_time_series_init(&time_series);
+        res = data_time_series_parse(&time_series, time_series_id);
         if (res != DATA_OK) {
-                data_time_series_destroy(time_series);
-                free(time_series);
-                time_series = NULL;
+                data_time_series_destroy(&time_series);
         }
 
         dat->time_series = time_series;
-time_series_alloc_fail:
         H5Gclose(time_series_id);
 time_series_fail:
         dat->pauli_hamil = pauli_hamil;
-pauli_hamil_alloc_fail:
         H5Gclose(pauli_hamil_id);
 pauli_hamil_fail:
         dat->state_prep = state_prep;
-state_prep_alloc_fail:
         H5Gclose(state_prep_id);
 state_prep_fail:
         return res;
 }
 
-
 void data_state_prep_init(struct data_state_prep *dat) {
-        dat->multidet = NULL;
+        (void) dat;
 }
 
 void data_state_prep_destroy(struct data_state_prep *dat) {
-        if (dat->multidet) {
-                data_state_prep_multidet_destroy(dat->multidet);
-                free(dat->multidet);
-                dat->multidet = NULL;
-        }
+        data_state_prep_multidet_destroy(&dat->multidet);
 }
 
 int data_state_prep_parse(struct data_state_prep *dat, dataid_t obj_id) {
@@ -148,21 +109,14 @@ int data_state_prep_parse(struct data_state_prep *dat, dataid_t obj_id) {
                 res = DATA_ERR;
                 goto multidet_fail;
         }
-        struct data_state_prep_multidet *multidet = malloc(sizeof(*multidet));
-        if (!multidet) {
-                res = DATA_ERR;
-                goto multidet_alloc_fail;
-        }
-        data_state_prep_multidet_init(multidet);
-        res = data_state_prep_multidet_parse(multidet, multidet_id);
+        struct data_state_prep_multidet multidet;
+        data_state_prep_multidet_init(&multidet);
+        res = data_state_prep_multidet_parse(&multidet, multidet_id);
         if (res != DATA_OK) {
-                data_state_prep_multidet_destroy(multidet);
-                free(multidet);
-                multidet = NULL;
+                data_state_prep_multidet_destroy(&multidet);
         }
 
         dat->multidet = multidet;
-multidet_alloc_fail:
         H5Gclose(multidet_id);
 multidet_fail:
         return res;
@@ -479,3 +433,4 @@ dset_times_fail:
 grp_fail:
         return res;
 }
+

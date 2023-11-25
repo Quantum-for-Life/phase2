@@ -24,9 +24,7 @@
 int linen_simulate(struct circ_env env);
 
 int rayon_simulate(struct circ_env env,
-                   const struct data_pauli_hamil *ph,
-                   const struct data_state_prep *sp,
-                   const struct data_time_series *ts,
+                   const struct data *dat,
                    const char *filename);
 
 void exit_failure(const char *msg) {
@@ -139,14 +137,14 @@ int main(const int argc, char **argv) {
 
         log_debug("State preparation:");
         log_debug("multidet, num_qubits=%zu, num_terms=%zu",
-                  dat.state_prep->multidet->num_qubits,
-                  dat.state_prep->multidet->num_terms);
+                  dat.state_prep.multidet.num_qubits,
+                  dat.state_prep.multidet.num_terms);
         log_debug("Hamiltonian: num_qubits=%zu, num_terms=%zu, "
                   "norm=%f",
-                  dat.pauli_hamil->num_qubits,
-                  dat.pauli_hamil->num_terms,
-                  dat.pauli_hamil->norm);
-        log_debug("Time series: num_steps=%zu", dat.time_series->num_steps);
+                  dat.pauli_hamil.num_qubits,
+                  dat.pauli_hamil.num_terms,
+                  dat.pauli_hamil.norm);
+        log_debug("Time series: num_steps=%zu", dat.time_series.num_steps);
 
         log_info("*** Circuit ***");
         int sucess;
@@ -156,9 +154,7 @@ int main(const int argc, char **argv) {
         } else if (strncmp(argv[1], "rayon", 5) == 0) {
                 log_info("Circuit: rayon");
                 sucess = rayon_simulate(env,
-                                        dat.pauli_hamil,
-                                        dat.state_prep,
-                                        dat.time_series,
+                                        &dat,
                                         h5filename) == CIRC_OK;
         } else {
                 log_error("No circ named %s", argv[1]);
@@ -211,15 +207,14 @@ linen_simulate(const struct circ_env env) {
 
 int
 rayon_simulate(const struct circ_env env,
-               const struct data_pauli_hamil *ph,
-               const struct data_state_prep *sp,
-               const struct data_time_series *ts,
+               const struct data *dat,
                const char *filename) {
         log_info("Initialize Pauli Hamiltonian");
 
         struct rayon_circuit_data ct_dat;
         rayon_circuit_data_init(&ct_dat);
-        rayon_circuit_data_from_data(&ct_dat, ph, sp->multidet);
+        rayon_circuit_data_from_data(&ct_dat, &dat->pauli_hamil,
+                                     &dat->state_prep.multidet);
 
         struct circuit ct;
         rayon_circuit_init(&ct, &ct_dat);
@@ -233,10 +228,10 @@ rayon_simulate(const struct circ_env env,
         }
 
         log_info("Computing expectation values");
-        for (size_t i = 0; i < ts->num_steps; i++) {
+        for (size_t i = 0; i < dat->time_series.num_steps; i++) {
 
-                if (!isnan(ts->values[2 * i]) &&
-                    !isnan(ts->values[2 * i + 1])) {
+                if (!isnan(dat->time_series.values[2 * i]) &&
+                    !isnan(dat->time_series.values[2 * i + 1])) {
                         continue;
                 }
 
@@ -244,7 +239,7 @@ rayon_simulate(const struct circ_env env,
                 while (circ_data.imag_switch <= 1) {
                         const size_t offset =
                                 circ_data.imag_switch == 0 ? 0 : 1;
-                        circ_data.time = ts->times[i];
+                        circ_data.time = dat->time_series.times[i];
                         if (circ_simulate(&c) != CIRC_OK) {
                                 log_error("Simulation error");
                                 rayon_circuit_data_destroy(&ct_dat);
@@ -254,21 +249,21 @@ rayon_simulate(const struct circ_env env,
                         const double prob_0 = c.mea_cl[0] == 0
                                               ? c.mea_cl_prob[0]
                                               : 1.0 - c.mea_cl_prob[0];
-                        ts->values[2 * i + offset] = 2 * prob_0 - 1;
+                        dat->time_series.values[2 * i + offset] =
+                                2 * prob_0 - 1;
                         circ_data.imag_switch++;
                 }
 
                 log_trace("Saving data");
                 hid_t file_id = data_file_open(filename);
 
-                data_time_series_write(ts, file_id);
+                data_time_series_write(&dat->time_series, file_id);
                 data_file_close(file_id);
         }
         circ_destroy(&c);
         log_info("End of simulation");
         rayon_circuit_data_destroy(&ct_dat);
         rayon_circuit_destroy(&ct);
-
 
         return CIRC_OK;
 }

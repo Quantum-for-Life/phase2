@@ -20,6 +20,8 @@
 #define DATA_TIME_SERIES_TIMES "times"
 #define DATA_TIME_SERIES_VALUES "values"
 
+typedef int64_t dataid_t; // This is the same as HDF5's hid_t
+
 enum {
         // Unspecified error
         DATA_ERR = -1,
@@ -27,36 +29,9 @@ enum {
         DATA_OK = 0,
 };
 
-
-typedef int64_t dataid_t; // This is the same as HDF5's hid_t
-
 dataid_t data_file_open(const char *filename);
 
 void data_file_close(dataid_t file_id);
-
-struct data {
-        struct data_state_prep *state_prep;
-        struct data_pauli_hamil *pauli_hamil;
-        struct data_time_series *time_series;
-};
-
-void data_init(struct data *dat);
-
-void data_destroy(struct data *dat);
-
-int data_parse(struct data *dat, dataid_t obj_id);
-
-
-struct data_state_prep {
-        struct data_state_prep_multidet *multidet;
-};
-
-void data_state_prep_init(struct data_state_prep *dat);
-
-void data_state_prep_destroy(struct data_state_prep *dat);
-
-int data_state_prep_parse(struct data_state_prep *dat, dataid_t obj_id);
-
 
 struct data_state_prep_multidet {
         size_t num_qubits;
@@ -65,13 +40,9 @@ struct data_state_prep_multidet {
         unsigned char *dets;
 };
 
-void data_state_prep_multidet_init(struct data_state_prep_multidet *dat);
-
-void data_state_prep_multidet_destroy(struct data_state_prep_multidet *dat);
-
-int data_state_prep_multidet_parse(struct data_state_prep_multidet *dat,
-                                   dataid_t obj_id);
-
+struct data_state_prep {
+        struct data_state_prep_multidet multidet;
+};
 
 struct data_pauli_hamil {
         size_t num_qubits;
@@ -81,18 +52,47 @@ struct data_pauli_hamil {
         double norm;
 };
 
+struct data_time_series {
+        size_t num_steps;
+        double *times;
+        double *values;
+};
+
+struct data {
+        struct data_state_prep state_prep;
+        struct data_pauli_hamil pauli_hamil;
+        struct data_time_series time_series;
+};
+
+
+void data_init(struct data *dat);
+
+void data_destroy(struct data *dat);
+
+int data_parse(struct data *dat, dataid_t obj_id);
+
+
+void data_state_prep_init(struct data_state_prep *dat);
+
+void data_state_prep_destroy(struct data_state_prep *dat);
+
+int data_state_prep_parse(struct data_state_prep *dat, dataid_t obj_id);
+
+
+void data_state_prep_multidet_init(struct data_state_prep_multidet *dat);
+
+void data_state_prep_multidet_destroy(struct data_state_prep_multidet *dat);
+
+int data_state_prep_multidet_parse(struct data_state_prep_multidet *dat,
+                                   dataid_t obj_id);
+
+
 void data_pauli_hamil_init(struct data_pauli_hamil *dat);
 
 void data_pauli_hamil_destroy(struct data_pauli_hamil *dat);
 
 int data_pauli_hamil_parse(struct data_pauli_hamil *, dataid_t obj_id);
 
-
-struct data_time_series {
-        size_t num_steps;
-        double *times;
-        double *values;
-};
 
 void data_time_series_init(struct data_time_series *dat);
 
