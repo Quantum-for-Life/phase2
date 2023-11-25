@@ -48,9 +48,9 @@ def h5_output(fermionic_op: FermionicOp, outfile: str):
     mapper = JordanWignerMapper()
     qubit_jw_op = mapper.map(fermionic_op)
     import numpy as np
-    #eigs = [x.real for x in np.linalg.eig(qubit_jw_op.to_matrix())[0]]
-    #eigs.sort()
-    #print(eigs)
+    # eigs = [x.real for x in np.linalg.eig(qubit_jw_op.to_matrix())[0]]
+    # eigs.sort()
+    # print(eigs)
 
     num_qubits = qubit_jw_op.num_qubits
     num_sum_terms = len(qubit_jw_op.coeffs)
@@ -72,6 +72,7 @@ def h5_output(fermionic_op: FermionicOp, outfile: str):
                                          paulis_shape,
                                          dtype=np.dtype('u1'))
         dset_paulis[...] = paulis
+        grp.attrs["normalization"] = sum(abs(c) for c in coeffs)
 
 
 if __name__ == "__main__":

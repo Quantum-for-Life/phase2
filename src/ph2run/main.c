@@ -145,8 +145,9 @@ int main(const int argc, char **argv) {
         if (data_pauli_hamil_read(&dat_ph, file_id) != DATA_OK) {
                 exit_failure("read Hamiltonian data");
         }
-        log_debug("Hamiltonian: num_qubits=%zu, num_terms=%zu",
-                  dat_ph.num_qubits, dat_ph.num_terms);
+        log_debug("Hamiltonian: num_qubits=%zu, num_terms=%zu, "
+                  "norm=%f",
+                  dat_ph.num_qubits, dat_ph.num_terms, dat_ph.norm);
 
         struct data_time_series dat_ts;
         data_time_series_init(&dat_ts);

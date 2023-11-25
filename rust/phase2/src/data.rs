@@ -4,7 +4,6 @@ use std::{
         Display,
         Formatter,
     },
-    mem,
     mem::{
         ManuallyDrop,
         MaybeUninit,
@@ -194,6 +193,10 @@ impl PauliHamil {
         );
         unsafe { &*slice_ptr }
     }
+
+    pub fn norm(&self) -> f64 {
+        self.0.norm
+    }
 }
 
 impl Empty<PauliHamil> {
@@ -300,6 +303,7 @@ mod tests {
         let data = PauliHamil::new().read(&mut handle).unwrap();
         assert_eq!(data.num_qubits(), 4);
         assert_eq!(data.num_terms(), 15);
+        assert!(f64::abs(data.norm() - 2.370806) < MARGIN);
 
         let expected_coeffs = [
             -1.16395, 0.298454, 0.00407158, 0.298454, 0.00407158, 0.0749901,

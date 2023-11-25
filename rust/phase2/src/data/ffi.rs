@@ -79,6 +79,7 @@ pub(crate) struct data_pauli_hamil {
     pub(crate) num_terms:  usize,
     pub(crate) coeffs:     *mut c_double,
     pub(crate) paulis:     *mut c_uchar,
+    pub(crate) norm:       c_double,
 }
 
 extern "C" {

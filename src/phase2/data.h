@@ -53,12 +53,14 @@ int data_state_prep_multidet_read(struct data_state_prep_multidet *dat,
 #define DATA_PAULI_HAMIL "pauli_hamil"
 #define DATA_PAULI_HAMIL_COEFFS "coeffs"
 #define DATA_PAULI_HAMIL_PAULIS "paulis"
+#define DATA_PAULI_HAMIL_NORM "normalization"
 
 struct data_pauli_hamil {
         size_t num_qubits;
         size_t num_terms;
         double *coeffs;
         unsigned char *paulis;
+        double norm;
 };
 
 void data_pauli_hamil_init(struct data_pauli_hamil *dat);

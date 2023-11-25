@@ -241,6 +241,18 @@ int data_pauli_hamil_read(struct data_pauli_hamil *dat, const dataid_t obj_id) {
                 paulis);
         dat->paulis = paulis;
 
+        hid_t attr_norm_id = H5Aopen(grp_id, DATA_PAULI_HAMIL_NORM,
+                                     H5P_DEFAULT);
+        if (attr_norm_id == H5I_INVALID_HID) {
+                res = DATA_ERR;
+                goto attr_norm_fail;
+        }
+        double norm;
+        H5Aread(attr_norm_id, H5T_IEEE_F64LE, &norm);
+        dat->norm = norm;
+
+        H5Aclose(attr_norm_id);
+attr_norm_fail:
 paulis_fail:
         H5Sclose(dspace_paulis_id);
         H5Dclose(dset_paulis_id);
