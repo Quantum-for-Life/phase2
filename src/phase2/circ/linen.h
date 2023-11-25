@@ -22,6 +22,6 @@ struct linen_circ_data {
 
 void linen_circuit_init(struct circuit *ct, struct linen_circuit_data *ct_dat);
 
-int linen_simulate(const struct circ_env env);
+int linen_simulate(struct circ_env env);
 
 #endif //PHASE2_LINEN_H

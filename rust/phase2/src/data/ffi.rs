@@ -77,7 +77,7 @@ extern "C" {
 
     pub(crate) fn data_parse(
         dat: *mut data,
-        obj_id: data_id,
+        file_id: data_id,
     ) -> data_result;
 
     pub(crate) fn data_time_series_write(

@@ -54,7 +54,7 @@ void linen_circuit_init(struct circuit *ct, struct linen_circuit_data *ct_dat) {
         ct->state_post = linen_state_post;
 }
 
-int linen_simulate(const struct circ_env env) {
+int linen_simulate(struct circ_env env) {
         log_debug("Report simulation environment");
         circ_env_report(&env);
 

@@ -131,8 +131,7 @@ mod tests {
 
     #[test]
     fn report_circ_env() {
-        let env = CircEnv::try_new().unwrap();
-        env.report();
+        CircEnv::try_new().unwrap().report();
     }
 
     #[test]

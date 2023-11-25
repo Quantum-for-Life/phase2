@@ -12,8 +12,6 @@ use std::{
     ptr::slice_from_raw_parts,
 };
 
-use crate::data::ffi::data_state_prep_multidet_init;
-
 mod ffi;
 
 #[derive(Debug)]
@@ -79,43 +77,57 @@ impl Drop for Handle {
 }
 
 #[derive(Debug)]
-pub struct StatePrep(ffi::data_state_prep);
+pub struct Data(ffi::data);
 
-impl StatePrep {
+impl Data {
     pub fn new() -> Empty<Self> {
-        let mut state_prep_uninit = MaybeUninit::uninit();
-        unsafe { ffi::data_state_prep_init(state_prep_uninit.as_mut_ptr()) };
-        let state_prep = unsafe { state_prep_uninit.assume_init() };
-
-        Empty(Self(state_prep))
+        let mut dat_uninit = MaybeUninit::uninit();
+        unsafe { ffi::data_init(dat_uninit.as_mut_ptr()) };
+        let data = unsafe { dat_uninit.assume_init() };
+        Empty(Self(data))
     }
 
-    pub fn for_multidet(
+    pub fn for_state_prep(
         &self,
-        f: impl FnOnce(&MultiDet),
+        f: impl FnOnce(&StatePrep),
     ) {
-        let multidet = ManuallyDrop::new(MultiDet(unsafe { self.0.multidet }));
-        f(&multidet);
+        let state_prep = ManuallyDrop::new(StatePrep(self.0.state_prep));
+        f(&state_prep);
+    }
+
+    pub fn for_pauli_hamil(
+        &self,
+        f: impl FnOnce(&PauliHamil),
+    ) {
+        let pauli_hamil = ManuallyDrop::new(PauliHamil(self.0.pauli_hamil));
+        f(&pauli_hamil);
+    }
+
+    pub fn for_time_series(
+        &self,
+        f: impl FnOnce(&TimeSeries),
+    ) {
+        let time_series = ManuallyDrop::new(TimeSeries(self.0.time_series));
+        f(&time_series);
     }
 }
 
-impl Empty<StatePrep> {
-    pub fn parse(
-        mut self,
-        handle: &mut Handle,
-    ) -> Result<StatePrep, Error> {
-        unsafe {
-            ffi::data_state_prep_parse(&mut self.0 .0 as *mut _, handle.0)
-        }
-        .is_data_ok()
-        .then_some(self.0)
-        .ok_or(Error::FileRead)
-    }
-}
-
-impl Drop for StatePrep {
+impl Drop for Data {
     fn drop(&mut self) {
-        unsafe { ffi::data_state_prep_destroy(&mut self.0 as *mut _) };
+        unsafe { ffi::data_destroy(&mut self.0 as *mut _) };
+    }
+}
+
+impl Empty<Data> {
+    pub fn parse(
+        self,
+        fid: &mut Handle,
+    ) -> Result<Data, Error> {
+        let mut dat = self.0;
+        unsafe { ffi::data_parse(&mut dat.0 as *mut _, fid.0) }
+            .is_data_ok()
+            .then_some(dat)
+            .ok_or(Error::FileRead)
     }
 }
 
@@ -123,14 +135,6 @@ impl Drop for StatePrep {
 pub struct MultiDet(ffi::data_state_prep_multidet);
 
 impl MultiDet {
-    pub fn new() -> Empty<Self> {
-        let mut dat_uninit = MaybeUninit::uninit();
-        unsafe { data_state_prep_multidet_init(dat_uninit.as_mut_ptr()) };
-        let dat = unsafe { dat_uninit.assume_init() };
-
-        Empty(Self(dat))
-    }
-
     pub fn num_qubits(&self) -> usize {
         self.0.num_qubits
     }
@@ -140,22 +144,30 @@ impl MultiDet {
     }
 
     pub fn coeffs(&self) -> &[f64] {
-        let slice_ptr = slice_from_raw_parts(self.0.coeffs, self.0.num_terms);
+        let slice_ptr =
+            slice_from_raw_parts(self.0.coeffs as *const _, self.0.num_terms);
         unsafe { &*slice_ptr }
     }
 
     pub fn dets(&self) -> &[u8] {
         let slice_ptr = slice_from_raw_parts(
-            self.0.dets,
-            self.0.num_terms * self.0.num_qubits,
+            self.0.dets as *const _,
+            self.0.num_terms * self.num_qubits(),
         );
         unsafe { &*slice_ptr }
     }
 }
 
-impl Drop for MultiDet {
-    fn drop(&mut self) {
-        unsafe { ffi::data_state_prep_multidet_destroy(&mut self.0 as *mut _) };
+#[derive(Debug)]
+pub struct StatePrep(ffi::data_state_prep);
+
+impl StatePrep {
+    pub fn for_multidet(
+        &self,
+        f: impl FnOnce(&MultiDet),
+    ) {
+        let multidet = ManuallyDrop::new(MultiDet(self.0.multidet));
+        f(&multidet);
     }
 }
 
@@ -163,15 +175,6 @@ impl Drop for MultiDet {
 pub struct PauliHamil(ffi::data_pauli_hamil);
 
 impl PauliHamil {
-    pub fn new() -> Empty<Self> {
-        let mut dat_uninit = MaybeUninit::uninit();
-        let dat = unsafe {
-            ffi::data_pauli_hamil_init(dat_uninit.as_mut_ptr());
-            dat_uninit.assume_init()
-        };
-        Empty(Self(dat))
-    }
-
     pub fn num_qubits(&self) -> usize {
         self.0.num_qubits
     }
@@ -181,13 +184,14 @@ impl PauliHamil {
     }
 
     pub fn coeffs(&self) -> &[f64] {
-        let slice_ptr = slice_from_raw_parts(self.0.coeffs, self.0.num_terms);
+        let slice_ptr =
+            slice_from_raw_parts(self.0.coeffs as *const _, self.0.num_terms);
         unsafe { &*slice_ptr }
     }
 
     pub fn paulis(&self) -> &[u8] {
         let slice_ptr = slice_from_raw_parts(
-            self.0.paulis,
+            self.0.paulis as *const _,
             self.0.num_terms * self.0.num_qubits,
         );
         unsafe { &*slice_ptr }
@@ -198,79 +202,26 @@ impl PauliHamil {
     }
 }
 
-impl Empty<PauliHamil> {
-    pub fn parse(
-        mut self,
-        handle: &mut Handle,
-    ) -> Result<PauliHamil, Error> {
-        unsafe {
-            ffi::data_pauli_hamil_parse(&mut self.0 .0 as *mut _, handle.0)
-        }
-        .is_data_ok()
-        .then_some(self.0)
-        .ok_or(Error::FileRead)
-    }
-}
-
-impl Drop for PauliHamil {
-    fn drop(&mut self) {
-        unsafe { ffi::data_pauli_hamil_destroy(&mut self.0 as *mut _) };
-    }
-}
-
 #[derive(Debug)]
 pub struct TimeSeries(ffi::data_time_series);
 
 impl TimeSeries {
-    pub fn new() -> Empty<TimeSeries> {
-        let mut dat_uninit = MaybeUninit::uninit();
-        unsafe { ffi::data_time_series_init(dat_uninit.as_mut_ptr()) };
-        Empty(Self(unsafe { dat_uninit.assume_init() }))
-    }
-
-    pub fn write(
-        &mut self,
-        handle: &mut Handle,
-    ) -> Result<(), Error> {
-        unsafe { ffi::data_time_series_write(&mut self.0 as *mut _, handle.0) }
-            .is_data_ok()
-            .then_some(())
-            .ok_or(Error::FileWrite)
-    }
-
     pub fn num_steps(&self) -> usize {
         self.0.num_steps
     }
 
     pub fn times(&self) -> &[f64] {
-        let slice_ptr = slice_from_raw_parts(self.0.times, self.0.num_steps);
+        let slice_ptr =
+            slice_from_raw_parts(self.0.times as *const _, self.0.num_steps);
         unsafe { &*slice_ptr }
     }
 
     pub fn values(&self) -> &[f64] {
-        let slice_ptr =
-            slice_from_raw_parts(self.0.values, self.0.num_steps * 2);
+        let slice_ptr = slice_from_raw_parts(
+            self.0.values as *const _,
+            self.0.num_steps * 2,
+        );
         unsafe { &*slice_ptr }
-    }
-}
-
-impl Drop for TimeSeries {
-    fn drop(&mut self) {
-        unsafe { ffi::data_time_series_destroy(&mut self.0 as *mut _) };
-    }
-}
-
-impl Empty<TimeSeries> {
-    pub fn parse(
-        mut self,
-        handle: &mut Handle,
-    ) -> Result<TimeSeries, Error> {
-        unsafe {
-            ffi::data_time_series_parse(&mut self.0 .0 as *mut _, handle.0)
-        }
-        .is_data_ok()
-        .then_some(self.0)
-        .ok_or(Error::FileRead)
     }
 }
 
@@ -294,64 +245,78 @@ mod tests {
     }
 
     #[test]
-    fn data_pauli_hamil_parse() {
-        let data_dir = PathBuf::from(TEST_DAT_DIR);
-        let filename = data_dir.join("./simul_H2_2.h5");
-        let mut handle = Handle::open(&filename).unwrap();
+    fn data_parse_state_prep() {
+        Data::new()
+            .parse(
+                &mut Handle::open(
+                    &PathBuf::from(TEST_DAT_DIR).join("./simul_H2_2.h5"),
+                )
+                .unwrap(),
+            )
+            .unwrap()
+            .for_state_prep(|sp| {
+                sp.for_multidet(|md| {
+                    assert_eq!(md.num_qubits(), 4);
+                    assert_eq!(md.num_terms(), 1);
+                    assert_eq!(md.coeffs(), &[1.0]);
+                    assert_eq!(md.dets(), &[1, 0, 1, 0]);
+                });
+            })
+    }
 
-        let data = PauliHamil::new().parse(&mut handle).unwrap();
-        assert_eq!(data.num_qubits(), 4);
-        assert_eq!(data.num_terms(), 15);
-        assert!(f64::abs(data.norm() - 2.370806) < MARGIN);
-
-        let expected_coeffs = [
-            -1.16395, 0.298454, 0.00407158, 0.298454, 0.00407158, 0.0749901,
-            0.163535, 0.0857172, 0.0107271, 0.0107271, 0.0107271, 0.0107271,
-            0.0857172, 0.073949, 0.0749901,
-        ];
-        for (coeff, exp_coeff) in zip(data.coeffs(), expected_coeffs) {
-            assert!(f64::abs(coeff - exp_coeff) < MARGIN);
-        }
-
+    #[test]
+    fn data_parse_pauli_hamil() {
         let expected_paulis = [
             0, 0, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 0, 0, 3, 3, 3,
             0, 0, 3, 0, 3, 0, 3, 0, 0, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 2, 2,
             1, 1, 1, 1, 0, 3, 3, 0, 0, 3, 0, 3, 0, 0, 3, 3,
         ];
-        assert_eq!(data.paulis(), &expected_paulis);
+        let expected_coeffs = [
+            -1.16395, 0.298454, 0.00407158, 0.298454, 0.00407158, 0.0749901,
+            0.163535, 0.0857172, 0.0107271, 0.0107271, 0.0107271, 0.0107271,
+            0.0857172, 0.073949, 0.0749901,
+        ];
+
+        Data::new()
+            .parse(
+                &mut Handle::open(
+                    &PathBuf::from(TEST_DAT_DIR).join("./simul_H2_2.h5"),
+                )
+                .unwrap(),
+            )
+            .unwrap()
+            .for_pauli_hamil(|ph| {
+                assert_eq!(ph.num_qubits(), 4);
+                assert_eq!(ph.num_terms(), 15);
+                assert_eq!(ph.paulis(), &expected_paulis);
+                for (coeff, exp_coeff) in zip(ph.coeffs(), expected_coeffs) {
+                    assert!(f64::abs(coeff - exp_coeff) < MARGIN);
+                }
+            })
     }
 
     #[test]
-    fn data_time_series_parse() {
-        let data_dir = PathBuf::from(TEST_DAT_DIR);
-        let filename = data_dir.join("./simul_H2_2.h5");
-        let mut handle = Handle::open(&filename).unwrap();
+    fn data_parse_time_series() {
+        let expected_times: Vec<_> = (0..100).map(f64::from).collect();
 
-        let data = TimeSeries::new().parse(&mut handle).unwrap();
-        assert_eq!(data.num_steps(), 111);
+        Data::new()
+            .parse(
+                &mut Handle::open(
+                    &PathBuf::from(TEST_DAT_DIR).join("./simul_H2_2.h5"),
+                )
+                .unwrap(),
+            )
+            .unwrap()
+            .for_time_series(|ts| {
+                assert_eq!(ts.num_steps(), 100);
 
-        let expected_times: Vec<_> = (0..111).map(f64::from).collect();
-        for (time, exp_time) in zip(data.times(), expected_times) {
-            assert!(f64::abs(time - exp_time) < MARGIN);
-        }
-        for v in data.values() {
-            assert!(v.is_nan());
-        }
-    }
+                for (time, exp_time) in zip(ts.times(), expected_times) {
+                    assert!(f64::abs(time - exp_time) < MARGIN);
+                }
 
-    #[test]
-    fn data_state_prep_parse() {
-        let data_dir = PathBuf::from(TEST_DAT_DIR);
-        let filename = data_dir.join("./simul_H2_2.h5");
-        let mut handle = Handle::open(&filename).unwrap();
-
-        let state_prep = StatePrep::new().parse(&mut handle).unwrap();
-        state_prep.for_multidet(|m| {
-            assert_eq!(m.num_qubits(), 4);
-            assert_eq!(m.num_terms(), 1);
-
-            assert!(f64::abs(m.coeffs()[0] - 1.0) < f64::EPSILON);
-            assert_eq!(m.dets(), &[1, 0, 1, 0]);
-        });
+                for v in ts.values() {
+                    assert!(v.is_nan());
+                }
+            })
     }
 }
