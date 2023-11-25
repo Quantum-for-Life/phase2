@@ -6,14 +6,14 @@ Quantum phase estimation (QPE) with parallel computing. 🏭
 
 # Dependencies
 
-To run the simulations, you will need:
+To run the simulation, you will need:
 
 - Linux platform, with a C/C++ compiler toolchain
 - CMake>=3.9
 - [HDF5][hdf5-website]
 - optional: [OpenMPI][openmpi-website]
 
-To prepare input for the simulation and to run the test suite, we require:
+To prepare input for the simulation and to run the test suite:
 
 - Python >= 3.10 and a virtual environment with several packages installed
   locally (see [README.md](./python/README.md) in the `python/` subsystem for
@@ -21,7 +21,7 @@ To prepare input for the simulation and to run the test suite, we require:
 - Rust [nightly toolchain][rust-nightly] (see [README.md](./rust/README.md) in
   `rust/` for more info).
 
-Assuming we're on Ubuntu, to install the dependencies, run:
+Assuming we're on Ubuntu, you can install the dependencies in one go:
 
 ```bash
 sudo apt install gcc g++ cmake 
@@ -61,9 +61,9 @@ module load openmpi
 
 ## Getting the sources
 
-Make sure you've got read access
+Make sure you've got the read access
 to [https://github.com/Quantum-for-Life](https://github.com/Quantum-for-Life)
-and you can clone repositories via HTTPS. The easiest way to do it is to
+and you are able to clone the repositories via HTTPS. The easiest way to do it is to
 first install [GitHub CLI](https://cli.github.com/):
 
 ```bash
@@ -113,7 +113,9 @@ make
 Run the test suite by typing:
 
 ```bash
-cargo test
+cd rust
+cargo test --all
+cargo run --release --package ph2test
 ```
 
 # How to use it
