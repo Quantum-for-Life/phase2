@@ -20,24 +20,8 @@ struct linen_circ_data {
         int state_post_value;
 };
 
-int linen_reset(struct circ *c);
+void linen_circuit_init(struct circuit *ct, struct linen_circuit_data *ct_dat);
 
-int linen_state_prep(struct circ *c);
-
-int linen_routine(struct circ *c);
-
-int linen_state_post(struct circ *c);
-
-const struct circuit linen_circuit = {
-        .name = LINEN_NAME,
-        .data = NULL,
-        .num_mea_qb = LINEN_DEFAULT_NUM_MEA_QB,
-        .num_sys_qb = LINEN_DEFAULT_NUM_SYS_QB,
-        .num_anc_qb = LINEN_DEFAULT_NUM_ANC_QB,
-        .reset = linen_reset,
-        .state_prep = linen_state_prep,
-        .routine = linen_routine,
-        .state_post = linen_state_post,
-};
+int linen_simulate(const struct circ_env env);
 
 #endif //PHASE2_LINEN_H

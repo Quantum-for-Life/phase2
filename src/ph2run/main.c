@@ -7,22 +7,18 @@
 
 #endif
 
+#include "log.h"
+
 #include "circ.h"
 #include "circ/rayon.h"
 #include "circ/linen.h"
 #include "data.h"
-
-#include "log.h"
 
 #define PHASE2_LOG_ENVVAR "PHASE2_LOG"
 #define PHASE2_LOG_FILE "simul.log"
 
 #define PHASE2_DEFAULT_H5FILE "simul.h5"
 
-int linen_simulate(struct circ_env env);
-
-int rayon_simulate(struct circ_env env,
-                   const struct data *dat);
 
 void exit_failure(const char *msg) {
         log_error("Failure: %s", msg);
@@ -175,89 +171,3 @@ int main(const int argc, char **argv) {
         return EXIT_SUCCESS;
 }
 
-
-int
-linen_simulate(const struct circ_env env) {
-        log_debug("Report simulation environment");
-        circ_env_report(&env);
-
-        struct circuit factory = linen_circuit;
-        struct linen_circuit_data circuit_dat = {
-                .state_prep_value = 1,
-                .routine_value = 22,
-                .state_post_value = 333
-        };
-        factory.data = &circuit_dat;
-        struct circ c;
-        struct linen_circ_data circ_dat;
-        if (circ_init(&c, env, factory, &circ_dat) != CIRC_OK) {
-                log_error("Cannot initialize circ");
-                return CIRC_ERR;
-        }
-        log_debug("\"linen\" circ created");
-        circ_report(&c);
-        log_debug("Simulating circ");
-        circ_simulate(&c);
-        log_debug("Free circ instance");
-        circ_destroy(&c);
-
-        return CIRC_OK;
-}
-
-
-int
-rayon_simulate(const struct circ_env env,
-               const struct data *dat) {
-        log_info("Initialize Pauli Hamiltonian");
-
-        struct rayon_circuit_data ct_dat;
-        rayon_circuit_data_init(&ct_dat);
-        rayon_circuit_data_from_data(&ct_dat, &dat->pauli_hamil,
-                                     &dat->state_prep.multidet);
-
-        struct circuit ct;
-        rayon_circuit_init(&ct, &ct_dat);
-
-        log_info("Initialize circ");
-        struct rayon_circ_data circ_data = {.imag_switch = 0, .time = 0.0};
-        struct circ c;
-        if (circ_init(&c, env, ct, &circ_data) != CIRC_OK) {
-                log_error("Cannot initialize circ");
-                return CIRC_ERR;
-        }
-
-        log_info("Computing expectation values");
-        for (size_t i = 0; i < dat->time_series.num_steps; i++) {
-
-                if (!isnan(dat->time_series.values[2 * i]) &&
-                    !isnan(dat->time_series.values[2 * i + 1])) {
-                        continue;
-                }
-
-                circ_data.imag_switch = 0;
-                while (circ_data.imag_switch <= 1) {
-                        const size_t offset =
-                                circ_data.imag_switch == 0 ? 0 : 1;
-                        circ_data.time = dat->time_series.times[i];
-                        if (circ_simulate(&c) != CIRC_OK) {
-                                log_error("Simulation error");
-                                rayon_circuit_data_destroy(&ct_dat);
-                                rayon_circuit_destroy(&ct);
-                                return CIRC_ERR;
-                        }
-                        const double prob_0 = c.mea_cl[0] == 0
-                                              ? c.mea_cl_prob[0]
-                                              : 1.0 - c.mea_cl_prob[0];
-                        dat->time_series.values[2 * i + offset] =
-                                2 * prob_0 - 1;
-                        circ_data.imag_switch++;
-                }
-
-        }
-        circ_destroy(&c);
-        log_info("End of simulation");
-        rayon_circuit_data_destroy(&ct_dat);
-        rayon_circuit_destroy(&ct);
-
-        return CIRC_OK;
-}

@@ -5,20 +5,17 @@
 
 #define DATA_INVALID_FID  (-1)
 
-#define DATA_STATE_PREP "state_prep"
-
-#define DATA_STATE_PREP_MULTIDET "multidet"
-#define DATA_STATE_PREP_MULTIDET_COEFFS "coeffs"
-#define DATA_STATE_PREP_MULTIDET_DETS "dets"
-
-#define DATA_PAULI_HAMIL "pauli_hamil"
-#define DATA_PAULI_HAMIL_COEFFS "coeffs"
-#define DATA_PAULI_HAMIL_PAULIS "paulis"
-#define DATA_PAULI_HAMIL_NORM "normalization"
-
-#define DATA_TIME_SERIES "time_series"
-#define DATA_TIME_SERIES_TIMES "times"
-#define DATA_TIME_SERIES_VALUES "values"
+#define DATA_STATE_PREP                   "state_prep"
+#define DATA_STATE_PREP_MULTIDET                  "multidet"
+#define DATA_STATE_PREP_MULTIDET_COEFFS                   "coeffs"
+#define DATA_STATE_PREP_MULTIDET_DETS                     "dets"
+#define DATA_PAULI_HAMIL                  "pauli_hamil"
+#define DATA_PAULI_HAMIL_COEFFS                   "coeffs"
+#define DATA_PAULI_HAMIL_PAULIS                   "paulis"
+#define DATA_PAULI_HAMIL_NORM                     "normalization"
+#define DATA_TIME_SERIES                  "time_series"
+#define DATA_TIME_SERIES_TIMES                    "times"
+#define DATA_TIME_SERIES_VALUES                   "values"
 
 typedef int64_t data_id; // This is the same as HDF5's hid_t
 

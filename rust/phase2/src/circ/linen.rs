@@ -11,7 +11,7 @@ pub struct LinenCircuit<'a>(pub(crate) Circuit<'a, ffi::linen_circuit_data>);
 impl<'a> LinenCircuit<'a> {
     pub fn new(data: &'a mut ffi::linen_circuit_data) -> Self {
         let data_ptr = data as *mut _;
-        let mut circuit = unsafe { ffi::linen_circuit };
+        let mut circuit = unsafe { ffi::LINEN_CIRCUIT_TEMPLATE };
         unsafe {
             circuit.data = mem::transmute(data_ptr);
         }
