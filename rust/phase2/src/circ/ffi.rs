@@ -10,9 +10,6 @@ use std::ffi::{
     c_void,
 };
 
-type QuESTEnv = c_void;
-type Qureg = c_void;
-
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(C)]
 pub(crate) enum circ_result {
@@ -23,7 +20,7 @@ pub(crate) enum circ_result {
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub(crate) struct circ_env {
-    quest_env: *mut QuESTEnv,
+    quest_env: *mut c_void,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -51,7 +48,7 @@ pub(crate) struct circ {
     ct:   circuit,
     data: *mut c_void,
 
-    qureg: *mut Qureg,
+    qureg: *mut c_void,
 
     mea_cl:      *mut c_int,
     mea_cl_prob: *mut c_double,
@@ -104,5 +101,10 @@ pub(crate) struct linen_circ_data {
 
 #[link(name = "phase2")]
 extern "C" {
-    pub(crate) static linen_circuit: circuit;
+    pub(crate) fn linen_circuit_init(
+        ct: *mut circuit,
+        ct_dat: *mut linen_circuit_data,
+    );
+
+    pub(crate) fn linen_simulate(env: circ_env);
 }

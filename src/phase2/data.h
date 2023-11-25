@@ -3,43 +3,47 @@
 
 #include <stdlib.h>
 
-enum {
+#define DATA_INVALID_FID  (-1)
+
+#define DATA_STATE_PREP                   "state_prep"
+#define DATA_STATE_PREP_MULTIDET                  "multidet"
+#define DATA_STATE_PREP_MULTIDET_COEFFS                   "coeffs"
+#define DATA_STATE_PREP_MULTIDET_DETS                     "dets"
+#define DATA_PAULI_HAMIL                  "pauli_hamil"
+#define DATA_PAULI_HAMIL_COEFFS                   "coeffs"
+#define DATA_PAULI_HAMIL_PAULIS                   "paulis"
+#define DATA_PAULI_HAMIL_NORM                     "normalization"
+#define DATA_TIME_SERIES                  "time_series"
+#define DATA_TIME_SERIES_TIMES                    "times"
+#define DATA_TIME_SERIES_VALUES                   "values"
+
+typedef int64_t data_id; // This is the same as HDF5's hid_t
+
+enum data_result {
         // Unspecified error
         DATA_ERR = -1,
         // Success
         DATA_OK = 0,
 };
 
-#define DATA_INVALID_OBJID  (-1)
+struct data_state_prep_multidet {
+        size_t num_qubits;
+        size_t num_terms;
+        double *coeffs;
+        unsigned char *dets;
+};
 
-typedef int64_t dataid_t; // This is the same as HDF5's hid_t
-
-dataid_t data_file_open(const char *filename);
-
-void data_file_close(dataid_t);
-
-
-#define DATA_PAULI_HAMIL "pauli_hamil"
-#define DATA_PAULI_HAMIL_COEFFS "coeffs"
-#define DATA_PAULI_HAMIL_PAULIS "paulis"
+struct data_state_prep {
+        struct data_state_prep_multidet multidet;
+};
 
 struct data_pauli_hamil {
         size_t num_qubits;
         size_t num_terms;
         double *coeffs;
         unsigned char *paulis;
+        double norm;
 };
-
-void data_pauli_hamil_init(struct data_pauli_hamil *);
-
-void data_pauli_hamil_destroy(struct data_pauli_hamil *);
-
-int data_pauli_hamil_read(struct data_pauli_hamil *, dataid_t);
-
-
-#define DATA_TIME_SERIES "time_series"
-#define DATA_TIME_SERIES_TIMES "times"
-#define DATA_TIME_SERIES_VALUES "values"
 
 struct data_time_series {
         size_t num_steps;
@@ -47,12 +51,23 @@ struct data_time_series {
         double *values;
 };
 
-void data_time_series_init(struct data_time_series *);
+struct data {
+        struct data_state_prep state_prep;
+        struct data_pauli_hamil pauli_hamil;
+        struct data_time_series time_series;
+};
 
-void data_time_series_destroy(struct data_time_series *);
+data_id data_file_open(const char *filename);
 
-int data_time_series_read(struct data_time_series *, dataid_t);
+void data_file_close(data_id fid);
 
-int data_time_series_write(const struct data_time_series *, dataid_t);
+
+void data_init(struct data *dat);
+
+void data_destroy(struct data *dat);
+
+int data_parse(struct data *dat, data_id fid);
+
+int data_time_series_write(data_id fid, const struct data_time_series *dat);
 
 #endif //PHASE2_DATA_H

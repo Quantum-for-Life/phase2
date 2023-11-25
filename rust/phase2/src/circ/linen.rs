@@ -1,4 +1,4 @@
-use std::mem;
+use std::mem::MaybeUninit;
 
 use crate::circ::{
     ffi,
@@ -10,13 +10,13 @@ pub struct LinenCircuit<'a>(pub(crate) Circuit<'a, ffi::linen_circuit_data>);
 
 impl<'a> LinenCircuit<'a> {
     pub fn new(data: &'a mut ffi::linen_circuit_data) -> Self {
-        let data_ptr = data as *mut _;
-        let mut circuit = unsafe { ffi::linen_circuit };
+        let mut ct_uninit = MaybeUninit::uninit();
         unsafe {
-            circuit.data = mem::transmute(data_ptr);
-        }
+            ffi::linen_circuit_init(ct_uninit.as_mut_ptr(), data as *mut _)
+        };
+        let ct = unsafe { ct_uninit.assume_init() };
         Self(Circuit {
-            ct: circuit,
+            ct,
             data,
         })
     }
@@ -30,6 +30,8 @@ impl<'a> AsRef<Circuit<'a, ffi::linen_circuit_data>> for LinenCircuit<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::mem;
+
     use super::*;
     use crate::circ::ffi::linen_circuit_data;
 

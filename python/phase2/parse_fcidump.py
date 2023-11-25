@@ -48,15 +48,15 @@ def h5_output(fermionic_op: FermionicOp, outfile: str):
     mapper = JordanWignerMapper()
     qubit_jw_op = mapper.map(fermionic_op)
     import numpy as np
-    #eigs = [x.real for x in np.linalg.eig(qubit_jw_op.to_matrix())[0]]
-    #eigs.sort()
-    #print(eigs)
+    # eigs = [x.real for x in np.linalg.eig(qubit_jw_op.to_matrix())[0]]
+    # eigs.sort()
+    # print(eigs)
 
     num_qubits = qubit_jw_op.num_qubits
     num_sum_terms = len(qubit_jw_op.coeffs)
     coeffs = []
     paulis_shape = (num_sum_terms, num_qubits)
-    paulis = np.ndarray(paulis_shape, dtype='f')
+    paulis = np.ndarray(paulis_shape, dtype='u1')
     for i in range(0, num_sum_terms):
         coeffs.append(qubit_jw_op.coeffs[i].real)
         # NOTE: Qiskit uses LE convention for numbering qubits. We reverse
@@ -72,6 +72,10 @@ def h5_output(fermionic_op: FermionicOp, outfile: str):
                                          paulis_shape,
                                          dtype=np.dtype('u1'))
         dset_paulis[...] = paulis
+        norm = np.ndarray((1,), dtype='d')
+        norm[0] = 1.0 / sum(
+            abs(c) for c in coeffs)
+        grp.attrs["normalization"] = norm[0]
 
 
 if __name__ == "__main__":

@@ -72,7 +72,7 @@ tmp/
 Cargo.lock
 target/
 
-
 .idea
 .vscode
 
+simul.log

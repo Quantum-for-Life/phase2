@@ -18,7 +18,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-STEPS = 111
+STEPS = 100
 TIMES = [float(x) for x in range(0, STEPS)]
 VALUES = np.ndarray((STEPS, 2), dtype='d')
 
@@ -31,7 +31,7 @@ def h5_output(outfile: str):
     with h5py.File(outfile, "a") as f:
         grp = f.create_group("time_series")
         grp.create_dataset("times", (STEPS,), dtype='d')[...] = TIMES
-        grp.create_dataset("values", (STEPS, 2), dtype='f')[...] = VALUES
+        grp.create_dataset("values", (STEPS, 2), dtype='d')[...] = VALUES
 
 
 if __name__ == "__main__":

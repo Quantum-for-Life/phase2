@@ -9,7 +9,7 @@ use std::ffi::{
     c_uchar,
 };
 
-pub(crate) const DATA_INVALID_OBJID: i64 = -1;
+pub(crate) const DATA_INVALID_FID: i64 = -1;
 
 #[derive(Debug, PartialEq)]
 #[repr(C)]
@@ -24,34 +24,34 @@ impl data_result {
     }
 }
 
-pub(crate) type dataid_t = i64;
+pub(crate) type data_id = i64;
 
-extern "C" {
-    pub(crate) fn data_file_open(filename: *const c_char) -> dataid_t;
-    pub(crate) fn data_file_close(file_id: dataid_t);
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub(crate) struct data_state_prep_multidet {
+    pub(crate) num_qubits: usize,
+    pub(crate) num_terms:  usize,
+    pub(crate) coeffs:     *mut c_double,
+    pub(crate) dets:       *mut c_uchar,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub(crate) struct data_state_prep {
+    pub(crate) multidet: data_state_prep_multidet,
+}
+
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub(crate) struct data_pauli_hamil {
     pub(crate) num_qubits: usize,
     pub(crate) num_terms:  usize,
     pub(crate) coeffs:     *mut c_double,
     pub(crate) paulis:     *mut c_uchar,
+    pub(crate) norm:       c_double,
 }
 
-extern "C" {
-    pub(crate) fn data_pauli_hamil_init(dat: *mut data_pauli_hamil);
-
-    pub(crate) fn data_pauli_hamil_destroy(dat: *mut data_pauli_hamil);
-
-    pub(crate) fn data_pauli_hamil_read(
-        dat: *mut data_pauli_hamil,
-        file_id: dataid_t,
-    ) -> data_result;
-}
-
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub(crate) struct data_time_series {
     pub(crate) num_steps: usize,
@@ -59,18 +59,29 @@ pub(crate) struct data_time_series {
     pub(crate) values:    *mut c_double,
 }
 
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub(crate) struct data {
+    pub(crate) state_prep:  data_state_prep,
+    pub(crate) pauli_hamil: data_pauli_hamil,
+    pub(crate) time_series: data_time_series,
+}
+
 extern "C" {
-    pub(crate) fn data_time_series_init(dat: *mut data_time_series);
+    pub(crate) fn data_file_open(filename: *const c_char) -> data_id;
+    pub(crate) fn data_file_close(file_id: data_id);
 
-    pub(crate) fn data_time_series_destroy(dat: *mut data_time_series);
+    pub(crate) fn data_init(dat: *mut data);
 
-    pub(crate) fn data_time_series_read(
-        dat: *mut data_time_series,
-        file_id: dataid_t,
+    pub(crate) fn data_destroy(dat: *mut data);
+
+    pub(crate) fn data_parse(
+        dat: *mut data,
+        file_id: data_id,
     ) -> data_result;
 
     pub(crate) fn data_time_series_write(
         dat: *mut data_time_series,
-        file_id: dataid_t,
+        file_id: data_id,
     ) -> data_result;
 }
