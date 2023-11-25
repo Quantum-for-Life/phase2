@@ -23,8 +23,11 @@
 
 int linen_simulate(struct circ_env env);
 
-int rayon_simulate(struct circ_env env, struct data_pauli_hamil ph,
-                   const struct data_time_series *ts);
+int rayon_simulate(struct circ_env env,
+                   const struct data_pauli_hamil *ph,
+                   const struct data_state_prep *sp,
+                   const struct data_time_series *ts,
+                   const char *filename);
 
 void exit_failure(const char *msg) {
         log_error("Failure: %s", msg);
@@ -164,13 +167,10 @@ int main(const int argc, char **argv) {
                 sucess = linen_simulate(env) == CIRC_OK;
         } else if (strncmp(argv[1], "rayon", 5) == 0) {
                 log_info("Circuit: rayon");
-                sucess = rayon_simulate(env, dat_ph, &dat_ts) != CIRC_OK;
+                sucess = rayon_simulate(env, &dat_ph, &dat_sp, &dat_ts,
+                                        h5filename) ==
+                         CIRC_OK;
 
-                log_info("Saving data");
-                file_id = data_file_open(h5filename);
-
-                data_time_series_write(&dat_ts, file_id);
-                data_file_close(file_id);
         } else {
                 log_error("No circ named %s", argv[1]);
                 sucess = 0;
@@ -222,59 +222,66 @@ linen_simulate(const struct circ_env env) {
 }
 
 
-void
-rayon_simulate_cleanup(const PauliHamil hamil) {
-        destroyPauliHamil(hamil);
-}
-
 int
-rayon_simulate(const struct circ_env env, const struct data_pauli_hamil ph,
-               const struct data_time_series *ts) {
+rayon_simulate(const struct circ_env env,
+               const struct data_pauli_hamil *ph,
+               const struct data_state_prep *sp,
+               const struct data_time_series *ts,
+               const char *filename) {
         log_info("Initialize Pauli Hamiltonian");
-        const PauliHamil hamil = createPauliHamil(
-                ph.num_qubits, ph.num_terms);
-        for (size_t i = 0; i < ph.num_terms; i++) {
-                hamil.termCoeffs[i] = ph.coeffs[i];
-                for (size_t j = 0; j < ph.num_qubits; j++) {
-                        const size_t pauli_idx = i * ph.num_qubits + j;
-                        hamil.pauliCodes[pauli_idx] = (enum pauliOpType) ph.
-                                paulis[pauli_idx];
-                }
-        }
 
+        struct rayon_circuit_data ct_dat;
+        rayon_circuit_data_init(&ct_dat);
+        rayon_circuit_data_from_data(&ct_dat, ph, sp->multidet);
+
+        struct circuit ct;
+        rayon_circuit_init(&ct, &ct_dat);
+        
         log_info("Initialize circ");
-        struct rayon_circuit_data ct_data = {.hamil = hamil, .data = NULL};
-        struct circuit factory = rayon_circuit;
-        factory.data = &ct_data;
-        factory.num_sys_qb = ct_data.hamil.numQubits;
         struct rayon_circ_data circ_data = {.imag_switch = 0, .time = 0.0};
         struct circ c;
-        if (circ_init(&c, env, factory, &circ_data) != CIRC_OK) {
+        if (circ_init(&c, env, ct, &circ_data) != CIRC_OK) {
                 log_error("Cannot initialize circ");
                 return CIRC_ERR;
         }
 
-        log_info("Computing expectation value");
-        circ_data.imag_switch = 0;
-        while (circ_data.imag_switch <= 1) {
-                const size_t offset = circ_data.imag_switch == 0 ? 0 : 1;
-                for (size_t i = 0; i < ts->num_steps; i++) {
+        log_info("Computing expectation values");
+        for (size_t i = 0; i < ts->num_steps; i++) {
+
+                if (!isnan(ts->values[2 * i]) &&
+                    !isnan(ts->values[2 * i + 1])) {
+                        continue;
+                }
+
+                circ_data.imag_switch = 0;
+                while (circ_data.imag_switch <= 1) {
+                        const size_t offset =
+                                circ_data.imag_switch == 0 ? 0 : 1;
                         circ_data.time = ts->times[i];
                         if (circ_simulate(&c) != CIRC_OK) {
                                 log_error("Simulation error");
-                                rayon_simulate_cleanup(hamil);
+                                rayon_circuit_data_destroy(&ct_dat);
+                                rayon_circuit_destroy(&ct);
                                 return CIRC_ERR;
                         }
                         const double prob_0 = c.mea_cl[0] == 0
                                               ? c.mea_cl_prob[0]
                                               : 1.0 - c.mea_cl_prob[0];
                         ts->values[2 * i + offset] = 2 * prob_0 - 1;
+                        circ_data.imag_switch++;
                 }
-                circ_data.imag_switch++;
+
+                log_trace("Saving data");
+                hid_t file_id = data_file_open(filename);
+
+                data_time_series_write(ts, file_id);
+                data_file_close(file_id);
         }
         circ_destroy(&c);
         log_info("End of simulation");
-        rayon_simulate_cleanup(hamil);
+        rayon_circuit_data_destroy(&ct_dat);
+        rayon_circuit_destroy(&ct);
+
 
         return CIRC_OK;
 }

@@ -17,7 +17,7 @@ dataid_t data_file_open(const char *filename) {
 #else
         access_plist = H5P_DEFAULT;
 #endif
-        file_id = H5Fopen(filename, H5F_ACC_RDONLY, access_plist);
+        file_id = H5Fopen(filename, H5F_ACC_RDWR, access_plist);
         if (file_id == H5I_INVALID_HID) {
                 return DATA_INVALID_OBJID;
         }
