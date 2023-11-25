@@ -33,20 +33,20 @@ and the underscore: `_`.
 
 ## Attribute: `/name`
 
-- Type: string, `H5T_C_S1`
-- Comment: Name given to the simulation run
+- *Type*: string, `H5T_C_S1`
+- *Comment*: Name given to the simulation run
 
 ## Attribute: `/circuit_name`
 
-- Type: string, `H5T_C_S1`
-- Comment: Name of a circuit (algorithm) simulated
+- *Type*: string, `H5T_C_S1`
+- *Comment*: Name of a circuit (algorithm) simulated
 
 ## Group: `/fermion`
 
 ### Attribute: `/fermion/f2q_map`
 
-- Type: string, `H5T_C_S1`
-- Comment: Kind of fermion-to-qubit mapping used to obtain Pauli Hamiltonian.
+- *Type*: string, `H5T_C_S1`
+- *Comment*: Kind of fermion-to-qubit mapping used to obtain Pauli Hamiltonian.
 
 ### Dataset: `/fermion/fcidump`
 
@@ -62,13 +62,13 @@ Slater determinants.
 For given integers `NUM_TERMS, NUM_QUBITS >=1`:
 
 - Dataset: `coeffs`
-    - Type: double, `H5T_IEEE_F64LE`
-    - Shape: `(NUN_TERMS,)`
+    - *Type*: double, `H5T_IEEE_F64LE`
+    - *Shape*: `(NUN_TERMS,)`
 
 - Dataset: `dets`
-    - Type: unsigned char, `H5T_STD_U8LE`
-    - Shape: `(NUM_TERMS, NUM_QUBITS)`
-    - Comment: Rows denote computational basis states.
+    - *Type*: unsigned char, `H5T_STD_U8LE`
+    - *Shape*: `(NUM_TERMS, NUM_QUBITS)`
+    - *Comment*: Rows denote computational basis states.
 
 ### Group: `/state_prep/mps`
 
@@ -85,28 +85,34 @@ Each group must have a unique name starting with `unitary_`.
   For a given integer `N >= 2`:
 
     - Attribute: `index`:
-        - Type: unsigned long, `H5T_STD_U64LE`
+        - *Type*: unsigned long, `H5T_STD_U64LE`
     - Dataset: `matrix`
-        - Type: double, `H5T_IEEE_F64LE`
-        - Shape: `(N,N)`
+        - *Type*: double, `H5T_IEEE_F64LE`
+        - *Shape*: `(N,N)`
     - Dataset: `qubits`
-        - Type: unsigned long, `H5T_STD_U64LE`
-        - Shape: `(N,)`
-        - Comment: Unique indices of qubit sites in the register to act on.
+        - *Type*: unsigned long, `H5T_STD_U64LE`
+        - *Shape*: `(N,)`
+        - *Comment*: Unique indices of qubit sites in the register to act on.
 
 ## Group: `/pauli_hamil`
 
 For given integers `NUM_TERMS, NUM_QUBITS >=1`:
 
+- Attribute: `normalization`
+    - *Type*: double, `H5T_IEEE_F64LE`
+    - *Comment*: Coefficient stored in `coeffs` will be multiplied be this value
+      and the simulation will run for the normalized Hamiltonian.
+
+
 - Dataset: `coeffs`
-    - Type: double, `H5T_IEEE_F64LE`
-    - Shape: `(NUN_TERMS,)`
+    - *Type*: double, `H5T_IEEE_F64LE`
+    - *Shape*: `(NUN_TERMS,)`
 
 
 - Dataset: `paulis`
-    - Type: unsigned char, `H5T_STD_U8LE`
-    - Shape: `(NUM_TERMS, NUM_QUBITS)`
-    - Comment: Elements in the dataset denote single-qubit Pauli operators
+    - *Type*: unsigned char, `H5T_STD_U8LE`
+    - *Shape*: `(NUM_TERMS, NUM_QUBITS)`
+    - *Comment*: Elements in the dataset denote single-qubit Pauli operators
       according to the convention:
       ```text
       Id = 0, X = 1, Y = 2, Z = 3
@@ -117,14 +123,14 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
 For a given integer `NUM_TERMS >= 1`:
 
 - Dataset: `times`
-    - Type: double, `H5T_IEEE_F64LE`
-    - Shape: `(NUM_TERMS,)`
+    - *Type*: double, `H5T_IEEE_F64LE`
+    - *Shape*: `(NUM_TERMS,)`
 
 
 - Dataset: `values`
-    - Type: double, `H5T_IEEE_F64LE`
-    - Shape: `(NUM_TERMS, 2)`
-    - Comment: Columns specify the real (column 1) and imaginary (column 2)
+    - *Type*: double, `H5T_IEEE_F64LE`
+    - *Shape*: `(NUM_TERMS, 2)`
+    - *Comment*: Columns specify the real (column 1) and imaginary (column 2)
       part of a complex number. Uninitialized values (values to be computed)
       are designated by `NaN`.
 
