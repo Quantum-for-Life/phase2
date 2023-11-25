@@ -3,15 +3,13 @@
 
 #include <stdlib.h>
 
-#include "QuEST.h"
-
 enum {
         CIRC_OK,
         CIRC_ERR,
 };
 
 struct circ_env {
-        QuESTEnv *quest_env;
+        void *quest_env;
 };
 
 struct circ;
@@ -38,7 +36,7 @@ struct circ {
         struct circuit ct;
         void *data;
 
-        Qureg *qureg;
+        void *qureg;
 
         int *mea_cl;
         double *mea_cl_prob;

@@ -41,14 +41,14 @@ void rayon_circuit_data_init(struct rayon_circuit_data *ct_dat);
 void rayon_circuit_data_destroy(struct rayon_circuit_data *ct_dat);
 
 int rayon_circuit_data_from_data(struct rayon_circuit_data *ct_dat,
-                                 const struct data_pauli_hamil *dat_ph,
-                                 const struct data_state_prep_multidet *dat_md);
+                                 const struct data *dat);
 
 void rayon_circuit_init(struct circuit *ct,
                         const struct rayon_circuit_data *ct_dat);
 
 void rayon_circuit_destroy(struct circuit *ct);
 
-int rayon_simulate(struct circ_env env, const struct data *dat);
+int rayon_simulate(struct circ_env env, const struct rayon_circuit_data *ct_dat,
+                   struct data_time_series *dat_ts);
 
 #endif //PHASE2_RAYON_H
