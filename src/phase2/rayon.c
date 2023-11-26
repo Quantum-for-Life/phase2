@@ -20,45 +20,53 @@ struct rayon_circ_data {
 
 
 int rayon_state_prep(struct circ *c) {
-        Qureg *qureg = c->qureg;
-        hadamard(*qureg, c->mea_qb[0]);
+        const Qureg *qureg;
+        const struct rayon_data_multidet *md;
+        double real, imag;
+        long long start_idx;
 
-        //    pauliX(c.qureg, c.sys_qb[0]);
-        //    pauliX(c.qureg, c.sys_qb[2]);
-        for (size_t i = 0; i < c->ct.num_sys_qb; i++) {
-                hadamard(*qureg, c->sys_qb[i]);
+        qureg = c->qureg;
+        md = &((struct rayon_data *) c->ct.data)->multidet;
+
+        initBlankState(*qureg);
+        for (size_t i = 0; i < md->num_dets; i++) {
+                start_idx = md->dets[i].det << c->ct.num_mea_qb;
+                real = md->dets[i].coeff_real;
+                imag = md->dets[i].coeff_imag;
+                setAmps(*qureg, start_idx, &real, &imag, 1);
         }
+        hadamard(*qureg, c->mea_qb[0]);
 
         return CIRC_OK;
 }
 
 int rayon_routine(struct circ *c) {
-        Qureg *qureg = c->qureg;
+        const Qureg *qureg;
+        const struct rayon_data_hamil *hamil;
+        enum pauliOpType *paulis;
+        double time;
+        int num_mea_qb, num_sys_qb;
 
-        const struct rayon_data *ct_dat = (struct rayon_data *)
-                c->ct.data;
-        const struct rayon_circ_data *dat = (struct rayon_circ_data *) c->data;
+        qureg = c->qureg;
+        hamil = &((struct rayon_data *) c->ct.data)->hamil;
+        paulis = (enum pauliOpType *) hamil->paulis;
+        time = ((struct rayon_circ_data *) c->data)->time;
+        num_mea_qb = (int) c->ct.num_mea_qb;
+        num_sys_qb = (int) c->ct.num_sys_qb;
 
-        const double time = dat->time;
         if (fabs(time) < DBL_EPSILON) {
                 return CIRC_OK;
         }
-
         const double REPS = time * time;
         for (size_t r = 0; r < (size_t) REPS; r++) {
-                for (size_t i = 0; i < ct_dat->hamil.num_terms; i++) {
-                        // angle is proportional to time/REPS = 1/time
+                for (size_t i = 0; i < hamil->num_terms; i++) {
                         const qreal angle =
-                                2.0 / time * ct_dat->hamil.coeffs[i];
-                        multiControlledMultiRotatePauli(*qureg, c->mea_qb,
-                                                        c->ct.num_mea_qb,
-                                                        c->sys_qb,
-                                                        (enum pauliOpType *)
-                                                                ct_dat->hamil
-                                                                        .paulis +
-                                                        c->ct.num_sys_qb * i,
-                                                        c->ct.num_sys_qb,
-                                                        angle);
+                                2.0 * time / REPS * hamil->coeffs[i];
+                        multiControlledMultiRotatePauli(
+                                *qureg, c->mea_qb, num_mea_qb, c->sys_qb,
+                                paulis + num_sys_qb * i, num_sys_qb,
+                                angle
+                        );
                 }
         }
 
@@ -66,14 +74,11 @@ int rayon_routine(struct circ *c) {
 }
 
 int rayon_state_post(struct circ *c) {
-        Qureg *qureg = c->qureg;
+        const Qureg *qureg;
+        const struct rayon_circ_data *d;
 
-        //    pauliX(c.qureg, c.sys_qb[0]);
-        //    pauliX(c.qureg, c.sys_qb[2]);
-        for (size_t i = 0; i < c->ct.num_sys_qb; i++) {
-                hadamard(*qureg, c->sys_qb[i]);
-        }
-        const struct rayon_circ_data *d = (struct rayon_circ_data *) c->data;
+        d = c->data;
+        qureg = c->qureg;
         if (d->imag_switch == 1) {
                 sGate(*qureg, c->mea_qb[0]);
         }
@@ -144,10 +149,11 @@ int rayon_multidet_from_data(struct rayon_data_multidet *md,
                 return -1;
         }
         for (size_t i = 0; i < dat_md->num_terms; i++) {
-                md->dets[i].coeff = dat_md->coeffs[i];
-                unsigned long long index = 0;
+                md->dets[i].coeff_real = dat_md->coeffs[2 * i];
+                md->dets[i].coeff_imag = dat_md->coeffs[2 * i + 1];
+                long long index = 0;
                 for (size_t j = 0; j < dat_md->num_qubits; j++) {
-                        unsigned long long bit =
+                        long long bit =
                                 dat_md->dets[i * dat_md->num_qubits + j] == 0 ?
                                 0 : 1;
                         index += bit << j;
@@ -227,7 +233,8 @@ int rayon_compute_expect(struct circ *c, struct data_time_series *dat_ts) {
                         double prob_0 = c->mea_cl[0] == 0
                                         ? c->mea_cl_prob[0]
                                         : 1.0 - c->mea_cl_prob[0];
-                        val[imag_sw] = 2 * prob_0 - 1;
+                        double expect = 2 * prob_0 - 1;
+                        val[imag_sw] = imag_sw == 0 ? expect : -expect;
                 }
 
                 dat_ts->values[2 * i] = val[0];

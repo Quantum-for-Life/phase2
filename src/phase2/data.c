@@ -64,10 +64,10 @@ int data_state_prep_multidet_parse(struct data_state_prep_multidet *dat,
                 goto dset_coeffs_fail;
         }
         dspace_coeffs_id = H5Dget_space(dset_coeffs_id);
-        hsize_t dspace_coeffs_dims[1];
+        hsize_t dspace_coeffs_dims[2];
         H5Sget_simple_extent_dims(dspace_coeffs_id, dspace_coeffs_dims, NULL);
         size_t num_terms = dspace_coeffs_dims[0];
-        double *coeffs = malloc(sizeof(*coeffs) * num_terms);
+        double *coeffs = malloc(sizeof(*coeffs) * num_terms * 2);
         if (!coeffs) {
                 res = DATA_ERR;
                 goto coeffs_alloc_fail;

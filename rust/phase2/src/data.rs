@@ -145,7 +145,7 @@ impl MultiDet {
 
     pub fn coeffs(&self) -> &[f64] {
         let slice_ptr =
-            slice_from_raw_parts(self.0.coeffs as *const _, self.0.num_terms);
+            slice_from_raw_parts(self.0.coeffs as *const _, self.0.num_terms*2);
         unsafe { &*slice_ptr }
     }
 

@@ -20,8 +20,9 @@ struct rayon_data_hamil {
 struct rayon_data_multidet {
         size_t num_dets;
         struct {
-                unsigned long long det;
-                double coeff;
+                long long det;
+                double coeff_real;
+                double coeff_imag;
         } *dets;
 };
 
