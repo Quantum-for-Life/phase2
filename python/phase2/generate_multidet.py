@@ -23,7 +23,7 @@ def h5_output(outfile: str):
     with (h5py.File(outfile, "a") as f):
         state_prep = f.create_group("state_prep")
         multidet = state_prep.create_group("multidet")
-        num_qubits = 4;
+        num_qubits = 4
         norm = 1.0 / math.sqrt(2 ** num_qubits)
         coeffs = [[norm, 0.0] for i in range(0, 2 ** num_qubits)]
         multidet.create_dataset("coeffs", (2 ** num_qubits, 2), dtype='d')[
