@@ -63,7 +63,10 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
 
 - Dataset: `coeffs`
     - *Type*: double, `H5T_IEEE_F64LE`
-    - *Shape*: `(NUN_TERMS,)`
+    - *Shape*: `(NUN_TERMS,2)`
+    - *Comment*: Columns specify the real (column 1) and imaginary (column 2)
+      part of a complex number.
+  
 
 - Dataset: `dets`
     - *Type*: unsigned char, `H5T_STD_U8LE`
