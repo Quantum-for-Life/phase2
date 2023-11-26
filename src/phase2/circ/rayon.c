@@ -13,6 +13,12 @@
 #include "circ/rayon.h"
 
 
+struct rayon_circ_data {
+        double time;
+        int imag_switch;
+};
+
+
 int rayon_state_prep(struct circ *c) {
         Qureg *qureg = c->qureg;
         hadamard(*qureg, c->mea_qb[0]);
@@ -161,27 +167,39 @@ int rayon_multidet_from_data(struct rayon_multidet *md,
 void rayon_circuit_data_init(struct rayon_circuit_data *ct_dat) {
         rayon_hamil_init(&ct_dat->hamil);
         rayon_multidet_init(&ct_dat->multidet);
+        ct_dat->time_series = NULL;
 }
 
 void rayon_circuit_data_destroy(struct rayon_circuit_data *ct_dat) {
-        rayon_hamil_destroy(&ct_dat->hamil);
+        ct_dat->time_series = NULL;
         rayon_multidet_destroy(&ct_dat->multidet);
+        rayon_hamil_destroy(&ct_dat->hamil);
 }
 
 int rayon_circuit_data_from_data(struct rayon_circuit_data *ct_dat,
-                                 const struct data *dat) {
+                                 struct data *dat) {
         int res;
-        if ((res = rayon_hamil_from_data(&ct_dat->hamil, &dat->pauli_hamil))
-            != 0) {
+        res = rayon_hamil_from_data(&ct_dat->hamil, &dat->pauli_hamil);
+        if (res != 0) {
                 return res;
         }
-        if ((res = rayon_multidet_from_data(&ct_dat->multidet,
-                                            &dat->state_prep.multidet)) != 0) {
+        res = rayon_multidet_from_data(&ct_dat->multidet,
+                                       &dat->state_prep.multidet);
+        if (res != 0) {
                 return res;
         }
-
+        ct_dat->time_series = &dat->time_series;
         return 0;
 }
+
+
+int rayon_circuit_data_write_data(struct data *dat,
+                                  const struct rayon_circuit_data *ct_dat) {
+        (void) dat;
+        (void) ct_dat;
+        return 0;
+}
+
 
 void rayon_circuit_init(struct circuit *ct,
                         const struct rayon_circuit_data *ct_dat) {
@@ -201,51 +219,63 @@ void rayon_circuit_destroy(struct circuit *ct) {
 }
 
 
-int rayon_simulate(struct circ_env env, const struct rayon_circuit_data *ct_dat,
-                   struct data_time_series *dat_ts) {
-        log_info("Initialize Pauli Hamiltonian");
+int rayon_compute_expect(struct circ *c) {
+        log_info("Computing expectation values");
+        double t, val[2];
 
+        struct rayon_circ_data *circ_dat = c->data;
+        struct rayon_circuit_data *ct_dat = c->ct.data;
+        struct data_time_series *dat_ts = ct_dat->time_series;
+        for (size_t i = 0; i < dat_ts->num_steps; i++) {
+                t = dat_ts->times[i];
+                val[0] = dat_ts->values[2 * i];
+                val[1] = dat_ts->values[2 * i + 1];
+                if (!(isnan(val[0]) || isnan(val[1]))) {
+                        log_trace("time=%f, value already computed; skip", t);
+                        continue;
+                }
+
+                circ_dat->time = t;
+                for (int imag_sw = 0; imag_sw <= 1; imag_sw++) {
+                        circ_dat->imag_switch = imag_sw;
+                        if (circ_simulate(c) != CIRC_OK) {
+                                log_error("Simulation error");
+                                return CIRC_ERR;
+                        }
+                        double prob_0 = c->mea_cl[0] == 0
+                                        ? c->mea_cl_prob[0]
+                                        : 1.0 - c->mea_cl_prob[0];
+                        val[imag_sw] = 2 * prob_0 - 1;
+                }
+
+                dat_ts->values[2 * i] = val[0];
+                dat_ts->values[2 * i + 1] = val[1];
+                log_trace("t=%f, val_real=%f, val_imag=%f", t, val[0], val[1]);
+        }
+
+        return CIRC_OK;
+}
+
+int rayon_simulate(struct circ_env env, struct rayon_circuit_data *ct_dat) {
+        int res;
+
+        log_info("Initialize Pauli Hamiltonian");
         struct circuit ct;
         rayon_circuit_init(&ct, ct_dat);
 
         log_info("Initialize circ");
         struct rayon_circ_data circ_data = {.imag_switch = 0, .time = 0.0};
         struct circ c;
-        if (circ_init(&c, env, ct, &circ_data) != CIRC_OK) {
+        if ((res = circ_init(&c, env, ct, &circ_data)) != CIRC_OK) {
                 log_error("Cannot initialize circ");
-                return CIRC_ERR;
+                goto cleanup;
         }
-
-        log_info("Computing expectation values");
-        for (size_t i = 0; i < dat_ts->num_steps; i++) {
-
-                if (!isnan(dat_ts->values[2 * i]) &&
-                    !isnan(dat_ts->values[2 * i + 1])) {
-                        continue;
-                }
-
-                circ_data.imag_switch = 0;
-                while (circ_data.imag_switch <= 1) {
-                        const size_t offset =
-                                circ_data.imag_switch == 0 ? 0 : 1;
-                        circ_data.time = dat_ts->times[i];
-                        if (circ_simulate(&c) != CIRC_OK) {
-                                log_error("Simulation error");
-                                rayon_circuit_destroy(&ct);
-                                return CIRC_ERR;
-                        }
-                        const double prob_0 = c.mea_cl[0] == 0
-                                              ? c.mea_cl_prob[0]
-                                              : 1.0 - c.mea_cl_prob[0];
-                        dat_ts->values[2 * i + offset] =
-                                2 * prob_0 - 1;
-                        circ_data.imag_switch++;
-                }
-
-        }
+        res = rayon_compute_expect(&c);
+cleanup:
+        log_info("Clean up resources");
         circ_destroy(&c);
-        log_info("End of simulation");
         rayon_circuit_destroy(&ct);
 
-        return CIRC_OK;
+        return res;
 }
+

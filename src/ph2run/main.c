@@ -149,8 +149,8 @@ int main(const int argc, char **argv) {
                 struct rayon_circuit_data ct_dat;
                 rayon_circuit_data_init(&ct_dat);
                 rayon_circuit_data_from_data(&ct_dat, &dat);
-                sucess = rayon_simulate(env, &ct_dat, &dat.time_series) ==
-                         CIRC_OK;
+                sucess = rayon_simulate(env, &ct_dat) == CIRC_OK;
+                rayon_circuit_data_write_data(&dat, &ct_dat);
                 rayon_circuit_data_destroy(&ct_dat);
 
         } else {
