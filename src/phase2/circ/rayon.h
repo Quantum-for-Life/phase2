@@ -5,7 +5,7 @@
 
 #define RAYON_NAME "rayon"
 #define RAYON_DEFAULT_NUM_MEA_QB 1
-#define RAYON_DEFAULT_NUM_SYS_QB 8
+//#define RAYON_DEFAULT_NUM_SYS_QB 8
 #define RAYON_DEFAULT_NUM_ANC_QB 0
 
 
@@ -30,7 +30,6 @@ struct rayon_circuit_data {
         struct rayon_hamil hamil;
         struct rayon_multidet multidet;
 
-        struct data_time_series *time_series;
 };
 
 void rayon_circuit_data_init(struct rayon_circuit_data *ct_dat);
@@ -38,11 +37,9 @@ void rayon_circuit_data_init(struct rayon_circuit_data *ct_dat);
 void rayon_circuit_data_destroy(struct rayon_circuit_data *ct_dat);
 
 int rayon_circuit_data_from_data(struct rayon_circuit_data *ct_dat,
-                                 struct data *dat);
+                                 const struct data *dat);
 
-int rayon_circuit_data_write_data(struct data *dat,
-                                  const struct rayon_circuit_data *ct_dat);
-
-int rayon_simulate(struct circ_env env, struct rayon_circuit_data *ct_dat);
+int rayon_simulate(struct circ_env env, struct rayon_circuit_data *ct_dat,
+                   struct data_time_series *dat_ts);
 
 #endif //PHASE2_RAYON_H
