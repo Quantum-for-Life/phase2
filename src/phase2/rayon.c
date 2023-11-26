@@ -10,7 +10,7 @@
 #include "log.h"
 
 #include "circ.h"
-#include "circ/rayon.h"
+#include "rayon.h"
 
 
 struct rayon_circ_data {
@@ -35,7 +35,7 @@ int rayon_state_prep(struct circ *c) {
 int rayon_routine(struct circ *c) {
         Qureg *qureg = c->qureg;
 
-        const struct rayon_circuit_data *ct_dat = (struct rayon_circuit_data *)
+        const struct rayon_data *ct_dat = (struct rayon_data *)
                 c->ct.data;
         const struct rayon_circ_data *dat = (struct rayon_circ_data *) c->data;
 
@@ -82,14 +82,14 @@ int rayon_state_post(struct circ *c) {
         return CIRC_OK;
 }
 
-void rayon_hamil_init(struct rayon_hamil *hamil) {
+void rayon_hamil_init(struct rayon_data_hamil *hamil) {
         hamil->num_qubits = 0;
         hamil->num_terms = 0;
         hamil->coeffs = NULL;
         hamil->paulis = NULL;
 }
 
-void rayon_hamil_destroy(struct rayon_hamil *hamil) {
+void rayon_hamil_destroy(struct rayon_data_hamil *hamil) {
         free(hamil->coeffs);
         hamil->coeffs = NULL;
         free(hamil->paulis);
@@ -98,9 +98,8 @@ void rayon_hamil_destroy(struct rayon_hamil *hamil) {
         hamil->num_terms = 0;
 }
 
-int
-rayon_hamil_from_data(struct rayon_hamil *hamil,
-                      const struct data_pauli_hamil *dat_ph) {
+int rayon_hamil_from_data(struct rayon_data_hamil *hamil,
+                          const struct data_pauli_hamil *dat_ph) {
 
         double *coeffs = malloc(sizeof(*coeffs) * dat_ph->num_terms);
         int *paulis = malloc(sizeof(*paulis) * dat_ph->num_terms *
@@ -126,27 +125,26 @@ rayon_hamil_from_data(struct rayon_hamil *hamil,
         return 0;
 }
 
-void rayon_multidet_init(struct rayon_multidet *md) {
+void rayon_multidet_init(struct rayon_data_multidet *md) {
         md->num_dets = 0;
         md->dets = NULL;
 }
 
-void rayon_multidet_destroy(struct rayon_multidet *md) {
+void rayon_multidet_destroy(struct rayon_data_multidet *md) {
         free(md->dets);
         md->dets = NULL;
         md->num_dets = 0;
 }
 
-int rayon_multidet_from_data(struct rayon_multidet *md,
+int rayon_multidet_from_data(struct rayon_data_multidet *md,
                              const struct data_state_prep_multidet *dat_md) {
 
-        struct rayon_slater_det *dets = malloc(
-                sizeof(*dets) * dat_md->num_terms);
-        if (!dets) {
+        md->dets = malloc(sizeof(*md->dets) * dat_md->num_terms);
+        if (!md->dets) {
                 return -1;
         }
         for (size_t i = 0; i < dat_md->num_terms; i++) {
-                dets[i].coeff = dat_md->coeffs[i];
+                md->dets[i].coeff = dat_md->coeffs[i];
                 unsigned long long index = 0;
                 for (size_t j = 0; j < dat_md->num_qubits; j++) {
                         unsigned long long bit =
@@ -154,28 +152,26 @@ int rayon_multidet_from_data(struct rayon_multidet *md,
                                 0 : 1;
                         index += bit << j;
                 }
-                dets[i].det = index;
+                md->dets[i].det = index;
         }
-
         md->num_dets = dat_md->num_terms;
-        md->dets = dets;
 
         return 0;
 }
 
 
-void rayon_circuit_data_init(struct rayon_circuit_data *ct_dat) {
+void rayon_data_init(struct rayon_data *ct_dat) {
         rayon_hamil_init(&ct_dat->hamil);
         rayon_multidet_init(&ct_dat->multidet);
 }
 
-void rayon_circuit_data_destroy(struct rayon_circuit_data *ct_dat) {
+void rayon_data_destroy(struct rayon_data *ct_dat) {
         rayon_multidet_destroy(&ct_dat->multidet);
         rayon_hamil_destroy(&ct_dat->hamil);
 }
 
-int rayon_circuit_data_from_data(struct rayon_circuit_data *ct_dat,
-                                 const struct data *dat) {
+int rayon_data_from_data(struct rayon_data *ct_dat,
+                         const struct data *dat) {
         int res;
         res = rayon_hamil_from_data(&ct_dat->hamil, &dat->pauli_hamil);
         if (res != 0) {
@@ -190,7 +186,7 @@ int rayon_circuit_data_from_data(struct rayon_circuit_data *ct_dat,
 }
 
 void rayon_circuit_init(struct circuit *ct,
-                        const struct rayon_circuit_data *ct_dat) {
+                        const struct rayon_data *ct_dat) {
         ct->name = RAYON_NAME;
         ct->data = (void *) ct_dat;
         ct->num_mea_qb = RAYON_DEFAULT_NUM_MEA_QB;
@@ -202,7 +198,7 @@ void rayon_circuit_init(struct circuit *ct,
         ct->state_post = rayon_state_post;
 }
 
-void rayon_circuit_destroy(struct circuit *ct) {
+static void rayon_circuit_destroy(struct circuit *ct) {
         (void) (ct);
 }
 
@@ -242,7 +238,7 @@ int rayon_compute_expect(struct circ *c, struct data_time_series *dat_ts) {
         return CIRC_OK;
 }
 
-int rayon_simulate(struct circ_env env, struct rayon_circuit_data *ct_dat,
+int rayon_simulate(struct circ_env env, struct rayon_data *ct_dat,
                    struct data_time_series *dat_ts) {
         int res;
 
