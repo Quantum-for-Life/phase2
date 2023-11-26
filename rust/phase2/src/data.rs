@@ -144,8 +144,10 @@ impl MultiDet {
     }
 
     pub fn coeffs(&self) -> &[f64] {
-        let slice_ptr =
-            slice_from_raw_parts(self.0.coeffs as *const _, self.0.num_terms);
+        let slice_ptr = slice_from_raw_parts(
+            self.0.coeffs as *const _,
+            self.0.num_terms * 2,
+        );
         unsafe { &*slice_ptr }
     }
 
@@ -257,9 +259,25 @@ mod tests {
             .for_state_prep(|sp| {
                 sp.for_multidet(|md| {
                     assert_eq!(md.num_qubits(), 4);
-                    assert_eq!(md.num_terms(), 1);
-                    assert_eq!(md.coeffs(), &[1.0]);
-                    assert_eq!(md.dets(), &[1, 0, 1, 0]);
+                    assert_eq!(md.num_terms(), 16);
+                    assert_eq!(
+                        md.coeffs(),
+                        &[
+                            0.25, 0., 0.25, 0., 0.25, 0., 0.25, 0., 0.25, 0.,
+                            0.25, 0., 0.25, 0., 0.25, 0., 0.25, 0., 0.25, 0.,
+                            0.25, 0., 0.25, 0., 0.25, 0., 0.25, 0., 0.25, 0.,
+                            0.25, 0.,
+                        ]
+                    );
+                    assert_eq!(
+                        md.dets(),
+                        &[
+                            0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0,
+                            0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0,
+                            0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1,
+                            1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1,
+                        ]
+                    );
                 });
             })
     }
@@ -297,7 +315,7 @@ mod tests {
 
     #[test]
     fn data_parse_time_series() {
-        let expected_times: Vec<_> = (0..100).map(f64::from).collect();
+        let expected_times: Vec<_> = (0..111).map(f64::from).collect();
 
         Data::new()
             .parse(
@@ -308,7 +326,7 @@ mod tests {
             )
             .unwrap()
             .for_time_series(|ts| {
-                assert_eq!(ts.num_steps(), 100);
+                assert_eq!(ts.num_steps(), 111);
 
                 for (time, exp_time) in zip(ts.times(), expected_times) {
                     assert!(f64::abs(time - exp_time) < MARGIN);

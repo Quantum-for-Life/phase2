@@ -6,7 +6,7 @@
 #include "log.h"
 
 #include "circ.h"
-#include "circ/linen.h"
+#include "linen.h"
 
 
 int linen_reset(struct circ *c) {
