@@ -7,7 +7,6 @@ import uuid
 from math import sqrt
 
 import h5py
-import json5
 import numpy as np
 import scipy as sp
 
@@ -23,7 +22,7 @@ PAULI_TABLE = {
 
 def pauli_string_to_matrix(paulis: list):
     num_qubits = len(paulis)
-    size = 2 ** num_qubits
+    size = 2**num_qubits
     matrix = np.ndarray(shape=(size, size), dtype=np.cdouble)
     for i in range(0, size):
         for j in range(0, size):
@@ -40,7 +39,7 @@ def pauli_string_to_matrix(paulis: list):
 def pauli_hamil_to_matrix(coeffs, paulis):
     num_qubits = len(paulis[0])
     num_terms = len(coeffs)
-    size = 2 ** num_qubits
+    size = 2**num_qubits
     matrix = np.zeros(shape=(size, size), dtype=np.cdouble)
     for i in range(0, num_terms):
         matrix += coeffs[i] * pauli_string_to_matrix(paulis[i])
@@ -49,7 +48,7 @@ def pauli_hamil_to_matrix(coeffs, paulis):
 
 
 def multidet_to_vector(coeffs, indices, num_qubits):
-    size = 2 ** num_qubits
+    size = 2**num_qubits
     vec = np.zeros(shape=(size,), dtype=np.cdouble)
     for i, c in zip(indices, coeffs):
         vec[i] = c
@@ -63,12 +62,10 @@ def parse_arguments():
         "-n", "--num-qubits", required=True, type=int, help="Number of qubits"
     )
     parser.add_argument(
-        "-s", "--num-steps", required=True, type=int,
-        help="Time series (num_steps)"
+        "-s", "--num-steps", required=True, type=int, help="Time series (num_steps)"
     )
     parser.add_argument(
-        "--time-max", type=float, help="Max time value (num_steps if not "
-                                       "specified)"
+        "--time-max", type=float, help="Max time value (num_steps if not " "specified)"
     )
     parser.add_argument(
         "-d",
@@ -78,12 +75,10 @@ def parse_arguments():
         help="Number of slater " "determinant",
     )
     parser.add_argument(
-        "-t", "--num-terms", required=True, type=int,
-        help="Number of hamiltonian terms"
+        "-t", "--num-terms", required=True, type=int, help="Number of hamiltonian terms"
     )
     parser.add_argument(
-        "--many", type=int,
-        help="Generate many files (parameters as max " "values)"
+        "--many", type=int, help="Generate many files (parameters as max " "values)"
     )
     parser.add_argument("--compute", default=False, type=bool)
     return parser.parse_args()
@@ -102,8 +97,7 @@ class Case:
         self.pauli_hamil["num_terms"] = num_terms
         terms = set()
         while len(terms) < num_terms:
-            terms.add(tuple(
-                random.randrange(0, 4) for _ in range(0, self.num_qubits)))
+            terms.add(tuple(random.randrange(0, 4) for _ in range(0, self.num_qubits)))
 
         self.pauli_hamil["paulis"] = np.ndarray(
             shape=(num_terms, self.num_qubits), dtype="u1"
@@ -111,8 +105,7 @@ class Case:
         paulis = [list(x) for x in terms]
         self.pauli_hamil["paulis"][...] = paulis
         coeffs = np.array(
-            [(random.random() - 0.5) * 2.0 for _ in range(0, num_terms)],
-            dtype="d"
+            [(random.random() - 0.5) * 2.0 for _ in range(0, num_terms)], dtype="d"
         )
         self.pauli_hamil["normalization"] = 1.0 / sum((abs(x) for x in coeffs))
         self.pauli_hamil["coeffs"] = coeffs
@@ -122,16 +115,15 @@ class Case:
         # ]
 
     def generate_multidet(self, num_dets: int):
-        assert num_dets <= 2 ** self.num_qubits
+        assert num_dets <= 2**self.num_qubits
         self.multidet["num_dets"] = num_dets
-        coeffs = [random.random() + 1j * random.random() for _ in
-                  range(num_dets)]
+        coeffs = [random.random() + 1j * random.random() for _ in range(num_dets)]
         norm = sqrt(sum(abs(x * x.conjugate()) for x in coeffs))
         coeffs_norm = np.array([x / norm for x in coeffs], dtype=np.cdouble)
         self.multidet["coeffs"] = coeffs_norm
         dets = set()
         while len(dets) < num_dets:
-            dets.add(random.randrange(0, 2 ** self.num_qubits))
+            dets.add(random.randrange(0, 2**self.num_qubits))
         dets = list(dets)
         self.multidet["indices"] = dets
         self.multidet["dets"] = np.ndarray(
@@ -155,8 +147,9 @@ class Case:
             self.time_series["values"][i][1] = np.nan
 
     def compute_values(self):
-        matrix = pauli_hamil_to_matrix(self.pauli_hamil["coeffs"],
-                                       self.pauli_hamil["paulis"])
+        matrix = pauli_hamil_to_matrix(
+            self.pauli_hamil["coeffs"], self.pauli_hamil["paulis"]
+        )
         self.pauli_hamil["matrix"] = matrix
         eigs, eivecs = np.linalg.eig(matrix)
         for e in eigs:
@@ -203,8 +196,7 @@ class Case:
             h5_ts.create_dataset("times", shape=(ts["num_steps"],), dtype="d")[
                 ...
             ] = self.time_series["times"]
-            h5_ts.create_dataset("values", shape=(ts["num_steps"], 2),
-                                 dtype="d")[
+            h5_ts.create_dataset("values", shape=(ts["num_steps"], 2), dtype="d")[
                 ...
             ] = self.time_series["values"]
 
@@ -230,13 +222,12 @@ class Case:
             },
             "time_series": {
                 "times": list(self.time_series["times"]),
-
             },
         }
         if compute:
-            case_info["times_series"]["values"] = [[z.real, z.imag] for z in
-                                                   self.time_series[
-                                                       "values_comp"]]
+            case_info["times_series"]["values"] = [
+                [z.real, z.imag] for z in self.time_series["values_comp"]
+            ]
             case_info["pauli_hamil"]["eigs"] = list(self.pauli_hamil["eigs"])
         with open(self.filename_prefix + ".json", "w") as f:
             json_str = json.dumps(case_info, indent=4, allow_nan=True)
