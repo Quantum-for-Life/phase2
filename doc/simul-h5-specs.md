@@ -31,15 +31,17 @@ of the simulation file is called the *root* group and has the name: `/`.
 Names of other groups and attributes consist of only lowercase letters, numbers
 and the underscore: `_`.
 
-## Attribute: `/name`
+## Attribute: `/uuid`
 
 - *Type*: string, `H5T_C_S1`
-- *Comment*: Name given to the simulation run
+- *Comment*: Universally unique identifier (UUID) of the simulation run. As
+  specified by [RFC 4122][uuid-rfc]. For
+  example: `123e4567-e89b-12d3-a456-426614174000`
 
 ## Attribute: `/circuit_name`
 
 - *Type*: string, `H5T_C_S1`
-- *Comment*: Name of a circuit (algorithm) simulated
+- *Comment*: Name of a circuit (algorithm) simulated.
 
 ## Group: `/fermion`
 
@@ -51,6 +53,16 @@ and the underscore: `_`.
 ### Dataset: `/fermion/fcidump`
 
 [TBA]
+
+### Group: `/fermion/benchmark`
+
+- Attribute: `method`
+    - *Type*: string, `H5T_C_S1`
+
+- Attribute: `energy`
+    - *Type*: double, `H5T_IEEE_F64LE`
+    - *Comment*: Ground state energy estimate obtained with computational
+      chemistry methods
 
 ## Group `/state_prep`
 
@@ -104,12 +116,12 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
 - Attribute: `offset`
     - *Type*: double, `H5T_IEEE_F64LE`
     - *Comment*: Coefficient multiplying the identity term in the
-      Hamiltonian. Note that the term `0 0 0 etc.` must not appear in the
+      Hamiltonian. Note that the term "`0 0 0 etc.`" must not appear in the
       dataset `paulis` below.
 
 - Attribute: `normalization`
     - *Type*: double, `H5T_IEEE_F64LE`
-    - *Comment*: Coefficient stored in dataset `coeffs` will be
+    - *Comment*: Coefficients stored in dataset `coeffs` will be
       **multiplied** be this value and the simulation will run for the
       normalized Hamiltonian.
 
@@ -151,3 +163,5 @@ For a given integer `NUM_TERMS >= 1`:
 [TBA]
 
 [hdf5-data-types]: https://docs.hdfgroup.org/hdf5/v1_14/predefined_datatypes_tables.html
+
+[uuid-rfc]: https://datatracker.ietf.org/doc/html/rfc4122
