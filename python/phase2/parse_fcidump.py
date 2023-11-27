@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import uuid
 
 import h5py
 import qiskit_nature
@@ -48,15 +49,18 @@ def h5_output(fermionic_op: FermionicOp, outfile: str):
     mapper = JordanWignerMapper()
     qubit_jw_op = mapper.map(fermionic_op)
     import numpy as np
+
     # eigs = [x.real for x in np.linalg.eig(qubit_jw_op.to_matrix())[0]]
     # eigs.sort()
     # print(eigs)
+
+    # TODO: remove offset term
 
     num_qubits = qubit_jw_op.num_qubits
     num_sum_terms = len(qubit_jw_op.coeffs)
     coeffs = []
     paulis_shape = (num_sum_terms, num_qubits)
-    paulis = np.ndarray(paulis_shape, dtype='u1')
+    paulis = np.ndarray(paulis_shape, dtype="u1")
     for i in range(0, num_sum_terms):
         coeffs.append(qubit_jw_op.coeffs[i].real)
         # NOTE: Qiskit uses LE convention for numbering qubits. We reverse
@@ -65,24 +69,20 @@ def h5_output(fermionic_op: FermionicOp, outfile: str):
             paulis[i][j] = pauli_table[p]
 
     with h5py.File(outfile, "w") as f:
+        f.attrs["uuid"] = str(uuid.uuid4())
         grp = f.create_group("pauli_hamil")
-        dset_coeffs = grp.create_dataset("coeffs", (num_sum_terms,), dtype='d')
+        dset_coeffs = grp.create_dataset("coeffs", (num_sum_terms,), dtype="d")
         dset_coeffs[...] = coeffs
-        dset_paulis = grp.create_dataset("paulis",
-                                         paulis_shape,
-                                         dtype=np.dtype('u1'))
+        dset_paulis = grp.create_dataset("paulis", paulis_shape, dtype=np.dtype("u1"))
         dset_paulis[...] = paulis
-        norm = np.ndarray((1,), dtype='d')
-        norm[0] = 1.0 / sum(
-            abs(c) for c in coeffs)
+        norm = np.ndarray((1,), dtype="d")
+        norm[0] = 1.0 / sum(abs(c) for c in coeffs)
         grp.attrs["normalization"] = norm[0]
 
 
 if __name__ == "__main__":
     args = parse_arguments()
-    fermionic_op = fcidump_parse_fermionic_op(
-        args.filename, verbose=args.verbose
-    )
+    fermionic_op = fcidump_parse_fermionic_op(args.filename, verbose=args.verbose)
 
     if args.output:
         h5_output(fermionic_op, args.output)

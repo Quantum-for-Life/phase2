@@ -97,7 +97,9 @@ class Case:
         self.pauli_hamil["num_terms"] = num_terms
         terms = set()
         while len(terms) < num_terms:
-            terms.add(tuple(random.randrange(0, 4) for _ in range(0, self.num_qubits)))
+            term = tuple(random.randrange(0, 4) for _ in range(0, self.num_qubits))
+            if term != tuple(0 for _ in range(0, self.num_qubits)):
+                terms.add(term)
 
         self.pauli_hamil["paulis"] = np.ndarray(
             shape=(num_terms, self.num_qubits), dtype="u1"
@@ -109,6 +111,7 @@ class Case:
         )
         self.pauli_hamil["normalization"] = 1.0 / sum((abs(x) for x in coeffs))
         self.pauli_hamil["coeffs"] = coeffs
+        self.pauli_hamil["offset"] = (random.random() - 0.5) * 21.0
 
         # self.pauli_hamil["eivecs"] = [
         #     [[v[i].real, v[i].imag] for i in range(0, len(v))] for v in eivecs
@@ -170,6 +173,7 @@ class Case:
 
     def write_h5file(self):
         with h5py.File(self.filename_prefix + ".h5", "w") as f:
+            f.attrs["uuid"] = self.id_str
             ph = self.pauli_hamil
             h5_ph = f.create_group("pauli_hamil")
             h5_ph.create_dataset("coeffs", shape=(ph["num_terms"],), dtype="d")[
@@ -179,6 +183,7 @@ class Case:
                 "paulis", shape=(ph["num_terms"], self.num_qubits), dtype="d"
             )[...] = ph["paulis"]
             h5_ph.attrs["normalization"] = ph["normalization"]
+            h5_ph.attrs["offset"] = ph["offset"]
 
             md = self.multidet
             h5_md = f.create_group("state_prep/multidet")
@@ -204,8 +209,9 @@ class Case:
         case_info = {
             "filename": self.filename_prefix + ".h5",
             "num_qubits": self.num_qubits,
-            "id": self.id_str,
+            "uuid": self.id_str,
             "pauli_hamil": {
+                "offset": self.pauli_hamil["offset"],
                 "normalization": self.pauli_hamil["normalization"],
                 "coeffs": list(self.pauli_hamil["coeffs"]),
                 "paulis": [
