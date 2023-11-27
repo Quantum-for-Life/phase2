@@ -66,7 +66,7 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
     - *Shape*: `(NUN_TERMS,2)`
     - *Comment*: Columns specify the real (column 1) and imaginary (column 2)
       part of a complex number.
-  
+
 
 - Dataset: `dets`
     - *Type*: unsigned char, `H5T_STD_U8LE`
@@ -101,16 +101,21 @@ Each group must have a unique name starting with `unitary_`.
 
 For given integers `NUM_TERMS, NUM_QUBITS >=1`:
 
+- Attribute: `offset`
+    - *Type*: double, `H5T_IEEE_F64LE`
+    - *Comment*: Coefficient multiplying the identity term in the
+      Hamiltonian. Note that the term `0 0 0 etc.` must not appear in the
+      dataset `paulis` below.
+
 - Attribute: `normalization`
     - *Type*: double, `H5T_IEEE_F64LE`
-    - *Comment*: Coefficient stored in `coeffs` will be multiplied be this value
-      and the simulation will run for the normalized Hamiltonian.
-
+    - *Comment*: Coefficient stored in dataset `coeffs` will be
+      **multiplied** be this value and the simulation will run for the
+      normalized Hamiltonian.
 
 - Dataset: `coeffs`
     - *Type*: double, `H5T_IEEE_F64LE`
     - *Shape*: `(NUN_TERMS,)`
-
 
 - Dataset: `paulis`
     - *Type*: unsigned char, `H5T_STD_U8LE`
