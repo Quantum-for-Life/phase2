@@ -232,7 +232,7 @@ class Case:
             },
         }
         if compute:
-            case_info["times_series"]["values"] = [
+            case_info["time_series"]["values"] = [
                 [z.real, z.imag] for z in self.time_series["values_comp"]
             ]
             case_info["pauli_hamil"]["eigs"] = list(self.pauli_hamil["eigs"])
