@@ -80,7 +80,8 @@ def parse_arguments():
     parser.add_argument(
         "--many", type=int, help="Generate many files (parameters as max " "values)"
     )
-    parser.add_argument("--compute", default=False, type=bool)
+    parser.add_argument("--compute", action="store_true")
+
     return parser.parse_args()
 
 
