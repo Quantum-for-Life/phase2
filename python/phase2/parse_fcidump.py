@@ -54,13 +54,10 @@ def h5_output(fermionic_op: FermionicOp, outfile: str):
     # eigs.sort()
     # print(eigs)
 
-    # TODO: remove offset term
-
     num_qubits = qubit_jw_op.num_qubits
     num_sum_terms = len(qubit_jw_op.coeffs)
     coeffs = []
-    paulis_shape = (num_sum_terms, num_qubits)
-    paulis = np.ndarray(paulis_shape, dtype="u1")
+    paulis = np.ndarray((num_sum_terms, num_qubits), dtype="u1")
     for i in range(0, num_sum_terms):
         coeffs.append(qubit_jw_op.coeffs[i].real)
         # NOTE: Qiskit uses LE convention for numbering qubits. We reverse
@@ -68,16 +65,31 @@ def h5_output(fermionic_op: FermionicOp, outfile: str):
         for j, p in enumerate(qubit_jw_op.paulis[i].to_label()[::-1]):
             paulis[i][j] = pauli_table[p]
 
+    # offset term
+    offset_idx = None
+    for i in range(num_sum_terms):
+        if all(paulis[i][j] == 0 for j in range(num_qubits)):
+            offset_idx = i
+    offset = 0.0
+    if offset_idx is not None:
+        offset = coeffs[offset_idx]
+        coeffs = np.delete(coeffs, offset_idx)
+        paulis = np.delete(paulis, 0, offset_idx)
+        num_sum_terms -= 1
+
     with h5py.File(outfile, "w") as f:
         f.attrs["uuid"] = str(uuid.uuid4())
         grp = f.create_group("pauli_hamil")
         dset_coeffs = grp.create_dataset("coeffs", (num_sum_terms,), dtype="d")
         dset_coeffs[...] = coeffs
-        dset_paulis = grp.create_dataset("paulis", paulis_shape, dtype=np.dtype("u1"))
+        dset_paulis = grp.create_dataset(
+            "paulis", (num_sum_terms, num_qubits), dtype=np.dtype("u1")
+        )
         dset_paulis[...] = paulis
         norm = np.ndarray((1,), dtype="d")
         norm[0] = 1.0 / sum(abs(c) for c in coeffs)
         grp.attrs["normalization"] = norm[0]
+        grp.attrs["offset"] = offset
 
 
 if __name__ == "__main__":

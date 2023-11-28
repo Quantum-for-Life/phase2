@@ -1,32 +1,36 @@
+from math import tau
+
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 
-from math import tau
-
-
-eigs = [-1.8382052561377937, -1.6712704942150265, -1.6712704942150265,
-        -1.422886756088479, -1.422886756088479, -1.422886756088479,
-        -1.3370700060532204, -1.2616776969141434, -1.2616776969141434,
-        -1.245391395908435, -1.245391395908435, -1.2101011705960758,
-        -0.657553722272001, -0.47745562462465924, -0.4774556246246589,
-        -3.469446951953614e-16]
-
-with h5py.File("../tmp/simul.h5", "r") as f:
+with h5py.File("../python/tmp/simul.h5", "r") as f:
     times = np.array(f["time_series/times"])
     values = np.array([complex(z[0], z[1]) for z in f["time_series/values"]])
-    pauli_hamil = f["pauli_hamil"]
-    norm = pauli_hamil.attrs["normalization"]
+    ph = f["pauli_hamil"]
+    norm = ph.attrs["normalization"]
 
-abs_values_fft = abs(np.fft.fft(values, len(values)))
-sample_freq = np.fft.fftfreq(len(abs_values_fft))
+print(f"{norm=}")
+size = len(times)
+ts = [(times[i], values[i]) for i in range(size)]
+ts.sort()
+times = [t for t, _ in ts]
+values = [v for _, v in ts]
 
-peaks = scipy.signal.find_peaks(abs_values_fft)[0]
-peak_freqs = [sample_freq[i] for i in peaks]
-peak_freqs_rescaled = [(x - max(peak_freqs)) * tau / norm for x in
-                       peak_freqs]
-plt.vlines(peak_freqs_rescaled, 0, 1, linestyles='dotted', colors="k")
+x = np.array(range(int(min(times)), int(max(times)) + 1))
+fft_size = len(x)
+y = np.interp(x, times, values)
+
+y_fft = np.fft.fft(y)
+y_fft_abs = [abs(yf) for yf in y_fft]
+
+plt.plot(y_fft_abs)
 plt.show()
-plt.vlines(eigs, 0, 1, linestyles="dotted", )
+
+fft_freqs = np.fft.fftfreq(fft_size)
+peaks = scipy.signal.find_peaks(y_fft_abs, threshold=fft_size * 0.001)[0]
+peaks_freqs = [fft_freqs[p] / norm * tau for p in peaks]
+print(peaks_freqs)
+plt.vlines(peaks_freqs, 0, 1, linestyles="dotted", colors="k")
 plt.show()

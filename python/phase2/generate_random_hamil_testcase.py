@@ -181,7 +181,7 @@ class Case:
                 ...
             ] = ph["coeffs"]
             h5_ph.create_dataset(
-                "paulis", shape=(ph["num_terms"], self.num_qubits), dtype="d"
+                "paulis", shape=(ph["num_terms"], self.num_qubits), dtype="u1"
             )[...] = ph["paulis"]
             h5_ph.attrs["normalization"] = ph["normalization"]
             h5_ph.attrs["offset"] = ph["offset"]
