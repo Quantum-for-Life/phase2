@@ -13,16 +13,12 @@ from qiskit_nature.second_q.circuit.library.initial_states.hartree_fock import (
 )
 import h5py
 
-
-np.set_printoptions(threshold=1000)
-
 PAULI_DICT = {
     'I': 0,
     'X': 1,
     'Y': 2,
     'Z': 3,
 }
-
 
 def main():
     xyz = """O   0.000000    0.000000    0.117790
@@ -37,6 +33,7 @@ def main():
     hf = mol.RHF().run()
     # print(f"\nSCF energy: {hf.e_tot}")
     # print(hf.analyze())
+    e_nuc = hf.energy_nuc()  # nuclear repulsion energy
 
     filename = "H2O_CAS56"
     fci_file = filename + ".FCI_DUMP"
@@ -44,7 +41,10 @@ def main():
     cas = (5, 6)
     casci = mcscf.CASCI(hf, cas[0], cas[1])
     res_casci = casci.kernel()
-    # pprint.pprint(f"{res_casci=}")
+    e_tot = res_casci[0]  # el. energy in CAS + el. energy in core + nuclear repulsion energy
+    e_cas = res_casci[1]  # el. energy in CAS
+    e_const = e_tot - e_cas  # el. energy in core + nuclear repulsion energy
+
     fcidump.from_mcscf(casci, fci_file)
 
     fcidump_qiskit = FCIDump.from_file(fci_file)
@@ -102,11 +102,19 @@ def main():
 
     # write to h5 file
     with h5py.File(h5file, "w") as f:
+        h5_ferm_bm = f.create_group("fermion/benchmark")
+        h5_ferm_bm.attrs["method"] = "CASCI(5,6)"
+        h5_ferm_bm.attrs["energy"] = e_tot
+
         h5_ph = f.create_group("pauli_hamil")
         h5_ph.create_dataset("coeffs", shape=(num_terms,), dtype="d")[...] = pauli_coeffs
         h5_ph.create_dataset("paulis", shape=(num_terms, num_qubits), dtype="u1")[...] = pauli_labels_enc
         h5_ph.attrs["normalization"] = normalization
+        h5_ph.attrs["offset"] = e_const
 
-        h5.create
+        h5_sp = f.create_group("state_prep/multidet")
+        h5_sp.create_dataset("coeffs", shape=(1,2), dtype="d")[...] = [[1, 0]]
+        h5_sp.create_dataset("dets", shape=(1, num_qubits), dtype="u1")[...] = [hf_bitstring]
+
 if __name__ == "__main__":
     main()
