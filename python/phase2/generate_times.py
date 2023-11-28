@@ -18,7 +18,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-STEPS = 111
+STEPS = 256
 TIMES = [float(x) for x in range(0, STEPS)]
 VALUES = np.ndarray((STEPS, 2), dtype="d")
 

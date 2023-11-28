@@ -12,7 +12,7 @@ from qiskit_nature.second_q.formats.fcidump_translator import (
 from qiskit_nature.second_q.mappers.jordan_wigner_mapper import (
     JordanWignerMapper,
 )
-from qiskit_nature.second_q.operators import FermionicOp
+from qiskit_nature.second_q.problems import ElectronicStructureProblem
 
 # Suppress deprecation warnings in fcidump_parse_fermionic_op() below
 qiskit_nature.settings.use_symmetry_reduced_integrals = True
@@ -34,18 +34,20 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def fcidump_parse_fermionic_op(filename: str, verbose: bool) -> FermionicOp:
+def fcidump_parse_fermionic_op(
+    filename: str, verbose: bool
+) -> ElectronicStructureProblem:
     fcidump = FCIDump.from_file(filename)
     if verbose:
         print(f"Number of orbitals: {fcidump.num_orbitals}")
 
-    problem = fcidump_to_problem(fcidump)
-    return problem.hamiltonian.second_q_op()
+    return fcidump_to_problem(fcidump)
 
 
-def h5_output(fermionic_op: FermionicOp, outfile: str):
+def h5_output(problem: ElectronicStructureProblem, outfile: str):
     pauli_table = {"I": 0, "X": 1, "Y": 2, "Z": 3}
 
+    fermionic_op = problem.hamiltonian.second_q_op()
     mapper = JordanWignerMapper()
     qubit_jw_op = mapper.map(fermionic_op)
     import numpy as np
@@ -72,7 +74,7 @@ def h5_output(fermionic_op: FermionicOp, outfile: str):
             offset_idx = i
     offset = 0.0
     if offset_idx is not None:
-        offset = coeffs[offset_idx]
+        offset = coeffs[offset_idx] + problem.nuclear_repulsion_energy
         coeffs = np.delete(coeffs, offset_idx)
         paulis = np.delete(paulis, 0, offset_idx)
         num_sum_terms -= 1

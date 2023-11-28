@@ -10,6 +10,7 @@ with h5py.File("../python/tmp/simul.h5", "r") as f:
     values = np.array([complex(z[0], z[1]) for z in f["time_series/values"]])
     ph = f["pauli_hamil"]
     norm = ph.attrs["normalization"]
+    offset = ph.attrs["offset"]
 
 print(f"{norm=}")
 size = len(times)
@@ -29,8 +30,9 @@ plt.plot(y_fft_abs)
 plt.show()
 
 fft_freqs = np.fft.fftfreq(fft_size)
-peaks = scipy.signal.find_peaks(y_fft_abs, threshold=fft_size * 0.001)[0]
+peaks = scipy.signal.find_peaks(y_fft_abs, threshold=fft_size * 0.01)[0]
 peaks_freqs = [fft_freqs[p] / norm * tau for p in peaks]
+peaks_freqs.sort()
+
 print(peaks_freqs)
-plt.vlines(peaks_freqs, 0, 1, linestyles="dotted", colors="k")
-plt.show()
+print([p + offset for p in peaks_freqs])
