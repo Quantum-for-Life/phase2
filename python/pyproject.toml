@@ -18,7 +18,7 @@ dependencies = [
     "pyscf>=2.3.0",
     "qiskit>=0.44.1",
     "qiskit-aer>=0.12.2",
-    "qiskit-nature>=0.6.2",
+    "qiskit-nature>=0.7",
 ]
 
 
