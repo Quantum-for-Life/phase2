@@ -27,3 +27,8 @@ add_subdirectory(lib/QuEST)
 
 add_subdirectory(src)
 
+include(CTest)
+if (BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(test)
+endif ()

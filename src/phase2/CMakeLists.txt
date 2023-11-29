@@ -1,6 +1,6 @@
 message(STATUS "Configuring phase2")
 
-set(CIRC_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
+set(PHASE2_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 
 add_library(phase2 SHARED
         circ.c
