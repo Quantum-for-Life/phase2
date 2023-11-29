@@ -95,7 +95,7 @@ def main():
     pauli_labels_enc = []
     for label in pauli_labels:
         label_enc = []
-        for c in label:
+        for c in label[::-1]:
             label_enc.append(PAULI_DICT[c])
         pauli_labels_enc.append(label_enc)
     normalization = 1/np.sum(np.abs(pauli_coeffs))
@@ -110,7 +110,7 @@ def main():
         h5_ph.create_dataset("coeffs", shape=(num_terms,), dtype="d")[...] = pauli_coeffs
         h5_ph.create_dataset("paulis", shape=(num_terms, num_qubits), dtype="u1")[...] = pauli_labels_enc
         h5_ph.attrs["normalization"] = normalization
-        h5_ph.attrs["offset"] = e_const
+        h5_ph.attrs["offset"] = offset + e_const
 
         h5_sp = f.create_group("state_prep/multidet")
         h5_sp.create_dataset("coeffs", shape=(1,2), dtype="d")[...] = [[1, 0]]
