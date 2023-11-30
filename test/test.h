@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 #define TEST(name, ...)	\
-int name(__VA_ARGS__) { \
+static int name(__VA_ARGS__) { \
 	const char* __test_name = #name; \
 	int __test_rc;
 
@@ -25,8 +25,7 @@ int name(__VA_ARGS__) { \
 	__test_exit:
 
 #define TEST_END	\
-	return	__test_rc; \
-}
+	return	__test_rc; }
 
 #define TEST_CASE(exp) TEST_ASSERT(exp == 0, "%s", #exp)
 

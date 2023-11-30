@@ -96,23 +96,20 @@ TEST(mock_circ_simulate, struct circ_env env, struct circuit ct)
 	circ_destroy(&c);
 TEST_END
 
+TEST(mock_circ_suite, void)
+	struct circ_env env;
+	TEST_ASSERT(circ_env_init(&env) == CIRC_OK,
+	            "cannot initializa circ environment");
 
-TEST(mock_circ_suite, struct circ_env env)
 	TEST_CASE(mock_circ_init(env, MOCK_CIRCUIT))
 	TEST_CASE(mock_circ_reset(env, MOCK_CIRCUIT))
 	TEST_CASE(mock_circ_simulate(env, MOCK_CIRCUIT))
 
 	TEST_FINALIZE
-TEST_END
-
-
-TEST(main, void)
-	struct circ_env env;
-	TEST_ASSERT(circ_env_init(&env) == CIRC_OK,
-	            "cannot initializa circ environment");
-
-	TEST_CASE(mock_circ_suite(env))
-
-	TEST_FINALIZE
 	circ_env_destroy(&env);
 TEST_END
+
+
+int main(void) {
+	return mock_circ_suite();
+}
