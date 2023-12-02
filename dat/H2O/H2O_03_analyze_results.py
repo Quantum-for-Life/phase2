@@ -1,3 +1,4 @@
+import math
 from math import tau
 
 import argparse
@@ -48,18 +49,26 @@ if __name__ == "__main__":
     values = [v for _, v in ts]
 
     x = np.array(range(int(min(times)), int(max(times)) + 1))
-    fft_size = len(x)
     y = np.interp(x, times, values)
 
-    y_fft = np.fft.fft(y)
+    # Upsampling
+    milihartree = 0.001
+    ups_fac = math.ceil(tau / (norm * milihartree) / len(x))
+    ups_len = len(x) * ups_fac
+
+    ups_spacing = x[-1] / (ups_len - 1)
+    x_ups = np.array([x[0] + i * ups_spacing for i in range(ups_len)])
+    y_ups = np.interp(x_ups, x, y)
+
+    fft_size = len(x_ups)
+    y_fft = np.fft.fft(y_ups)
     y_fft_abs = [abs(yf) for yf in y_fft]
-    plt.plot(y_fft_abs)
-    # plt.show()
-    plt.savefig("y_fft_abs.pdf")
+    # plt.plot(y_fft_abs)
+    # plt.savefig("y_fft_abs.pdf")
 
     fft_freqs = np.fft.fftfreq(fft_size)
     peaks = scipy.signal.find_peaks(y_fft_abs, threshold=fft_size * 0.1)[0]
-    peaks_freqs = [fft_freqs[p] / norm * tau for p in peaks]
+    peaks_freqs = [fft_freqs[p] / norm * tau / ups_spacing for p in peaks]
     peaks_freqs.sort()
 
     print([p + offset for p in peaks_freqs])
