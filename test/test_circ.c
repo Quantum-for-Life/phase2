@@ -13,29 +13,29 @@ struct mock_circ_data {
 	int values[4];
 };
 
-int mock_reset(struct circ *c) {
-	struct mock_circ_data *dat = c->data;
+int mock_reset(struct circ* c) {
+	struct mock_circ_data* dat = c->data;
 	dat->values[dat->index++] = 111;
 
 	return CIRC_OK;
 }
 
-int mock_state_prep(struct circ *c) {
-	struct mock_circ_data *dat = c->data;
+int mock_state_prep(struct circ* c) {
+	struct mock_circ_data* dat = c->data;
 	dat->values[dat->index++] = 222;
 
 	return CIRC_OK;
 }
 
-int mock_routine(struct circ *c) {
-	struct mock_circ_data *dat = c->data;
+int mock_routine(struct circ* c) {
+	struct mock_circ_data* dat = c->data;
 	dat->values[dat->index++] = 333;
 
 	return CIRC_OK;
 }
 
-int mock_state_post(struct circ *c) {
-	struct mock_circ_data *dat = c->data;
+int mock_state_post(struct circ* c) {
+	struct mock_circ_data* dat = c->data;
 	dat->values[dat->index++] = 444;
 
 	return CIRC_OK;
