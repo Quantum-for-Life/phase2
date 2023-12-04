@@ -63,7 +63,8 @@ module load openmpi
 
 Make sure you've got the read access
 to [https://github.com/Quantum-for-Life](https://github.com/Quantum-for-Life)
-and you are able to clone the repositories via HTTPS. The easiest way to do it is to
+and you are able to clone the repositories via HTTPS. The easiest way to do it
+is to
 first install [GitHub CLI](https://cli.github.com/):
 
 ```bash
@@ -113,9 +114,8 @@ make
 Run the test suite by typing:
 
 ```bash
-cd rust
-cargo test --all
-cargo run --release --package ph2test
+cmake -DBUILD_TESTING=ON ..
+make && ctest -V
 ```
 
 # How to use it

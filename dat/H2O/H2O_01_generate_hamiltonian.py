@@ -78,7 +78,7 @@ def main():
     identity_index = None
     for i,(label, coeff) in enumerate(qubit_op.to_list()):
         if label == num_qubits * "I":
-            offset = coeff
+            offset = coeff.real
             identity_index = i
             break
 

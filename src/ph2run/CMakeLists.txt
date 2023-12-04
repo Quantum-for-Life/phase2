@@ -9,6 +9,6 @@ target_link_libraries(ph2run
         QuEST m
 )
 target_include_directories(ph2run PRIVATE
-        ${CIRC_INCLUDE_DIRS}
+        ${PHASE2_INCLUDE_DIRS}
         ${LOG_INCLUDE_DIRS}
 )
