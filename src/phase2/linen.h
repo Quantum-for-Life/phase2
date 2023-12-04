@@ -9,15 +9,15 @@
 #define LINEN_DEFAULT_NUM_ANC_QB 4
 
 struct linen_circuit_data {
-        int state_prep_value;
-        int routine_value;
-        int state_post_value;
+	int state_prep_value;
+	int routine_value;
+	int state_post_value;
 };
 
 struct linen_circ_data {
-        int state_prep_value;
-        int routine_value;
-        int state_post_value;
+	int state_prep_value;
+	int routine_value;
+	int state_post_value;
 };
 
 void linen_circuit_init(struct circuit *ct, struct linen_circuit_data *ct_dat);
