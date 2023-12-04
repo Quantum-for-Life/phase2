@@ -4,9 +4,9 @@
 #include "data.h"
 
 #define RAYON_NAME "rayon"
-#define RAYON_DEFAULT_NUM_MEA_QB 1
-//#define RAYON_DEFAULT_NUM_SYS_QB 8
-#define RAYON_DEFAULT_NUM_ANC_QB 0
+#define RAYON_DEFAULT_NUM_MEA_QB (1)
+//#define RAYON_DEFAULT_NUM_SYS_QB (8)
+#define RAYON_DEFAULT_NUM_ANC_QB (0)
 
 struct rayon_data_hamil {
 	size_t num_qubits;
