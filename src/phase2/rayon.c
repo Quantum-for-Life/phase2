@@ -71,7 +71,7 @@ int rayon_state_post(struct circ *c)
 	const Qureg *qureg = c->qureg;
 	if (d->imag_switch == 1) {
 		sGate(*qureg, c->mea_qb[0]);
-		pauliZ(*qureg, c->mea_qb[0]);
+		// pauliZ(*qureg, c->mea_qb[0]);
 	}
 	hadamard(*qureg, c->mea_qb[0]);
 

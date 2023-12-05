@@ -40,15 +40,8 @@ void circ_env_report(struct circ_env const *env)
 
 static void init_circ_indices(struct circ *c)
 {
-	for (size_t i = 0; i < c->ct->num_mea_qb; i++) {
-		// c->mea_cl[i] = 0;
+	for (size_t i = 0; i < ct_num_tot_qb(c->ct); i++) {
 		c->mea_qb[i] = i;
-	}
-	for (size_t i = 0; i < c->ct->num_sys_qb; i++) {
-		c->sys_qb[i] = c->ct->num_mea_qb + i;
-	}
-	for (size_t i = 0; i < c->ct->num_anc_qb; i++) {
-		c->anc_qb[i] = c->ct->num_mea_qb + c->ct->num_sys_qb + i;
 	}
 }
 
@@ -70,8 +63,6 @@ int circ_init(struct circ *c, struct circ_env *env, struct circuit *ct,
 	int *mea_cl = malloc(sizeof(int) * ct->num_mea_qb);
 	double *mea_cl_prob = malloc(sizeof(double) * ct->num_mea_qb);
 	int *qb = malloc(sizeof(int) * ct_num_tot_qb(ct));
-	// int *sys_qb = malloc(sizeof(int) * ct->num_sys_qb);
-	// int *anc_qb = malloc(sizeof(int) * ct->num_anc_qb);
 	if (!(mea_cl && mea_cl_prob && qb)) {
 		free(qb);
 		free(mea_cl_prob);

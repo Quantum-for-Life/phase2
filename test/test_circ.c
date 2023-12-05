@@ -1,3 +1,6 @@
+/* A mock-up circuit for testing.
+ *
+ */
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -17,6 +20,7 @@ struct mock_circ_data {
 int mock_reset(const struct circ *c)
 {
 	struct mock_circ_data *dat = c->data;
+	dat->index = 0;
 	dat->reset_val = 777;
 
 	return 0;
@@ -112,6 +116,7 @@ TEST(mock_circ_suite, void)
 	TEST_CASE(mock_circ_init(&env, &MOCK_CIRCUIT))
 	TEST_CASE(mock_circ_reset(&env, &MOCK_CIRCUIT))
 	TEST_CASE(mock_circ_simulate(&env, &MOCK_CIRCUIT))
+	TEST_CASE(mock_circ_simulate(&env, &MOCK_CIRCUIT))
 
 	TEST_FINALIZE
 	circ_env_destroy(&env);
@@ -120,5 +125,9 @@ TEST_END
 
 int main(void)
 {
-	return mock_circ_suite();
+	int rc = 0;
+
+	rc |= mock_circ_suite();
+
+	return rc;
 }
