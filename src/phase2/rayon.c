@@ -87,40 +87,38 @@ int rayon_multidet_from_data(struct rayon_data_multidet *md,
 		return -1;
 
 	for (size_t i = 0; i < dat_md->num_terms; i++) {
-		md->dets[i].coeff_real = dat_md->coeffs[2 * i];
-		md->dets[i].coeff_imag = dat_md->coeffs[2 * i + 1];
+		md->dets[i].coeff_re = dat_md->coeffs[2 * i];
+		md->dets[i].coeff_im = dat_md->coeffs[2 * i + 1];
+		const unsigned char *det_seq =
+			dat_md->dets + dat_md->num_qubits * i;
 		long long index = 0;
 		for (size_t j = 0; j < dat_md->num_qubits; j++) {
-			long long bit =
-				dat_md->dets[i * dat_md->num_qubits + j] == 0 ?
-					0 :
-					1;
-			index += bit << j;
+			index += det_seq[j] << j;
 		}
-		md->dets[i].det = index;
+		md->dets[i].index = index;
 	}
 	md->num_dets = dat_md->num_terms;
 
 	return 0;
 }
 
-void rayon_data_init(struct rayon_data *ct_dat)
+void rayon_data_init(struct rayon_data *rd)
 {
-	rayon_hamil_init(&ct_dat->hamil);
-	rayon_multidet_init(&ct_dat->multidet);
+	rayon_hamil_init(&rd->hamil);
+	rayon_multidet_init(&rd->multidet);
 }
 
-void rayon_data_destroy(struct rayon_data *ct_dat)
+void rayon_data_destroy(struct rayon_data *rd)
 {
-	rayon_multidet_destroy(&ct_dat->multidet);
-	rayon_hamil_destroy(&ct_dat->hamil);
+	rayon_multidet_destroy(&rd->multidet);
+	rayon_hamil_destroy(&rd->hamil);
 }
 
-int rayon_data_from_data(struct rayon_data *ct_dat, const struct data *dat)
+int rayon_data_from_data(struct rayon_data *rd, const struct data *dat)
 {
-	if (rayon_hamil_from_data(&ct_dat->hamil, &dat->pauli_hamil) < 0)
+	if (rayon_hamil_from_data(&rd->hamil, &dat->pauli_hamil) < 0)
 		return -1;
-	if (rayon_multidet_from_data(&ct_dat->multidet,
+	if (rayon_multidet_from_data(&rd->multidet,
 				     &dat->state_prep.multidet) < 0)
 		return -1;
 
@@ -135,9 +133,10 @@ int rayon_prepst(struct circ *c)
 
 	initBlankState(*qureg);
 	for (size_t i = 0; i < md->num_dets; i++) {
-		long long start_idx = md->dets[i].det << c->ct->num_mea_qb;
-		double real = md->dets[i].coeff_real;
-		double imag = md->dets[i].coeff_imag;
+		const long long start_idx = md->dets[i].index
+					    << c->ct->num_mea_qb;
+		double real = md->dets[i].coeff_re;
+		double imag = md->dets[i].coeff_im;
 		setAmps(*qureg, start_idx, &real, &imag, 1);
 	}
 	hadamard(*qureg, c->mea_qb[0]);
@@ -151,9 +150,7 @@ static void trotter_step(struct circ *c, double omega)
 	const struct rayon_data_hamil *hamil =
 		&((struct rayon_data *)c->ct->data)->hamil;
 	enum pauliOpType *paulis = (enum pauliOpType *)hamil->paulis;
-	int num_mea_qb = (int)c->ct->num_mea_qb;
-	int num_sys_qb = (int)c->ct->num_sys_qb;
-
+	const int num_sys_qb = (int)c->ct->num_sys_qb;
 	for (size_t i = 0; i < hamil->num_terms; i++) {
 		/* *
 		 * multiControlledMultiRotatePauli() below applies minus
@@ -163,8 +160,8 @@ static void trotter_step(struct circ *c, double omega)
 		 * of the expectation value.
 		 */
 		double angle = 2.0 * omega * hamil->coeffs[i];
-		multiControlledMultiRotatePauli(*qureg, c->mea_qb, num_mea_qb,
-						c->sys_qb,
+		multiControlledMultiRotatePauli(*qureg, c->mea_qb,
+						c->ct->num_mea_qb, c->sys_qb,
 						paulis + num_sys_qb * i,
 						num_sys_qb, angle);
 	}
@@ -190,21 +187,22 @@ int rayon_measure(struct circ *c)
 {
 	struct rayon_circ_data *d = c->data;
 	const Qureg *qureg = c->qureg;
+	const int mea_qb_idx = c->mea_qb[0];
 
-	hadamard(*qureg, c->mea_qb[0]);
-	d->prob0_re = calcProbOfOutcome(*qureg, c->mea_qb[0], 0);
+	hadamard(*qureg, mea_qb_idx);
+	d->prob0_re = calcProbOfOutcome(*qureg, mea_qb_idx, 0);
 
 	/* Revert the H gate */
-	hadamard(*qureg, c->mea_qb[0]);
+	hadamard(*qureg, mea_qb_idx);
 	/**
 	 * To obtain the correct sign of the imaginary part of the
 	 * expectation value, the gate effected here should be
 	 * `S^{\dagger}`.  We use `sGate()` function and change the
 	 * sign of the angle argument in `rayon_effect()` instead.
 	 */
-	sGate(*qureg, c->mea_qb[0]);
-	hadamard(*qureg, c->mea_qb[0]);
-	d->prob0_im = calcProbOfOutcome(*qureg, c->mea_qb[0], 0);
+	sGate(*qureg, mea_qb_idx);
+	hadamard(*qureg, mea_qb_idx);
+	d->prob0_im = calcProbOfOutcome(*qureg, mea_qb_idx, 0);
 
 	return 0;
 }
@@ -213,9 +211,9 @@ void rayon_circuit_init(struct circuit *ct, const struct rayon_data *ct_dat)
 {
 	ct->name = RAYON_NAME;
 	ct->data = (void *)ct_dat;
-	ct->num_mea_qb = RAYON_DEFAULT_NUM_MEA_QB;
+	ct->num_mea_qb = RAYON_NUM_MEA_QB;
 	ct->num_sys_qb = ct_dat->hamil.num_qubits;
-	ct->num_anc_qb = RAYON_DEFAULT_NUM_ANC_QB;
+	ct->num_anc_qb = RAYON_NUM_ANC_QB;
 	ct->reset = NULL;
 	ct->prepst = rayon_prepst;
 	ct->effect = rayon_effect;
@@ -227,13 +225,13 @@ static void rayon_circuit_destroy(struct circuit *ct)
 	(void)(ct);
 }
 
-int rayon_simulate(struct circ_env *env, const struct rayon_data *ct_dat,
+int rayon_simulate(struct circ_env *env, const struct rayon_data *rd,
 		   const struct data_time_series *dat_ts)
 {
-	int rc = 0;
+	int ret = 0;
 
 	struct circuit ct;
-	rayon_circuit_init(&ct, ct_dat);
+	rayon_circuit_init(&ct, rd);
 
 	struct circ c;
 	struct rayon_circ_data cdat;
@@ -250,10 +248,10 @@ int rayon_simulate(struct circ_env *env, const struct rayon_data *ct_dat,
 
 	goto exit;
 error:
-	rc = -1;
+	ret = -1;
 exit:
 	circ_destroy(&c);
 	rayon_circuit_destroy(&ct);
 
-	return rc;
+	return ret;
 }
