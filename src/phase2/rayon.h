@@ -9,8 +9,6 @@
 
 typedef unsigned long pauli_pak_t;
 
-const int a = sizeof(unsigned);
-
 struct rayon_data_hamil {
 	size_t num_qubits;
 	size_t num_terms;
@@ -49,7 +47,7 @@ void rayon_data_destroy(struct rayon_data *rd);
 int rayon_data_from_data(struct rayon_data *rd, const struct data *dat);
 
 void rayon_data_write_times(struct data_time_series *dat,
-			    struct rayon_data_times *rt);
+			    const struct rayon_data_times *rt);
 
 int rayon_simulate(struct circ_env *env, struct rayon_data *rd);
 

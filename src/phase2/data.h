@@ -19,13 +19,6 @@
 
 typedef int64_t data_id; // This is the same as HDF5's hid_t
 
-enum data_result {
-	// Unspecified error
-	DATA_ERR = -1,
-	// Success
-	DATA_OK = 0,
-};
-
 struct data_state_prep_multidet {
 	size_t num_qubits;
 	size_t num_terms;

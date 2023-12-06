@@ -55,12 +55,12 @@ void data_state_prep_multidet_destroy(struct data_state_prep_multidet *dat)
 int data_state_prep_multidet_parse(struct data_state_prep_multidet *dat,
 				   data_id obj_id)
 {
-	int res = DATA_OK;
+	int res = 0;
 
 	const hid_t dset_coeffs_id =
 		H5Dopen2(obj_id, DATA_STATE_PREP_MULTIDET_COEFFS, H5P_DEFAULT);
 	if (dset_coeffs_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto dset_coeffs_fail;
 	}
 	const hid_t dspace_coeffs_id = H5Dget_space(dset_coeffs_id);
@@ -69,20 +69,20 @@ int data_state_prep_multidet_parse(struct data_state_prep_multidet *dat,
 	const size_t num_terms = dspace_coeffs_dims[0];
 	double *coeffs = malloc(sizeof(*coeffs) * num_terms * 2);
 	if (!coeffs) {
-		res = DATA_ERR;
+		res = -1;
 		goto coeffs_alloc_fail;
 	}
 	if (H5Dread(dset_coeffs_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL,
 		    H5P_DEFAULT, coeffs) < 0) {
 		free(coeffs);
 		coeffs = NULL;
-		res = DATA_ERR;
+		res = -1;
 	}
 
 	const hid_t dset_dets_id =
 		H5Dopen2(obj_id, DATA_STATE_PREP_MULTIDET_DETS, H5P_DEFAULT);
 	if (dset_dets_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto dset_dets_fail;
 	}
 	const hid_t dspace_dets_id = H5Dget_space(dset_dets_id);
@@ -93,14 +93,14 @@ int data_state_prep_multidet_parse(struct data_state_prep_multidet *dat,
 	const size_t num_qubits = dspace_dets_dims[1];
 	unsigned char *dets = malloc(sizeof(*dets) * num_terms * num_qubits);
 	if (!dets) {
-		res = DATA_ERR;
+		res = -1;
 		goto dets_alloc_fail;
 	}
 	if (H5Dread(dset_dets_id, H5T_STD_U8LE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
 		    dets) < 0) {
 		free(dets);
 		dets = NULL;
-		res = DATA_ERR;
+		res = -1;
 	}
 
 	dat->num_qubits = num_qubits;
@@ -136,13 +136,13 @@ int data_state_prep_parse(struct data_state_prep *dat, data_id obj_id)
 	const hid_t multidet_id =
 		H5Gopen2(obj_id, DATA_STATE_PREP_MULTIDET, H5P_DEFAULT);
 	if (multidet_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto multidet_fail;
 	}
 	struct data_state_prep_multidet multidet;
 	data_state_prep_multidet_init(&multidet);
 	res = data_state_prep_multidet_parse(&multidet, multidet_id);
-	if (res != DATA_OK) {
+	if (res != 0) {
 		data_state_prep_multidet_destroy(&multidet);
 	}
 
@@ -176,12 +176,12 @@ void data_pauli_hamil_destroy(struct data_pauli_hamil *dat)
 
 int data_pauli_hamil_parse(struct data_pauli_hamil *dat, data_id obj_id)
 {
-	int res = DATA_OK;
+	int res = 0;
 
 	const hid_t dset_coeffs_id =
 		H5Dopen2(obj_id, DATA_PAULI_HAMIL_COEFFS, H5P_DEFAULT);
 	if (dset_coeffs_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto coeffs_fail;
 	}
 	const hid_t dspace_coeffs_id = H5Dget_space(dset_coeffs_id);
@@ -190,20 +190,20 @@ int data_pauli_hamil_parse(struct data_pauli_hamil *dat, data_id obj_id)
 	const size_t num_terms = dspace_coeffs_dims[0];
 	double *coeffs = malloc(sizeof(double) * num_terms);
 	if (!coeffs) {
-		res = DATA_ERR;
+		res = -1;
 		goto coeffs_alloc_fail;
 	}
 	if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
 		    H5P_DEFAULT, coeffs) < 0) {
 		free(coeffs);
 		coeffs = NULL;
-		res = DATA_ERR;
+		res = -1;
 	}
 
 	const hid_t dset_paulis_id =
 		H5Dopen2(obj_id, DATA_PAULI_HAMIL_PAULIS, H5P_DEFAULT);
 	if (dset_paulis_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto paulis_fail;
 	}
 	const hid_t dspace_paulis_id = H5Dget_space(dset_paulis_id);
@@ -214,7 +214,7 @@ int data_pauli_hamil_parse(struct data_pauli_hamil *dat, data_id obj_id)
 	unsigned char *paulis =
 		malloc(sizeof(unsigned char *) * num_terms * num_qubits);
 	if (!paulis) {
-		res = DATA_ERR;
+		res = -1;
 		goto paulis_alloc_fail;
 	}
 	H5Dread(dset_paulis_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL, H5P_DEFAULT,
@@ -223,7 +223,7 @@ int data_pauli_hamil_parse(struct data_pauli_hamil *dat, data_id obj_id)
 	const hid_t attr_norm_id =
 		H5Aopen(obj_id, DATA_PAULI_HAMIL_NORM, H5P_DEFAULT);
 	if (attr_norm_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto attr_norm_fail;
 	}
 	double norm;
@@ -270,12 +270,12 @@ void data_time_series_destroy(struct data_time_series *dat)
 
 int data_time_series_parse(struct data_time_series *dat, data_id obj_id)
 {
-	int res = DATA_OK;
+	int res = 0;
 
 	const hid_t dset_times_id =
 		H5Dopen2(obj_id, DATA_TIME_SERIES_TIMES, H5P_DEFAULT);
 	if (dset_times_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto times_fail;
 	}
 	const hid_t dspace_times_id = H5Dget_space(dset_times_id);
@@ -284,7 +284,7 @@ int data_time_series_parse(struct data_time_series *dat, data_id obj_id)
 	const size_t num_steps = dspace_times_dims[0];
 	double *times = malloc(sizeof(double) * num_steps);
 	if (times == NULL) {
-		res = DATA_ERR;
+		res = -1;
 		goto times_alloc_fail;
 	}
 	H5Dread(dset_times_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
@@ -293,7 +293,7 @@ int data_time_series_parse(struct data_time_series *dat, data_id obj_id)
 	const hid_t dset_values_id =
 		H5Dopen2(obj_id, DATA_TIME_SERIES_VALUES, H5P_DEFAULT);
 	if (dset_values_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto values_fail;
 	}
 	const hid_t dspace_values_id = H5Dget_space(dset_values_id);
@@ -301,7 +301,7 @@ int data_time_series_parse(struct data_time_series *dat, data_id obj_id)
 	H5Sget_simple_extent_dims(dspace_values_id, dspace_values_dims, NULL);
 	double *values = malloc(sizeof(double) * num_steps * 2);
 	if (values == NULL) {
-		res = DATA_ERR;
+		res = -1;
 		goto values_alloc_fail;
 	}
 	H5Dread(dset_values_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
@@ -324,34 +324,34 @@ times_fail:
 
 int data_time_series_write(const hid_t fid, const struct data_time_series *dat)
 {
-	int res = DATA_OK;
+	int res = 0;
 
 	const hid_t grp_id = H5Gopen2(fid, DATA_TIME_SERIES, H5P_DEFAULT);
 	if (grp_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto grp_fail;
 	}
 	const hid_t dset_times_id =
 		H5Dopen2(grp_id, DATA_TIME_SERIES_TIMES, H5P_DEFAULT);
 	if (dset_times_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto dset_times_fail;
 	}
 	if (H5Dwrite(dset_times_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
 		     H5P_DEFAULT, dat->times) < 0) {
-		res = DATA_ERR;
+		res = -1;
 	}
 	H5Dclose(dset_times_id);
 
 	const hid_t dset_values_id =
 		H5Dopen2(grp_id, DATA_TIME_SERIES_VALUES, H5P_DEFAULT);
 	if (dset_values_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto dset_values_fail;
 	}
 	if (H5Dwrite(dset_values_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
 		     H5P_DEFAULT, dat->values) < 0) {
-		res = DATA_ERR;
+		res = -1;
 	}
 	H5Dclose(dset_values_id);
 
@@ -380,39 +380,39 @@ int data_parse(struct data *dat, data_id fid)
 
 	const hid_t state_prep_id = H5Gopen2(fid, DATA_STATE_PREP, H5P_DEFAULT);
 	if (state_prep_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto state_prep_fail;
 	}
 	struct data_state_prep state_prep;
 	data_state_prep_init(&state_prep);
 	res = data_state_prep_parse(&state_prep, state_prep_id);
-	if (res != DATA_OK) {
+	if (res != 0) {
 		data_state_prep_destroy(&state_prep);
 	}
 
 	const hid_t pauli_hamil_id =
 		H5Gopen2(fid, DATA_PAULI_HAMIL, H5P_DEFAULT);
 	if (pauli_hamil_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto pauli_hamil_fail;
 	}
 	struct data_pauli_hamil pauli_hamil;
 	data_pauli_hamil_init(&pauli_hamil);
 	res = data_pauli_hamil_parse(&pauli_hamil, pauli_hamil_id);
-	if (res != DATA_OK) {
+	if (res != 0) {
 		data_pauli_hamil_destroy(&pauli_hamil);
 	}
 
 	const hid_t time_series_id =
 		H5Gopen2(fid, DATA_TIME_SERIES, H5P_DEFAULT);
 	if (time_series_id == H5I_INVALID_HID) {
-		res = DATA_ERR;
+		res = -1;
 		goto time_series_fail;
 	}
 	struct data_time_series time_series;
 	data_time_series_init(&time_series);
 	res = data_time_series_parse(&time_series, time_series_id);
-	if (res != DATA_OK) {
+	if (res != 0) {
 		data_time_series_destroy(&time_series);
 	}
 

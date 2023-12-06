@@ -150,7 +150,7 @@ int rayon_times_from_data(struct rayon_data_times *ts,
 }
 
 void rayon_data_write_times(struct data_time_series *dat,
-			    struct rayon_data_times *rt)
+			    const struct rayon_data_times *rt)
 {
 	for (size_t i = 0; i < rt->num_steps; i++) {
 		dat->values[2 * i] = rt->steps[i].val_re;

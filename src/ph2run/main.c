@@ -122,7 +122,7 @@ int main(const int argc, char **argv)
 
 	struct data dat;
 	data_init(&dat);
-	if (data_parse(&dat, fid) != DATA_OK) {
+	if (data_parse(&dat, fid) != 0) {
 		exit_failure("read data file");
 	}
 	data_file_close(fid);
