@@ -144,11 +144,12 @@ int main(const int argc, char **argv)
 		sucess = linen_simulate(&env) == 0;
 	} else if (strncmp(argv[1], "rayon", 5) == 0) {
 		log_info("Circuit: rayon");
-		struct rayon_data ct_dat;
-		rayon_data_init(&ct_dat);
-		rayon_data_from_data(&ct_dat, &dat);
-		sucess = rayon_simulate(&env, &ct_dat, &dat.time_series) == 0;
-		rayon_data_destroy(&ct_dat);
+		struct rayon_data rd;
+		rayon_data_init(&rd);
+		rayon_data_from_data(&rd, &dat);
+		sucess = rayon_simulate(&env, &rd) == 0;
+		rayon_data_write_times(&dat.time_series, &rd.times);
+		rayon_data_destroy(&rd);
 
 	} else {
 		log_error("No circ named %s", argv[1]);

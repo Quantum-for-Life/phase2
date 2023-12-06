@@ -4,6 +4,8 @@
 #include "rayon.h"
 #include "data.h"
 
+#include <stdio.h>
+
 #define MARGIN (0.005)
 #define DATA_FILE DATA_DIR "/case-rand/case-6669b85f.h5"
 
@@ -32,23 +34,30 @@ int main(void)
 		struct circ_env env;
 		circ_env_init(&env);
 		{
-			struct rayon_data ct_dat;
-			rayon_data_init(&ct_dat);
-			rayon_data_from_data(&ct_dat, &dat);
-			rayon_simulate(&env, &ct_dat, &dat.time_series);
-			rayon_data_destroy(&ct_dat);
+			struct rayon_data rd;
+			rayon_data_init(&rd);
+			rayon_data_from_data(&rd, &dat);
+			rayon_simulate(&env, &rd);
+			rayon_data_write_times(&dat.time_series, &rd.times);
+			rayon_data_destroy(&rd);
 		}
 		circ_env_destroy(&env);
 	}
 
 	for (size_t i = 0; i < dat.time_series.num_steps; i++) {
-		double diff =
-			fabs(dat.time_series.values[2 * i] - ref_values[i][0]);
+		double val;
+		val = dat.time_series.values[2 * i];
+		if (isnan(val))
+			return -1;
+
+		double diff = fabs(val - ref_values[i][0]);
 		if (diff > MARGIN)
 			return -1;
 
-		diff = fabs(dat.time_series.values[2 * i + 1] -
-			    ref_values[i][1]);
+		val = dat.time_series.values[2 * i + 1];
+		if (isnan(val))
+			return -1;
+		diff = fabs(val - ref_values[i][1]);
 		if (diff > MARGIN)
 			return -1;
 	}

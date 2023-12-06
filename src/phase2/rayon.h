@@ -23,9 +23,19 @@ struct rayon_data_multidet {
 	} *dets;
 };
 
+struct rayon_data_times {
+	size_t num_steps;
+	struct {
+		double t;
+		double val_re;
+		double val_im;
+	} *steps;
+};
+
 struct rayon_data {
 	struct rayon_data_hamil hamil;
 	struct rayon_data_multidet multidet;
+	struct rayon_data_times times;
 };
 
 void rayon_data_init(struct rayon_data *rd);
@@ -34,7 +44,9 @@ void rayon_data_destroy(struct rayon_data *rd);
 
 int rayon_data_from_data(struct rayon_data *rd, const struct data *dat);
 
-int rayon_simulate(struct circ_env *env, const struct rayon_data *rd,
-		   const struct data_time_series *dat_ts);
+void rayon_data_write_times(struct data_time_series *dat,
+			    struct rayon_data_times *rt);
+
+int rayon_simulate(struct circ_env *env, struct rayon_data *rd);
 
 #endif //PHASE2_RAYON_H

@@ -12,8 +12,8 @@
 #include "circ.h"
 #include "rayon.h"
 
-struct rayon_circ_data {
-	double time;
+struct circ_data {
+	double t;
 	double prob0_re;
 	double prob0_im;
 };
@@ -102,27 +102,70 @@ int rayon_multidet_from_data(struct rayon_data_multidet *md,
 	return 0;
 }
 
+void rayon_times_init(struct rayon_data_times *ts)
+{
+	ts->num_steps = 0;
+	ts->steps = NULL;
+}
+
+void rayon_times_destroy(struct rayon_data_times *ts)
+{
+	if (ts->steps) {
+		free(ts->steps);
+		ts->steps = NULL;
+	}
+	ts->num_steps = 0;
+}
+
+int rayon_times_from_data(struct rayon_data_times *ts,
+			  const struct data_time_series *dat_ts)
+{
+	ts->steps = malloc(sizeof(*ts->steps) * dat_ts->num_steps);
+	if (!(ts->steps))
+		return -1;
+
+	for (size_t i = 0; i < dat_ts->num_steps; i++) {
+		ts->steps[i].t = dat_ts->times[i];
+		ts->steps[i].val_re = dat_ts->values[2 * i];
+		ts->steps[i].val_im = dat_ts->values[2 * i + 1];
+	}
+	ts->num_steps = dat_ts->num_steps;
+
+	return 0;
+}
+
+void rayon_data_write_times(struct data_time_series *dat,
+			    struct rayon_data_times *rt)
+{
+	for (size_t i = 0; i < rt->num_steps; i++) {
+		dat->values[2 * i] = rt->steps[i].val_re;
+		dat->values[2 * i + 1] = rt->steps[i].val_im;
+	}
+}
+
 void rayon_data_init(struct rayon_data *rd)
 {
 	rayon_hamil_init(&rd->hamil);
 	rayon_multidet_init(&rd->multidet);
+	rayon_times_init(&rd->times);
 }
 
 void rayon_data_destroy(struct rayon_data *rd)
 {
+	rayon_times_destroy(&rd->times);
 	rayon_multidet_destroy(&rd->multidet);
 	rayon_hamil_destroy(&rd->hamil);
 }
 
 int rayon_data_from_data(struct rayon_data *rd, const struct data *dat)
 {
-	if (rayon_hamil_from_data(&rd->hamil, &dat->pauli_hamil) < 0)
-		return -1;
-	if (rayon_multidet_from_data(&rd->multidet,
-				     &dat->state_prep.multidet) < 0)
-		return -1;
+	int rc = 0;
+	rc |= rayon_hamil_from_data(&rd->hamil, &dat->pauli_hamil);
+	rc |= rayon_multidet_from_data(&rd->multidet,
+				       &dat->state_prep.multidet);
+	rc |= rayon_times_from_data(&rd->times, &dat->time_series);
 
-	return 0;
+	return rc;
 }
 
 int rayon_prepst(struct circ *c)
@@ -159,7 +202,7 @@ static void trotter_step(struct circ *c, double omega)
 		 * of the S gate) gives the correct sign of the imaginary part
 		 * of the expectation value.
 		 */
-		double angle = 2.0 * omega * hamil->coeffs[i];
+		const double angle = 2.0 * omega * hamil->coeffs[i];
 		multiControlledMultiRotatePauli(*qureg, c->mea_qb,
 						c->ct->num_mea_qb, c->sys_qb,
 						paulis + num_sys_qb * i,
@@ -169,8 +212,8 @@ static void trotter_step(struct circ *c, double omega)
 
 int rayon_effect(struct circ *c)
 {
-	double t = ((struct rayon_circ_data *)c->data)->time;
-	if (isnan(t) || isinf(t))
+	double t = ((struct circ_data *)c->data)->t;
+	if (isnan(t))
 		return -1;
 	if (fabs(t) < DBL_EPSILON)
 		return 0;
@@ -185,7 +228,7 @@ int rayon_effect(struct circ *c)
 
 int rayon_measure(struct circ *c)
 {
-	struct rayon_circ_data *d = c->data;
+	struct circ_data *d = c->data;
 	const Qureg *qureg = c->qureg;
 	const int mea_qb_idx = c->mea_qb[0];
 
@@ -225,8 +268,7 @@ static void rayon_circuit_destroy(struct circuit *ct)
 	(void)(ct);
 }
 
-int rayon_simulate(struct circ_env *env, const struct rayon_data *rd,
-		   const struct data_time_series *dat_ts)
+int rayon_simulate(struct circ_env *env, struct rayon_data *rd)
 {
 	int ret = 0;
 
@@ -234,16 +276,17 @@ int rayon_simulate(struct circ_env *env, const struct rayon_data *rd,
 	rayon_circuit_init(&ct, rd);
 
 	struct circ c;
-	struct rayon_circ_data cdat;
+	struct circ_data cdat;
 	if (circ_init(&c, env, &ct, &cdat) < 0)
 		goto error;
-	for (size_t i = 0; i < dat_ts->num_steps; i++) {
-		cdat.time = dat_ts->times[i];
+	struct rayon_data_times *ts = &rd->times;
+	for (size_t i = 0; i < ts->num_steps; i++) {
+		cdat.t = ts->steps[i].t;
 		if (circ_simulate(&c) < 0)
 			goto error;
 
-		dat_ts->values[2 * i] = 2.0 * cdat.prob0_re - 1.0;
-		dat_ts->values[2 * i + 1] = 2.0 * cdat.prob0_im - 1.0;
+		ts->steps[i].val_re = 2.0 * cdat.prob0_re - 1.0;
+		ts->steps[i].val_im = 2.0 * cdat.prob0_im - 1.0;
 	}
 
 	goto exit;
