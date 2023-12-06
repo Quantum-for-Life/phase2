@@ -18,8 +18,6 @@ To prepare input for the simulation and to run the test suite:
 - Python >= 3.10 and a virtual environment with several packages installed
   locally (see [README.md](./python/README.md) in the `python/` subsystem for
   more details.
-- Rust [nightly toolchain][rust-nightly] (see [README.md](./rust/README.md) in
-  `rust/` for more info).
 
 Assuming we're on Ubuntu, you can install the dependencies in one go:
 
@@ -28,11 +26,6 @@ sudo apt install gcc g++ cmake
 sudo apt install libhdf5-dev hdf5-tools
 
 sudo apt install python3 python3-dev python3-venv
-
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source ${HOME}/.cargo/env
-rustup toolchain install nightly
-rustup default nightly
 ```
 
 and optionally:
@@ -56,8 +49,6 @@ module load openmpi
 [hdf5-website]: https://www.hdfgroup.org/solutions/hdf5/
 
 [openmpi-website]: https://www.open-mpi.org/
-
-[rust-nightly]: (https://rust-lang.github.io/rustup/concepts/channels.html)
 
 ## Getting the sources
 
