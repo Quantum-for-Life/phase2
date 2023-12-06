@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.9.0)
 project(phase2 VERSION 0.1.0 LANGUAGES C)
 
+add_compile_options(-Wall -Wextra -Wpedantic -march=native)
+
 option(DISTRIBUTED "enable distributed mode (MPI)" OFF)
 if (DISTRIBUTED)
     message(STATUS "MPI mode enabled")

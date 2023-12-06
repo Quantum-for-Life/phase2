@@ -1,7 +1,3 @@
-set(CMAKE_C_FLAGS "-Wall -Wextra -Werror")
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror")
-
-
 set(TEST_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
 
 link_libraries(phase2)
