@@ -1,17 +1,23 @@
 #ifndef PHASE2_RAYON_H
 #define PHASE2_RAYON_H
 
+#include <stdint.h>
+
 #include "data.h"
 
 #define RAYON_NAME "rayon"
 #define RAYON_NUM_MEA_QB (1)
 #define RAYON_NUM_ANC_QB (0)
 
+typedef unsigned long pauli_pak_t;
+
+const int a = sizeof(unsigned);
+
 struct rayon_data_hamil {
 	size_t num_qubits;
 	size_t num_terms;
 	double *coeffs;
-	int *paulis;
+	pauli_pak_t *pak;
 };
 
 struct rayon_data_multidet {

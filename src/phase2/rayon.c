@@ -1,4 +1,5 @@
 /** circ: rayon
+ *
  * Quantum phase estimation with Hadamard test.
  * Computes expectation value of `exp(i t H)` for a given initial state,
  * Hamiltonian and a sequence of times.
@@ -6,16 +7,22 @@
 
 #include <float.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "QuEST.h"
 
 #include "circ.h"
 #include "rayon.h"
 
+static const size_t PAULI_MASK = 3;
+static const size_t PAULI_WIDTH = 2;
+static const size_t PAULI_PAK_SIZE = sizeof(pauli_pak_t) * 8 / PAULI_WIDTH;
+
 struct circ_data {
 	double t;
 	double prob0_re;
 	double prob0_im;
+	enum pauliOpType scratch[64];
 };
 
 void rayon_hamil_init(struct rayon_data_hamil *hamil)
@@ -23,14 +30,14 @@ void rayon_hamil_init(struct rayon_data_hamil *hamil)
 	hamil->num_qubits = 0;
 	hamil->num_terms = 0;
 	hamil->coeffs = NULL;
-	hamil->paulis = NULL;
+	hamil->pak = NULL;
 }
 
 void rayon_hamil_destroy(struct rayon_data_hamil *hamil)
 {
-	if (hamil->paulis) {
-		free(hamil->paulis);
-		hamil->paulis = NULL;
+	if (hamil->pak) {
+		free(hamil->pak);
+		hamil->pak = NULL;
 	}
 	if (hamil->coeffs) {
 		free(hamil->coeffs);
@@ -44,22 +51,27 @@ int rayon_hamil_from_data(struct rayon_data_hamil *hamil,
 			  const struct data_pauli_hamil *dat_ph)
 {
 	double *coeffs = malloc(sizeof(*coeffs) * dat_ph->num_terms);
-	int *paulis = malloc(sizeof(*paulis) * dat_ph->num_terms *
-			     dat_ph->num_qubits);
+	pauli_pak_t *paulis = calloc(
+		dat_ph->num_terms * dat_ph->num_qubits / PAULI_PAK_SIZE + 1,
+		sizeof(pauli_pak_t));
 	if (!(coeffs && paulis))
 		return -1;
 
 	for (size_t i = 0; i < dat_ph->num_terms; i++) {
 		coeffs[i] = dat_ph->coeffs[i] * dat_ph->norm;
 		for (size_t j = 0; j < dat_ph->num_qubits; j++) {
-			paulis[i * dat_ph->num_qubits + j] =
-				dat_ph->paulis[i * dat_ph->num_qubits + j];
+			const size_t pauli_idx = i * dat_ph->num_qubits + j;
+			const size_t pack_idx = pauli_idx / PAULI_PAK_SIZE;
+			const size_t pack_offset =
+				PAULI_WIDTH * (pauli_idx % PAULI_PAK_SIZE);
+			const pauli_pak_t pauli = dat_ph->paulis[pauli_idx];
+			paulis[pack_idx] += pauli << pack_offset;
 		}
 	}
 	hamil->num_qubits = dat_ph->num_qubits;
 	hamil->num_terms = dat_ph->num_terms;
 	hamil->coeffs = coeffs;
-	hamil->paulis = paulis;
+	hamil->pak = paulis;
 
 	return 0;
 }
@@ -192,9 +204,18 @@ static void trotter_step(struct circ *c, double omega)
 	const Qureg *qureg = c->qureg;
 	const struct rayon_data_hamil *hamil =
 		&((struct rayon_data *)c->ct->data)->hamil;
-	enum pauliOpType *paulis = (enum pauliOpType *)hamil->paulis;
-	const int num_sys_qb = (int)c->ct->num_sys_qb;
+	struct circ_data *cdat = c->data;
+	enum pauliOpType *paulis = cdat->scratch;
+
 	for (size_t i = 0; i < hamil->num_terms; i++) {
+		for (size_t j = 0; j < hamil->num_qubits; j++) {
+			const size_t pauli_idx = i * hamil->num_qubits + j;
+			const size_t pack_idx = pauli_idx / PAULI_PAK_SIZE;
+			const size_t pack_offset =
+				PAULI_WIDTH * (pauli_idx % PAULI_PAK_SIZE);
+			paulis[j] = (hamil->pak[pack_idx] >> pack_offset) &
+				    PAULI_MASK;
+		}
 		/* *
 		 * multiControlledMultiRotatePauli() below applies minus
 		 * to the given angle.  That sign, together with `sGate` in
@@ -205,8 +226,8 @@ static void trotter_step(struct circ *c, double omega)
 		const double angle = 2.0 * omega * hamil->coeffs[i];
 		multiControlledMultiRotatePauli(*qureg, c->mea_qb,
 						c->ct->num_mea_qb, c->sys_qb,
-						paulis + num_sys_qb * i,
-						num_sys_qb, angle);
+						paulis, hamil->num_qubits,
+						angle);
 	}
 }
 
