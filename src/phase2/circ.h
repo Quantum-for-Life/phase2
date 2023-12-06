@@ -24,7 +24,6 @@ struct circ {
 	void *qureg;
 
 	int *mea_cl;
-	double *mea_cl_prob;
 	int *mea_qb;
 	int *sys_qb;
 	int *anc_qb;
@@ -40,11 +39,11 @@ struct circuit {
 
 	int (*reset)(struct circ *);
 
-	int (*state_prep)(struct circ *);
+	int (*prepst)(struct circ *);
 
-	int (*routine)(struct circ *);
+	int (*effect)(struct circ *);
 
-	int (*state_post)(struct circ *);
+	int (*measure)(struct circ *);
 };
 
 int circ_env_init(struct circ_env *env);

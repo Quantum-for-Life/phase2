@@ -18,89 +18,6 @@ struct rayon_circ_data {
 	double prob0_im;
 };
 
-int rayon_state_prep(struct circ *c)
-{
-	const Qureg *qureg = c->qureg;
-	const struct rayon_data_multidet *md =
-		&((struct rayon_data *)c->ct->data)->multidet;
-
-	initBlankState(*qureg);
-	for (size_t i = 0; i < md->num_dets; i++) {
-		long long start_idx = md->dets[i].det << c->ct->num_mea_qb;
-		double real = md->dets[i].coeff_real;
-		double imag = md->dets[i].coeff_imag;
-		setAmps(*qureg, start_idx, &real, &imag, 1);
-	}
-	hadamard(*qureg, c->mea_qb[0]);
-
-	return 0;
-}
-
-static void trotter_step(struct circ *c, double omega)
-{
-	const Qureg *qureg = c->qureg;
-	const struct rayon_data_hamil *hamil =
-		&((struct rayon_data *)c->ct->data)->hamil;
-	enum pauliOpType *paulis = (enum pauliOpType *)hamil->paulis;
-	int num_mea_qb = (int)c->ct->num_mea_qb;
-	int num_sys_qb = (int)c->ct->num_sys_qb;
-
-	for (size_t i = 0; i < hamil->num_terms; i++) {
-		/* *
-		 * multiControlledMultiRotatePauli() below applies minus
-		 * to the given angle.  That sign, together with `sGate` in
-		 * rayon_state_post()` below (instead of the Hermitian conjugate
-		 * of the S gate) gives the correct sign of the imaginary part
-		 * of the expectation value.
-		 */
-		double angle = 2.0 * omega * hamil->coeffs[i];
-		multiControlledMultiRotatePauli(*qureg, c->mea_qb, num_mea_qb,
-						c->sys_qb,
-						paulis + num_sys_qb * i,
-						num_sys_qb, angle);
-	}
-}
-
-int rayon_routine(struct circ *c)
-{
-	double t = ((struct rayon_circ_data *)c->data)->time;
-	if (isnan(t) || isinf(t))
-		return -1;
-	if (fabs(t) < DBL_EPSILON)
-		return 0;
-
-	const double REPS = t * t;
-	for (size_t r = 0; r < (size_t)REPS; r++) {
-		trotter_step(c, t / REPS);
-	}
-
-	return 0;
-}
-
-int rayon_state_post(struct circ *c)
-{
-	struct rayon_circ_data *d = c->data;
-	const Qureg *qureg = c->qureg;
-
-	hadamard(*qureg, c->mea_qb[0]);
-	d->prob0_re = calcProbOfOutcome(*qureg, c->mea_qb[0], 0);
-
-	/* Revert the H gate */
-	hadamard(*qureg, c->mea_qb[0]);
-	
-	/**
-	 * To obtain the correct sign of the imaginary part of the
-	 * expectation value, the gate effected here should be
-	 * `S^{\dagger}`.  We use `sGate()` function and change the
-	 * sign of the angle argument in `rayon_routine()` instead.
-	 */
-	sGate(*qureg, c->mea_qb[0]);
-	hadamard(*qureg, c->mea_qb[0]);
-	d->prob0_im = calcProbOfOutcome(*qureg, c->mea_qb[0], 0);
-
-	return 0;
-}
-
 void rayon_hamil_init(struct rayon_data_hamil *hamil)
 {
 	hamil->num_qubits = 0;
@@ -210,6 +127,88 @@ int rayon_data_from_data(struct rayon_data *ct_dat, const struct data *dat)
 	return 0;
 }
 
+int rayon_prepst(struct circ *c)
+{
+	const Qureg *qureg = c->qureg;
+	const struct rayon_data_multidet *md =
+		&((struct rayon_data *)c->ct->data)->multidet;
+
+	initBlankState(*qureg);
+	for (size_t i = 0; i < md->num_dets; i++) {
+		long long start_idx = md->dets[i].det << c->ct->num_mea_qb;
+		double real = md->dets[i].coeff_real;
+		double imag = md->dets[i].coeff_imag;
+		setAmps(*qureg, start_idx, &real, &imag, 1);
+	}
+	hadamard(*qureg, c->mea_qb[0]);
+
+	return 0;
+}
+
+static void trotter_step(struct circ *c, double omega)
+{
+	const Qureg *qureg = c->qureg;
+	const struct rayon_data_hamil *hamil =
+		&((struct rayon_data *)c->ct->data)->hamil;
+	enum pauliOpType *paulis = (enum pauliOpType *)hamil->paulis;
+	int num_mea_qb = (int)c->ct->num_mea_qb;
+	int num_sys_qb = (int)c->ct->num_sys_qb;
+
+	for (size_t i = 0; i < hamil->num_terms; i++) {
+		/* *
+		 * multiControlledMultiRotatePauli() below applies minus
+		 * to the given angle.  That sign, together with `sGate` in
+		 * rayon_measure()` below (instead of the Hermitian conjugate
+		 * of the S gate) gives the correct sign of the imaginary part
+		 * of the expectation value.
+		 */
+		double angle = 2.0 * omega * hamil->coeffs[i];
+		multiControlledMultiRotatePauli(*qureg, c->mea_qb, num_mea_qb,
+						c->sys_qb,
+						paulis + num_sys_qb * i,
+						num_sys_qb, angle);
+	}
+}
+
+int rayon_effect(struct circ *c)
+{
+	double t = ((struct rayon_circ_data *)c->data)->time;
+	if (isnan(t) || isinf(t))
+		return -1;
+	if (fabs(t) < DBL_EPSILON)
+		return 0;
+
+	const double REPS = t * t;
+	for (size_t r = 0; r < (size_t)REPS; r++) {
+		trotter_step(c, t / REPS);
+	}
+
+	return 0;
+}
+
+int rayon_measure(struct circ *c)
+{
+	struct rayon_circ_data *d = c->data;
+	const Qureg *qureg = c->qureg;
+
+	hadamard(*qureg, c->mea_qb[0]);
+	d->prob0_re = calcProbOfOutcome(*qureg, c->mea_qb[0], 0);
+
+	/* Revert the H gate */
+	hadamard(*qureg, c->mea_qb[0]);
+	/**
+	 * To obtain the correct sign of the imaginary part of the
+	 * expectation value, the gate effected here should be
+	 * `S^{\dagger}`.  We use `sGate()` function and change the
+	 * sign of the angle argument in `rayon_effect()` instead.
+	 */
+	sGate(*qureg, c->mea_qb[0]);
+	hadamard(*qureg, c->mea_qb[0]);
+	d->prob0_im = calcProbOfOutcome(*qureg, c->mea_qb[0], 0);
+
+	return 0;
+}
+
 void rayon_circuit_init(struct circuit *ct, const struct rayon_data *ct_dat)
 {
 	ct->name = RAYON_NAME;
@@ -218,9 +217,9 @@ void rayon_circuit_init(struct circuit *ct, const struct rayon_data *ct_dat)
 	ct->num_sys_qb = ct_dat->hamil.num_qubits;
 	ct->num_anc_qb = RAYON_DEFAULT_NUM_ANC_QB;
 	ct->reset = NULL;
-	ct->state_prep = rayon_state_prep;
-	ct->routine = rayon_routine;
-	ct->state_post = rayon_state_post;
+	ct->prepst = rayon_prepst;
+	ct->effect = rayon_effect;
+	ct->measure = rayon_measure;
 }
 
 static void rayon_circuit_destroy(struct circuit *ct)
@@ -228,36 +227,31 @@ static void rayon_circuit_destroy(struct circuit *ct)
 	(void)(ct);
 }
 
-int rayon_compute_expect(struct circ *c, const struct data_time_series *dat_ts)
-{
-	struct rayon_circ_data *cdat = c->data;
-	for (size_t i = 0; i < dat_ts->num_steps; i++) {
-		cdat->time = dat_ts->times[i];
-		if (circ_simulate(c) < 0)
-			return -1;
-
-		dat_ts->values[2 * i] = 2.0 * cdat->prob0_re - 1.0;
-		dat_ts->values[2 * i + 1] = 2.0 * cdat->prob0_im - 1.0;
-	}
-
-	return 0;
-}
-
 int rayon_simulate(struct circ_env *env, const struct rayon_data *ct_dat,
 		   const struct data_time_series *dat_ts)
 {
-	int rc;
+	int rc = 0;
 
 	struct circuit ct;
 	rayon_circuit_init(&ct, ct_dat);
 
-	struct rayon_circ_data cdat;
 	struct circ c;
-	rc = circ_init(&c, env, &ct, &cdat);
-	if (rc < 0)
-		goto cleanup;
-	rc = rayon_compute_expect(&c, dat_ts);
-cleanup:
+	struct rayon_circ_data cdat;
+	if (circ_init(&c, env, &ct, &cdat) < 0)
+		goto error;
+	for (size_t i = 0; i < dat_ts->num_steps; i++) {
+		cdat.time = dat_ts->times[i];
+		if (circ_simulate(&c) < 0)
+			goto error;
+
+		dat_ts->values[2 * i] = 2.0 * cdat.prob0_re - 1.0;
+		dat_ts->values[2 * i + 1] = 2.0 * cdat.prob0_im - 1.0;
+	}
+
+	goto exit;
+error:
+	rc = -1;
+exit:
 	circ_destroy(&c);
 	rayon_circuit_destroy(&ct);
 

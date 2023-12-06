@@ -141,7 +141,7 @@ int main(const int argc, char **argv)
 	int sucess;
 	if (strncmp(argv[1], "linen", 5) == 0) {
 		log_info("Circuit: linen");
-		sucess = linen_simulate(env) == 0;
+		sucess = linen_simulate(&env) == 0;
 	} else if (strncmp(argv[1], "rayon", 5) == 0) {
 		log_info("Circuit: rayon");
 		struct rayon_data ct_dat;

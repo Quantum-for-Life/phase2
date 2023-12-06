@@ -9,19 +9,19 @@
 #define LINEN_DEFAULT_NUM_ANC_QB (4)
 
 struct linen_circuit_data {
-	int state_prep_value;
-	int routine_value;
-	int state_post_value;
+	int val_prepst;
+	int val_effect;
+	int val_measure;
 };
 
 struct linen_circ_data {
-	int state_prep_value;
-	int routine_value;
-	int state_post_value;
+	int pass_prepst;
+	int pass_effect;
+	int pass_measure;
 };
 
 void linen_circuit_init(struct circuit *ct, struct linen_circuit_data *ct_dat);
 
-int linen_simulate(struct circ_env env);
+int linen_simulate(struct circ_env *env);
 
 #endif //PHASE2_LINEN_H

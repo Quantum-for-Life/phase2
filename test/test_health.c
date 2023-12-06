@@ -18,9 +18,9 @@ static struct circuit HC_CIRCUIT = { .name = HEALTHCHECK_LABEL,
 				     .num_sys_qb = 8,
 				     .num_anc_qb = 9,
 				     .reset = NULL,
-				     .state_prep = NULL,
-				     .routine = NULL,
-				     .state_post = NULL };
+				     .prepst = NULL,
+				     .effect = NULL,
+				     .measure = NULL };
 
 TEST(healthcheck, struct circ_env *env)
 {

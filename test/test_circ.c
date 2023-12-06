@@ -56,9 +56,9 @@ static struct circuit MOCK_CIRCUIT = { .name = MOCK_CIRCUIT_NAME,
 				       .num_sys_qb = 2,
 				       .num_anc_qb = 3,
 				       .reset = mock_reset,
-				       .state_prep = mock_state_prep,
-				       .routine = mock_routine,
-				       .state_post = mock_state_post };
+				       .prepst = mock_state_prep,
+				       .effect = mock_routine,
+				       .measure = mock_state_post };
 
 TEST(mock_circ_init, struct circ_env *env, struct circuit *ct)
 {
@@ -99,8 +99,8 @@ TEST(mock_circ_simulate, struct circ_env *env, struct circuit *ct)
 	TEST_ASSERT(circ_simulate(&c) == 0, "simulation error")
 	TEST_ASSERT(dat.reset_val == 777, "reset value")
 	TEST_ASSERT(dat.values[0] == 222, "state_prep value")
-	TEST_ASSERT(dat.values[1] == 333, "routine value")
-	TEST_ASSERT(dat.values[2] == 444, "state_post value")
+	TEST_ASSERT(dat.values[1] == 333, "effect value")
+	TEST_ASSERT(dat.values[2] == 444, "measure value")
 
 	TEST_FINALIZE
 	circ_destroy(&c);

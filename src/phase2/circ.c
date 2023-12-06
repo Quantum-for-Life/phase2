@@ -48,7 +48,6 @@ static void init_circ_indices(struct circ *c)
 int circ_init(struct circ *c, struct circ_env *env, struct circuit *ct,
 	      void *data)
 {
-	const QuESTEnv *quest_env = env->quest_env;
 	c->env = env;
 	c->ct = ct;
 	c->data = data;
@@ -56,25 +55,24 @@ int circ_init(struct circ *c, struct circ_env *env, struct circuit *ct,
 	Qureg *qureg = malloc(sizeof(Qureg));
 	if (!qureg)
 		return -1;
-
+	const QuESTEnv *quest_env = env->quest_env;
 	*qureg = createQureg(ct_num_tot_qb(ct), *quest_env);
 	c->qureg = qureg;
 
 	int *mea_cl = malloc(sizeof(int) * ct->num_mea_qb);
-	double *mea_cl_prob = malloc(sizeof(double) * ct->num_mea_qb);
 	int *qb = malloc(sizeof(int) * ct_num_tot_qb(ct));
-	if (!(mea_cl && mea_cl_prob && qb)) {
+	if (!(mea_cl && qb)) {
+		destroyQureg(*qureg, *quest_env);
+		free(c->qureg);
+		c->qureg = NULL;
 		free(qb);
-		free(mea_cl_prob);
 		free(mea_cl);
 		return -1;
 	}
 	c->mea_cl = mea_cl;
-	c->mea_cl_prob = mea_cl_prob;
 	c->mea_qb = qb;
 	c->sys_qb = c->mea_qb + ct->num_mea_qb;
 	c->anc_qb = c->sys_qb + ct->num_sys_qb;
-
 	init_circ_indices(c);
 	circ_reset(c);
 
@@ -83,19 +81,26 @@ int circ_init(struct circ *c, struct circ_env *env, struct circuit *ct,
 
 void circ_destroy(struct circ *c)
 {
-	const QuESTEnv *quest_env = c->env->quest_env;
-	const Qureg *qureg = c->qureg;
-	destroyQureg(*qureg, *quest_env);
-	free(c->qureg);
-	c->qureg = NULL;
-	free(c->mea_qb);
-	c->mea_qb = NULL;
-	c->sys_qb = NULL;
-	c->anc_qb = NULL;
-	free(c->mea_cl_prob);
-	c->mea_cl_prob = NULL;
-	free(c->mea_cl);
-	c->mea_cl = NULL;
+	if (c->qureg) {
+		const QuESTEnv *quest_env = c->env->quest_env;
+		const Qureg *qureg = c->qureg;
+		destroyQureg(*qureg, *quest_env);
+		free(c->qureg);
+		c->qureg = NULL;
+	}
+	if (c->mea_qb) {
+		free(c->mea_qb);
+		c->mea_qb = NULL;
+		c->sys_qb = NULL;
+		c->anc_qb = NULL;
+	}
+	if (c->mea_cl) {
+		free(c->mea_cl);
+		c->mea_cl = NULL;
+	}
+	c->data = NULL;
+	c->ct = NULL;
+	c->env = NULL;
 }
 
 void circ_report(struct circ const *c)
@@ -133,8 +138,6 @@ void circ_report(struct circ const *c)
 
 int circ_reset(struct circ *c)
 {
-	const Qureg *qureg = c->qureg;
-	initZeroState(*qureg);
 	for (size_t i = 0; i < c->ct->num_mea_qb; i++) {
 		c->mea_cl[i] = 0;
 	}
@@ -151,20 +154,13 @@ int circ_simulate(struct circ *c)
 
 	const struct circuit *ct = c->ct;
 	int (*ops[3])(struct circ *) = {
-		[0] = ct->state_prep, [1] = ct->routine, [2] = ct->state_post
+		[0] = ct->prepst, [1] = ct->effect, [2] = ct->measure
 	};
 	for (int i = 0; i < 3; i++) {
 		if (ops[i]) {
 			if (ops[i](c) < 0)
 				return -1;
 		}
-	}
-
-	/* Measure qubits */
-	const Qureg *qureg = c->qureg;
-	for (size_t i = 0; i < ct->num_mea_qb; i++) {
-		c->mea_cl[i] = measureWithStats(*qureg, c->mea_qb[i],
-						&c->mea_cl_prob[i]);
 	}
 
 	return 0;
