@@ -6,6 +6,12 @@ data_id data_file_open(const char *filename)
 {
 	hid_t file_id, access_plist;
 #ifdef DISTRIBUTED
+	// init MPI environment
+	int initialized;
+	MPI_Initialized(&initialized);
+	if (!initialized) {
+		MPI_Init(NULL, NULL);
+	}
 	access_plist = H5Pcreate(H5P_FILE_ACCESS);
 	H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
 #else
