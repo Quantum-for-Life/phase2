@@ -1,8 +1,6 @@
 #ifndef PHASE2_RAYON_H
 #define PHASE2_RAYON_H
 
-#include <stdint.h>
-
 #include "data.h"
 
 #define RAYON_NAME "rayon"

@@ -51,27 +51,30 @@ int rayon_hamil_from_data(struct rayon_data_hamil *hamil,
 			  const struct data_pauli_hamil *dat_ph)
 {
 	double *coeffs = malloc(sizeof(*coeffs) * dat_ph->num_terms);
-	pauli_pak_t *paulis = calloc(
+	pauli_pak_t *pak = calloc(
 		dat_ph->num_terms * dat_ph->num_qubits / PAULI_PAK_SIZE + 1,
 		sizeof(pauli_pak_t));
-	if (!(coeffs && paulis))
+	if (!(coeffs && pak)) {
+		free(coeffs);
+		free(pak);
 		return -1;
+	}
 
 	for (size_t i = 0; i < dat_ph->num_terms; i++) {
 		coeffs[i] = dat_ph->coeffs[i] * dat_ph->norm;
 		for (size_t j = 0; j < dat_ph->num_qubits; j++) {
 			const size_t pauli_idx = i * dat_ph->num_qubits + j;
-			const size_t pack_idx = pauli_idx / PAULI_PAK_SIZE;
-			const size_t pack_offset =
+			const size_t pak_idx = pauli_idx / PAULI_PAK_SIZE;
+			const size_t pak_offset =
 				PAULI_WIDTH * (pauli_idx % PAULI_PAK_SIZE);
 			const pauli_pak_t pauli = dat_ph->paulis[pauli_idx];
-			paulis[pack_idx] += pauli << pack_offset;
+			pak[pak_idx] += pauli << pak_offset;
 		}
 	}
 	hamil->num_qubits = dat_ph->num_qubits;
 	hamil->num_terms = dat_ph->num_terms;
 	hamil->coeffs = coeffs;
-	hamil->pak = paulis;
+	hamil->pak = pak;
 
 	return 0;
 }
@@ -210,10 +213,10 @@ static void trotter_step(struct circ *c, double omega)
 	for (size_t i = 0; i < hamil->num_terms; i++) {
 		for (size_t j = 0; j < hamil->num_qubits; j++) {
 			const size_t pauli_idx = i * hamil->num_qubits + j;
-			const size_t pack_idx = pauli_idx / PAULI_PAK_SIZE;
-			const size_t pack_offset =
+			const size_t pak_idx = pauli_idx / PAULI_PAK_SIZE;
+			const size_t pak_offset =
 				PAULI_WIDTH * (pauli_idx % PAULI_PAK_SIZE);
-			paulis[j] = (hamil->pak[pack_idx] >> pack_offset) &
+			paulis[j] = (hamil->pak[pak_idx] >> pak_offset) &
 				    PAULI_MASK;
 		}
 		/* *

@@ -4,8 +4,6 @@
 #include "rayon.h"
 #include "data.h"
 
-#include <stdio.h>
-
 #define MARGIN (0.005)
 #define DATA_FILE DATA_DIR "/case-rand/case-6669b85f.h5"
 
