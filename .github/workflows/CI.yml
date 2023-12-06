@@ -23,25 +23,12 @@ jobs:
           sudo apt install libhdf5-dev
           sudo apt install libopenmpi-dev openmpi-common
           sudo apt install libhdf5-mpi-dev libhdf5-openmpi-dev
-      - name: Set up nightly Rust toolchain
-        run: |
-          rustup install nightly && rustup default nightly
       - name: Build
         run: |
-          cd rust/
-          cargo build --all --verbose
-          cargo build --release --all --verbose
-          cargo doc --all --verbose
+          mkdir build && cd build
+          cmake ..
+          make
       - name: Run tests
         run: |
-          cd rust/
-          cargo test --all --verbose
-      - name: Run ph2test
-        run: |
-          cd rust/
-          cargo run --release --package ph2test
-      - name: Run ph2test (MPI)
-        run: |
-          cd rust/
-          cargo run --release --package ph2test --features="mpi"
-        
+          cd build
+          ctest
