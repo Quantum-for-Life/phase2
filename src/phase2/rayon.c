@@ -5,10 +5,9 @@
  */
 
 #include <float.h>
+#include <stdio.h>
 
 #include "QuEST.h"
-
-#include "log.h"
 
 #include "circ.h"
 #include "rayon.h"
@@ -20,8 +19,6 @@ struct rayon_circ_data {
 
 int rayon_state_prep(struct circ *c)
 {
-	double real, imag;
-
 	const Qureg *qureg = c->qureg;
 	const struct rayon_data_multidet *md =
 		&((struct rayon_data *)c->ct->data)->multidet;
@@ -29,8 +26,8 @@ int rayon_state_prep(struct circ *c)
 	initBlankState(*qureg);
 	for (size_t i = 0; i < md->num_dets; i++) {
 		long long start_idx = md->dets[i].det << c->ct->num_mea_qb;
-		real = md->dets[i].coeff_real;
-		imag = md->dets[i].coeff_imag;
+		double real = md->dets[i].coeff_real;
+		double imag = md->dets[i].coeff_imag;
 		setAmps(*qureg, start_idx, &real, &imag, 1);
 	}
 	hadamard(*qureg, c->mea_qb[0]);
@@ -38,33 +35,42 @@ int rayon_state_prep(struct circ *c)
 	return 0;
 }
 
-int rayon_routine(struct circ *c)
+static void trotter_step(struct circ *c, double omega)
 {
 	const Qureg *qureg = c->qureg;
 	const struct rayon_data_hamil *hamil =
 		&((struct rayon_data *)c->ct->data)->hamil;
 	enum pauliOpType *paulis = (enum pauliOpType *)hamil->paulis;
-	double time = ((struct rayon_circ_data *)c->data)->time;
 	int num_mea_qb = (int)c->ct->num_mea_qb;
 	int num_sys_qb = (int)c->ct->num_sys_qb;
 
-	if (fabs(time) < DBL_EPSILON) {
-		return 0;
+	for (size_t i = 0; i < hamil->num_terms; i++) {
+		/* *
+		 * multiControlledMultiRotatePauli() below applies minus
+		 * to the given angle.  That sign, together with `sGate` in
+		 * rayon_state_post()` below (instead of the Hermitian conjugate
+		 * of the S gate) gives the correct sign of the imaginary part
+		 * of the expectation value.
+		 */
+		double angle = 2.0 * omega * hamil->coeffs[i];
+		multiControlledMultiRotatePauli(*qureg, c->mea_qb, num_mea_qb,
+						c->sys_qb,
+						paulis + num_sys_qb * i,
+						num_sys_qb, angle);
 	}
-	const double REPS = time * time;
+}
+
+int rayon_routine(struct circ *c)
+{
+	double t = ((struct rayon_circ_data *)c->data)->time;
+	if (isnan(t) || isinf(t))
+		return -1;
+	if (fabs(t) < DBL_EPSILON)
+		return 0;
+
+	const double REPS = t * t;
 	for (size_t r = 0; r < (size_t)REPS; r++) {
-		for (size_t i = 0; i < hamil->num_terms; i++) {
-			/* *
-			 * multiControlledMultiRotatePauli() below applies minus
-			 * to the given angle.
-			 */
-			const qreal angle =
-				-2.0 * time / REPS * hamil->coeffs[i];
-			multiControlledMultiRotatePauli(*qureg, c->mea_qb,
-							num_mea_qb, c->sys_qb,
-							paulis + num_sys_qb * i,
-							num_sys_qb, angle);
-		}
+		trotter_step(c, t / REPS);
 	}
 
 	return 0;
@@ -76,10 +82,12 @@ int rayon_state_post(struct circ *c)
 	const Qureg *qureg = c->qureg;
 	if (d->imag_switch) {
 		/**
-		 * This effects `S^{\dagger}` gate
+		 * To obtain the correct sign of the imaginary part of the
+		 * expectation value, the gate effected here should be
+		 * `S^{\dagger}`.  We use `sGate()` function and change the
+		 * sign of the angle argument in `rayon_routine()` instead.
 		 */
 		sGate(*qureg, c->mea_qb[0]);
-		pauliZ(*qureg, c->mea_qb[0]);
 	}
 	hadamard(*qureg, c->mea_qb[0]);
 
@@ -96,12 +104,16 @@ void rayon_hamil_init(struct rayon_data_hamil *hamil)
 
 void rayon_hamil_destroy(struct rayon_data_hamil *hamil)
 {
-	free(hamil->coeffs);
-	hamil->coeffs = NULL;
-	free(hamil->paulis);
-	hamil->paulis = NULL;
-	hamil->num_qubits = 0;
+	if (hamil->paulis) {
+		free(hamil->paulis);
+		hamil->paulis = NULL;
+	}
+	if (hamil->coeffs) {
+		free(hamil->coeffs);
+		hamil->coeffs = NULL;
+	}
 	hamil->num_terms = 0;
+	hamil->num_qubits = 0;
 }
 
 int rayon_hamil_from_data(struct rayon_data_hamil *hamil,
@@ -110,9 +122,8 @@ int rayon_hamil_from_data(struct rayon_data_hamil *hamil,
 	double *coeffs = malloc(sizeof(*coeffs) * dat_ph->num_terms);
 	int *paulis = malloc(sizeof(*paulis) * dat_ph->num_terms *
 			     dat_ph->num_qubits);
-	if (!(coeffs && paulis)) {
+	if (!(coeffs && paulis))
 		return -1;
-	}
 
 	for (size_t i = 0; i < dat_ph->num_terms; i++) {
 		coeffs[i] = dat_ph->coeffs[i] * dat_ph->norm;
@@ -121,7 +132,6 @@ int rayon_hamil_from_data(struct rayon_data_hamil *hamil,
 				dat_ph->paulis[i * dat_ph->num_qubits + j];
 		}
 	}
-
 	hamil->num_qubits = dat_ph->num_qubits;
 	hamil->num_terms = dat_ph->num_terms;
 	hamil->coeffs = coeffs;
@@ -138,8 +148,10 @@ void rayon_multidet_init(struct rayon_data_multidet *md)
 
 void rayon_multidet_destroy(struct rayon_data_multidet *md)
 {
-	free(md->dets);
-	md->dets = NULL;
+	if (md->dets) {
+		free(md->dets);
+		md->dets = NULL;
+	}
 	md->num_dets = 0;
 }
 
@@ -147,9 +159,9 @@ int rayon_multidet_from_data(struct rayon_data_multidet *md,
 			     const struct data_state_prep_multidet *dat_md)
 {
 	md->dets = malloc(sizeof(*md->dets) * dat_md->num_terms);
-	if (!md->dets) {
+	if (!md->dets)
 		return -1;
-	}
+
 	for (size_t i = 0; i < dat_md->num_terms; i++) {
 		md->dets[i].coeff_real = dat_md->coeffs[2 * i];
 		md->dets[i].coeff_imag = dat_md->coeffs[2 * i + 1];
@@ -225,18 +237,17 @@ int rayon_compute_expect(struct circ *c, const struct data_time_series *dat_ts)
 		circ_dat->time = t;
 		for (int imag_sw = 0; imag_sw <= 1; imag_sw++) {
 			circ_dat->imag_switch = imag_sw;
-			if (circ_simulate(c) != 0) {
+			if (circ_simulate(c) != 0)
 				return -1;
-			}
+
 			double prob_0 = c->mea_cl[0] == 0 ?
 						c->mea_cl_prob[0] :
 						1.0 - c->mea_cl_prob[0];
-			val[imag_sw] = 2 * prob_0 - 1;
+			val[imag_sw] = 2.0 * prob_0 - 1.0;
 		}
 
 		dat_ts->values[2 * i] = val[0];
 		dat_ts->values[2 * i + 1] = val[1];
-		log_trace("t=%f, val_real=%f, val_imag=%f", t, val[0], val[1]);
 	}
 
 	return 0;
@@ -245,20 +256,20 @@ int rayon_compute_expect(struct circ *c, const struct data_time_series *dat_ts)
 int rayon_simulate(struct circ_env *env, const struct rayon_data *ct_dat,
 		   const struct data_time_series *dat_ts)
 {
-	int res;
+	int rc;
 
 	struct circuit ct;
 	rayon_circuit_init(&ct, ct_dat);
 
 	struct rayon_circ_data circ_data = { .imag_switch = 0, .time = 0.0 };
 	struct circ c;
-	if ((res = circ_init(&c, env, &ct, &circ_data)) < 0)
+	rc = circ_init(&c, env, &ct, &circ_data);
+	if (rc < 0)
 		goto cleanup;
-
-	res = rayon_compute_expect(&c, dat_ts);
+	rc = rayon_compute_expect(&c, dat_ts);
 cleanup:
 	circ_destroy(&c);
 	rayon_circuit_destroy(&ct);
 
-	return res;
+	return rc;
 }
