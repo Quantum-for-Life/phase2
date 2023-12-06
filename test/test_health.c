@@ -3,7 +3,6 @@
  *
  */
 
-#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -26,7 +25,7 @@ static struct circuit HC_CIRCUIT = { .name = HEALTHCHECK_LABEL,
 TEST(healthcheck, struct circ_env *env)
 {
 	struct circ c;
-	TEST_ASSERT(circ_init(&c, &env, &HC_CIRCUIT, NULL) == 0,
+	TEST_ASSERT(circ_init(&c, env, &HC_CIRCUIT, NULL) == 0,
 		    "cannot initialize circuit");
 
 	TEST_ASSERT(c.ct->num_mea_qb == 7, " ")

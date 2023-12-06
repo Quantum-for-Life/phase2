@@ -147,7 +147,7 @@ int main(const int argc, char **argv)
 		struct rayon_data ct_dat;
 		rayon_data_init(&ct_dat);
 		rayon_data_from_data(&ct_dat, &dat);
-		sucess = rayon_simulate(env, &ct_dat, &dat.time_series) == 0;
+		sucess = rayon_simulate(&env, &ct_dat, &dat.time_series) == 0;
 		rayon_data_destroy(&ct_dat);
 
 	} else {

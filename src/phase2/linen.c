@@ -3,8 +3,6 @@
  * Simple circ implementation for testing.
  */
 
-#include "log.h"
-
 #include "circ.h"
 #include "linen.h"
 
@@ -57,7 +55,6 @@ void linen_circuit_init(struct circuit *ct, struct linen_circuit_data *ct_dat)
 
 int linen_simulate(struct circ_env env)
 {
-	log_debug("Report simulation environment");
 	circ_env_report(&env);
 
 	struct circuit ct;
@@ -68,15 +65,10 @@ int linen_simulate(struct circ_env env)
 
 	struct circ c;
 	struct linen_circ_data circ_dat;
-	if (circ_init(&c, &env, &ct, &circ_dat) != 0) {
-		log_error("Cannot initialize circ");
+	if (circ_init(&c, &env, &ct, &circ_dat) < 0)
 		return -1;
-	}
-	log_debug("\"linen\" circ created");
 	circ_report(&c);
-	log_debug("Simulating circ");
 	circ_simulate(&c);
-	log_debug("Free circ instance");
 	circ_destroy(&c);
 
 	return 0;

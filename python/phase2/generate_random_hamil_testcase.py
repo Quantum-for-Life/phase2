@@ -167,7 +167,7 @@ class Case:
         hamil = self.pauli_hamil["matrix"] * self.pauli_hamil["normalization"]
         values = []
         for t in self.time_series["times"]:
-            unitary = sp.linalg.expm(-1j * t * hamil)
+            unitary = sp.linalg.expm(1j * t * hamil)
             tmp = np.dot(unitary, multidet)
             values.append(np.dot(multidet.conj().T, tmp))
         self.time_series["values_comp"] = values

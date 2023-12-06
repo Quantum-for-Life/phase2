@@ -1,7 +1,7 @@
-/* A mock-up circuit for testing.
- *
+/**
+ * A mock-up circuit for testing.
  */
-#include <stdarg.h>
+
 #include <stdio.h>
 #include <string.h>
 
@@ -17,7 +17,7 @@ struct mock_circ_data {
 	int values[3];
 };
 
-int mock_reset(const struct circ *c)
+int mock_reset(struct circ *c)
 {
 	struct mock_circ_data *dat = c->data;
 	dat->index = 0;
@@ -26,7 +26,7 @@ int mock_reset(const struct circ *c)
 	return 0;
 }
 
-int mock_state_prep(const struct circ *c)
+int mock_state_prep(struct circ *c)
 {
 	struct mock_circ_data *dat = c->data;
 	dat->values[dat->index++] = 222;
@@ -34,7 +34,7 @@ int mock_state_prep(const struct circ *c)
 	return 0;
 }
 
-int mock_routine(const struct circ *c)
+int mock_routine(struct circ *c)
 {
 	struct mock_circ_data *dat = c->data;
 	dat->values[dat->index++] = 333;
@@ -42,7 +42,7 @@ int mock_routine(const struct circ *c)
 	return 0;
 }
 
-int mock_state_post(const struct circ *c)
+int mock_state_post(struct circ *c)
 {
 	struct mock_circ_data *dat = c->data;
 	dat->values[dat->index++] = 444;

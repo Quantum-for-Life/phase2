@@ -35,7 +35,7 @@ void rayon_data_destroy(struct rayon_data *ct_dat);
 
 int rayon_data_from_data(struct rayon_data *ct_dat, const struct data *dat);
 
-int rayon_simulate(struct circ_env env, const struct rayon_data *ct_dat,
+int rayon_simulate(struct circ_env *env, const struct rayon_data *ct_dat,
 		   const struct data_time_series *dat_ts);
 
 #endif //PHASE2_RAYON_H

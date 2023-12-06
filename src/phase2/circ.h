@@ -10,6 +10,8 @@
 #ifndef PHASE2_CIRC_H
 #define PHASE2_CIRC_H
 
+#include <stdlib.h>
+
 struct circ_env {
 	void *quest_env;
 };
