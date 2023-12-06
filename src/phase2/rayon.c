@@ -14,7 +14,8 @@
 
 struct rayon_circ_data {
 	double time;
-	int imag_switch;
+	double prob0_re;
+	double prob0_im;
 };
 
 int rayon_state_prep(struct circ *c)
@@ -78,18 +79,24 @@ int rayon_routine(struct circ *c)
 
 int rayon_state_post(struct circ *c)
 {
-	const struct rayon_circ_data *d = c->data;
+	struct rayon_circ_data *d = c->data;
 	const Qureg *qureg = c->qureg;
-	if (d->imag_switch) {
-		/**
-		 * To obtain the correct sign of the imaginary part of the
-		 * expectation value, the gate effected here should be
-		 * `S^{\dagger}`.  We use `sGate()` function and change the
-		 * sign of the angle argument in `rayon_routine()` instead.
-		 */
-		sGate(*qureg, c->mea_qb[0]);
-	}
+
 	hadamard(*qureg, c->mea_qb[0]);
+	d->prob0_re = calcProbOfOutcome(*qureg, c->mea_qb[0], 0);
+
+	/* Revert the H gate */
+	hadamard(*qureg, c->mea_qb[0]);
+	
+	/**
+	 * To obtain the correct sign of the imaginary part of the
+	 * expectation value, the gate effected here should be
+	 * `S^{\dagger}`.  We use `sGate()` function and change the
+	 * sign of the angle argument in `rayon_routine()` instead.
+	 */
+	sGate(*qureg, c->mea_qb[0]);
+	hadamard(*qureg, c->mea_qb[0]);
+	d->prob0_im = calcProbOfOutcome(*qureg, c->mea_qb[0], 0);
 
 	return 0;
 }
@@ -223,31 +230,14 @@ static void rayon_circuit_destroy(struct circuit *ct)
 
 int rayon_compute_expect(struct circ *c, const struct data_time_series *dat_ts)
 {
-	double val[2];
-
-	struct rayon_circ_data *circ_dat = c->data;
+	struct rayon_circ_data *cdat = c->data;
 	for (size_t i = 0; i < dat_ts->num_steps; i++) {
-		double t = dat_ts->times[i];
-		val[0] = dat_ts->values[2 * i];
-		val[1] = dat_ts->values[2 * i + 1];
-		if (!(isnan(val[0]) || isnan(val[1]))) {
-			continue;
-		}
+		cdat->time = dat_ts->times[i];
+		if (circ_simulate(c) < 0)
+			return -1;
 
-		circ_dat->time = t;
-		for (int imag_sw = 0; imag_sw <= 1; imag_sw++) {
-			circ_dat->imag_switch = imag_sw;
-			if (circ_simulate(c) != 0)
-				return -1;
-
-			double prob_0 = c->mea_cl[0] == 0 ?
-						c->mea_cl_prob[0] :
-						1.0 - c->mea_cl_prob[0];
-			val[imag_sw] = 2.0 * prob_0 - 1.0;
-		}
-
-		dat_ts->values[2 * i] = val[0];
-		dat_ts->values[2 * i + 1] = val[1];
+		dat_ts->values[2 * i] = 2.0 * cdat->prob0_re - 1.0;
+		dat_ts->values[2 * i + 1] = 2.0 * cdat->prob0_im - 1.0;
 	}
 
 	return 0;
@@ -261,9 +251,9 @@ int rayon_simulate(struct circ_env *env, const struct rayon_data *ct_dat,
 	struct circuit ct;
 	rayon_circuit_init(&ct, ct_dat);
 
-	struct rayon_circ_data circ_data = { .imag_switch = 0, .time = 0.0 };
+	struct rayon_circ_data cdat;
 	struct circ c;
-	rc = circ_init(&c, env, &ct, &circ_data);
+	rc = circ_init(&c, env, &ct, &cdat);
 	if (rc < 0)
 		goto cleanup;
 	rc = rayon_compute_expect(&c, dat_ts);
