@@ -24,8 +24,6 @@ Assuming we're on Ubuntu, you can install the dependencies in one go:
 ```bash
 sudo apt install gcc g++ cmake 
 sudo apt install libhdf5-dev hdf5-tools
-
-sudo apt install python3 python3-dev python3-venv
 ```
 
 and optionally:
@@ -52,28 +50,7 @@ module load openmpi
 
 ## Getting the sources
 
-Make sure you've got the read access
-to [https://github.com/Quantum-for-Life](https://github.com/Quantum-for-Life)
-and you are able to clone the repositories via HTTPS. The easiest way to do it
-is to
-first install [GitHub CLI](https://cli.github.com/):
-
-```bash
-type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
-curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-&& sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-&& echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-&& sudo apt update \
-&& sudo apt install gh -y
-```
-
-Then authenticate Git:
-
-```bash
-gh auth login
-```
-
-Now you can clone the repo and its dependencies:
+You can clone the repo and its dependencies:
 
 ```bash
 git clone --recurse-submodules https://github.com/Quantum-for-Life/phase2.git
@@ -81,8 +58,7 @@ git clone --recurse-submodules https://github.com/Quantum-for-Life/phase2.git
 
 If you prefer to access GitHub via SSH instead, be aware the repositories
 this package depends on as submodules have their URLs hard-coded as HTTPS.
-And some of them are still private to _Quantum-for-Life_. You will need to
-change the remote repo URL for each submodule to its SSH equivalent.
+And some of them are still private to _Quantum-for-Life_.
 
 # Compiling the source code
 
@@ -93,7 +69,7 @@ cmake ..
 make
 ```
 
-If you want to enable MPI support, run CMake with `DISTRIBUTED` flag set:
+If you want to enable MPI support, set `DISTRIBUTED` flag:
 
 ```bash
 cmake -DDISTRIBUTED=ON ..
