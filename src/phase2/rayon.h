@@ -4,9 +4,9 @@
 #include "data.h"
 
 #define RAYON_NAME "rayon"
-#define RAYON_DEFAULT_NUM_MEA_QB 1
-//#define RAYON_DEFAULT_NUM_SYS_QB 8
-#define RAYON_DEFAULT_NUM_ANC_QB 0
+#define RAYON_DEFAULT_NUM_MEA_QB (1)
+//#define RAYON_DEFAULT_NUM_SYS_QB (8)
+#define RAYON_DEFAULT_NUM_ANC_QB (0)
 
 struct rayon_data_hamil {
 	size_t num_qubits;
@@ -35,7 +35,7 @@ void rayon_data_destroy(struct rayon_data *ct_dat);
 
 int rayon_data_from_data(struct rayon_data *ct_dat, const struct data *dat);
 
-int rayon_simulate(struct circ_env env, const struct rayon_data *ct_dat,
+int rayon_simulate(struct circ_env *env, const struct rayon_data *ct_dat,
 		   const struct data_time_series *dat_ts);
 
 #endif //PHASE2_RAYON_H

@@ -1,5 +1,16 @@
+/** Circuit interface.
+ *
+ * This API takes care of running a quantum algorithm for you.  It initializes
+ * the environment for coordinating the simulation (circ_env), takes a template
+ * description of the algorithm (circuit), and manages dynamically created
+ * circtuit instances (circ).
+ *
+ *
+ */
 #ifndef PHASE2_CIRC_H
 #define PHASE2_CIRC_H
+
+#include <stdlib.h>
 
 struct circ_env {
 	void *quest_env;

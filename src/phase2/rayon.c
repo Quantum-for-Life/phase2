@@ -1,6 +1,7 @@
 /** circ: rayon
- *
- *  Quantum phase estimation with Hadamard test.
+ * Quantum phase estimation with Hadamard test.
+ * Computes expectation value of `exp(i t H)` for a given initial state,
+ * Hamiltonian and a sequence of times.
  */
 
 #include <float.h>
@@ -53,6 +54,10 @@ int rayon_routine(struct circ *c)
 	const double REPS = time * time;
 	for (size_t r = 0; r < (size_t)REPS; r++) {
 		for (size_t i = 0; i < hamil->num_terms; i++) {
+			/* *
+			 * multiControlledMultiRotatePauli() below applies minus
+			 * to the given angle.
+			 */
 			const qreal angle =
 				-2.0 * time / REPS * hamil->coeffs[i];
 			multiControlledMultiRotatePauli(*qureg, c->mea_qb,
@@ -69,7 +74,10 @@ int rayon_state_post(struct circ *c)
 {
 	const struct rayon_circ_data *d = c->data;
 	const Qureg *qureg = c->qureg;
-	if (d->imag_switch == 1) {
+	if (d->imag_switch) {
+		/**
+		 * This effects `S^{\dagger}` gate
+		 */
 		sGate(*qureg, c->mea_qb[0]);
 		pauliZ(*qureg, c->mea_qb[0]);
 	}
@@ -174,15 +182,12 @@ void rayon_data_destroy(struct rayon_data *ct_dat)
 
 int rayon_data_from_data(struct rayon_data *ct_dat, const struct data *dat)
 {
-	int res = rayon_hamil_from_data(&ct_dat->hamil, &dat->pauli_hamil);
-	if (res != 0) {
-		return res;
-	}
-	res = rayon_multidet_from_data(&ct_dat->multidet,
-				       &dat->state_prep.multidet);
-	if (res != 0) {
-		return res;
-	}
+	if (rayon_hamil_from_data(&ct_dat->hamil, &dat->pauli_hamil) < 0)
+		return -1;
+	if (rayon_multidet_from_data(&ct_dat->multidet,
+				     &dat->state_prep.multidet) < 0)
+		return -1;
+
 	return 0;
 }
 
@@ -206,7 +211,6 @@ static void rayon_circuit_destroy(struct circuit *ct)
 
 int rayon_compute_expect(struct circ *c, const struct data_time_series *dat_ts)
 {
-	log_info("Computing expectation values");
 	double val[2];
 
 	struct rayon_circ_data *circ_dat = c->data;
@@ -215,7 +219,6 @@ int rayon_compute_expect(struct circ *c, const struct data_time_series *dat_ts)
 		val[0] = dat_ts->values[2 * i];
 		val[1] = dat_ts->values[2 * i + 1];
 		if (!(isnan(val[0]) || isnan(val[1]))) {
-			log_trace("time=%f, value already computed; skip", t);
 			continue;
 		}
 
@@ -223,7 +226,6 @@ int rayon_compute_expect(struct circ *c, const struct data_time_series *dat_ts)
 		for (int imag_sw = 0; imag_sw <= 1; imag_sw++) {
 			circ_dat->imag_switch = imag_sw;
 			if (circ_simulate(c) != 0) {
-				log_error("Simulation error");
 				return -1;
 			}
 			double prob_0 = c->mea_cl[0] == 0 ?
@@ -240,25 +242,21 @@ int rayon_compute_expect(struct circ *c, const struct data_time_series *dat_ts)
 	return 0;
 }
 
-int rayon_simulate(struct circ_env env, const struct rayon_data *ct_dat,
+int rayon_simulate(struct circ_env *env, const struct rayon_data *ct_dat,
 		   const struct data_time_series *dat_ts)
 {
 	int res;
 
-	log_info("Initialize Pauli Hamiltonian");
 	struct circuit ct;
 	rayon_circuit_init(&ct, ct_dat);
 
-	log_info("Initialize circ");
 	struct rayon_circ_data circ_data = { .imag_switch = 0, .time = 0.0 };
 	struct circ c;
-	if ((res = circ_init(&c, &env, &ct, &circ_data)) != 0) {
-		log_error("Cannot initialize circ");
+	if ((res = circ_init(&c, env, &ct, &circ_data)) < 0)
 		goto cleanup;
-	}
+
 	res = rayon_compute_expect(&c, dat_ts);
 cleanup:
-	log_info("Clean up resources");
 	circ_destroy(&c);
 	rayon_circuit_destroy(&ct);
 

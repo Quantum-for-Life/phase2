@@ -1,11 +1,5 @@
 #include "hdf5.h"
 
-#ifdef DISTRIBUTED
-
-#include "log.h"
-
-#endif
-
 #include "data.h"
 
 data_id data_file_open(const char *filename)

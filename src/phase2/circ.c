@@ -5,7 +5,7 @@
 
 #include "circ.h"
 
-static size_t circ_circuit_num_tot_qb(const struct circuit *ct)
+static size_t ct_num_tot_qb(const struct circuit *ct)
 {
 	return ct->num_mea_qb + ct->num_sys_qb + ct->num_anc_qb;
 }
@@ -40,15 +40,8 @@ void circ_env_report(struct circ_env const *env)
 
 static void init_circ_indices(struct circ *c)
 {
-	for (size_t i = 0; i < c->ct->num_mea_qb; i++) {
-		c->mea_cl[i] = 0;
+	for (size_t i = 0; i < ct_num_tot_qb(c->ct); i++) {
 		c->mea_qb[i] = i;
-	}
-	for (size_t i = 0; i < c->ct->num_sys_qb; i++) {
-		c->sys_qb[i] = c->ct->num_mea_qb + i;
-	}
-	for (size_t i = 0; i < c->ct->num_anc_qb; i++) {
-		c->anc_qb[i] = c->ct->num_mea_qb + c->ct->num_sys_qb + i;
 	}
 }
 
@@ -64,29 +57,26 @@ int circ_init(struct circ *c, struct circ_env *env, struct circuit *ct,
 	if (!qureg)
 		return -1;
 
-	*qureg = createQureg(circ_circuit_num_tot_qb(ct), *quest_env);
+	*qureg = createQureg(ct_num_tot_qb(ct), *quest_env);
 	c->qureg = qureg;
 
 	int *mea_cl = malloc(sizeof(int) * ct->num_mea_qb);
 	double *mea_cl_prob = malloc(sizeof(double) * ct->num_mea_qb);
-	int *mea_qb = malloc(sizeof(int) * ct->num_mea_qb);
-	int *sys_qb = malloc(sizeof(int) * ct->num_sys_qb);
-	int *anc_qb = malloc(sizeof(int) * ct->num_anc_qb);
-	if (!(mea_cl && mea_cl_prob && mea_qb && sys_qb && anc_qb)) {
-		free(anc_qb);
-		free(sys_qb);
-		free(mea_qb);
+	int *qb = malloc(sizeof(int) * ct_num_tot_qb(ct));
+	if (!(mea_cl && mea_cl_prob && qb)) {
+		free(qb);
 		free(mea_cl_prob);
 		free(mea_cl);
 		return -1;
 	}
 	c->mea_cl = mea_cl;
 	c->mea_cl_prob = mea_cl_prob;
-	c->mea_qb = mea_qb;
-	c->sys_qb = sys_qb;
-	c->anc_qb = anc_qb;
+	c->mea_qb = qb;
+	c->sys_qb = c->mea_qb + ct->num_mea_qb;
+	c->anc_qb = c->sys_qb + ct->num_sys_qb;
 
 	init_circ_indices(c);
+	circ_reset(c);
 
 	return 0;
 }
@@ -100,9 +90,7 @@ void circ_destroy(struct circ *c)
 	c->qureg = NULL;
 	free(c->mea_qb);
 	c->mea_qb = NULL;
-	free(c->sys_qb);
 	c->sys_qb = NULL;
-	free(c->anc_qb);
 	c->anc_qb = NULL;
 	free(c->mea_cl_prob);
 	c->mea_cl_prob = NULL;

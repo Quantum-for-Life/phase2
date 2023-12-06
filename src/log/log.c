@@ -28,7 +28,7 @@
 
 #include "log.h"
 
-#define MAX_CALLBACKS 32
+#define MAX_CALLBACKS (32)
 
 typedef struct {
 	log_LogFn fn;
