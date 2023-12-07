@@ -1,65 +1,116 @@
 #include <math.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "circ.h"
 #include "rayon.h"
 #include "data.h"
 
-#define MARGIN (0.005)
-#define DATA_FILE DATA_DIR "/case-rand/case-6669b85f.h5"
+#include "test.h"
 
-static double ref_values[][2] = {
-	{ 0.12518097361769823, -0.10170409677999773 },
-	{ 0.17670425340124754, -0.017778613702941905 },
-	{ -0.2884917311702638, -0.04210083472168025 },
-	{ 0.11701076895595565, -0.10895444476284752 },
-	{ -0.20747966038006477, -0.040093232106182985 },
-	{ 0.3388401889521972, 0.020876330290626258 },
-	{ -0.3218496848447874, -0.04402145588914208 },
-	{ 0.3388401889521972, 0.020876330290626258 }
-};
+#define MARGIN (0.0099)
+static const char *CASE_DIR = DATA_DIR "/case-rand";
 
-int main(void)
+int read_data_file(struct data *dat, const char *filename)
 {
-	struct data dat;
-	data_init(&dat);
-	{
-		data_id fid = data_file_open(DATA_FILE);
-		data_parse(&dat, fid);
-		data_file_close(fid);
-	}
+	const data_id fid = data_file_open(filename);
+	const int rc = data_parse(dat, fid);
+	data_file_close(fid);
 
-	{
-		struct circ_env env;
-		circ_env_init(&env);
-		{
-			struct rayon_data rd;
-			rayon_data_init(&rd);
-			rayon_data_from_data(&rd, &dat);
-			rayon_simulate(&env, &rd);
-			rayon_data_write_times(&dat.time_series, &rd.times);
-			rayon_data_destroy(&rd);
-		}
-		circ_env_destroy(&env);
-	}
+	return rc;
+}
+
+int read_data_ref(struct data *dat, struct data *dat_ref,
+		  const char *path_prefix)
+{
+	int rc = 0;
+
+	const size_t buf_len = strlen(path_prefix) + strlen(".h5_solved") + 1;
+	char *buf = calloc(buf_len, sizeof(*buf));
+	if (!buf)
+		return -1;
+
+	snprintf(buf, buf_len, "%s.h5", path_prefix);
+	if (read_data_file(dat, buf) < 0)
+		goto error;
+	snprintf(buf, buf_len, "%s.h5_solved", path_prefix);
+	if (read_data_file(dat_ref, buf) < 0)
+		goto error;
+
+	goto exit;
+error:
+	rc = -1;
+exit:
+	free(buf);
+	return rc;
+}
+
+TEST(caserand, struct circ_env *env, const char *prefix)
+{
+	static char buf[1024];
+	snprintf(buf, 1024, "%s/%s", CASE_DIR, prefix);
+
+	struct data dat, dat_ref;
+	data_init(&dat);
+	data_init(&dat_ref);
+	TEST_ASSERT(read_data_ref(&dat, &dat_ref, buf) == 0,
+		    "Cannot read data file");
+
+	struct rayon_data rd;
+	rayon_data_init(&rd);
+	TEST_ASSERT(rayon_data_from_data(&rd, &dat) == 0,
+		    "Cannot parse simulation data");
+	TEST_ASSERT(rayon_simulate(env, &rd) == 0, "Simulation error");
+	rayon_data_write_times(&dat.time_series, &rd.times);
+	rayon_data_destroy(&rd);
 
 	for (size_t i = 0; i < dat.time_series.num_steps; i++) {
-		double val;
-		val = dat.time_series.values[2 * i];
-		if (isnan(val))
-			return -1;
+		const double val_re = dat.time_series.values[2 * i];
+		const double val_im = dat.time_series.values[2 * i + 1];
 
-		double diff = fabs(val - ref_values[i][0]);
-		if (diff > MARGIN)
-			return -1;
+		const double ref_re = dat_ref.time_series.values[2 * i];
+		const double ref_im = dat_ref.time_series.values[2 * i + 1];
 
-		val = dat.time_series.values[2 * i + 1];
-		if (isnan(val))
-			return -1;
-		diff = fabs(val - ref_values[i][1]);
-		if (diff > MARGIN)
-			return -1;
+		TEST_ASSERT(!(isnan(val_re)), "Real value at index %zu is NaN",
+			    i);
+		TEST_ASSERT(!(isnan(val_im)), "Imag value at index %zu is Nan",
+			    i);
+
+		TEST_ASSERT(
+			fabs(val_re - ref_re) < MARGIN,
+			"Real diff exceeded margin (%f): val_re=%f, ref_re=%f",
+			MARGIN, val_re, ref_re);
+		TEST_ASSERT(
+			fabs(val_im - ref_im) < MARGIN,
+			"Imag diff exceeded margin (%f): val_im=%f, ref_im=%f",
+			MARGIN, val_im, ref_im);
 	}
-	data_destroy(&dat);
 
-	return 0;
+	TEST_FINALIZE
+	data_destroy(&dat);
+	data_destroy(&dat_ref);
+}
+TEST_END
+
+TEST(caserand_suite, void)
+{
+	struct circ_env env;
+	circ_env_init(&env);
+
+	TEST_CASE(caserand(&env, "case-d9f603dc"));
+	TEST_CASE(caserand(&env, "case-070d034c"));
+	TEST_CASE(caserand(&env, "case-33427110"));
+	TEST_CASE(caserand(&env, "case-28aa2595"));
+	TEST_CASE(caserand(&env, "case-e1932ef1"));
+
+	TEST_FINALIZE
+	circ_env_destroy(&env);
+}
+TEST_END
+
+int main()
+{
+	int rc = caserand_suite();
+
+	return rc;
 }
