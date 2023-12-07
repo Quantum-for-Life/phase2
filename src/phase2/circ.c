@@ -38,45 +38,43 @@ void circ_env_report(struct circ_env const *env)
 	reportQuESTEnv(*quest_env);
 }
 
-static void init_circ_indices(struct circ *c)
-{
-	for (size_t i = 0; i < ct_num_tot_qb(c->ct); i++) {
-		c->mea_qb[i] = i;
-	}
-}
-
 int circ_init(struct circ *c, struct circ_env *env, struct circuit *ct,
 	      void *data)
 {
+	Qureg *qureg = malloc(sizeof(Qureg));
+	if (!qureg)
+		goto qureg_alloc_fail;
+	const QuESTEnv *quest_env = env->quest_env;
+	*qureg = createQureg(ct_num_tot_qb(ct), *quest_env);
+
+	int *mea_cl = malloc(sizeof(int) * ct->num_mea_qb);
+	if (!mea_cl)
+		goto mea_alloc_fail;
+	int *qb = malloc(sizeof(int) * ct_num_tot_qb(ct));
+	if (!qb)
+		goto qb_alloc_fail;
+
 	c->env = env;
 	c->ct = ct;
 	c->data = data;
-
-	Qureg *qureg = malloc(sizeof(Qureg));
-	if (!qureg)
-		return -1;
-	const QuESTEnv *quest_env = env->quest_env;
-	*qureg = createQureg(ct_num_tot_qb(ct), *quest_env);
 	c->qureg = qureg;
-
-	int *mea_cl = malloc(sizeof(int) * ct->num_mea_qb);
-	int *qb = malloc(sizeof(int) * ct_num_tot_qb(ct));
-	if (!(mea_cl && qb)) {
-		destroyQureg(*qureg, *quest_env);
-		free(c->qureg);
-		c->qureg = NULL;
-		free(qb);
-		free(mea_cl);
-		return -1;
-	}
 	c->mea_cl = mea_cl;
 	c->mea_qb = qb;
 	c->sys_qb = c->mea_qb + ct->num_mea_qb;
 	c->anc_qb = c->sys_qb + ct->num_sys_qb;
-	init_circ_indices(c);
-	circ_reset(c);
+	for (size_t i = 0; i < ct_num_tot_qb(c->ct); i++) {
+		c->mea_qb[i] = i;
+	}
 
 	return 0;
+
+qb_alloc_fail:
+	free(mea_cl);
+mea_alloc_fail:
+	destroyQureg(*qureg, *quest_env);
+	free(qureg);
+qureg_alloc_fail:
+	return -1;
 }
 
 void circ_destroy(struct circ *c)
@@ -152,9 +150,8 @@ int circ_simulate(struct circ *c)
 	if (circ_reset(c) < 0)
 		return -1;
 
-	const struct circuit *ct = c->ct;
 	int (*ops[3])(struct circ *) = {
-		[0] = ct->prepst, [1] = ct->effect, [2] = ct->measure
+		[0] = c->ct->prepst, [1] = c->ct->effect, [2] = c->ct->measure
 	};
 	for (int i = 0; i < 3; i++) {
 		if (ops[i]) {

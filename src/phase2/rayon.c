@@ -149,7 +149,7 @@ int rayon_times_from_data(struct rayon_data_times *ts,
 	return 0;
 }
 
-void rayon_data_write_times(struct data_time_series *dat,
+void rayon_data_write_times(const struct data_time_series *dat,
 			    const struct rayon_data_times *rt)
 {
 	for (size_t i = 0; i < rt->num_steps; i++) {
@@ -183,7 +183,7 @@ int rayon_data_from_data(struct rayon_data *rd, const struct data *dat)
 	return rc;
 }
 
-int rayon_prepst(struct circ *c)
+int rayon_prepst(const struct circ *c)
 {
 	const Qureg *qureg = c->qureg;
 	const struct rayon_data_multidet *md =
@@ -202,7 +202,7 @@ int rayon_prepst(struct circ *c)
 	return 0;
 }
 
-static void trotter_step(struct circ *c, double omega)
+static void trotter_step(const struct circ *c, double omega)
 {
 	const Qureg *qureg = c->qureg;
 	const struct rayon_data_hamil *hamil =
@@ -234,9 +234,9 @@ static void trotter_step(struct circ *c, double omega)
 	}
 }
 
-int rayon_effect(struct circ *c)
+int rayon_effect(const struct circ *c)
 {
-	double t = ((struct circ_data *)c->data)->t;
+	const double t = ((struct circ_data *)c->data)->t;
 	if (isnan(t))
 		return -1;
 	if (fabs(t) < DBL_EPSILON)
@@ -250,7 +250,7 @@ int rayon_effect(struct circ *c)
 	return 0;
 }
 
-int rayon_measure(struct circ *c)
+int rayon_measure(const struct circ *c)
 {
 	struct circ_data *d = c->data;
 	const Qureg *qureg = c->qureg;
@@ -281,18 +281,18 @@ void rayon_circuit_init(struct circuit *ct, const struct rayon_data *ct_dat)
 	ct->num_mea_qb = RAYON_NUM_MEA_QB;
 	ct->num_sys_qb = ct_dat->hamil.num_qubits;
 	ct->num_anc_qb = RAYON_NUM_ANC_QB;
-	ct->reset = NULL;
-	ct->prepst = rayon_prepst;
-	ct->effect = rayon_effect;
-	ct->measure = rayon_measure;
+	ct->reset = (circ_op)NULL;
+	ct->prepst = (circ_op)rayon_prepst;
+	ct->effect = (circ_op)rayon_effect;
+	ct->measure = (circ_op)rayon_measure;
 }
 
-static void rayon_circuit_destroy(struct circuit *ct)
+static void rayon_circuit_destroy(const struct circuit *ct)
 {
 	(void)(ct);
 }
 
-int rayon_simulate(struct circ_env *env, struct rayon_data *rd)
+int rayon_simulate(struct circ_env *env, const struct rayon_data *rd)
 {
 	int ret = 0;
 
@@ -303,7 +303,7 @@ int rayon_simulate(struct circ_env *env, struct rayon_data *rd)
 	struct circ_data cdat;
 	if (circ_init(&c, env, &ct, &cdat) < 0)
 		goto error;
-	struct rayon_data_times *ts = &rd->times;
+	const struct rayon_data_times *ts = &rd->times;
 	for (size_t i = 0; i < ts->num_steps; i++) {
 		cdat.t = ts->steps[i].t;
 		if (circ_simulate(&c) < 0)

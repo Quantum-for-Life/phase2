@@ -25,7 +25,7 @@ data_id data_file_open(const char *filename)
 	return file_id;
 }
 
-void data_file_close(data_id fid)
+void data_file_close(const data_id fid)
 {
 	H5Fclose(fid);
 }
@@ -53,7 +53,7 @@ void data_state_prep_multidet_destroy(struct data_state_prep_multidet *dat)
 }
 
 int data_state_prep_multidet_parse(struct data_state_prep_multidet *dat,
-				   data_id obj_id)
+				   const data_id obj_id)
 {
 	int res = 0;
 
@@ -129,7 +129,7 @@ void data_state_prep_destroy(struct data_state_prep *dat)
 	data_state_prep_multidet_destroy(&dat->multidet);
 }
 
-int data_state_prep_parse(struct data_state_prep *dat, data_id obj_id)
+int data_state_prep_parse(struct data_state_prep *dat, const data_id obj_id)
 {
 	int res;
 
@@ -174,7 +174,7 @@ void data_pauli_hamil_destroy(struct data_pauli_hamil *dat)
 	dat->num_qubits = 0;
 }
 
-int data_pauli_hamil_parse(struct data_pauli_hamil *dat, data_id obj_id)
+int data_pauli_hamil_parse(struct data_pauli_hamil *dat, const data_id obj_id)
 {
 	int res = 0;
 
@@ -268,7 +268,7 @@ void data_time_series_destroy(struct data_time_series *dat)
 	dat->num_steps = 0;
 }
 
-int data_time_series_parse(struct data_time_series *dat, data_id obj_id)
+int data_time_series_parse(struct data_time_series *dat, const data_id obj_id)
 {
 	int res = 0;
 
@@ -374,7 +374,7 @@ void data_destroy(struct data *dat)
 	data_time_series_destroy(&dat->time_series);
 }
 
-int data_parse(struct data *dat, data_id fid)
+int data_parse(struct data *dat, const data_id fid)
 {
 	int res;
 
