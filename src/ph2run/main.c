@@ -7,7 +7,7 @@
 
 #endif
 
-#include "log.h"
+#include "log/log.h"
 
 #include "circ.h"
 #include "rayon.h"

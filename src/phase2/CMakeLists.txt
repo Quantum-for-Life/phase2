@@ -9,7 +9,6 @@ add_library(phase2 SHARED
         rayon.c
 )
 target_link_libraries(phase2
-        log
         QuEST m
 )
 target_include_directories(phase2 PRIVATE
