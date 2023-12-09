@@ -21,27 +21,25 @@
  */
 
 #ifdef DISTRIBUTED
-
+#include <string.h>
 #include "mpi.h"
-
 #endif
 
 #include "log.h"
 
 #define MAX_CALLBACKS (32)
 
-typedef struct {
-	log_LogFn fn;
-	void *udata;
+struct callback {
+	log_logfn fn;
+	void *data;
 	int level;
-} Callback;
+};
 
 static struct {
-	void *udata;
-	log_LockFn lock;
+	void *data;
+	log_lockfn lock;
 	int level;
-	bool quiet;
-	Callback callbacks[MAX_CALLBACKS];
+	struct callback cb[MAX_CALLBACKS];
 } L;
 
 static const char *level_strings[] = { "TRACE", "DEBUG", "INFO",
@@ -52,42 +50,17 @@ static const char *level_colors[] = { "\x1b[94m", "\x1b[36m", "\x1b[32m",
 				      "\x1b[33m", "\x1b[31m", "\x1b[35m" };
 #endif
 
-static void stdout_callback(log_Event *ev)
-{
-	char buf[16];
-	buf[strftime(buf, sizeof(buf), "%H:%M:%S", ev->time)] = '\0';
-#ifdef LOG_USE_COLOR
-	fprintf(ev->udata, "%s %s%-5s\x1b[0m ", buf, level_colors[ev->level],
-		level_strings[ev->level]);
-#else
-	fprintf(ev->udata, "%s %-5s ", buf, level_strings[ev->level]);
-#endif
-	vfprintf(ev->udata, ev->fmt, ev->ap);
-	fprintf(ev->udata, "\n");
-	fflush(ev->udata);
-}
-
-static void file_callback(log_Event *ev)
-{
-	char buf[64];
-	buf[strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", ev->time)] = '\0';
-	fprintf(ev->udata, "%s %-5s ", buf, level_strings[ev->level]);
-	vfprintf(ev->udata, ev->fmt, ev->ap);
-	fprintf(ev->udata, "\n");
-	fflush(ev->udata);
-}
-
 static void lock(void)
 {
 	if (L.lock) {
-		L.lock(true, L.udata);
+		L.lock(true, L.data);
 	}
 }
 
 static void unlock(void)
 {
 	if (L.lock) {
-		L.lock(false, L.udata);
+		L.lock(false, L.data);
 	}
 }
 
@@ -96,10 +69,43 @@ const char *log_level_string(const int level)
 	return level_strings[level];
 }
 
-void log_set_lock(const log_LockFn fn, void *udata)
+int log_level_from_lowercase(enum log_level *level, const char *name)
+{
+	if (!name) {
+		return -1;
+	}
+	if (strncmp(name, "trace", 5) == 0) {
+		*level = LOG_TRACE;
+		return 0;
+	}
+	if (strncmp(name, "debug", 5) == 0) {
+		*level = LOG_DEBUG;
+		return 0;
+	}
+	if (strncmp(name, "info", 4) == 0) {
+		*level = LOG_INFO;
+		return 0;
+	}
+	if (strncmp(name, "warn", 4) == 0) {
+		*level = LOG_WARN;
+		return 0;
+	}
+	if (strncmp(name, "error", 5) == 0) {
+		*level = LOG_ERROR;
+		return 0;
+	}
+	if (strncmp(name, "fatal", 5) == 0) {
+		*level = LOG_FATAL;
+		return 0;
+	}
+
+	return -1;
+}
+
+void log_set_lock(const log_lockfn fn, void *data)
 {
 	L.lock = fn;
-	L.udata = udata;
+	L.data = data;
 }
 
 void log_set_level(const int level)
@@ -107,73 +113,52 @@ void log_set_level(const int level)
 	L.level = level;
 }
 
-void log_set_quiet(const bool enable)
-{
-	L.quiet = enable;
-}
-
-int log_add_callback(const log_LogFn fn, void *udata, const int level)
+int log_add_callback(const log_logfn fn, void *data, const int level)
 {
 	for (int i = 0; i < MAX_CALLBACKS; i++) {
-		if (!L.callbacks[i].fn) {
-			L.callbacks[i] = (Callback){ fn, udata, level };
+		if (!L.cb[i].fn) {
+			L.cb[i] = (struct callback){ fn, data, level };
 			return 0;
 		}
 	}
 	return -1;
 }
 
-int log_add_fp(FILE *fp, const int level)
-{
-	return log_add_callback(file_callback, fp, level);
-}
-
-static void init_event(log_Event *ev, void *udata)
+static void init_event(struct log_event *ev, void *data)
 {
 	if (!ev->time) {
 		const time_t t = time(NULL);
 		ev->time = localtime(&t);
 	}
-	ev->udata = udata;
+	ev->data = data;
 }
 
-void log_log(const int level, const char *fmt, ...)
+void log_vlog(const int level, const char *fmt, va_list ap)
 {
-	log_Event ev = {
+	struct log_event ev = {
 		.fmt = fmt,
 		.level = level,
 	};
-#ifdef DISTRIBUTED
-	int initialized, finalized;
-	MPI_Initialized(&initialized);
-	MPI_Finalized(&finalized);
-	if (initialized && !finalized) {
-		int rank;
-		MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-		if (0 != rank) {
-			return;
-		}
-	}
-#endif
 
 	lock();
 
-	if (!L.quiet && level >= L.level) {
-		init_event(&ev, stderr);
-		va_start(ev.ap, fmt);
-		stdout_callback(&ev);
-		va_end(ev.ap);
-	}
-
-	for (int i = 0; i < MAX_CALLBACKS && L.callbacks[i].fn; i++) {
-		const Callback *cb = &L.callbacks[i];
+	for (int i = 0; i < MAX_CALLBACKS && L.cb[i].fn; i++) {
+		const struct callback *cb = &L.cb[i];
 		if (level >= cb->level) {
-			init_event(&ev, cb->udata);
-			va_start(ev.ap, fmt);
+			init_event(&ev, cb->data);
+			va_copy(ev.ap, ap);
 			cb->fn(&ev);
 			va_end(ev.ap);
 		}
 	}
 
 	unlock();
+}
+
+void log_log(const int level, const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	log_vlog(level, fmt, ap);
+	va_end(ap);
 }

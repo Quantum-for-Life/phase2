@@ -15,21 +15,28 @@
 
 #define LOG_VERSION "0.1.0"
 
-typedef struct {
+struct log_event {
 	va_list ap;
 	const char *fmt;
 	const char *file;
 	struct tm *time;
-	void *udata;
+	void *data;
 	int line;
 	int level;
-} log_Event;
+};
 
-typedef void (*log_LogFn)(log_Event *ev);
+typedef void (*log_logfn)(struct log_event *ev);
 
-typedef void (*log_LockFn)(bool lock, void *udata);
+typedef void (*log_lockfn)(bool lock, void *data);
 
-enum { LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL };
+enum log_level {
+	LOG_TRACE,
+	LOG_DEBUG,
+	LOG_INFO,
+	LOG_WARN,
+	LOG_ERROR,
+	LOG_FATAL
+};
 
 #define log_trace(...) log_log(LOG_TRACE, __VA_ARGS__)
 #define log_debug(...) log_log(LOG_DEBUG, __VA_ARGS__)
@@ -40,15 +47,15 @@ enum { LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL };
 
 const char *log_level_string(int level);
 
-void log_set_lock(log_LockFn fn, void *udata);
+int log_level_from_lowercase(enum log_level *level, const char *name);
+
+void log_set_lock(log_lockfn fn, void *data);
 
 void log_set_level(int level);
 
-void log_set_quiet(bool enable);
+int log_add_callback(log_logfn fn, void *data, int level);
 
-int log_add_callback(log_LogFn fn, void *udata, int level);
-
-int log_add_fp(FILE *fp, int level);
+void log_vlog(const int level, const char *fmt, va_list ap);
 
 void log_log(int level, const char *fmt, ...);
 

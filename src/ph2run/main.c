@@ -15,15 +15,8 @@
 #include "data.h"
 
 #define PHASE2_LOG_ENVVAR "PHASE2_LOG"
-#define PHASE2_LOG_FILE "simul.log"
 
 #define PHASE2_DEFAULT_H5FILE "simul.h5"
-
-void exit_failure(const char *msg)
-{
-	log_error("Failure: %s", msg);
-	exit(EXIT_FAILURE);
-}
 
 void help_page(const int argc, char **argv)
 {
@@ -44,64 +37,55 @@ void help_page(const int argc, char **argv)
 			"\n\n");
 }
 
-void set_log_level()
+static void log_callback(struct log_event *ev)
 {
-	const char *log_level = getenv(PHASE2_LOG_ENVVAR);
-	if (log_level == NULL) {
-		log_set_level(LOG_ERROR);
-		return;
+#ifdef DISTRIBUTED
+	int initialized, finalized;
+	MPI_Initialized(&initialized);
+	MPI_Finalized(&finalized);
+	if (initialized && !finalized) {
+		int rank;
+		MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+		if (rank > 0) {
+			return;
+		}
 	}
-	if (strncmp(log_level, "trace", 5) == 0) {
-		log_set_level(LOG_TRACE);
-	}
-	if (strncmp(log_level, "debug", 5) == 0) {
-		log_set_level(LOG_DEBUG);
-	}
-	if (strncmp(log_level, "info", 4) == 0) {
-		log_set_level(LOG_INFO);
-	}
-	if (strncmp(log_level, "warn", 4) == 0) {
-		log_set_level(LOG_WARN);
-	}
-	if (strncmp(log_level, "error", 5) == 0) {
-		log_set_level(LOG_ERROR);
-	}
-	if (strncmp(log_level, "fatal", 5) == 0) {
-		log_set_level(LOG_FATAL);
-	}
+#endif
+	char buf[64];
+	FILE *fd = ev->data;
+	buf[strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", ev->time)] = '\0';
+	fprintf(fd, "%s %-5s ", buf, log_level_string(ev->level));
+	vfprintf(fd, ev->fmt, ev->ap);
+	fprintf(fd, "\n");
+	fflush(fd);
 }
 
 int main(const int argc, char **argv)
 {
-	data_id fid;
+	enum log_level lvl;
+	const char *lvl_str = getenv(PHASE2_LOG_ENVVAR);
+	if (!lvl_str || log_level_from_lowercase(&lvl, lvl_str) < 0) {
+		lvl = LOG_ERROR;
+	};
+	log_set_level(lvl);
+	log_add_callback(log_callback, stderr, lvl);
+
 	struct circ_env env;
 	if (circ_env_init(&env) != 0) {
-		exit_failure("initialize environment");
+		log_error("Failure: %s", "initialize environment");
+		exit(EXIT_FAILURE);
 	}
 
+	log_info("*** Init ***");
 #ifdef DISTRIBUTED
 	int rank, num_ranks;
 	MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	log_info("*** Init ***");
-	log_info("Initialize MPI environment");
 	log_info("MPI num_ranks: %d", num_ranks);
 	log_info("This is rank no. %d", rank);
 #else
-	log_info("*** Init ***");
 	log_info("MPI mode not enabled.");
-	log_info("To enable distributed mode, set "
-		 "-DDISTRIBUTED "
-		 "flag during compilation");
 #endif
-
-	set_log_level();
-	log_info("Open log file: " PHASE2_LOG_FILE);
-	FILE *log_file = fopen(PHASE2_LOG_FILE, "a");
-	if (!log_file) {
-		exit_failure("open log file");
-	}
-	log_add_fp(log_file, LOG_DEBUG);
 
 	log_debug("Parsing command line arguments");
 	if (argc < 2) {
@@ -118,12 +102,13 @@ int main(const int argc, char **argv)
 	}
 
 	log_debug("Read simulation input file: %s", dat_filename);
-	fid = data_file_open(dat_filename);
+	data_id fid = data_file_open(dat_filename);
 
 	struct data dat;
 	data_init(&dat);
 	if (data_parse(&dat, fid) != 0) {
-		exit_failure("read data file");
+		log_error("Failure: read data file");
+		exit(EXIT_FAILURE);
 	}
 	data_file_close(fid);
 
@@ -156,7 +141,8 @@ int main(const int argc, char **argv)
 		sucess = 0;
 	}
 	if (!sucess) {
-		exit_failure("simulation error");
+		log_error("Failure: simulation error");
+		exit(EXIT_FAILURE);
 	}
 
 	log_debug("Saving data");
@@ -168,9 +154,8 @@ int main(const int argc, char **argv)
 	data_destroy(&dat);
 
 	log_info("Shut down simulation environment");
+	log_info("Done");
 	circ_env_destroy(&env);
 
-	log_info("Done");
-	fclose(log_file);
 	return EXIT_SUCCESS;
 }

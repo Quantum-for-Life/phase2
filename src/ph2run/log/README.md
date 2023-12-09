@@ -34,7 +34,7 @@ Resulting in a line with the given format printed to stderr:
 #### log_set_quiet(bool enable)
 Quiet-mode can be enabled by passing `true` to the `log_set_quiet()` function.
 While this mode is enabled the library will not output anything to `stderr`, but
-will continue to write to files and callbacks if any are set.
+will continue to write to files and cb if any are set.
 
 
 #### log_set_level(int level)
@@ -56,17 +56,17 @@ Any messages below the given `level` are ignored. If the library failed to add a
 file pointer a value less-than-zero is returned.
 
 
-#### log_add_callback(log_LogFn fn, void *udata, int level)
+#### log_add_callback(log_logfn fn, void *data, int level)
 One or more callback functions which are called with the log data can be
 provided to the library by using the `log_add_callback()` function. A callback
-function is passed a `log_Event` structure containing the `line` number,
-`filename`, `fmt` string, `va` printf va\_list, `level` and the given `udata`.
+function is passed a `log_event` structure containing the `line` number,
+`filename`, `fmt` string, `va` printf va\_list, `level` and the given `data`.
 
 
-#### log_set_lock(log_LockFn fn, void *udata)
+#### log_set_lock(log_lockfn fn, void *data)
 If the log will be written to from multiple threads a lock function can be set.
 The function is passed the boolean `true` if the lock should be acquired or
-`false` if the lock should be released and the given `udata` value.
+`false` if the lock should be released and the given `data` value.
 
 
 #### const char* log_level_string(int level)
