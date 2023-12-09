@@ -60,13 +60,35 @@ static void log_callback(struct log_event *ev)
 	fflush(fd);
 }
 
+int run_linen(struct circ_env *env, struct data *data)
+{
+	(void)(data);
+
+	return linen_simulate(env);
+}
+
+int run_rayon(struct circ_env *env, struct data *dat)
+{
+	int rc;
+
+	struct rayon_data rd;
+	rayon_data_init(&rd);
+	if (rayon_data_from_data(&rd, dat) < 0)
+		return -1;
+	rc = rayon_simulate(env, &rd);
+	rayon_data_write_times(&(*dat).time_series, &rd.times);
+	rayon_data_destroy(&rd);
+
+	return rc;
+}
+
 int main(const int argc, char **argv)
 {
 	enum log_level lvl;
 	const char *lvl_str = getenv(PHASE2_LOG_ENVVAR);
 	if (!lvl_str || log_level_from_lowercase(&lvl, lvl_str) < 0) {
 		lvl = LOG_ERROR;
-	};
+	}
 	log_set_level(lvl);
 	log_add_callback(log_callback, stderr, lvl);
 
@@ -93,13 +115,12 @@ int main(const int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 	const char *dat_filename = PHASE2_DEFAULT_H5FILE;
-	if (argc < 3) {
+	if (argc < 3)
 		log_debug("No simulation input file specified; "
 			  "using default: %s",
 			  PHASE2_DEFAULT_H5FILE);
-	} else {
+	else
 		dat_filename = argv[2];
-	}
 
 	log_debug("Read simulation input file: %s", dat_filename);
 	data_id fid = data_file_open(dat_filename);
@@ -123,24 +144,18 @@ int main(const int argc, char **argv)
 	log_debug("Time series: num_steps=%zu", dat.time_series.num_steps);
 
 	log_info("*** Circuit ***");
-	int sucess;
+	int rc;
 	if (strncmp(argv[1], "linen", 5) == 0) {
 		log_info("Circuit: linen");
-		sucess = linen_simulate(&env) == 0;
+		rc = run_linen(&env, &dat);
 	} else if (strncmp(argv[1], "rayon", 5) == 0) {
 		log_info("Circuit: rayon");
-		struct rayon_data rd;
-		rayon_data_init(&rd);
-		rayon_data_from_data(&rd, &dat);
-		sucess = rayon_simulate(&env, &rd) == 0;
-		rayon_data_write_times(&dat.time_series, &rd.times);
-		rayon_data_destroy(&rd);
-
+		rc = run_rayon(&env, &dat);
 	} else {
 		log_error("No circ named %s", argv[1]);
-		sucess = 0;
+		exit(EXIT_FAILURE);
 	}
-	if (!sucess) {
+	if (rc < 0) {
 		log_error("Failure: simulation error");
 		exit(EXIT_FAILURE);
 	}
