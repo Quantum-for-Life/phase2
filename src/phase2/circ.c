@@ -150,7 +150,7 @@ int circ_simulate(struct circ *c)
 	if (circ_reset(c) < 0)
 		return -1;
 
-	int (*ops[3])(struct circ *) = {
+	const circ_op ops[3] = {
 		[0] = c->ct->prepst, [1] = c->ct->effect, [2] = c->ct->measure
 	};
 	for (int i = 0; i < 3; i++) {
