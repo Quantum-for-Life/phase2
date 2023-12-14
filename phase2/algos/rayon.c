@@ -182,7 +182,7 @@ int rayon_data_from_data(struct rayon_data *rd, const struct data *dat)
 
 int rayon_prepst(struct circ *c)
 {
-	const Qureg *qureg = c->qureg;
+	const Qureg *qureg = c->qb;
 	const struct rayon_data_multidet *md =
 		&((struct rayon_data *)c->ct->data)->multidet;
 
@@ -201,7 +201,7 @@ int rayon_prepst(struct circ *c)
 
 static void trotter_step(const struct circ *c, double omega)
 {
-	const Qureg *qureg = c->qureg;
+	const Qureg *qureg = c->qb;
 	const struct rayon_data_hamil *hamil =
 		&((struct rayon_data *)c->ct->data)->hamil;
 	struct circ_data *cdat = c->data;
@@ -250,7 +250,7 @@ int rayon_effect(struct circ *c)
 int rayon_measure(struct circ *c)
 {
 	struct circ_data *d = c->data;
-	const Qureg *qureg = c->qureg;
+	const Qureg *qureg = c->qb;
 	const int mea_qb_idx = c->mea_qb[0];
 
 	hadamard(*qureg, mea_qb_idx);

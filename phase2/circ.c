@@ -57,7 +57,7 @@ int circ_init(struct circ *c, struct circ_env *env, struct circuit *ct,
 	c->env = env;
 	c->ct = ct;
 	c->data = data;
-	c->qureg = qureg;
+	c->qb = qureg;
 	c->mea_cl = mea_cl;
 	c->mea_qb = qb;
 	c->sys_qb = c->mea_qb + ct->num_mea_qb;
@@ -79,12 +79,12 @@ qureg_alloc_fail:
 
 void circ_destroy(struct circ *c)
 {
-	if (c->qureg) {
+	if (c->qb) {
 		const QuESTEnv *quest_env = c->env->quest_env;
-		const Qureg *qureg = c->qureg;
+		const Qureg *qureg = c->qb;
 		destroyQureg(*qureg, *quest_env);
-		free(c->qureg);
-		c->qureg = NULL;
+		free(c->qb);
+		c->qb = NULL;
 	}
 	if (c->mea_qb) {
 		free(c->mea_qb);
@@ -103,7 +103,7 @@ void circ_destroy(struct circ *c)
 
 void circ_report(struct circ const *c)
 {
-	const Qureg *qureg = c->qureg;
+	const Qureg *qureg = c->qb;
 	printf("----------------\n");
 	printf("CIRCUIT: %s\n", c->ct->name);
 	reportQuregParams(*qureg);

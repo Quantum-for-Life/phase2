@@ -15,7 +15,8 @@ struct circ {
 	struct circuit *ct;
 	void *data;
 
-	void *qureg;
+	/* Qubit register */
+	void *qb;
 
 	int *mea_cl;
 	int *mea_qb;
