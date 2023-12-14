@@ -8,19 +8,17 @@
 #define LINEN_DEFAULT_NUM_SYS_QB (8)
 #define LINEN_DEFAULT_NUM_ANC_QB (4)
 
-struct linen_circuit_data {
+struct linen_circ_data {
 	int val_prepst;
 	int val_effect;
 	int val_measure;
-};
 
-struct linen_circ_data {
 	int pass_prepst;
 	int pass_effect;
 	int pass_measure;
 };
 
-void linen_circuit_init(struct circuit *ct, struct linen_circuit_data *ct_dat);
+void linen_circuit_init(struct circuit *ct, struct linen_circ_data *data);
 
 int linen_simulate(void);
 

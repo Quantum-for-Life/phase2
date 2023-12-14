@@ -19,7 +19,7 @@ struct mock_circ_data {
 
 int mock_reset(struct circ *c)
 {
-	struct mock_circ_data *dat = c->data;
+	struct mock_circ_data *dat = circ_data(c);
 	dat->index = 0;
 	dat->reset_val = 777;
 
@@ -28,7 +28,7 @@ int mock_reset(struct circ *c)
 
 int mock_state_prep(struct circ *c)
 {
-	struct mock_circ_data *dat = c->data;
+	struct mock_circ_data *dat = circ_data(c);
 	dat->values[dat->index++] = 222;
 
 	return 0;
@@ -36,7 +36,7 @@ int mock_state_prep(struct circ *c)
 
 int mock_routine(struct circ *c)
 {
-	struct mock_circ_data *dat = c->data;
+	struct mock_circ_data *dat = circ_data(c);
 	dat->values[dat->index++] = 333;
 
 	return 0;
@@ -44,14 +44,13 @@ int mock_routine(struct circ *c)
 
 int mock_state_post(struct circ *c)
 {
-	struct mock_circ_data *dat = c->data;
+	struct mock_circ_data *dat = circ_data(c);
 	dat->values[dat->index++] = 444;
 
 	return 0;
 }
 
 static struct circuit MOCK_CIRCUIT = { .name = MOCK_CIRCUIT_NAME,
-				       .data = NULL,
 				       .num_mea_qb = 1,
 				       .num_sys_qb = 2,
 				       .num_anc_qb = 3,

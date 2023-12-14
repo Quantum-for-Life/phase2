@@ -19,6 +19,7 @@ static const size_t PAULI_WIDTH = 2;
 static const size_t PAULI_PAK_SIZE = sizeof(pauli_pak_t) * 8 / PAULI_WIDTH;
 
 struct circ_data {
+	const struct rayon_data *rd;
 	double t;
 	double prob0_re, prob0_im;
 	int scratch[64];
@@ -181,8 +182,9 @@ int rayon_data_from_data(struct rayon_data *rd, const struct data *dat)
 
 int rayon_prepst(struct circ *c)
 {
+	struct circ_data *cdat = circ_data(c);
 	const struct rayon_data_multidet *md =
-		&((struct rayon_data *)c->ct->data)->multidet;
+		&((const struct rayon_data *)cdat->rd)->multidet;
 
 	circ_blankstate(c);
 	for (size_t i = 0; i < md->num_dets; i++) {
@@ -196,9 +198,9 @@ int rayon_prepst(struct circ *c)
 
 static void trotter_step(struct circ *c, double omega)
 {
+	struct circ_data *cdat = circ_data(c);
 	const struct rayon_data_hamil *hamil =
-		&((struct rayon_data *)c->ct->data)->hamil;
-	struct circ_data *cdat = c->data;
+		&((const struct rayon_data *)cdat->rd)->hamil;
 	int *paulis = cdat->scratch;
 
 	for (size_t i = 0; i < hamil->num_terms; i++) {
@@ -223,7 +225,8 @@ static void trotter_step(struct circ *c, double omega)
 
 int rayon_effect(struct circ *c)
 {
-	const double t = ((struct circ_data *)c->data)->t;
+	struct circ_data *cdat = circ_data(c);
+	const double t = ((struct circ_data *)cdat)->t;
 	if (isnan(t))
 		return -1;
 	if (fabs(t) < DBL_EPSILON)
@@ -239,7 +242,7 @@ int rayon_effect(struct circ *c)
 
 int rayon_measure(struct circ *c)
 {
-	struct circ_data *d = c->data;
+	struct circ_data *d = circ_data(c);
 	const qbid mea_qb0 = circ_mea_qb(c, 0);
 
 	circ_hadamard(c, mea_qb0);
@@ -260,14 +263,13 @@ int rayon_measure(struct circ *c)
 	return 0;
 }
 
-void rayon_circuit_init(struct circuit *ct, const struct rayon_data *ct_dat)
+static void rayon_circuit_init(struct circuit *ct, size_t num_sys_qb)
 {
 	ct->name = RAYON_NAME;
-	ct->data = (void *)ct_dat;
 	ct->num_mea_qb = RAYON_NUM_MEA_QB;
-	ct->num_sys_qb = ct_dat->hamil.num_qubits;
+	ct->num_sys_qb = num_sys_qb;
 	ct->num_anc_qb = RAYON_NUM_ANC_QB;
-	ct->reset = (circ_op)NULL;
+	ct->reset = NULL;
 	ct->prepst = rayon_prepst;
 	ct->effect = rayon_effect;
 	ct->measure = rayon_measure;
@@ -283,9 +285,10 @@ int rayon_simulate(const struct rayon_data *rd)
 	int ret = 0;
 
 	struct circuit ct;
-	rayon_circuit_init(&ct, rd);
+	rayon_circuit_init(&ct, rd->hamil.num_qubits);
 
 	struct circ_data cdat;
+	cdat.rd = rd;
 	struct circ *c = circ_init(&ct, &cdat);
 	if (!c)
 		goto error;

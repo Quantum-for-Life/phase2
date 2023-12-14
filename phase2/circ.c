@@ -7,6 +7,19 @@
 
 #include "circ.h"
 
+struct circ {
+	struct circuit *ct;
+	void *data;
+
+	/* Qubit register */
+	void *reg;
+
+	int *mea_cl;
+	int *mea_qb;
+	int *sys_qb;
+	int *anc_qb;
+};
+
 static struct {
 	_Bool init;
 	QuESTEnv quest_env;
@@ -101,6 +114,11 @@ void circ_destroy(struct circ *c)
 	free(c);
 }
 
+void *circ_data(struct circ *c)
+{
+	return c->data;
+}
+
 void circ_report(struct circ const *c)
 {
 	env_report();
@@ -155,7 +173,7 @@ int circ_simulate(struct circ *c)
 	if (circ_reset(c) < 0)
 		return -1;
 
-	const circ_op ops[3] = {
+	int (*ops[3])(struct circ *) = {
 		[0] = c->ct->prepst, [1] = c->ct->effect, [2] = c->ct->measure
 	};
 	for (int i = 0; i < 3; i++) {
