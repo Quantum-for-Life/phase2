@@ -12,7 +12,7 @@
 #define MARGIN (0.0099)
 static const char *CASE_DIR = DATA_DIR "/case-rand";
 
-int read_data_file(struct data *dat, const char *filename)
+int datio_read_file(struct data *dat, const char *filename)
 {
 	const data_id fid = data_file_open(filename);
 	const int rc = data_parse(dat, fid);
@@ -32,10 +32,10 @@ int read_data_ref(struct data *dat, struct data *dat_ref,
 		return -1;
 
 	snprintf(buf, buf_len, "%s.h5", path_prefix);
-	if (read_data_file(dat, buf) < 0)
+	if (datio_read_file(dat, buf) < 0)
 		goto error;
 	snprintf(buf, buf_len, "%s.h5_solved", path_prefix);
-	if (read_data_file(dat_ref, buf) < 0)
+	if (datio_read_file(dat_ref, buf) < 0)
 		goto error;
 
 	goto exit;

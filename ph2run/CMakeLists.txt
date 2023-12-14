@@ -1,6 +1,6 @@
 add_executable(ph2run
         main.c
-        data.c
+        datio.c
         log.c
         opt.c
         run.c

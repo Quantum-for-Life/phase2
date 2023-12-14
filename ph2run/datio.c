@@ -2,7 +2,7 @@
 
 #include "log.h"
 
-int read_data_file(struct data *dat, const char *filename)
+int datio_read_file(struct data *dat, const char *filename)
 {
 	int rc = 0;
 
@@ -21,7 +21,7 @@ int read_data_file(struct data *dat, const char *filename)
 	return rc;
 }
 
-void print_data_info(const struct data *dat)
+void datio_print_info(const struct data *dat)
 {
 	log_debug("State preparation:");
 	log_debug("multidet, num_qubits=%zu, num_terms=%zu",
@@ -34,7 +34,7 @@ void print_data_info(const struct data *dat)
 	log_debug("Time series: num_steps=%zu", dat->time_series.num_steps);
 }
 
-int save_data(const char *filename, const struct data *dat)
+int datio_save_file(const char *filename, const struct data *dat)
 {
 	int rc = 0;
 

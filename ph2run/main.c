@@ -21,9 +21,9 @@ int opt_parse(struct opt *o, int argc, char **argv);
 
 /* Data */
 static struct data dat;
-void print_data_info(const struct data *dat);
-int read_data_file(struct data *dat, const char *filename);
-int save_data(const char *filename, const struct data *dat);
+void datio_print_info(const struct data *dat);
+int datio_read_file(struct data *dat, const char *filename);
+int datio_save_file(const char *filename, const struct data *dat);
 
 /* Runners */
 int run_linen(struct circ_env *env, struct data *dat);
@@ -59,9 +59,9 @@ int main(const int argc, char **argv)
 #endif
 
 	data_init(&dat);
-	if (read_data_file(&dat, opt.dat_filename) < 0)
+	if (datio_read_file(&dat, opt.dat_filename) < 0)
 		goto error;
-	print_data_info(&dat);
+	datio_print_info(&dat);
 
 	log_info("*** Circuit ***");
 	if (strncmp(argv[1], "linen", 5) == 0) {
@@ -79,7 +79,7 @@ int main(const int argc, char **argv)
 		goto error;
 	}
 
-	if (save_data(opt.dat_filename, &dat) < 0)
+	if (datio_save_file(opt.dat_filename, &dat) < 0)
 		goto error;
 
 	goto cleanup;
