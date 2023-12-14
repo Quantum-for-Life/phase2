@@ -1,9 +1,9 @@
-cmake_minimum_required(VERSION 3.9.0)
+cmake_minimum_required(VERSION 3.19.0)
 project(phase2 VERSION 0.1.0 LANGUAGES C)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 17)
 
-add_compile_options(-Wall -Wextra -Wpedantic -march=native)
+add_compile_options(-Wall -Wextra -march=native)
 
 option(DISTRIBUTED "enable distributed mode (MPI)" OFF)
 if (DISTRIBUTED)
@@ -26,10 +26,9 @@ else ()
     message(STATUS "Serial HDF5 found")
 endif ()
 
-message(STATUS "Configuring QuEST")
 add_subdirectory(lib/QuEST)
-
-add_subdirectory(src)
+add_subdirectory(phase2)
+add_subdirectory(ph2run)
 
 include(CTest)
 if (BUILD_TESTING)

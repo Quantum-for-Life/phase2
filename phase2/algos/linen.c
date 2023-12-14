@@ -4,7 +4,7 @@
  */
 
 #include "circ.h"
-#include "linen.h"
+#include "algos/linen.h"
 
 int linen_reset(struct circ *c)
 {

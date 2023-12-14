@@ -13,7 +13,7 @@
 #include "QuEST.h"
 
 #include "circ.h"
-#include "rayon.h"
+#include "algos/rayon.h"
 
 static const size_t PAULI_MASK = 3;
 static const size_t PAULI_WIDTH = 2;
