@@ -20,8 +20,7 @@ struct rayon_data_multidet {
 	size_t num_dets;
 	struct {
 		long long index;
-		double coeff_re;
-		double coeff_im;
+		_Complex double coeff;
 	} *dets;
 };
 
@@ -29,8 +28,7 @@ struct rayon_data_times {
 	size_t num_steps;
 	struct {
 		double t;
-		double val_re;
-		double val_im;
+		_Complex double val;
 	} *steps;
 };
 

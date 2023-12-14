@@ -8,6 +8,7 @@
 #include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <complex.h>
 
 #include "QuEST.h"
 
@@ -20,8 +21,7 @@ static const size_t PAULI_PAK_SIZE = sizeof(pauli_pak_t) * 8 / PAULI_WIDTH;
 
 struct circ_data {
 	double t;
-	double prob0_re;
-	double prob0_im;
+	double prob0_re, prob0_im;
 	enum pauliOpType scratch[64];
 };
 
@@ -102,8 +102,8 @@ int rayon_multidet_from_data(struct rayon_data_multidet *md,
 		return -1;
 
 	for (size_t i = 0; i < dat_md->num_terms; i++) {
-		md->dets[i].coeff_re = dat_md->coeffs[2 * i];
-		md->dets[i].coeff_im = dat_md->coeffs[2 * i + 1];
+		md->dets[i].coeff = dat_md->coeffs[2 * i] +
+				    dat_md->coeffs[2 * i + 1] * _Complex_I;
 		const unsigned char *det_seq =
 			dat_md->dets + dat_md->num_qubits * i;
 		long long index = 0;
@@ -141,8 +141,8 @@ int rayon_times_from_data(struct rayon_data_times *ts,
 
 	for (size_t i = 0; i < dat_ts->num_steps; i++) {
 		ts->steps[i].t = dat_ts->times[i];
-		ts->steps[i].val_re = dat_ts->values[2 * i];
-		ts->steps[i].val_im = dat_ts->values[2 * i + 1];
+		ts->steps[i].val = dat_ts->values[2 * i] +
+				   dat_ts->values[2 * i + 1] * _Complex_I;
 	}
 	ts->num_steps = dat_ts->num_steps;
 
@@ -153,8 +153,8 @@ void rayon_data_write_times(const struct data_time_series *dat,
 			    const struct rayon_data_times *rt)
 {
 	for (size_t i = 0; i < rt->num_steps; i++) {
-		dat->values[2 * i] = rt->steps[i].val_re;
-		dat->values[2 * i + 1] = rt->steps[i].val_im;
+		dat->values[2 * i] = creal(rt->steps[i].val);
+		dat->values[2 * i + 1] = cimag(rt->steps[i].val);
 	}
 }
 
@@ -193,8 +193,8 @@ int rayon_prepst(struct circ *c)
 	for (size_t i = 0; i < md->num_dets; i++) {
 		const long long start_idx = md->dets[i].index
 					    << c->ct->num_mea_qb;
-		double real = md->dets[i].coeff_re;
-		double imag = md->dets[i].coeff_im;
+		double real = creal(md->dets[i].coeff);
+		double imag = cimag(md->dets[i].coeff);
 		setAmps(*qureg, start_idx, &real, &imag, 1);
 	}
 	hadamard(*qureg, c->mea_qb[0]);
@@ -309,8 +309,8 @@ int rayon_simulate(struct circ_env *env, const struct rayon_data *rd)
 		if (circ_simulate(&c) < 0)
 			goto error;
 
-		ts->steps[i].val_re = 2.0 * cdat.prob0_re - 1.0;
-		ts->steps[i].val_im = 2.0 * cdat.prob0_im - 1.0;
+		ts->steps[i].val = (2.0 * cdat.prob0_re - 1.0) +
+				   (2.0 * cdat.prob0_im - 1.0) * _Complex_I;
 	}
 
 	goto exit;
