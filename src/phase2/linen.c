@@ -6,14 +6,14 @@
 #include "circ.h"
 #include "linen.h"
 
-int linen_reset(const struct circ *c)
+int linen_reset(struct circ *c)
 {
 	(void)c;
 
 	return 0;
 }
 
-int linen_prepst(const struct circ *c)
+int linen_prepst( struct circ *c)
 {
 	const struct linen_circuit_data *ct_dat = c->ct->data;
 	struct linen_circ_data *dat = c->data;
@@ -22,7 +22,7 @@ int linen_prepst(const struct circ *c)
 	return 0;
 }
 
-int linen_effect(const struct circ *c)
+int linen_effect( struct circ *c)
 {
 	const struct linen_circuit_data *ct_dat = c->ct->data;
 	struct linen_circ_data *dat = c->data;
@@ -31,7 +31,7 @@ int linen_effect(const struct circ *c)
 	return 0;
 }
 
-int linen_measure(const struct circ *c)
+int linen_measure( struct circ *c)
 {
 	const struct linen_circuit_data *ct_dat = c->ct->data;
 	struct linen_circ_data *dat = c->data;
@@ -47,10 +47,10 @@ void linen_circuit_init(struct circuit *ct, struct linen_circuit_data *ct_dat)
 	ct->num_mea_qb = LINEN_DEFAULT_NUM_MEA_QB;
 	ct->num_sys_qb = LINEN_DEFAULT_NUM_SYS_QB;
 	ct->num_anc_qb = LINEN_DEFAULT_NUM_ANC_QB;
-	ct->reset = (circ_op)linen_reset;
-	ct->prepst = (circ_op)linen_prepst;
-	ct->effect = (circ_op)linen_effect;
-	ct->measure = (circ_op)linen_measure;
+	ct->reset = linen_reset;
+	ct->prepst = linen_prepst;
+	ct->effect = linen_effect;
+	ct->measure = linen_measure;
 }
 
 int linen_simulate(struct circ_env *env)
