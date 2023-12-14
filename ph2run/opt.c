@@ -1,8 +1,8 @@
 #include <stdio.h>
 
-#include "argums.h"
+#include "opt.h"
 
-void print_help_page(int argc, char **argv)
+void opt_help_page(int argc, char **argv)
 {
 	(void)argc;
 	fprintf(stderr, "usage: %s CIRCUIT [SIMUL_FILE_H5]\n\n", argv[0]);
@@ -21,18 +21,18 @@ void print_help_page(int argc, char **argv)
 			"\n\n");
 }
 
-int argums_parse(struct argums *a, int argc, char **argv)
+int opt_parse(struct opt *o, int argc, char **argv)
 {
 	int rc = 0;
 
 	/* Parse command line arguments. */
 	if (argc < 2) {
-		print_help_page(argc, argv);
+		opt_help_page(argc, argv);
 		return -1;
 	}
-	a->dat_filename = PH2RUN_DEFAULT_H5FILE;
+	o->dat_filename = PH2RUN_DEFAULT_H5FILE;
 	if (argc >= 3)
-		a->dat_filename = argv[2];
+		o->dat_filename = argv[2];
 
 	return rc;
 }

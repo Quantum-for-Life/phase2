@@ -1,8 +1,8 @@
 add_executable(ph2run
         main.c
-        log.c
         data.c
-        argums.c
+        log.c
+        opt.c
         run.c
 )
 

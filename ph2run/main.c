@@ -13,11 +13,11 @@
 #include "log.h"
 
 /* Command line arguments and env vars */
-#include "argums.h"
+#include "opt.h"
 
-static struct argums argums;
-void print_help_page(int argc, char **argv);
-int argums_parse(struct argums *a, int argc, char **argv);
+static struct opt opt;
+void opt_help_page(int argc, char **argv);
+int opt_parse(struct opt *o, int argc, char **argv);
 
 /* Data */
 static struct data dat;
@@ -34,7 +34,7 @@ int main(const int argc, char **argv)
 	int rc = 0;
 
 	/* Parse command line arguments. */
-	if (argums_parse(&argums, argc, argv) < 0)
+	if (opt_parse(&opt, argc, argv) < 0)
 		exit(EXIT_FAILURE);
 
 	/* Initiallize logging */
@@ -59,7 +59,7 @@ int main(const int argc, char **argv)
 #endif
 
 	data_init(&dat);
-	if (read_data_file(&dat, argums.dat_filename) < 0)
+	if (read_data_file(&dat, opt.dat_filename) < 0)
 		goto error;
 	print_data_info(&dat);
 
@@ -79,7 +79,7 @@ int main(const int argc, char **argv)
 		goto error;
 	}
 
-	if (save_data(argums.dat_filename, &dat) < 0)
+	if (save_data(opt.dat_filename, &dat) < 0)
 		goto error;
 
 	goto cleanup;

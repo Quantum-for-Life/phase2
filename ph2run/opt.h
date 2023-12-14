@@ -4,7 +4,7 @@
 #define PH2RUN_DEFAULT_H5FILE "simul.h5"
 #define PH2RUN_LOG_ENVVAR "PHASE2_LOG"
 
-struct argums {
+struct opt {
 	const char *dat_filename;
 };
 

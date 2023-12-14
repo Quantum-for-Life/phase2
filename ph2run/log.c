@@ -31,7 +31,7 @@
 #include "mpi.h"
 #endif
 
-#include "argums.h"
+#include "opt.h"
 #include "log.h"
 
 #define MAX_CALLBACKS (32)
