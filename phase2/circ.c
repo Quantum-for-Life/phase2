@@ -9,28 +9,28 @@
 static struct {
 	_Bool init;
 	QuESTEnv quest_env;
-} CIRC_ENV;
+} circ_env = { .init = false };
 
 static void env_init()
 {
-	CIRC_ENV.quest_env = createQuESTEnv();
-	CIRC_ENV.init = true;
+	circ_env.quest_env = createQuESTEnv();
+	circ_env.init = true;
 }
 
 static void env_destroy()
 {
-	if (CIRC_ENV.init) {
-		destroyQuESTEnv(CIRC_ENV.quest_env);
-		CIRC_ENV.init = false;
+	if (circ_env.init) {
+		destroyQuESTEnv(circ_env.quest_env);
+		circ_env.init = false;
 	}
 }
 
 static QuESTEnv env_get_questenv(void)
 {
-	if (!CIRC_ENV.init) {
-		env_init(&CIRC_ENV);
+	if (!circ_env.init) {
+		env_init(&circ_env);
 	}
-	return CIRC_ENV.quest_env;
+	return circ_env.quest_env;
 }
 
 static void env_report(void)
@@ -60,7 +60,7 @@ int circ_init(struct circ *c, struct circuit *ct, void *data)
 
 	c->ct = ct;
 	c->data = data;
-	c->qb = qureg;
+	c->reg = qureg;
 	c->mea_cl = mea_cl;
 	c->mea_qb = qb;
 	c->sys_qb = c->mea_qb + ct->num_mea_qb;
@@ -82,11 +82,11 @@ qureg_alloc_fail:
 
 void circ_destroy(struct circ *c)
 {
-	if (c->qb) {
-		const Qureg *qureg = c->qb;
+	if (c->reg) {
+		const Qureg *qureg = c->reg;
 		destroyQureg(*qureg, env_get_questenv());
-		free(c->qb);
-		c->qb = NULL;
+		free(c->reg);
+		c->reg = NULL;
 	}
 	if (c->mea_qb) {
 		free(c->mea_qb);
@@ -106,7 +106,7 @@ void circ_report(struct circ const *c)
 {
 	env_report();
 
-	const Qureg *qureg = c->qb;
+	const Qureg *qureg = c->reg;
 	printf("----------------\n");
 	printf("CIRCUIT: %s\n", c->ct->name);
 	reportQuregParams(*qureg);

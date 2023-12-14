@@ -11,7 +11,7 @@ struct circ {
 	void *data;
 
 	/* Qubit register */
-	void *qb;
+	void *reg;
 
 	int *mea_cl;
 	int *mea_qb;
