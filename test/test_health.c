@@ -24,16 +24,15 @@ static struct circuit HC_CIRCUIT = { .name = HEALTHCHECK_LABEL,
 
 TEST(healthcheck, void)
 {
-	struct circ c;
-	TEST_ASSERT(circ_init(&c, &HC_CIRCUIT, NULL) == 0,
-		    "cannot initialize circuit");
+	struct circ *c = circ_init(&HC_CIRCUIT, NULL);
+	TEST_ASSERT(c != NULL, "cannot initialize circuit");
 
-	TEST_ASSERT(c.ct->num_mea_qb == 7, " ")
-	TEST_ASSERT(c.ct->num_sys_qb == 8, " ")
-	TEST_ASSERT(c.ct->num_anc_qb == 9, " ")
+	TEST_ASSERT(c->ct->num_mea_qb == 7, " ")
+	TEST_ASSERT(c->ct->num_sys_qb == 8, " ")
+	TEST_ASSERT(c->ct->num_anc_qb == 9, " ")
 
 	TEST_FINALIZE
-	circ_destroy(&c);
+	circ_destroy(c);
 }
 TEST_END
 

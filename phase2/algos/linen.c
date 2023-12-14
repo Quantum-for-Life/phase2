@@ -61,14 +61,14 @@ int linen_simulate(void)
 					     .val_measure = 333 };
 	linen_circuit_init(&ct, &ct_dat);
 
-	struct circ c;
 	struct linen_circ_data circ_dat;
-	if (circ_init(&c, &ct, &circ_dat) < 0)
+	struct circ *c = circ_init(&ct, &circ_dat);
+	if (!c)
 		return -1;
-	circ_reset(&c);
-	circ_report(&c);
-	circ_simulate(&c);
-	circ_destroy(&c);
+	circ_reset(c);
+	circ_report(c);
+	circ_simulate(c);
+	circ_destroy(c);
 
 	return 0;
 }

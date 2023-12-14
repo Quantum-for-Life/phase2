@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <complex.h>
 
 #include "QuEST.h"
 
@@ -25,7 +26,7 @@ static void env_destroy()
 	}
 }
 
-static QuESTEnv env_get_questenv(void)
+static QuESTEnv get_questenv(void)
 {
 	if (!circ_env.init) {
 		env_init(&circ_env);
@@ -35,7 +36,7 @@ static QuESTEnv env_get_questenv(void)
 
 static void env_report(void)
 {
-	reportQuESTEnv(env_get_questenv());
+	reportQuESTEnv(get_questenv());
 }
 
 static size_t ct_num_tot_qb(const struct circuit *ct)
@@ -43,13 +44,17 @@ static size_t ct_num_tot_qb(const struct circuit *ct)
 	return ct->num_mea_qb + ct->num_sys_qb + ct->num_anc_qb;
 }
 
-int circ_init(struct circ *c, struct circuit *ct, void *data)
+struct circ *circ_init(struct circuit *ct, void *data)
 {
+	struct circ *c = malloc(sizeof(*c));
+	if (!c)
+		return NULL;
+
 	Qureg *qureg = malloc(sizeof(Qureg));
 	if (!qureg)
 		goto qureg_alloc_fail;
 
-	*qureg = createQureg(ct_num_tot_qb(ct), env_get_questenv());
+	*qureg = createQureg(ct_num_tot_qb(ct), get_questenv());
 
 	int *mea_cl = malloc(sizeof(int) * ct->num_mea_qb);
 	if (!mea_cl)
@@ -69,37 +74,31 @@ int circ_init(struct circ *c, struct circuit *ct, void *data)
 		c->mea_qb[i] = i;
 	}
 
-	return 0;
+	return c;
 
 qb_alloc_fail:
 	free(mea_cl);
 mea_alloc_fail:
-	destroyQureg(*qureg, env_get_questenv());
+	destroyQureg(*qureg, get_questenv());
 	free(qureg);
 qureg_alloc_fail:
-	return -1;
+	return NULL;
 }
 
 void circ_destroy(struct circ *c)
 {
 	if (c->reg) {
 		const Qureg *qureg = c->reg;
-		destroyQureg(*qureg, env_get_questenv());
+		destroyQureg(*qureg, get_questenv());
 		free(c->reg);
-		c->reg = NULL;
 	}
 	if (c->mea_qb) {
 		free(c->mea_qb);
-		c->mea_qb = NULL;
-		c->sys_qb = NULL;
-		c->anc_qb = NULL;
 	}
 	if (c->mea_cl) {
 		free(c->mea_cl);
-		c->mea_cl = NULL;
 	}
-	c->data = NULL;
-	c->ct = NULL;
+	free(c);
 }
 
 void circ_report(struct circ const *c)
@@ -139,6 +138,9 @@ void circ_report(struct circ const *c)
 
 int circ_reset(struct circ *c)
 {
+	Qureg *qureg = c->reg;
+	initZeroState(*qureg);
+
 	for (size_t i = 0; i < c->ct->num_mea_qb; i++) {
 		c->mea_cl[i] = 0;
 	}
@@ -164,4 +166,61 @@ int circ_simulate(struct circ *c)
 	}
 
 	return 0;
+}
+
+qbid circ_mea_qb(struct circ *c, size_t idx)
+{
+	return c->mea_qb[idx];
+}
+
+qbid circ_sys_qb(struct circ *c, size_t idx)
+{
+	return c->sys_qb[idx];
+}
+
+qbid circ_anc_qb(struct circ *c, size_t idx)
+{
+	return c->anc_qb[idx];
+}
+
+void circ_hadamard(struct circ *c, qbid qb)
+{
+	Qureg *qureg = c->reg;
+	if (qureg)
+		hadamard(*qureg, qb);
+}
+
+void circ_sgate(struct circ *c, qbid qb)
+{
+	Qureg *qureg = c->reg;
+	if (qureg)
+		sGate(*qureg, qb);
+}
+
+double circ_prob0(struct circ *c, qbid qb)
+{
+	Qureg *qureg = c->reg;
+	return calcProbOfOutcome(*qureg, qb, 0);
+}
+
+void circ_blankstate(struct circ *c)
+{
+	Qureg *qureg = c->reg;
+	initBlankState(*qureg);
+}
+
+void circ_setsysamp(struct circ *c, size_t idx, _Complex double amp)
+{
+	Qureg *qureg = c->reg;
+	double amp_re = creal(amp);
+	double amp_im = cimag(amp);
+	setAmps(*qureg, idx << c->ct->num_mea_qb, &amp_re, &amp_im, 1);
+}
+
+void circ_sys_control_rotate_pauli(struct circ *c, int *paulis, double angle)
+{
+	Qureg *qureg = c->reg;
+	multiControlledMultiRotatePauli(*qureg, c->mea_qb, c->ct->num_mea_qb,
+					c->sys_qb, (enum pauliOpType *)paulis,
+					c->ct->num_sys_qb, -2.0 * angle);
 }
