@@ -2,7 +2,10 @@ message(STATUS "Configuring ph2run")
 
 add_executable(ph2run
         main.c
-        log/log.c
+        log.c
+        data.c
+        argums.c
+        run.c
 )
 target_link_libraries(ph2run
         phase2
