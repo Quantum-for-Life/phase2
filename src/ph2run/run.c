@@ -1,6 +1,6 @@
 #include "circ.h"
-#include "rayon.h"
-#include "linen.h"
+#include "algos/rayon.h"
+#include "algos/linen.h"
 
 int run_linen(struct circ_env *env, struct data *dat)
 {

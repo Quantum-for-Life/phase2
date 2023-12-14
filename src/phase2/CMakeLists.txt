@@ -5,8 +5,8 @@ set(PHASE2_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 add_library(phase2 SHARED
         circ.c
         data.c
-        linen.c
-        rayon.c
+        algos/linen.c
+        algos/rayon.c
 )
 target_link_libraries(phase2
         QuEST m

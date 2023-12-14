@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "circ.h"
-#include "rayon.h"
+#include "algos/rayon.h"
 #include "data.h"
 
 #include "test.h"
