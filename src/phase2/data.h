@@ -22,7 +22,7 @@ typedef int64_t data_id; // This is the same as HDF5's hid_t
 struct data_state_prep_multidet {
 	size_t num_qubits;
 	size_t num_terms;
-	double *coeffs;
+	_Complex double *coeffs;
 	unsigned char *dets;
 };
 
@@ -41,7 +41,7 @@ struct data_pauli_hamil {
 struct data_time_series {
 	size_t num_steps;
 	double *times;
-	double *values;
+	_Complex double *values;
 };
 
 struct data {

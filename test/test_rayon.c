@@ -1,4 +1,5 @@
 #include <math.h>
+#include <complex.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -65,25 +66,22 @@ TEST(caserand, struct circ_env *env, const char *prefix)
 	rayon_data_destroy(&rd);
 
 	for (size_t i = 0; i < dat.time_series.num_steps; i++) {
-		const double val_re = dat.time_series.values[2 * i];
-		const double val_im = dat.time_series.values[2 * i + 1];
+		const _Complex double val = dat.time_series.values[i];
+		const _Complex double ref = dat_ref.time_series.values[i];
 
-		const double ref_re = dat_ref.time_series.values[2 * i];
-		const double ref_im = dat_ref.time_series.values[2 * i + 1];
-
-		TEST_ASSERT(!(isnan(val_re)), "Real value at index %zu is NaN",
-			    i);
-		TEST_ASSERT(!(isnan(val_im)), "Imag value at index %zu is Nan",
-			    i);
+		TEST_ASSERT(!(isnan(creal(val))),
+			    "Real value at index %zu is Nan", i);
+		TEST_ASSERT(!(isnan(cimag(val))),
+			    "Imag value at index %zu is Nan", i);
 
 		TEST_ASSERT(
-			fabs(val_re - ref_re) < MARGIN,
+			fabs(creal(val) - creal(ref)) < MARGIN,
 			"Real diff exceeded margin (%f): val_re=%f, ref_re=%f",
-			MARGIN, val_re, ref_re);
+			MARGIN, creal(val), creal(ref));
 		TEST_ASSERT(
-			fabs(val_im - ref_im) < MARGIN,
-			"Imag diff exceeded margin (%f): val_im=%f, ref_im=%f",
-			MARGIN, val_im, ref_im);
+			fabs(cimag(val) - cimag(ref)) < MARGIN,
+			"Imag diff exceeded margin (%f): val_re=%f, ref_re=%f",
+			MARGIN, cimag(val), cimag(ref));
 	}
 
 	TEST_FINALIZE

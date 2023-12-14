@@ -67,12 +67,13 @@ int data_state_prep_multidet_parse(struct data_state_prep_multidet *dat,
 	hsize_t dspace_coeffs_dims[2];
 	H5Sget_simple_extent_dims(dspace_coeffs_id, dspace_coeffs_dims, NULL);
 	const size_t num_terms = dspace_coeffs_dims[0];
-	double *coeffs = malloc(sizeof(*coeffs) * num_terms * 2);
+	_Complex double *coeffs = malloc(sizeof(*coeffs) * num_terms);
 	if (!coeffs) {
 		res = -1;
 		goto coeffs_alloc_fail;
 	}
-	if (H5Dread(dset_coeffs_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL,
+	/* _Complex double has the same representation as double[2] */
+	if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
 		    H5P_DEFAULT, coeffs) < 0) {
 		free(coeffs);
 		coeffs = NULL;
@@ -96,8 +97,8 @@ int data_state_prep_multidet_parse(struct data_state_prep_multidet *dat,
 		res = -1;
 		goto dets_alloc_fail;
 	}
-	if (H5Dread(dset_dets_id, H5T_STD_U8LE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-		    dets) < 0) {
+	if (H5Dread(dset_dets_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
+		    H5P_DEFAULT, dets) < 0) {
 		free(dets);
 		dets = NULL;
 		res = -1;
@@ -227,7 +228,7 @@ int data_pauli_hamil_parse(struct data_pauli_hamil *dat, const data_id obj_id)
 		goto attr_norm_fail;
 	}
 	double norm;
-	H5Aread(attr_norm_id, H5T_IEEE_F64LE, &norm);
+	H5Aread(attr_norm_id, H5T_NATIVE_DOUBLE, &norm);
 
 	dat->num_qubits = num_qubits;
 	dat->num_terms = num_terms;
@@ -299,16 +300,16 @@ int data_time_series_parse(struct data_time_series *dat, const data_id obj_id)
 	const hid_t dspace_values_id = H5Dget_space(dset_values_id);
 	hsize_t dspace_values_dims[2];
 	H5Sget_simple_extent_dims(dspace_values_id, dspace_values_dims, NULL);
-	double *values = malloc(sizeof(double) * num_steps * 2);
+	_Complex double *values = malloc(sizeof(*values) * num_steps);
 	if (values == NULL) {
 		res = -1;
 		goto values_alloc_fail;
 	}
+	/* _Complex double has the same representation as double[2] */
 	H5Dread(dset_values_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
 		H5P_DEFAULT, values);
 
 	dat->num_steps = num_steps;
-
 	dat->values = values;
 values_alloc_fail:
 	H5Sclose(dspace_values_id);
@@ -349,6 +350,7 @@ int data_time_series_write(const hid_t fid, const struct data_time_series *dat)
 		res = -1;
 		goto dset_values_fail;
 	}
+	/* _Complex double has the same representation of double[2] */
 	if (H5Dwrite(dset_values_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
 		     H5P_DEFAULT, dat->values) < 0) {
 		res = -1;

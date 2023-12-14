@@ -102,8 +102,7 @@ int rayon_multidet_from_data(struct rayon_data_multidet *md,
 		return -1;
 
 	for (size_t i = 0; i < dat_md->num_terms; i++) {
-		md->dets[i].coeff = dat_md->coeffs[2 * i] +
-				    dat_md->coeffs[2 * i + 1] * _Complex_I;
+		md->dets[i].coeff = dat_md->coeffs[i];
 		const unsigned char *det_seq =
 			dat_md->dets + dat_md->num_qubits * i;
 		long long index = 0;
@@ -141,20 +140,18 @@ int rayon_times_from_data(struct rayon_data_times *ts,
 
 	for (size_t i = 0; i < dat_ts->num_steps; i++) {
 		ts->steps[i].t = dat_ts->times[i];
-		ts->steps[i].val = dat_ts->values[2 * i] +
-				   dat_ts->values[2 * i + 1] * _Complex_I;
+		ts->steps[i].val = dat_ts->values[i];
 	}
 	ts->num_steps = dat_ts->num_steps;
 
 	return 0;
 }
 
-void rayon_data_write_times(const struct data_time_series *dat,
+void rayon_data_write_times(struct data_time_series *dat,
 			    const struct rayon_data_times *rt)
 {
 	for (size_t i = 0; i < rt->num_steps; i++) {
-		dat->values[2 * i] = creal(rt->steps[i].val);
-		dat->values[2 * i + 1] = cimag(rt->steps[i].val);
+		dat->values[i] = rt->steps[i].val;
 	}
 }
 
@@ -309,7 +306,7 @@ int rayon_simulate(struct circ_env *env, const struct rayon_data *rd)
 		if (circ_simulate(&c) < 0)
 			goto error;
 
-		ts->steps[i].val = (2.0 * cdat.prob0_re - 1.0) +
+		ts->steps[i].val = 2.0 * cdat.prob0_re - 1.0 +
 				   (2.0 * cdat.prob0_im - 1.0) * _Complex_I;
 	}
 
