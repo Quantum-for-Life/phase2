@@ -289,7 +289,7 @@ static void rayon_circuit_destroy(const struct circuit *ct)
 	(void)(ct);
 }
 
-int rayon_simulate(struct circ_env *env, const struct rayon_data *rd)
+int rayon_simulate(const struct rayon_data *rd)
 {
 	int ret = 0;
 
@@ -298,7 +298,7 @@ int rayon_simulate(struct circ_env *env, const struct rayon_data *rd)
 
 	struct circ c;
 	struct circ_data cdat;
-	if (circ_init(&c, env, &ct, &cdat) < 0)
+	if (circ_init(&c, &ct, &cdat) < 0)
 		goto error;
 	const struct rayon_data_times *ts = &rd->times;
 	for (size_t i = 0; i < ts->num_steps; i++) {

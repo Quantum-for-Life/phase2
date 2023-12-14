@@ -60,12 +60,11 @@ static struct circuit MOCK_CIRCUIT = { .name = MOCK_CIRCUIT_NAME,
 				       .effect = mock_routine,
 				       .measure = mock_state_post };
 
-TEST(mock_circ_init, struct circ_env *env, struct circuit *ct)
+TEST(mock_circ_init, struct circuit *ct)
 {
 	struct circ c;
 	struct mock_circ_data dat;
-	TEST_ASSERT(circ_init(&c, env, ct, &dat) == 0,
-		    "cannot initialize circuit")
+	TEST_ASSERT(circ_init(&c, ct, &dat) == 0, "cannot initialize circuit")
 	TEST_ASSERT(memcmp(ct->name, MOCK_CIRCUIT_NAME, 4) == 0,
 		    "wrong circuit passed")
 
@@ -74,13 +73,12 @@ TEST(mock_circ_init, struct circ_env *env, struct circuit *ct)
 }
 TEST_END
 
-TEST(mock_circ_reset, struct circ_env *env, struct circuit *ct)
+TEST(mock_circ_reset, struct circuit *ct)
 {
 	struct circ c;
 	struct mock_circ_data dat = { .index = 0 };
 
-	TEST_ASSERT(circ_init(&c, env, ct, &dat) == 0,
-		    "cannot initialize circuit")
+	TEST_ASSERT(circ_init(&c, ct, &dat) == 0, "cannot initialize circuit")
 	TEST_ASSERT(circ_reset(&c) == 0, "reset")
 	TEST_ASSERT(dat.reset_val == 777, "circuit not reset")
 
@@ -89,13 +87,12 @@ TEST(mock_circ_reset, struct circ_env *env, struct circuit *ct)
 }
 TEST_END
 
-TEST(mock_circ_simulate, struct circ_env *env, struct circuit *ct)
+TEST(mock_circ_simulate, struct circuit *ct)
 {
 	struct circ c;
 	struct mock_circ_data dat = { .index = 0 };
 
-	TEST_ASSERT(circ_init(&c, env, ct, &dat) == 0,
-		    "cannot initialize circuit")
+	TEST_ASSERT(circ_init(&c, ct, &dat) == 0, "cannot initialize circuit")
 	TEST_ASSERT(circ_simulate(&c) == 0, "simulation error")
 	TEST_ASSERT(dat.reset_val == 777, "reset value")
 	TEST_ASSERT(dat.values[0] == 222, "state_prep value")
@@ -109,17 +106,13 @@ TEST_END
 
 TEST(mock_circ_suite, void)
 {
-	struct circ_env env;
-	TEST_ASSERT(circ_env_init(&env) == 0,
-		    "cannot initializa circ environment");
-
-	TEST_CASE(mock_circ_init(&env, &MOCK_CIRCUIT))
-	TEST_CASE(mock_circ_reset(&env, &MOCK_CIRCUIT))
-	TEST_CASE(mock_circ_simulate(&env, &MOCK_CIRCUIT))
-	TEST_CASE(mock_circ_simulate(&env, &MOCK_CIRCUIT))
+	TEST_CASE(mock_circ_init(&MOCK_CIRCUIT))
+	TEST_CASE(mock_circ_reset(&MOCK_CIRCUIT))
+	TEST_CASE(mock_circ_simulate(&MOCK_CIRCUIT))
+	TEST_CASE(mock_circ_simulate(&MOCK_CIRCUIT))
 
 	TEST_FINALIZE
-	circ_env_destroy(&env);
+	;
 }
 TEST_END
 

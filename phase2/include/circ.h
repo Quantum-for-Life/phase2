@@ -6,12 +6,7 @@
 
 #include <stdlib.h>
 
-struct circ_env {
-	void *quest_env;
-};
-
 struct circ {
-	struct circ_env *env;
 	struct circuit *ct;
 	void *data;
 
@@ -40,14 +35,7 @@ struct circuit {
 	circ_op measure;
 };
 
-int circ_env_init(struct circ_env *env);
-
-void circ_env_destroy(struct circ_env *env);
-
-void circ_env_report(struct circ_env const *env);
-
-int circ_init(struct circ *c, struct circ_env *env, struct circuit *ct,
-	      void *data);
+int circ_init(struct circ *c, struct circuit *ct, void *data);
 
 void circ_destroy(struct circ *c);
 

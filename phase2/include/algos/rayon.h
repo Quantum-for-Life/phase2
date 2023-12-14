@@ -47,6 +47,6 @@ int rayon_data_from_data(struct rayon_data *rd, const struct data *dat);
 void rayon_data_write_times(struct data_time_series *dat,
 			    const struct rayon_data_times *rt);
 
-int rayon_simulate(struct circ_env *env, const struct rayon_data *rd);
+int rayon_simulate(const struct rayon_data *rd);
 
 #endif //PHASE2_RAYON_H

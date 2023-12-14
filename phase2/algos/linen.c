@@ -13,7 +13,7 @@ int linen_reset(struct circ *c)
 	return 0;
 }
 
-int linen_prepst( struct circ *c)
+int linen_prepst(struct circ *c)
 {
 	const struct linen_circuit_data *ct_dat = c->ct->data;
 	struct linen_circ_data *dat = c->data;
@@ -22,7 +22,7 @@ int linen_prepst( struct circ *c)
 	return 0;
 }
 
-int linen_effect( struct circ *c)
+int linen_effect(struct circ *c)
 {
 	const struct linen_circuit_data *ct_dat = c->ct->data;
 	struct linen_circ_data *dat = c->data;
@@ -31,7 +31,7 @@ int linen_effect( struct circ *c)
 	return 0;
 }
 
-int linen_measure( struct circ *c)
+int linen_measure(struct circ *c)
 {
 	const struct linen_circuit_data *ct_dat = c->ct->data;
 	struct linen_circ_data *dat = c->data;
@@ -53,10 +53,8 @@ void linen_circuit_init(struct circuit *ct, struct linen_circuit_data *ct_dat)
 	ct->measure = linen_measure;
 }
 
-int linen_simulate(struct circ_env *env)
+int linen_simulate(void)
 {
-	circ_env_report(env);
-
 	struct circuit ct;
 	struct linen_circuit_data ct_dat = { .val_prepst = 1,
 					     .val_effect = 22,
@@ -65,7 +63,7 @@ int linen_simulate(struct circ_env *env)
 
 	struct circ c;
 	struct linen_circ_data circ_dat;
-	if (circ_init(&c, env, &ct, &circ_dat) < 0)
+	if (circ_init(&c, &ct, &circ_dat) < 0)
 		return -1;
 	circ_reset(&c);
 	circ_report(&c);

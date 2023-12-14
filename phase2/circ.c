@@ -1,51 +1,55 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "QuEST.h"
 
 #include "circ.h"
+
+static struct {
+	_Bool init;
+	QuESTEnv quest_env;
+} CIRC_ENV;
+
+static void env_init()
+{
+	CIRC_ENV.quest_env = createQuESTEnv();
+	CIRC_ENV.init = true;
+}
+
+static void env_destroy()
+{
+	if (CIRC_ENV.init) {
+		destroyQuESTEnv(CIRC_ENV.quest_env);
+		CIRC_ENV.init = false;
+	}
+}
+
+static QuESTEnv env_get_questenv(void)
+{
+	if (!CIRC_ENV.init) {
+		env_init(&CIRC_ENV);
+	}
+	return CIRC_ENV.quest_env;
+}
+
+static void env_report(void)
+{
+	reportQuESTEnv(env_get_questenv());
+}
 
 static size_t ct_num_tot_qb(const struct circuit *ct)
 {
 	return ct->num_mea_qb + ct->num_sys_qb + ct->num_anc_qb;
 }
 
-int circ_env_init(struct circ_env *env)
-{
-	QuESTEnv *quest_env = malloc(sizeof(QuESTEnv));
-	if (!quest_env)
-		return -1;
-	*quest_env = createQuESTEnv();
-	env->quest_env = quest_env;
-
-	return 0;
-}
-
-void circ_env_destroy(struct circ_env *env)
-{
-	if (!env->quest_env)
-		return;
-
-	const QuESTEnv *quest_env = env->quest_env;
-	destroyQuESTEnv(*quest_env);
-	free(env->quest_env);
-	env->quest_env = NULL;
-}
-
-void circ_env_report(struct circ_env const *env)
-{
-	const QuESTEnv *quest_env = env->quest_env;
-	reportQuESTEnv(*quest_env);
-}
-
-int circ_init(struct circ *c, struct circ_env *env, struct circuit *ct,
-	      void *data)
+int circ_init(struct circ *c, struct circuit *ct, void *data)
 {
 	Qureg *qureg = malloc(sizeof(Qureg));
 	if (!qureg)
 		goto qureg_alloc_fail;
-	const QuESTEnv *quest_env = env->quest_env;
-	*qureg = createQureg(ct_num_tot_qb(ct), *quest_env);
+
+	*qureg = createQureg(ct_num_tot_qb(ct), env_get_questenv());
 
 	int *mea_cl = malloc(sizeof(int) * ct->num_mea_qb);
 	if (!mea_cl)
@@ -54,7 +58,6 @@ int circ_init(struct circ *c, struct circ_env *env, struct circuit *ct,
 	if (!qb)
 		goto qb_alloc_fail;
 
-	c->env = env;
 	c->ct = ct;
 	c->data = data;
 	c->qb = qureg;
@@ -71,7 +74,7 @@ int circ_init(struct circ *c, struct circ_env *env, struct circuit *ct,
 qb_alloc_fail:
 	free(mea_cl);
 mea_alloc_fail:
-	destroyQureg(*qureg, *quest_env);
+	destroyQureg(*qureg, env_get_questenv());
 	free(qureg);
 qureg_alloc_fail:
 	return -1;
@@ -80,9 +83,8 @@ qureg_alloc_fail:
 void circ_destroy(struct circ *c)
 {
 	if (c->qb) {
-		const QuESTEnv *quest_env = c->env->quest_env;
 		const Qureg *qureg = c->qb;
-		destroyQureg(*qureg, *quest_env);
+		destroyQureg(*qureg, env_get_questenv());
 		free(c->qb);
 		c->qb = NULL;
 	}
@@ -98,11 +100,12 @@ void circ_destroy(struct circ *c)
 	}
 	c->data = NULL;
 	c->ct = NULL;
-	c->env = NULL;
 }
 
 void circ_report(struct circ const *c)
 {
+	env_report();
+
 	const Qureg *qureg = c->qb;
 	printf("----------------\n");
 	printf("CIRCUIT: %s\n", c->ct->name);

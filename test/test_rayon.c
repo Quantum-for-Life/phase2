@@ -46,7 +46,7 @@ exit:
 	return rc;
 }
 
-TEST(caserand, struct circ_env *env, const char *prefix)
+TEST(caserand, const char *prefix)
 {
 	static char buf[1024];
 	snprintf(buf, 1024, "%s/%s", CASE_DIR, prefix);
@@ -55,13 +55,13 @@ TEST(caserand, struct circ_env *env, const char *prefix)
 	data_init(&dat);
 	data_init(&dat_ref);
 	TEST_ASSERT(read_data_ref(&dat, &dat_ref, buf) == 0,
-		    "Cannot read data file");
+		    "Cannot read data file")
 
 	struct rayon_data rd;
 	rayon_data_init(&rd);
 	TEST_ASSERT(rayon_data_from_data(&rd, &dat) == 0,
-		    "Cannot parse simulation data");
-	TEST_ASSERT(rayon_simulate(env, &rd) == 0, "Simulation error");
+		    "Cannot parse simulation data")
+	TEST_ASSERT(rayon_simulate(&rd) == 0, "Simulation error")
 	rayon_data_write_times(&dat.time_series, &rd.times);
 	rayon_data_destroy(&rd);
 
@@ -70,18 +70,18 @@ TEST(caserand, struct circ_env *env, const char *prefix)
 		const _Complex double ref = dat_ref.time_series.values[i];
 
 		TEST_ASSERT(!(isnan(creal(val))),
-			    "Real value at index %zu is Nan", i);
+			    "Real value at index %zu is Nan", i)
 		TEST_ASSERT(!(isnan(cimag(val))),
-			    "Imag value at index %zu is Nan", i);
+			    "Imag value at index %zu is Nan", i)
 
 		TEST_ASSERT(
 			fabs(creal(val) - creal(ref)) < MARGIN,
 			"Real diff exceeded margin (%f): val_re=%f, ref_re=%f",
-			MARGIN, creal(val), creal(ref));
+			MARGIN, creal(val), creal(ref))
 		TEST_ASSERT(
 			fabs(cimag(val) - cimag(ref)) < MARGIN,
 			"Imag diff exceeded margin (%f): val_re=%f, ref_re=%f",
-			MARGIN, cimag(val), cimag(ref));
+			MARGIN, cimag(val), cimag(ref))
 	}
 
 	TEST_FINALIZE
@@ -92,17 +92,13 @@ TEST_END
 
 TEST(caserand_suite, void)
 {
-	struct circ_env env;
-	circ_env_init(&env);
+	TEST_CASE(caserand("case-d9f603dc"))
+	TEST_CASE(caserand("case-070d034c"))
+	TEST_CASE(caserand("case-33427110"))
+	TEST_CASE(caserand("case-28aa2595"))
+	TEST_CASE(caserand("case-e1932ef1"))
 
-	TEST_CASE(caserand(&env, "case-d9f603dc"));
-	TEST_CASE(caserand(&env, "case-070d034c"));
-	TEST_CASE(caserand(&env, "case-33427110"));
-	TEST_CASE(caserand(&env, "case-28aa2595"));
-	TEST_CASE(caserand(&env, "case-e1932ef1"));
-
-	TEST_FINALIZE
-	circ_env_destroy(&env);
+	TEST_FINALIZE;
 }
 TEST_END
 
