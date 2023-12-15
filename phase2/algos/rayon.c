@@ -289,7 +289,7 @@ int rayon_simulate(const struct rayon_data *rd)
 
 	struct circ_data cdat;
 	cdat.rd = rd;
-	struct circ *c = circ_init(&ct, &cdat);
+	struct circ *c = circ_create(&ct, &cdat);
 	if (!c)
 		goto error;
 	const struct rayon_data_times *ts = &rd->times;

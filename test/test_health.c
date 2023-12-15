@@ -23,12 +23,12 @@ static struct circuit HC_CIRCUIT = { .name = HEALTHCHECK_LABEL,
 
 TEST(healthcheck, void)
 {
-	struct circ *c = circ_init(&HC_CIRCUIT, NULL);
+	struct circ *c = circ_create(&HC_CIRCUIT, NULL);
 	TEST_ASSERT(c != NULL, "cannot initialize circuit");
 
 	TEST_FINALIZE
 	circ_destroy(c);
-	circ_env_shutdown();
+	circ_shutdown();
 }
 TEST_END
 

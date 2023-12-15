@@ -37,7 +37,7 @@ int main(const int argc, char **argv)
 	if (opt_parse(&opt, argc, argv) < 0)
 		exit(EXIT_FAILURE);
 
-	circ_env_initialize();
+	circ_initialize();
 
 	/* Initiallize logging */
 	if (log_init() < 0)
@@ -84,7 +84,7 @@ error:
 cleanup:
 	log_info("Shut down simulation environment");
 	data_destroy(&dat);
-	circ_env_shutdown();
+	circ_shutdown();
 
 	return rc;
 }

@@ -58,7 +58,7 @@ int linen_simulate(void)
 	linen_circuit_init(&ct, &cdat);
 
 	struct linen_circ_data circ_dat;
-	struct circ *c = circ_init(&ct, &circ_dat);
+	struct circ *c = circ_create(&ct, &circ_dat);
 	if (!c)
 		return -1;
 	circ_reset(c);

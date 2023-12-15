@@ -8,7 +8,7 @@
 
 int init_par(void *)
 {
-	return circ_env_initialize();
+	return circ_initialize();
 }
 
 TEST(init_parallel, void)
@@ -46,7 +46,7 @@ TEST(init_parallel, void)
 	TEST_ASSERT(num_ones == NUM_THREADS - 1, "the rest should be passes");
 
 	TEST_FINALIZE
-	circ_env_shutdown();
+	circ_shutdown();
 }
 TEST_END
 

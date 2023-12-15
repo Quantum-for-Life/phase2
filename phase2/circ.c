@@ -25,6 +25,7 @@ struct circ {
 	/* Qubit register */
 	Qureg quest_qureg;
 
+	/* Classical bits (measurement results) */
 	int *cl;
 	int *qb;
 };
@@ -40,7 +41,7 @@ struct circ {
  *       by another call to this function
  *  -1 - in case of failure
  */
-int circ_env_initialize()
+int circ_initialize()
 {
 	int rc = 1;
 
@@ -81,7 +82,7 @@ int circ_env_initialize()
 	return rc;
 }
 
-int circ_env_shutdown()
+int circ_shutdown()
 {
 	int rc = 1;
 	if (!atomic_load_explicit(&circ_env.init, memory_order_relaxed))
@@ -103,7 +104,7 @@ int circ_env_shutdown()
 static QuESTEnv *env_get_questenv(void)
 {
 	if (!atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
-		if (circ_env_initialize() < 0)
+		if (circ_initialize() < 0)
 			return NULL;
 	}
 	return &circ_env.quest_env;
@@ -126,7 +127,7 @@ static size_t ct_num_tot_qb(const struct circuit *ct)
 	return ct->num_mea_qb + ct->num_sys_qb + ct->num_anc_qb;
 }
 
-struct circ *circ_init(struct circuit *ct, void *data)
+struct circ *circ_create(struct circuit *ct, void *data)
 {
 	struct circ *c = malloc(sizeof(*c));
 	if (!c)
@@ -178,7 +179,7 @@ void circ_destroy(struct circ *c)
 	free(c);
 }
 
-void *circ_data(struct circ *c)
+void *circ_data(const struct circ *c)
 {
 	return c->data;
 }
@@ -250,21 +251,35 @@ int circ_simulate(struct circ *c)
 	return 0;
 }
 
+size_t circ_num_mea_qb(const struct circ *c)
+{
+	return c->ct->num_mea_qb;
+}
+
+size_t circ_num_sys_qb(const struct circ *c)
+{
+	return c->ct->num_sys_qb;
+}
+
+size_t circ_num_anc_qb(const struct circ *c)
+{
+	return c->ct->num_anc_qb;
+}
+
 qbid circ_mea_qb(const struct circ *c, size_t idx)
 {
 	(void)c;
-
 	return idx;
 }
 
 qbid circ_sys_qb(const struct circ *c, size_t idx)
 {
-	return idx + c->ct->num_mea_qb;
+	return idx + circ_num_mea_qb(c);
 }
 
 qbid circ_anc_qb(const struct circ *c, size_t idx)
 {
-	return idx + c->ct->num_mea_qb + c->ct->num_sys_qb;
+	return idx + circ_num_mea_qb(c) + circ_num_sys_qb(c);
 }
 
 void circ_hadamard(struct circ *c, qbid qb)

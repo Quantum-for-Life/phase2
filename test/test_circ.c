@@ -62,7 +62,7 @@ static struct circuit MOCK_CIRCUIT = { .name = MOCK_CIRCUIT_NAME,
 TEST(mock_circ_init, struct circuit *ct)
 {
 	struct mock_circ_data dat;
-	struct circ *c = circ_init(ct, &dat);
+	struct circ *c = circ_create(ct, &dat);
 	TEST_ASSERT(c != NULL, "cannot initialize circuit")
 	TEST_ASSERT(memcmp(ct->name, MOCK_CIRCUIT_NAME, 4) == 0,
 		    "wrong circuit passed")
@@ -75,7 +75,7 @@ TEST_END
 TEST(mock_circ_reset, struct circuit *ct)
 {
 	struct mock_circ_data dat = { .index = 0 };
-	struct circ *c = circ_init(ct, &dat);
+	struct circ *c = circ_create(ct, &dat);
 
 	TEST_ASSERT(c != NULL, "cannot initialize circuit")
 	TEST_ASSERT(circ_reset(c) == 0, "reset")
@@ -89,7 +89,7 @@ TEST_END
 TEST(mock_circ_simulate, struct circuit *ct)
 {
 	struct mock_circ_data dat = { .index = 0 };
-	struct circ *c = circ_init(ct, &dat);
+	struct circ *c = circ_create(ct, &dat);
 
 	TEST_ASSERT(c != NULL, "cannot initialize circuit")
 	TEST_ASSERT(circ_simulate(c) == 0, "simulation error")
@@ -111,7 +111,7 @@ TEST(mock_circ_suite, void)
 	TEST_CASE(mock_circ_simulate(&MOCK_CIRCUIT))
 
 	TEST_FINALIZE
-	circ_env_shutdown();
+	circ_shutdown();
 }
 TEST_END
 
