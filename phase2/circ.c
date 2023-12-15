@@ -25,8 +25,8 @@ struct circ {
 	/* Qubit register */
 	Qureg quest_qureg;
 
-	int *mea_cl;
-	int *mea_qb;
+	int *cl;
+	int *qb;
 	int *sys_qb;
 	int *anc_qb;
 };
@@ -145,12 +145,12 @@ struct circ *circ_init(struct circuit *ct, void *data)
 	c->ct = ct;
 	c->data = data;
 	c->quest_qureg = qureg;
-	c->mea_cl = mea_cl;
-	c->mea_qb = qb;
-	c->sys_qb = c->mea_qb + ct->num_mea_qb;
+	c->cl = mea_cl;
+	c->qb = qb;
+	c->sys_qb = c->qb + ct->num_mea_qb;
 	c->anc_qb = c->sys_qb + ct->num_sys_qb;
 	for (size_t i = 0; i < ct_num_tot_qb(c->ct); i++) {
-		c->mea_qb[i] = i;
+		c->qb[i] = i;
 	}
 
 	return c;
@@ -165,11 +165,11 @@ mea_alloc_fail:
 void circ_destroy(struct circ *c)
 {
 	destroyQureg(c->quest_qureg, *env_get_questenv());
-	if (c->mea_qb) {
-		free(c->mea_qb);
+	if (c->qb) {
+		free(c->qb);
 	}
-	if (c->mea_cl) {
-		free(c->mea_cl);
+	if (c->cl) {
+		free(c->cl);
 	}
 	free(c);
 }
@@ -188,15 +188,15 @@ int circ_report(struct circ const *c)
 	printf("CIRCUIT: %s\n", c->ct->name);
 	reportQuregParams(c->quest_qureg);
 
-	printf("mea_cl register: [");
+	printf("cl register: [");
 	for (size_t i = 0; i < c->ct->num_mea_qb; i++) {
-		printf("%d", c->mea_cl[i]);
+		printf("%d", c->cl[i]);
 	}
 	printf("]\n");
 
-	printf("mea_qb indices: { ");
+	printf("qb indices: { ");
 	for (size_t i = 0; i < c->ct->num_mea_qb; i++) {
-		printf("%d ", c->mea_qb[i]);
+		printf("%d ", c->qb[i]);
 	}
 	printf("}\n");
 
@@ -220,7 +220,7 @@ int circ_reset(struct circ *c)
 {
 	initZeroState(c->quest_qureg);
 	for (size_t i = 0; i < c->ct->num_mea_qb; i++) {
-		c->mea_cl[i] = 0;
+		c->cl[i] = 0;
 	}
 	if (c->ct->reset)
 		return c->ct->reset(c);
@@ -248,7 +248,7 @@ int circ_simulate(struct circ *c)
 
 qbid circ_mea_qb(struct circ *c, size_t idx)
 {
-	return c->mea_qb[idx];
+	return c->qb[idx];
 }
 
 qbid circ_sys_qb(struct circ *c, size_t idx)
@@ -290,7 +290,7 @@ void circ_setsysamp(struct circ *c, size_t idx, _Complex double amp)
 
 void circ_sys_control_rotate_pauli(struct circ *c, int *paulis, double angle)
 {
-	multiControlledMultiRotatePauli(c->quest_qureg, c->mea_qb,
+	multiControlledMultiRotatePauli(c->quest_qureg, c->qb,
 					c->ct->num_mea_qb, c->sys_qb,
 					(enum pauliOpType *)paulis,
 					c->ct->num_sys_qb, -2.0 * angle);
