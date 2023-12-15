@@ -4,6 +4,8 @@ project(phase2 VERSION 0.1.0 LANGUAGES C)
 set(CMAKE_C_STANDARD 17)
 
 add_compile_options(-Wall -Wextra -march=native)
+set(CMAKE_C_FLAGS_RELEASE "-O3")
+
 
 option(DISTRIBUTED "enable distributed mode (MPI)" OFF)
 if (DISTRIBUTED)
@@ -26,8 +28,8 @@ else ()
     message(STATUS "Serial HDF5 found")
 endif ()
 
-add_subdirectory(lib/QuEST)
-add_subdirectory(phase2)
+add_subdirectory(backend/QuEST)
+add_subdirectory(circ)
 add_subdirectory(ph2run)
 
 include(CTest)
