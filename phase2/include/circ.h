@@ -38,32 +38,19 @@ int circ_report(struct circ const *c);
 
 int circ_reset(struct circ *c);
 
-int circ_simulate(struct circ *c);
+int circ_run(struct circ *c);
 
-size_t circ_num_mea_qb(const struct circ *c);
+size_t circ_num_meaqb(const struct circ *c);
 
-size_t circ_num_sys_qb(const struct circ *c);
+size_t circ_num_sysqb(const struct circ *c);
 
-size_t circ_num_anc_qb(const struct circ *c);
+size_t circ_num_ancqb(const struct circ *c);
 
-qbid circ_mea_qb(const struct circ *c, size_t idx);
+qbid circ_meaqb(const struct circ *c, size_t idx);
 
-qbid circ_sys_qb(const struct circ *c, size_t idx);
+qbid circ_sysqb(const struct circ *c, size_t idx);
 
-qbid circ_anc_qb(const struct circ *c, size_t idx);
+qbid circ_ancqb(const struct circ *c, size_t idx);
 
-
-/* Quantum API */
-void circ_hadamard(struct circ *c, qbid q);
-
-void circ_sgate(struct circ *c, qbid q);
-
-double circ_prob0(struct circ *c, qbid q);
-
-void circ_blankstate(struct circ *c);
-
-void circ_setsysamp(struct circ *c, size_t idx, _Complex double amp);
-
-void circ_sys_control_rotate_pauli(struct circ *c, int *paulis, double angle);
 
 #endif //PHASE2_CIRC_H

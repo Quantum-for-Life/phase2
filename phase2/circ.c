@@ -8,6 +8,7 @@
 #include "QuEST.h"
 
 #include "circ.h"
+#include "circ_intl.h"
 
 static struct {
 	_Atomic _Bool init;
@@ -187,9 +188,9 @@ int circ_report(struct circ const *c)
 
 	reportQuregParams(c->quest_qureg);
 
-	printf("num_mea_qb: %zu\n", circ_num_mea_qb(c));
-	printf("num_sys_qb: %zu\n", circ_num_sys_qb(c));
-	printf("num_anc_qb: %zu\n", circ_num_anc_qb(c));
+	printf("num_mea_qb: %zu\n", circ_num_meaqb(c));
+	printf("num_sys_qb: %zu\n", circ_num_sysqb(c));
+	printf("num_anc_qb: %zu\n", circ_num_ancqb(c));
 
 	printf("cl register: [");
 	for (size_t i = 0; i < c->ct->num_mea_qb; i++) {
@@ -205,7 +206,7 @@ int circ_report(struct circ const *c)
 int circ_reset(struct circ *c)
 {
 	initZeroState(c->quest_qureg);
-	for (size_t i = 0; i < circ_num_mea_qb(c); i++) {
+	for (size_t i = 0; i < circ_num_meaqb(c); i++) {
 		c->cl[i] = 0;
 	}
 	if (c->ct->reset)
@@ -214,7 +215,7 @@ int circ_reset(struct circ *c)
 	return 0;
 }
 
-int circ_simulate(struct circ *c)
+int circ_run(struct circ *c)
 {
 	if (circ_reset(c) < 0)
 		return -1;
@@ -232,76 +233,46 @@ int circ_simulate(struct circ *c)
 	return 0;
 }
 
-size_t circ_num_mea_qb(const struct circ *c)
+size_t circ_num_meaqb(const struct circ *c)
 {
 	return c->ct->num_mea_qb;
 }
 
-size_t circ_num_sys_qb(const struct circ *c)
+size_t circ_num_sysqb(const struct circ *c)
 {
 	return c->ct->num_sys_qb;
 }
 
-size_t circ_num_anc_qb(const struct circ *c)
+size_t circ_num_ancqb(const struct circ *c)
 {
 	return c->ct->num_anc_qb;
 }
 
-qbid circ_mea_qb(const struct circ *c, size_t idx)
+qbid circ_meaqb(const struct circ *c, size_t idx)
 {
 	(void)c;
 	return idx;
 }
 
-qbid circ_sys_qb(const struct circ *c, size_t idx)
+qbid circ_sysqb(const struct circ *c, size_t idx)
 {
-	return idx + circ_num_mea_qb(c);
+	return idx + circ_num_meaqb(c);
 }
 
-qbid circ_anc_qb(const struct circ *c, size_t idx)
+qbid circ_ancqb(const struct circ *c, size_t idx)
 {
-	return idx + circ_num_mea_qb(c) + circ_num_sys_qb(c);
+	return idx + circ_num_meaqb(c) + circ_num_sysqb(c);
 }
 
-void circ_hadamard(struct circ *c, qbid qb)
+/**
+ * Internals
+ */
+Qureg circ_intl_quest_qureg(const struct circ *c)
 {
-	hadamard(c->quest_qureg, qb);
+	return c->quest_qureg;
 }
 
-void circ_sgate(struct circ *c, qbid qb)
+int *circ_intl_get_qb(const struct circ *c)
 {
-	sGate(c->quest_qureg, qb);
-}
-
-double circ_prob0(struct circ *c, qbid qb)
-{
-	return calcProbOfOutcome(c->quest_qureg, qb, 0);
-}
-
-void circ_blankstate(struct circ *c)
-{
-	initBlankState(c->quest_qureg);
-}
-
-void circ_setsysamp(struct circ *c, size_t idx, _Complex double amp)
-{
-	double amp_re = creal(amp);
-	double amp_im = cimag(amp);
-	long long start_ind = idx << circ_num_mea_qb(c);
-	setAmps(c->quest_qureg, start_ind, &amp_re, &amp_im, 1);
-}
-
-void circ_sys_control_rotate_pauli(struct circ *c, int *paulis, double angle)
-{
-	const size_t num_mea_qb = circ_num_mea_qb(c);
-	const size_t num_sys_qb = circ_num_sys_qb(c);
-	for (size_t i = 0; i < num_mea_qb + num_sys_qb; i++) {
-		c->qb[i] = i;
-	}
-	int *qb_ctl = c->qb;
-	int *qb_trg = c->qb + num_mea_qb;
-
-	multiControlledMultiRotatePauli(c->quest_qureg, qb_ctl, num_mea_qb,
-					qb_trg, (enum pauliOpType *)paulis,
-					num_sys_qb, -2.0 * angle);
+	return c->qb;
 }

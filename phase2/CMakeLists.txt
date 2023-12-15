@@ -3,6 +3,7 @@ set(PHASE2_INCLUDE_DIRS ${PHASE2_INCLUDE_DIRS} PARENT_SCOPE)
 
 add_library(phase2 SHARED
         circ.c
+        capi.c
         data.c
         algos/linen.c
         algos/rayon.c

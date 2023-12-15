@@ -92,7 +92,7 @@ TEST(mock_circ_simulate, struct circuit *ct)
 	struct circ *c = circ_create(ct, &dat);
 
 	TEST_ASSERT(c != NULL, "cannot initialize circuit")
-	TEST_ASSERT(circ_simulate(c) == 0, "simulation error")
+	TEST_ASSERT(circ_run(c) == 0, "simulation error")
 	TEST_ASSERT(dat.reset_val == 777, "reset value")
 	TEST_ASSERT(dat.values[0] == 222, "state_prep value")
 	TEST_ASSERT(dat.values[1] == 333, "effect value")

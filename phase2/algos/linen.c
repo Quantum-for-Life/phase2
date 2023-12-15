@@ -6,6 +6,16 @@
 #include "circ.h"
 #include "algos/linen.h"
 
+struct linen_circ_data {
+	int val_prepst;
+	int val_effect;
+	int val_measure;
+
+	int pass_prepst;
+	int pass_effect;
+	int pass_measure;
+};
+
 int linen_reset(struct circ *c)
 {
 	(void)c;
@@ -37,7 +47,7 @@ int linen_measure(struct circ *c)
 	return 0;
 }
 
-void linen_circuit_init(struct circuit *ct, struct linen_circ_data *data)
+void linen_circuit_init(struct circuit *ct)
 {
 	ct->name = LINEN_NAME;
 	ct->num_mea_qb = LINEN_DEFAULT_NUM_MEA_QB;
@@ -52,18 +62,18 @@ void linen_circuit_init(struct circuit *ct, struct linen_circ_data *data)
 int linen_simulate(void)
 {
 	struct circuit ct;
+
+	linen_circuit_init(&ct);
+
 	struct linen_circ_data cdat = { .val_prepst = 1,
 					.val_effect = 22,
 					.val_measure = 333 };
-	linen_circuit_init(&ct, &cdat);
-
-	struct linen_circ_data circ_dat;
-	struct circ *c = circ_create(&ct, &circ_dat);
+	struct circ *c = circ_create(&ct, &cdat);
 	if (!c)
 		return -1;
 	circ_reset(c);
 	circ_report(c);
-	circ_simulate(c);
+	circ_run(c);
 	circ_destroy(c);
 
 	return 0;

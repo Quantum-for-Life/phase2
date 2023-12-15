@@ -12,6 +12,7 @@
 #include <stdlib.h>
 
 #include "circ.h"
+#include "capi.h"
 #include "algos/rayon.h"
 
 static const size_t PAULI_MASK = 3;
@@ -186,12 +187,12 @@ int rayon_prepst(struct circ *c)
 	const struct rayon_data_multidet *md =
 		&((const struct rayon_data *)cdat->rd)->multidet;
 
-	circ_blankstate(c);
+	capi_blankstate(c);
 	for (size_t i = 0; i < md->num_dets; i++) {
-		circ_setsysamp(c, md->dets[i].index, md->dets[i].coeff);
+		capi_set_sysamp(c, md->dets[i].index, md->dets[i].coeff);
 	}
-	const qbid mea_qb0 = circ_mea_qb(c, 0);
-	circ_hadamard(c, mea_qb0);
+	const qbid mea_qb0 = circ_meaqb(c, 0);
+	capi_hadamard(c, mea_qb0);
 
 	return 0;
 }
@@ -219,7 +220,7 @@ static void trotter_step(struct circ *c, double omega)
 		 * of the expectation value.
 		 */
 		const double angle = -1.0 * omega * hamil->coeffs[i];
-		circ_sys_control_rotate_pauli(c, paulis, angle);
+		capi_ctl_rotate_pauli(c, paulis, angle);
 	}
 }
 
@@ -243,22 +244,22 @@ int rayon_effect(struct circ *c)
 int rayon_measure(struct circ *c)
 {
 	struct circ_data *d = circ_data(c);
-	const qbid mea_qb0 = circ_mea_qb(c, 0);
+	const qbid mea_qb0 = circ_meaqb(c, 0);
 
-	circ_hadamard(c, mea_qb0);
-	d->prob0_re = circ_prob0(c, mea_qb0);
+	capi_hadamard(c, mea_qb0);
+	d->prob0_re = capi_prob0(c, mea_qb0);
 
 	/* Revert the H gate */
-	circ_hadamard(c, mea_qb0);
+	capi_hadamard(c, mea_qb0);
 	/**
 	 * To obtain the correct sign of the imaginary part of the
 	 * expectation value, the gate effected here should be
 	 * `S^{\dagger}`.  We use `sgate()` function and change the
 	 * sign of the angle argument in `rayon_effect()` instead.
 	 */
-	circ_sgate(c, mea_qb0);
-	circ_hadamard(c, mea_qb0);
-	d->prob0_im = circ_prob0(c, mea_qb0);
+	capi_sgate(c, mea_qb0);
+	capi_hadamard(c, mea_qb0);
+	d->prob0_im = capi_prob0(c, mea_qb0);
 
 	return 0;
 }
@@ -295,7 +296,7 @@ int rayon_simulate(const struct rayon_data *rd)
 	const struct rayon_data_times *ts = &rd->times;
 	for (size_t i = 0; i < ts->num_steps; i++) {
 		cdat.t = ts->steps[i].t;
-		if (circ_simulate(c) < 0)
+		if (circ_run(c) < 0)
 			goto error;
 
 		ts->steps[i].val = 2.0 * cdat.prob0_re - 1.0 +
