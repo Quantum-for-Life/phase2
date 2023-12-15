@@ -40,11 +40,11 @@ int circ_reset(struct circ *c);
 
 int circ_simulate(struct circ *c);
 
-qbid circ_mea_qb(struct circ *c, size_t idx);
+qbid circ_mea_qb(const struct circ *c, size_t idx);
 
-qbid circ_sys_qb(struct circ *c, size_t idx);
+qbid circ_sys_qb(const struct circ *c, size_t idx);
 
-qbid circ_anc_qb(struct circ *c, size_t idx);
+qbid circ_anc_qb(const struct circ *c, size_t idx);
 
 /* Quantum API */
 void circ_hadamard(struct circ *c, qbid q);
