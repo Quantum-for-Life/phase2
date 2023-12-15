@@ -26,8 +26,8 @@ int datio_read_file(struct data *dat, const char *filename);
 int datio_save_file(const char *filename, const struct data *dat);
 
 /* Runners */
-int run_linen(struct circ_env *env, struct data *dat);
-int run_rayon(struct circ_env *env, struct data *dat);
+int run_linen(struct data *dat);
+int run_rayon(struct data *dat);
 
 int main(const int argc, char **argv)
 {
@@ -37,15 +37,11 @@ int main(const int argc, char **argv)
 	if (opt_parse(&opt, argc, argv) < 0)
 		exit(EXIT_FAILURE);
 
+	circ_initialize();
+
 	/* Initiallize logging */
 	if (log_init() < 0)
 		exit(EXIT_FAILURE);
-
-	struct circ_env env;
-	if (circ_env_init(&env) != 0) {
-		log_error("Failure: %s", "initialize environment");
-		exit(EXIT_FAILURE);
-	}
 
 	log_info("*** Init ***");
 #ifdef DISTRIBUTED
@@ -66,11 +62,11 @@ int main(const int argc, char **argv)
 	log_info("*** Circuit ***");
 	if (strncmp(argv[1], "linen", 5) == 0) {
 		log_info("Circuit: linen");
-		if (run_linen(&env, &dat) < 0)
+		if (run_linen(&dat) < 0)
 			goto error;
 	} else if (strncmp(argv[1], "rayon", 5) == 0) {
 		log_info("Circuit: rayon");
-		if (run_rayon(&env, &dat) < 0) {
+		if (run_rayon(&dat) < 0) {
 			log_error("Failure: simulation error");
 			goto error;
 		}
@@ -88,7 +84,7 @@ error:
 cleanup:
 	log_info("Shut down simulation environment");
 	data_destroy(&dat);
-	circ_env_destroy(&env);
+	circ_shutdown();
 
 	return rc;
 }

@@ -6,6 +6,9 @@ include_directories(${TEST_INCLUDE_DIRS} ${PHASE2_INCLUDE_DIRS})
 add_executable(test_circ test_circ.c)
 add_test(NAME test_circ COMMAND $<TARGET_FILE:test_circ>)
 
+add_executable(test_circ_env test_circ_env.c)
+add_test(NAME test_circ_env COMMAND $<TARGET_FILE:test_circ_env>)
+
 add_executable(test_healthcheck test_health.c)
 add_test(NAME test_healthcheck COMMAND $<TARGET_FILE:test_healthcheck>)
 

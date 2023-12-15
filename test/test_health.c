@@ -13,7 +13,6 @@
 #define HEALTHCHECK_LABEL "healthcheck"
 
 static struct circuit HC_CIRCUIT = { .name = HEALTHCHECK_LABEL,
-				     .data = NULL,
 				     .num_mea_qb = 7,
 				     .num_sys_qb = 8,
 				     .num_anc_qb = 9,
@@ -22,30 +21,18 @@ static struct circuit HC_CIRCUIT = { .name = HEALTHCHECK_LABEL,
 				     .effect = NULL,
 				     .measure = NULL };
 
-TEST(healthcheck, struct circ_env *env)
+TEST(healthcheck, void)
 {
-	struct circ c;
-	TEST_ASSERT(circ_init(&c, env, &HC_CIRCUIT, NULL) == 0,
-		    "cannot initialize circuit");
-
-	TEST_ASSERT(c.ct->num_mea_qb == 7, " ")
-	TEST_ASSERT(c.ct->num_sys_qb == 8, " ")
-	TEST_ASSERT(c.ct->num_anc_qb == 9, " ")
+	struct circ *c = circ_create(&HC_CIRCUIT, NULL);
+	TEST_ASSERT(c != NULL, "cannot initialize circuit");
 
 	TEST_FINALIZE
-	circ_destroy(&c);
+	circ_destroy(c);
+	circ_shutdown();
 }
 TEST_END
 
 int main(void)
 {
-	int rc = 0;
-
-	struct circ_env env;
-	circ_env_init(&env);
-
-	rc |= healthcheck(&env);
-
-	circ_env_destroy(&env);
-	return rc;
+	return healthcheck();
 }

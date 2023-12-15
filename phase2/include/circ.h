@@ -6,54 +6,51 @@
 
 #include <stdlib.h>
 
-struct circ_env {
-	void *quest_env;
-};
+typedef size_t qbid;
 
-struct circ {
-	struct circ_env *env;
-	struct circuit *ct;
-	void *data;
-
-	void *qureg;
-
-	int *mea_cl;
-	int *mea_qb;
-	int *sys_qb;
-	int *anc_qb;
-};
-
-typedef int (*circ_op)(struct circ *);
+struct circ;
 
 struct circuit {
 	const char *name;
-	void *data;
 
 	size_t num_mea_qb;
 	size_t num_sys_qb;
 	size_t num_anc_qb;
 
-	circ_op reset;
-	circ_op prepst;
-	circ_op effect;
-	circ_op measure;
+	int (*reset)(struct circ *);
+
+	int (*prepst)(struct circ *);
+	int (*effect)(struct circ *);
+	int (*measure)(struct circ *);
 };
 
-int circ_env_init(struct circ_env *env);
+int circ_initialize();
 
-void circ_env_destroy(struct circ_env *env);
+int circ_shutdown();
 
-void circ_env_report(struct circ_env const *env);
-
-int circ_init(struct circ *c, struct circ_env *env, struct circuit *ct,
-	      void *data);
+struct circ *circ_create(struct circuit *ct, void *data);
 
 void circ_destroy(struct circ *c);
 
-void circ_report(struct circ const *c);
+void *circ_data(const struct circ *c);
+
+int circ_report(struct circ const *c);
 
 int circ_reset(struct circ *c);
 
-int circ_simulate(struct circ *c);
+int circ_run(struct circ *c);
+
+size_t circ_num_meaqb(const struct circ *c);
+
+size_t circ_num_sysqb(const struct circ *c);
+
+size_t circ_num_ancqb(const struct circ *c);
+
+qbid circ_meaqb(const struct circ *c, size_t idx);
+
+qbid circ_sysqb(const struct circ *c, size_t idx);
+
+qbid circ_ancqb(const struct circ *c, size_t idx);
+
 
 #endif //PHASE2_CIRC_H
