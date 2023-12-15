@@ -29,7 +29,7 @@ else ()
 endif ()
 
 add_subdirectory(backend/QuEST)
-add_subdirectory(phase2)
+add_subdirectory(circ)
 add_subdirectory(ph2run)
 
 include(CTest)

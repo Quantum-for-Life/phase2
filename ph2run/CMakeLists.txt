@@ -7,10 +7,10 @@ add_executable(ph2run
 )
 
 target_link_libraries(ph2run
-        phase2
+        circ
         QuEST m
 )
 
 target_include_directories(ph2run PRIVATE
-        ${PHASE2_INCLUDE_DIRS}
+        ${CIRC_INCLUDE_DIRS}
 )
