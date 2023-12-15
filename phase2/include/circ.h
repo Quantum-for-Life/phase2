@@ -34,7 +34,7 @@ void circ_destroy(struct circ *c);
 
 void *circ_data(struct circ *c);
 
-void circ_report(struct circ const *c);
+int circ_report(struct circ const *c);
 
 int circ_reset(struct circ *c);
 

@@ -23,7 +23,7 @@ struct circ {
 	void *data;
 
 	/* Qubit register */
-	void *reg;
+	Qureg quest_qureg;
 
 	int *mea_cl;
 	int *mea_qb;
@@ -102,17 +102,25 @@ int circ_env_shutdown()
 	return rc;
 }
 
-static QuESTEnv *get_questenv(void)
+static QuESTEnv *env_get_questenv(void)
 {
 	if (!atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
-		circ_env_initialize();
+		if (circ_env_initialize() < 0)
+			return NULL;
 	}
 	return &circ_env.quest_env;
 }
 
-static void env_report(void)
+static int env_report(void)
 {
-	reportQuESTEnv(*get_questenv());
+	QuESTEnv *quest_env = env_get_questenv();
+	if (!quest_env) {
+		fprintf(stderr, "Error: circuit environment not initialized");
+		return -1;
+	}
+	reportQuESTEnv(*quest_env);
+
+	return 0;
 }
 
 static size_t ct_num_tot_qb(const struct circuit *ct)
@@ -126,22 +134,17 @@ struct circ *circ_init(struct circuit *ct, void *data)
 	if (!c)
 		return NULL;
 
-	Qureg *qureg = malloc(sizeof(Qureg));
-	if (!qureg)
-		goto qureg_alloc_fail;
-
-	*qureg = createQureg(ct_num_tot_qb(ct), *get_questenv());
-
 	int *mea_cl = malloc(sizeof(int) * ct->num_mea_qb);
 	if (!mea_cl)
 		goto mea_alloc_fail;
 	int *qb = malloc(sizeof(int) * ct_num_tot_qb(ct));
 	if (!qb)
 		goto qb_alloc_fail;
+	Qureg qureg = createQureg(ct_num_tot_qb(ct), *env_get_questenv());
 
 	c->ct = ct;
 	c->data = data;
-	c->reg = qureg;
+	c->quest_qureg = qureg;
 	c->mea_cl = mea_cl;
 	c->mea_qb = qb;
 	c->sys_qb = c->mea_qb + ct->num_mea_qb;
@@ -155,19 +158,13 @@ struct circ *circ_init(struct circuit *ct, void *data)
 qb_alloc_fail:
 	free(mea_cl);
 mea_alloc_fail:
-	destroyQureg(*qureg, *get_questenv());
-	free(qureg);
-qureg_alloc_fail:
+	destroyQureg(qureg, *env_get_questenv());
 	return NULL;
 }
 
 void circ_destroy(struct circ *c)
 {
-	if (c->reg) {
-		const Qureg *qureg = c->reg;
-		destroyQureg(*qureg, *get_questenv());
-		free(c->reg);
-	}
+	destroyQureg(c->quest_qureg, *env_get_questenv());
 	if (c->mea_qb) {
 		free(c->mea_qb);
 	}
@@ -182,14 +179,14 @@ void *circ_data(struct circ *c)
 	return c->data;
 }
 
-void circ_report(struct circ const *c)
+int circ_report(struct circ const *c)
 {
-	env_report();
+	if (env_report() < 0)
+		return -1;
 
-	const Qureg *qureg = c->reg;
 	printf("----------------\n");
 	printf("CIRCUIT: %s\n", c->ct->name);
-	reportQuregParams(*qureg);
+	reportQuregParams(c->quest_qureg);
 
 	printf("mea_cl register: [");
 	for (size_t i = 0; i < c->ct->num_mea_qb; i++) {
@@ -215,13 +212,13 @@ void circ_report(struct circ const *c)
 	}
 	printf("}\n");
 	printf("----------------\n");
+
+	return 0;
 }
 
 int circ_reset(struct circ *c)
 {
-	Qureg *qureg = c->reg;
-	initZeroState(*qureg);
-
+	initZeroState(c->quest_qureg);
 	for (size_t i = 0; i < c->ct->num_mea_qb; i++) {
 		c->mea_cl[i] = 0;
 	}
@@ -266,42 +263,35 @@ qbid circ_anc_qb(struct circ *c, size_t idx)
 
 void circ_hadamard(struct circ *c, qbid qb)
 {
-	Qureg *qureg = c->reg;
-	if (qureg)
-		hadamard(*qureg, qb);
+	hadamard(c->quest_qureg, qb);
 }
 
 void circ_sgate(struct circ *c, qbid qb)
 {
-	Qureg *qureg = c->reg;
-	if (qureg)
-		sGate(*qureg, qb);
+	sGate(c->quest_qureg, qb);
 }
 
 double circ_prob0(struct circ *c, qbid qb)
 {
-	Qureg *qureg = c->reg;
-	return calcProbOfOutcome(*qureg, qb, 0);
+	return calcProbOfOutcome(c->quest_qureg, qb, 0);
 }
 
 void circ_blankstate(struct circ *c)
 {
-	Qureg *qureg = c->reg;
-	initBlankState(*qureg);
+	initBlankState(c->quest_qureg);
 }
 
 void circ_setsysamp(struct circ *c, size_t idx, _Complex double amp)
 {
-	Qureg *qureg = c->reg;
 	double amp_re = creal(amp);
 	double amp_im = cimag(amp);
-	setAmps(*qureg, idx << c->ct->num_mea_qb, &amp_re, &amp_im, 1);
+	setAmps(c->quest_qureg, idx << c->ct->num_mea_qb, &amp_re, &amp_im, 1);
 }
 
 void circ_sys_control_rotate_pauli(struct circ *c, int *paulis, double angle)
 {
-	Qureg *qureg = c->reg;
-	multiControlledMultiRotatePauli(*qureg, c->mea_qb, c->ct->num_mea_qb,
-					c->sys_qb, (enum pauliOpType *)paulis,
+	multiControlledMultiRotatePauli(c->quest_qureg, c->mea_qb,
+					c->ct->num_mea_qb, c->sys_qb,
+					(enum pauliOpType *)paulis,
 					c->ct->num_sys_qb, -2.0 * angle);
 }
