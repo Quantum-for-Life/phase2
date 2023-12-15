@@ -28,14 +28,11 @@ TEST(healthcheck, void)
 
 	TEST_FINALIZE
 	circ_destroy(c);
+	circ_env_shutdown();
 }
 TEST_END
 
 int main(void)
 {
-	int rc = 0;
-
-	rc |= healthcheck();
-
-	return rc;
+	return healthcheck();
 }

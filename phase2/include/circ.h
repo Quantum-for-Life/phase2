@@ -24,6 +24,10 @@ struct circuit {
 	int (*measure)(struct circ *);
 };
 
+int circ_env_initialize();
+
+int circ_env_shutdown();
+
 struct circ *circ_init(struct circuit *ct, void *data);
 
 void circ_destroy(struct circ *c);

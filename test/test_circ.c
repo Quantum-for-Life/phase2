@@ -110,15 +110,12 @@ TEST(mock_circ_suite, void)
 	TEST_CASE(mock_circ_simulate(&MOCK_CIRCUIT))
 	TEST_CASE(mock_circ_simulate(&MOCK_CIRCUIT))
 
-	TEST_FINALIZE;
+	TEST_FINALIZE
+	circ_env_shutdown();
 }
 TEST_END
 
 int main(void)
 {
-	int rc = 0;
-
-	rc |= mock_circ_suite();
-
-	return rc;
+	return mock_circ_suite();
 }

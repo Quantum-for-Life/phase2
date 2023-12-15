@@ -1,11 +1,22 @@
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <complex.h>
+#include <threads.h>
 
 #include "QuEST.h"
 
 #include "circ.h"
+
+static struct {
+	_Atomic _Bool init;
+	atomic_flag lock;
+	QuESTEnv quest_env;
+} circ_env = {
+	.init = false,
+	.lock = ATOMIC_FLAG_INIT,
+};
 
 struct circ {
 	struct circuit *ct;
@@ -20,36 +31,88 @@ struct circ {
 	int *anc_qb;
 };
 
-static struct {
-	_Bool init;
-	QuESTEnv quest_env;
-} circ_env = { .init = false };
-
-static void env_init()
+/** Initialize circuit environment.
+ *
+ * This function can be called multiple times from different threads.
+ *
+ * Return value:
+ *   0 - if the environment was successfully initialized
+ *       by this function call
+ *   1 - if the environment has already been initialized
+ *       by another call to this function
+ *  -1 - in case of failure
+ */
+int circ_env_initialize()
 {
-	circ_env.quest_env = createQuESTEnv();
-	circ_env.init = true;
+	int rc = 1;
+
+	/**
+	 * If circ_env.init flag is set, someone else has already successfully
+	 * initialized the environment, or is in the process of doing it.
+	 */
+	if (atomic_load_explicit(&circ_env.init, memory_order_relaxed))
+		return rc;
+
+	/**
+	 * Try to obtain a spinlock. Enter critical section until the lock is released.
+	 */
+	while (atomic_flag_test_and_set(&circ_env.lock))
+		thrd_yield();
+	/**
+	 * Check if someone hasn't set everything up for us while we were waiting.
+	 * If the flag is not set, we need to be sure other members of circ_env
+	 * haven't been touched yet either.  Hence `acquire` memory order.
+	 */
+	if (!atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
+		/**
+		 * A call to QuEST always succeeds. If there's something else
+		 * here to do that might fail, conditionally set the return code
+		 * rc=-1 and leave the flag off.
+		 */
+		circ_env.quest_env = createQuESTEnv();
+		if (true) {
+			atomic_store_explicit(&circ_env.init, true,
+					      memory_order_release);
+			rc = 0;
+		} else {
+			rc = -1;
+		}
+	}
+	atomic_flag_clear(&circ_env.lock);
+
+	return rc;
 }
 
-static void env_destroy()
+int circ_env_shutdown()
 {
-	if (circ_env.init) {
+	int rc = 1;
+	if (!atomic_load_explicit(&circ_env.init, memory_order_relaxed))
+		return rc;
+
+	while (atomic_flag_test_and_set(&circ_env.lock))
+		thrd_yield();
+	if (atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
 		destroyQuESTEnv(circ_env.quest_env);
-		circ_env.init = false;
+		atomic_store_explicit(&circ_env.init, false,
+				      memory_order_release);
+		rc = 0;
 	}
+	atomic_flag_clear(&circ_env.lock);
+
+	return rc;
 }
 
-static QuESTEnv get_questenv(void)
+static QuESTEnv *get_questenv(void)
 {
-	if (!circ_env.init) {
-		env_init(&circ_env);
+	if (!atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
+		circ_env_initialize();
 	}
-	return circ_env.quest_env;
+	return &circ_env.quest_env;
 }
 
 static void env_report(void)
 {
-	reportQuESTEnv(get_questenv());
+	reportQuESTEnv(*get_questenv());
 }
 
 static size_t ct_num_tot_qb(const struct circuit *ct)
@@ -67,7 +130,7 @@ struct circ *circ_init(struct circuit *ct, void *data)
 	if (!qureg)
 		goto qureg_alloc_fail;
 
-	*qureg = createQureg(ct_num_tot_qb(ct), get_questenv());
+	*qureg = createQureg(ct_num_tot_qb(ct), *get_questenv());
 
 	int *mea_cl = malloc(sizeof(int) * ct->num_mea_qb);
 	if (!mea_cl)
@@ -92,7 +155,7 @@ struct circ *circ_init(struct circuit *ct, void *data)
 qb_alloc_fail:
 	free(mea_cl);
 mea_alloc_fail:
-	destroyQureg(*qureg, get_questenv());
+	destroyQureg(*qureg, *get_questenv());
 	free(qureg);
 qureg_alloc_fail:
 	return NULL;
@@ -102,7 +165,7 @@ void circ_destroy(struct circ *c)
 {
 	if (c->reg) {
 		const Qureg *qureg = c->reg;
-		destroyQureg(*qureg, get_questenv());
+		destroyQureg(*qureg, *get_questenv());
 		free(c->reg);
 	}
 	if (c->mea_qb) {
