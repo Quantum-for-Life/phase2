@@ -26,11 +26,11 @@ TEST(healthcheck, void)
 	struct circ *c = circ_create(&HC_CIRCUIT, NULL);
 	TEST_ASSERT(c != NULL, "cannot initialize circuit");
 
-	TEST_FINALIZE
-	circ_destroy(c);
-	circ_shutdown();
+	TEST_FIN({
+		circ_destroy(c);
+		circ_shutdown();
+	})
 }
-TEST_END
 
 int main(void)
 {

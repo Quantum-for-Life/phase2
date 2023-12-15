@@ -26,7 +26,7 @@ struct circuit {
 
 int circ_initialize();
 
-int circ_shutdown();
+void circ_shutdown();
 
 struct circ *circ_create(struct circuit *ct, void *data);
 

@@ -84,28 +84,24 @@ TEST(caserand, const char *prefix)
 			MARGIN, cimag(val), cimag(ref))
 	}
 
-	TEST_FINALIZE
-	data_destroy(&dat);
-	data_destroy(&dat_ref);
+	TEST_FIN({
+		data_destroy(&dat);
+		data_destroy(&dat_ref);
+	})
 }
-TEST_END
 
 TEST(caserand_suite, void)
 {
-	circ_initialize();
-
 	TEST_CASE(caserand("case-d9f603dc"))
 	TEST_CASE(caserand("case-070d034c"))
 	TEST_CASE(caserand("case-33427110"))
 	TEST_CASE(caserand("case-28aa2595"))
 	TEST_CASE(caserand("case-e1932ef1"))
 
-	TEST_FINALIZE
-	circ_shutdown();
+	TEST_FIN(circ_shutdown())
 }
-TEST_END
 
-int main()
+int main(void)
 {
 	return caserand_suite();
 }

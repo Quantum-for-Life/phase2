@@ -68,7 +68,8 @@ int circ_initialize()
 		 * rc=-1 and leave the flag off.
 		 */
 		circ_env.quest_env = createQuESTEnv();
-		if (true) {
+		int atex_rc = atexit(circ_shutdown);
+		if (atex_rc == 0) {
 			atomic_store_explicit(&circ_env.init, true,
 					      memory_order_release);
 			rc = 0;
@@ -81,11 +82,10 @@ int circ_initialize()
 	return rc;
 }
 
-int circ_shutdown()
+void circ_shutdown()
 {
-	int rc = 1;
 	if (!atomic_load_explicit(&circ_env.init, memory_order_relaxed))
-		return rc;
+		return;
 
 	while (atomic_flag_test_and_set(&circ_env.lock))
 		thrd_yield();
@@ -93,11 +93,8 @@ int circ_shutdown()
 		destroyQuESTEnv(circ_env.quest_env);
 		atomic_store_explicit(&circ_env.init, false,
 				      memory_order_release);
-		rc = 0;
 	}
 	atomic_flag_clear(&circ_env.lock);
-
-	return rc;
 }
 
 static QuESTEnv *env_get_questenv(void)

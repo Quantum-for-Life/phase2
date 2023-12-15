@@ -18,14 +18,13 @@
 		goto test_error;                                      \
 	}
 
-#define TEST_FINALIZE   \
+#define TEST_FIN(SMNT)  \
 	test_rc = 0;    \
 	goto test_exit; \
 test_error:             \
 	test_rc = -1;   \
-test_exit:
-
-#define TEST_END        \
+test_exit:              \
+	SMNT;           \
 	return test_rc; \
 	}
 

@@ -84,7 +84,6 @@ error:
 cleanup:
 	log_info("Shut down simulation environment");
 	data_destroy(&dat);
-	circ_shutdown();
 
 	return rc;
 }

@@ -45,15 +45,10 @@ TEST(init_parallel, void)
 	TEST_ASSERT(num_zeroes == 1, "init should happen exactly once");
 	TEST_ASSERT(num_ones == NUM_THREADS - 1, "the rest should be passes");
 
-	TEST_FINALIZE
-	circ_shutdown();
+	TEST_FIN(circ_shutdown())
 }
-TEST_END
 
-int main(int argc, char **argv)
+int main(void)
 {
-	(void)argc;
-	(void)argv;
-
 	return init_parallel();
 }

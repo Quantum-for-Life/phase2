@@ -67,10 +67,8 @@ TEST(mock_circ_init, struct circuit *ct)
 	TEST_ASSERT(memcmp(ct->name, MOCK_CIRCUIT_NAME, 4) == 0,
 		    "wrong circuit passed")
 
-	TEST_FINALIZE
-	circ_destroy(c);
+	TEST_FIN(circ_destroy(c))
 }
-TEST_END
 
 TEST(mock_circ_reset, struct circuit *ct)
 {
@@ -81,10 +79,8 @@ TEST(mock_circ_reset, struct circuit *ct)
 	TEST_ASSERT(circ_reset(c) == 0, "reset")
 	TEST_ASSERT(dat.reset_val == 777, "circuit not reset")
 
-	TEST_FINALIZE
-	circ_destroy(c);
+	TEST_FIN(circ_destroy(c))
 }
-TEST_END
 
 TEST(mock_circ_simulate, struct circuit *ct)
 {
@@ -98,10 +94,8 @@ TEST(mock_circ_simulate, struct circuit *ct)
 	TEST_ASSERT(dat.values[1] == 333, "effect value")
 	TEST_ASSERT(dat.values[2] == 444, "measure value")
 
-	TEST_FINALIZE
-	circ_destroy(c);
+	TEST_FIN(circ_destroy(c))
 }
-TEST_END
 
 TEST(mock_circ_suite, void)
 {
@@ -110,10 +104,8 @@ TEST(mock_circ_suite, void)
 	TEST_CASE(mock_circ_simulate(&MOCK_CIRCUIT))
 	TEST_CASE(mock_circ_simulate(&MOCK_CIRCUIT))
 
-	TEST_FINALIZE
-	circ_shutdown();
+	TEST_FIN()
 }
-TEST_END
 
 int main(void)
 {
