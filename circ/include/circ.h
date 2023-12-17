@@ -24,7 +24,6 @@ struct circuit {
 	int (*measure)(struct circ *);
 };
 
-
 /**
  * Initialize global circuit environment.
  *
@@ -47,33 +46,46 @@ struct circuit {
  *				by another call to this function
  *			-1	in case of failure
  */
-int circ_initialize(void);
+int
+circ_initialize(void);
 
-void circ_shutdown(void);
+void
+circ_shutdown(void);
 
-struct circ *circ_create(struct circuit *ct, void *data);
+struct circ *
+circ_create(struct circuit *ct, void *data);
 
-void circ_destroy(struct circ *c);
+void
+circ_destroy(struct circ *c);
 
-void *circ_data(const struct circ *c);
+void *
+circ_data(const struct circ *c);
 
-int circ_report(struct circ const *c);
+int
+circ_report(struct circ const *c);
 
-int circ_reset(struct circ *c);
+int
+circ_reset(struct circ *c);
 
-int circ_run(struct circ *c);
+int
+circ_run(struct circ *c);
 
-size_t circ_num_meaqb(const struct circ *c);
+size_t
+circ_num_meaqb(const struct circ *c);
 
-size_t circ_num_sysqb(const struct circ *c);
+size_t
+circ_num_sysqb(const struct circ *c);
 
-size_t circ_num_ancqb(const struct circ *c);
+size_t
+circ_num_ancqb(const struct circ *c);
 
-qbid circ_meaqb(const struct circ *c, size_t idx);
+qbid
+circ_meaqb(const struct circ *c, size_t idx);
 
-qbid circ_sysqb(const struct circ *c, size_t idx);
+qbid
+circ_sysqb(const struct circ *c, size_t idx);
 
-qbid circ_ancqb(const struct circ *c, size_t idx);
+qbid
+circ_ancqb(const struct circ *c, size_t idx);
 
-
-#endif //PHASE2_CIRC_H
+#endif // PHASE2_CIRC_H

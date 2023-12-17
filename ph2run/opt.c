@@ -2,7 +2,8 @@
 
 #include "opt.h"
 
-void opt_help_page(int argc, char **argv)
+void
+opt_help_page(int argc, char **argv)
 {
 	(void)argc;
 	fprintf(stderr, "usage: %s CIRCUIT [SIMUL_FILE_H5]\n\n", argv[0]);
@@ -12,16 +13,18 @@ void opt_help_page(int argc, char **argv)
 			"    rayon\n"
 			"\n"
 			"If no simulation input file (HDF5) is specified,\n"
-			"the default is " PH2RUN_DEFAULT_H5FILE
-			" in the current directory.\n");
+			"the default is " PH2RUN_DEFAULT_H5FILE " in the "
+			"current "
+			"directory.\n");
 	fprintf(stderr, "\n"
 			"To set logging level, set environment variable:\n"
-			"\n    " PH2RUN_LOG_ENVVAR
-			"={trace, debug, info, warn, error, fatal}"
+			"\n    " PH2RUN_LOG_ENVVAR "={trace, debug, info, "
+			"warn, error, fatal}"
 			"\n\n");
 }
 
-int opt_parse(struct opt *o, int argc, char **argv)
+int
+opt_parse(struct opt *o, int argc, char **argv)
 {
 	int rc = 0;
 

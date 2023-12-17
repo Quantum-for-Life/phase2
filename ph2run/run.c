@@ -1,14 +1,16 @@
-#include "algos/rayon.h"
 #include "algos/linen.h"
+#include "algos/rayon.h"
 
-int run_linen(struct data *dat)
+int
+run_linen(struct data *dat)
 {
 	(void)(dat);
 
 	return linen_simulate();
 }
 
-int run_rayon(struct data *dat)
+int
+run_rayon(struct data *dat)
 {
 	int rc = 0;
 

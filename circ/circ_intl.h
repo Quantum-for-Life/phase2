@@ -5,8 +5,10 @@
 
 #include "circ.h"
 
-Qureg circ_intl_quest_qureg(const struct circ *c);
+Qureg
+circ_intl_quest_qureg(const struct circ *c);
 
-int *circ_intl_get_qb(const struct circ *c);
+int *
+circ_intl_get_qb(const struct circ *c);
 
-#endif //PHASE2_CIRC_INTL_H
+#endif // PHASE2_CIRC_INTL_H

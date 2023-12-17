@@ -16,20 +16,30 @@
 #include "opt.h"
 
 static struct opt opt;
-void opt_help_page(int argc, char **argv);
-int opt_parse(struct opt *o, int argc, char **argv);
+
+void
+opt_help_page(int argc, char **argv);
+int
+opt_parse(struct opt *o, int argc, char **argv);
 
 /* Data */
 static struct data dat;
-void datio_print_info(const struct data *dat);
-int datio_read_file(struct data *dat, const char *filename);
-int datio_save_file(const char *filename, const struct data *dat);
+
+void
+datio_print_info(const struct data *dat);
+int
+datio_read_file(struct data *dat, const char *filename);
+int
+datio_save_file(const char *filename, const struct data *dat);
 
 /* Runners */
-int run_linen(struct data *dat);
-int run_rayon(struct data *dat);
+int
+run_linen(struct data *dat);
+int
+run_rayon(struct data *dat);
 
-int main(const int argc, char **argv)
+int
+main(const int argc, char **argv)
 {
 	int rc = 0;
 
