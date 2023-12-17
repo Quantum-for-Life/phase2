@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../data/include/data.h"
 #include "algos/rayon.h"
 #include "circ.h"
-#include "data.h"
 
 #include "test.h"
 
