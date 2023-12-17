@@ -99,7 +99,7 @@ static QuESTEnv *env_get_questenv(void)
 
 static int env_report(void)
 {
-	QuESTEnv *quest_env = env_get_questenv();
+	const QuESTEnv *quest_env = env_get_questenv();
 	if (!quest_env) {
 		fprintf(stderr, "Error: circuit environment not initialized");
 		return -1;
@@ -147,7 +147,7 @@ circ_fail:
 
 void circ_destroy(struct circ *c)
 {
-	QuESTEnv *quest_env = env_get_questenv();
+	const QuESTEnv *quest_env = env_get_questenv();
 	if (!quest_env) {
 		return;
 	}
@@ -159,6 +159,7 @@ void circ_destroy(struct circ *c)
 		free(c->cl);
 	}
 	free(c);
+	c = NULL;
 }
 
 void *circ_data(const struct circ *c)
@@ -208,14 +209,11 @@ int circ_run(struct circ *c)
 	if (circ_reset(c) < 0)
 		return -1;
 
-	int (*ops[3])(struct circ *) = {
-		[0] = c->ct->prepst, [1] = c->ct->effect, [2] = c->ct->measure
-	};
+	int (*ops[3])(struct circ *) = { c->ct->prepst, c->ct->effect,
+					 c->ct->measure };
 	for (int i = 0; i < 3; i++) {
-		if (ops[i]) {
-			if (ops[i](c) < 0)
-				return -1;
-		}
+		if (ops[i] && ops[i](c) < 0)
+			return -1;
 	}
 
 	return 0;
