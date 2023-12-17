@@ -4,6 +4,15 @@ project(phase2 VERSION 0.1.0 LANGUAGES C)
 set(CMAKE_C_STANDARD 17)
 
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
+
+option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
+
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+
 add_compile_definitions(
         DATA_DIR="${PROJECT_SOURCE_DIR}/simul_data"
 )

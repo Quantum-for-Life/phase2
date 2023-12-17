@@ -13,7 +13,7 @@ else ()
 endif ()
 
 
-add_library(data SHARED
+add_library(data STATIC
         data.c
 )
 
