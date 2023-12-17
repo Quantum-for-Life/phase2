@@ -24,9 +24,32 @@ struct circuit {
 	int (*measure)(struct circ *);
 };
 
-int circ_initialize();
 
-void circ_shutdown();
+/**
+ * Initialize global circuit environment.
+ *
+ * Although this function is exposed in the public API, the user doesn't need
+ * to call it directly.  It will be called by circ_create() as well.
+ *
+ * Similarly, the function circ_shutdown() belows will be scheduled with
+ * atexit() to clear the global environment during program exit.
+ *
+ * The initialization may take some time, especially when MPI mode is enabled.
+ * It the user cannot wait longer than usual during the first call
+ * to circ_init(), it is recomended that that circ_initialize() be called
+ * directly at the beginning of the program.
+ *
+ * This function can be called multiple times from different threads.
+ *
+ * Return value:	 0	if the environment was successfully initialized
+ *				by this function call
+ *			 1	if the environment has already been initialized
+ *				by another call to this function
+ *			-1	in case of failure
+ */
+int circ_initialize(void);
+
+void circ_shutdown(void);
 
 struct circ *circ_create(struct circuit *ct, void *data);
 

@@ -1,8 +1,7 @@
+#include <stdbool.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
-#include <complex.h>
 #include <threads.h>
 
 #include "QuEST.h"
@@ -29,40 +28,31 @@ struct circ {
 	Qureg quest_qureg;
 };
 
-/** Initialize circuit environment.
- *
- * This function can be called multiple times from different threads.
- *
- * Return value:
- *   0 - if the environment was successfully initialized
- *       by this function call
- *   1 - if the environment has already been initialized
- *       by another call to this function
- *  -1 - in case of failure
- */
-int circ_initialize()
+int circ_initialize(void)
 {
 	int rc = 1;
 
-	/**
+	/*
 	 * If circ_env.init flag is set, someone else has already successfully
 	 * initialized the environment, or is in the process of doing it.
 	 */
 	if (atomic_load_explicit(&circ_env.init, memory_order_relaxed))
 		return rc;
 
-	/**
-	 * Try to obtain a spinlock. Enter critical section until the lock is released.
+	/*
+	 * Try to obtain a spinlock. Enter critical section until
+	 * the lock is released.
 	 */
 	while (atomic_flag_test_and_set(&circ_env.lock))
 		thrd_yield();
-	/**
-	 * Check if someone hasn't set everything up for us while we were waiting.
-	 * If the flag is not set, we need to be sure other members of circ_env
-	 * haven't been touched yet either.  Hence `acquire` memory order.
+	/*
+	 * Check if someone hasn't set everything up for us while we were
+	 * waiting.  If the flag is not set, we need to be sure other members
+	 * of circ_env haven't been touched yet either.  Hence `acquire`
+	 * memory order.
 	 */
 	if (!atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
-		/**
+		/*
 		 * A call to QuEST always succeeds. If there's something else
 		 * here to do that might fail, conditionally set the return code
 		 * rc=-1 and leave the flag off.
@@ -82,7 +72,7 @@ int circ_initialize()
 	return rc;
 }
 
-void circ_shutdown()
+void circ_shutdown(void)
 {
 	if (!atomic_load_explicit(&circ_env.init, memory_order_relaxed))
 		return;
@@ -103,6 +93,7 @@ static QuESTEnv *env_get_questenv(void)
 		if (circ_initialize() < 0)
 			return NULL;
 	}
+
 	return &circ_env.quest_env;
 }
 
@@ -261,7 +252,7 @@ qbid circ_ancqb(const struct circ *c, size_t idx)
 	return idx + circ_num_meaqb(c) + circ_num_sysqb(c);
 }
 
-/**
+/*
  * Internals
  */
 Qureg circ_intl_quest_qureg(const struct circ *c)
