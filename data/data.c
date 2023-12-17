@@ -1,6 +1,6 @@
 #include "hdf5.h"
 
-#include "include/data.h"
+#include "data.h"
 
 data_id
 data_file_open(const char *filename)

@@ -28,9 +28,11 @@ endif ()
 
 add_subdirectory(backend/QuEST)
 
-
 add_compile_options(-Wall -Wextra -march=native)
 set(CMAKE_C_FLAGS_RELEASE "-O3")
+
+set(PHASE2_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include)
+include_directories(${PHASE2_INCLUDE_DIRS})
 
 add_subdirectory(data)
 add_subdirectory(circ)

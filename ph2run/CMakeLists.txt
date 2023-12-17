@@ -12,11 +12,6 @@ target_link_libraries(ph2run
         circ
 )
 
-target_include_directories(ph2run PRIVATE
-        ${DATA_INCLUDE_DIRS}
-        ${CIRC_INCLUDE_DIRS}
-)
-
 if (DISTRIBUTED)
     target_link_libraries(ph2run
             ${MPI_C_LIBRARIES}

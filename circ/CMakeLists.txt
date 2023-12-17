@@ -1,6 +1,3 @@
-set(CIRC_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
-set(CIRC_INCLUDE_DIRS ${CIRC_INCLUDE_DIRS} PARENT_SCOPE)
-
 add_library(circ STATIC
         circ.c
         capi.c
@@ -11,9 +8,4 @@ add_library(circ STATIC
 target_link_libraries(circ
         data
         QuEST m
-)
-
-target_include_directories(circ PRIVATE
-        ${DATA_INCLUDE_DIRS}
-        ${CIRC_INCLUDE_DIRS}
 )
