@@ -1,5 +1,5 @@
-#ifndef PHASE2_DATA_H
-#define PHASE2_DATA_H
+#ifndef DATA_H
+#define DATA_H
 
 #include <stdlib.h>
 
@@ -71,4 +71,4 @@ data_parse(struct data *dat, data_id fid);
 int
 data_time_series_write(data_id fid, const struct data_time_series *dat);
 
-#endif // PHASE2_DATA_H
+#endif // DATA_H

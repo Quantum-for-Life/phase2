@@ -1,6 +1,7 @@
 set(DATA_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(DATA_INCLUDE_DIRS ${DATA_INCLUDE_DIRS} PARENT_SCOPE)
 
+
 if (DISTRIBUTED)
     set(HDF5_PREFER_PARALLEL TRUE)
 endif ()
@@ -10,6 +11,7 @@ if (HDF5_IS_PARALLEL)
 else ()
     message(STATUS "Serial HDF5 found")
 endif ()
+
 
 add_library(data SHARED
         data.c
