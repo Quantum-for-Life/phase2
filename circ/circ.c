@@ -32,31 +32,23 @@ int circ_initialize(void)
 {
 	int rc = 1;
 
-	/*
-	 * If circ_env.init flag is set, someone else has already successfully
-	 * initialized the environment, or is in the process of doing it.
-	 */
+	/* If circ_env.init flag is set, someone else has already successfully
+	initialized the environment, or is in the process of doing it. */
 	if (atomic_load_explicit(&circ_env.init, memory_order_relaxed))
 		return rc;
 
-	/*
-	 * Try to obtain a spinlock. Enter critical section until
-	 * the lock is released.
-	 */
+	/* Try to obtain a spinlock. Enter critical section until the lock is
+	released. */
 	while (atomic_flag_test_and_set(&circ_env.lock))
 		thrd_yield();
-	/*
-	 * Check if someone hasn't set everything up for us while we were
-	 * waiting.  If the flag is not set, we need to be sure other members
-	 * of circ_env haven't been touched yet either.  Hence `acquire`
-	 * memory order.
-	 */
+	/* Check if someone hasn't set everything up for us while we were
+	waiting.  If the flag is not set, we need to be sure other members
+	of circ_env haven't been touched yet either.  Hence `acquire`
+	memory order. */
 	if (!atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
-		/*
-		 * A call to QuEST always succeeds. If there's something else
-		 * here to do that might fail, conditionally set the return code
-		 * rc=-1 and leave the flag off.
-		 */
+		/* The call to QuEST always succeeds. If there's something else
+		here to do that might fail, conditionally set the return code
+		rc=-1 and leave the flag off. */
 		circ_env.quest_env = createQuESTEnv();
 		int atex_rc = atexit(circ_shutdown);
 		if (atex_rc == 0) {
@@ -101,7 +93,7 @@ static int env_report(void)
 {
 	const QuESTEnv *quest_env = env_get_questenv();
 	if (!quest_env) {
-		fprintf(stderr, "Error: circuit environment not initialized");
+		fprintf(stderr, "Error: circuit environment not initialized\n");
 		return -1;
 	}
 	reportQuESTEnv(*quest_env);
@@ -111,14 +103,14 @@ static int env_report(void)
 
 struct circ *circ_create(struct circuit *ct, void *data)
 {
-	const size_t num_qb_tot =
-		ct->num_mea_qb + ct->num_sys_qb + ct->num_anc_qb;
 	struct circ *c = malloc(sizeof(*c));
 	if (!c)
 		goto circ_fail;
 	int *cl = malloc(sizeof(*cl) * ct->num_mea_qb);
 	if (!cl)
 		goto cl_fail;
+	const size_t num_qb_tot =
+		ct->num_mea_qb + ct->num_sys_qb + ct->num_anc_qb;
 	int *qb = malloc(sizeof(*qb) * num_qb_tot);
 	if (!qb)
 		goto qb_fail;
@@ -148,16 +140,13 @@ circ_fail:
 void circ_destroy(struct circ *c)
 {
 	const QuESTEnv *quest_env = env_get_questenv();
-	if (!quest_env) {
+	if (!quest_env)
 		return;
-	}
 	destroyQureg(c->quest_qureg, *quest_env);
-	if (c->qb) {
+	if (c->qb)
 		free(c->qb);
-	}
-	if (c->cl) {
+	if (c->cl)
 		free(c->cl);
-	}
 	free(c);
 	c = NULL;
 }
