@@ -3,11 +3,35 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../data/include/data.h"
 #include "algos/rayon.h"
 #include "circ.h"
+#include "data.h"
 
-#include "test.h"
+#define TEST(name, ...)                                                        \
+	static int name(__VA_ARGS__)                                           \
+	{                                                                      \
+		const char *test_name = #name;                                 \
+		int	    test_rc   = 0;
+
+#define TEST_ASSERT(exp, ...)                                                  \
+	if (!(exp)) {                                                          \
+		fprintf(stderr, "FAILED %s: %s\n", test_name, #exp);           \
+		fprintf(stderr, "  %s:%d\n  Reason: \"", __FILE__, __LINE__);  \
+		fprintf(stderr, __VA_ARGS__);                                  \
+		fprintf(stderr, "\"\n");                                       \
+		goto test_error;                                               \
+	}
+
+#define TEST_FIN(STMNT)                                                        \
+	goto test_exit;                                                        \
+test_error:                                                                    \
+	test_rc = -1;                                                          \
+test_exit:                                                                     \
+	STMNT;                                                                 \
+	return test_rc;                                                        \
+	}
+
+#define TEST_CASE(exp) TEST_ASSERT(exp == 0, "%s", #exp)
 
 #define MARGIN (0.0099)
 static const char *CASE_DIR = DATA_DIR "/case-rand";
@@ -25,8 +49,6 @@ datio_read_file(struct data *dat, const char *filename)
 int
 read_data_ref(struct data *dat, struct data *dat_ref, const char *path_prefix)
 {
-	int rc = 0;
-
 	const size_t buf_len = strlen(path_prefix) + strlen(".h5_solved") + 1;
 	char	    *buf     = calloc(buf_len, sizeof(*buf));
 	if (!buf)
@@ -39,12 +61,11 @@ read_data_ref(struct data *dat, struct data *dat_ref, const char *path_prefix)
 	if (datio_read_file(dat_ref, buf) < 0)
 		goto error;
 
-	goto exit;
-error:
-	rc = -1;
-exit:
 	free(buf);
-	return rc;
+	return 0;
+error:
+	free(buf);
+	return -1;
 }
 
 TEST(caserand, const char *prefix)
@@ -97,7 +118,7 @@ TEST(caserand_suite, void)
 	TEST_CASE(caserand("case-28aa2595"));
 	TEST_CASE(caserand("case-e1932ef1"));
 
-	TEST_FIN(circ_shutdown());
+	TEST_FIN();
 }
 
 int

@@ -1,6 +1,5 @@
 /*
  * Test if we check initialize MPI environment and allocate memory.
- *
  */
 
 #include <stdio.h>
@@ -21,19 +20,18 @@ static struct circuit HC_CIRCUIT = { .name = HEALTHCHECK_LABEL,
 	.effect				   = NULL,
 	.measure			   = NULL };
 
-TEST(healthcheck, void)
-{
-	struct circ *c = circ_create(&HC_CIRCUIT, NULL);
-	TEST_ASSERT(c != NULL, "cannot initialize circuit");
-
-	TEST_FIN({
-		circ_destroy(c);
-		circ_shutdown();
-	});
-}
-
 int
 main(void)
 {
-	return healthcheck();
+	struct circ *c = circ_create(&HC_CIRCUIT, NULL);
+	if (!c) {
+		TEST_FAIL("Cannot initialize circuit");
+		goto error;
+	}
+
+	circ_destroy(c);
+	return 0;
+error:
+	circ_destroy(c);
+	return -1;
 }
