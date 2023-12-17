@@ -19,7 +19,7 @@ add_test(NAME test_healthcheck COMMAND $<TARGET_FILE:test_healthcheck>)
 add_executable(test_rayon test_rayon.c)
 target_compile_definitions(test_rayon
         PUBLIC
-        DATA_DIR="${PROJECT_SOURCE_DIR}/dat"
+        DATA_DIR="${PROJECT_SOURCE_DIR}/simul_data"
 )
 add_test(NAME test_rayon COMMAND $<TARGET_FILE:test_rayon>)
 
