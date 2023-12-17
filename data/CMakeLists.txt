@@ -23,3 +23,9 @@ target_include_directories(data PRIVATE
         ${HDF5_INCLUDE_DIRS}
         ${DATA_INCLUDE_DIRS}
 )
+
+if (DISTRIBUTED)
+    target_include_directories(data PRIVATE
+            ${MPI_C_INCLUDE_DIRS}
+    )
+endif ()

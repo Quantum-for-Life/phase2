@@ -7,12 +7,21 @@ add_executable(ph2run
 )
 
 target_link_libraries(ph2run
-        circ
         data
         QuEST m
+        circ
 )
 
 target_include_directories(ph2run PRIVATE
-        ${CIRC_INCLUDE_DIRS}
         ${DATA_INCLUDE_DIRS}
+        ${CIRC_INCLUDE_DIRS}
 )
+
+if (DISTRIBUTED)
+    target_link_libraries(ph2run
+            ${MPI_C_LIBRARIES}
+    )
+    target_include_directories(ph2run PRIVATE
+            ${MPI_C_INCLUDE_DIRS}
+    )
+endif ()
