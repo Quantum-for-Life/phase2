@@ -66,8 +66,12 @@ set(CIRC_SRC_DIR ${PROJECT_SOURCE_DIR}/circ)
 set(CIRC_SOURCES
         ${CIRC_SRC_DIR}/circ.c
         ${CIRC_SRC_DIR}/capi.c
-        ${CIRC_SRC_DIR}/algos/linen.c
-        ${CIRC_SRC_DIR}/algos/rayon.c
+)
+
+set(ALGOS_SRC_DIR ${PROJECT_SOURCE_DIR}/algos)
+set(ALGOS_SOURCES
+        ${ALGOS_SRC_DIR}/linen.c
+        ${ALGOS_SRC_DIR}/rayon.c
 )
 
 set(CLI_SRC_DIR ${PROJECT_SOURCE_DIR}/cli)
@@ -82,6 +86,7 @@ set(CLI_SOURCES
 add_executable(ph2run
         ${DATA_SOURCES}
         ${CIRC_SOURCES}
+        ${ALGOS_SOURCES}
         ${CLI_SOURCES}
 )
 

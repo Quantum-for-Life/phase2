@@ -20,6 +20,7 @@ add_test(NAME test_healthcheck COMMAND $<TARGET_FILE:test_healthcheck>)
 add_executable(test_rayon
         test_rayon.c
         ${CIRC_SOURCES}
+        ${ALGOS_SOURCES}
         ${DATA_SOURCES}
 )
 add_test(NAME test_rayon COMMAND $<TARGET_FILE:test_rayon>)
