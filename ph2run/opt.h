@@ -8,4 +8,4 @@ struct opt {
 	const char *dat_filename;
 };
 
-#endif //PH2RUN_ARGS_H
+#endif // PH2RUN_ARGS_H

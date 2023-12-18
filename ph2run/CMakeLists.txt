@@ -7,10 +7,16 @@ add_executable(ph2run
 )
 
 target_link_libraries(ph2run
-        phase2
+        data
         QuEST m
+        circ
 )
 
-target_include_directories(ph2run PRIVATE
-        ${PHASE2_INCLUDE_DIRS}
-)
+if (DISTRIBUTED)
+    target_link_libraries(ph2run
+            ${MPI_C_LIBRARIES}
+    )
+    target_include_directories(ph2run PRIVATE
+            ${MPI_C_INCLUDE_DIRS}
+    )
+endif ()

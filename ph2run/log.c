@@ -31,66 +31,70 @@
 #include "mpi.h"
 #endif
 
-#include "opt.h"
 #include "log.h"
+#include "opt.h"
 
 #define MAX_CALLBACKS (32)
 
 struct log_event {
-	va_list ap;
+	va_list	    ap;
 	const char *fmt;
 	const char *file;
-	struct tm *time;
-	void *data;
-	int line;
-	int level;
+	struct tm  *time;
+	void	     *data;
+	int	    line;
+	int	    level;
 };
 
 typedef void (*log_logfn)(struct log_event *ev);
 
 struct callback {
 	log_logfn fn;
-	void *data;
-	int level;
+	void     *data;
+	int	  level;
 };
 
 typedef void (*log_lockfn)(bool lock, void *data);
 
 static struct {
-	void *data;
-	log_lockfn lock;
-	int level;
+	void	     *data;
+	log_lockfn	lock;
+	int		level;
 	struct callback cb[MAX_CALLBACKS];
 } L;
 
-static const char *level_strings[] = { "TRACE", "DEBUG", "INFO",
-				       "WARN",	"ERROR", "FATAL" };
+static const char *level_strings[] = { "TRACE", "DEBUG", "INFO", "WARN",
+	"ERROR", "FATAL" };
 
 #ifdef LOG_USE_COLOR
 static const char *level_colors[] = { "\x1b[94m", "\x1b[36m", "\x1b[32m",
-				      "\x1b[33m", "\x1b[31m", "\x1b[35m" };
+	"\x1b[33m", "\x1b[31m", "\x1b[35m" };
 #endif
 
-static void lock(void)
+static void
+lock(void)
 {
 	if (L.lock) {
 		L.lock(true, L.data);
 	}
 }
 
-static void unlock(void)
+static void
+unlock(void)
 {
 	if (L.lock) {
 		L.lock(false, L.data);
 	}
 }
 
-const char *log_level_string(const int level)
+const char *
+log_level_string(const int level)
 {
 	return level_strings[level];
 }
 
-int log_level_from_lowercase(enum log_level *level, const char *name)
+int
+log_level_from_lowercase(enum log_level *level, const char *name)
 {
 	if (!name) {
 		return -1;
@@ -123,18 +127,21 @@ int log_level_from_lowercase(enum log_level *level, const char *name)
 	return -1;
 }
 
-void log_set_lock(const log_lockfn fn, void *data)
+void
+log_set_lock(const log_lockfn fn, void *data)
 {
 	L.lock = fn;
 	L.data = data;
 }
 
-void log_set_level(const int level)
+void
+log_set_level(const int level)
 {
 	L.level = level;
 }
 
-int log_add_callback(const log_logfn fn, void *data, const int level)
+int
+log_add_callback(const log_logfn fn, void *data, const int level)
 {
 	for (int i = 0; i < MAX_CALLBACKS; i++) {
 		if (!L.cb[i].fn) {
@@ -145,19 +152,21 @@ int log_add_callback(const log_logfn fn, void *data, const int level)
 	return -1;
 }
 
-static void init_event(struct log_event *ev, void *data)
+static void
+init_event(struct log_event *ev, void *data)
 {
 	if (!ev->time) {
 		const time_t t = time(NULL);
-		ev->time = localtime(&t);
+		ev->time       = localtime(&t);
 	}
 	ev->data = data;
 }
 
-void log_vlog(const int level, const char *fmt, va_list ap)
+void
+log_vlog(const int level, const char *fmt, va_list ap)
 {
 	struct log_event ev = {
-		.fmt = fmt,
+		.fmt   = fmt,
 		.level = level,
 	};
 
@@ -176,7 +185,8 @@ void log_vlog(const int level, const char *fmt, va_list ap)
 	unlock();
 }
 
-void log_log(const int level, const char *fmt, ...)
+void
+log_log(const int level, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -184,7 +194,8 @@ void log_log(const int level, const char *fmt, ...)
 	va_end(ap);
 }
 
-void log_callback(struct log_event *ev)
+void
+log_callback(struct log_event *ev)
 {
 #ifdef DISTRIBUTED
 	int initialized, finalized;
@@ -198,7 +209,7 @@ void log_callback(struct log_event *ev)
 		}
 	}
 #endif
-	char buf[64];
+	char  buf[64];
 	FILE *fd = ev->data;
 	buf[strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", ev->time)] = '\0';
 	fprintf(fd, "%s %-5s ", buf, log_level_string(ev->level));
@@ -207,10 +218,11 @@ void log_callback(struct log_event *ev)
 	fflush(fd);
 }
 
-int log_init(void)
+int
+log_init(void)
 {
 	enum log_level lvl;
-	const char *lvl_str = getenv(PH2RUN_LOG_ENVVAR);
+	const char	   *lvl_str = getenv(PH2RUN_LOG_ENVVAR);
 	if (!lvl_str || log_level_from_lowercase(&lvl, lvl_str) < 0) {
 		lvl = LOG_ERROR;
 	}

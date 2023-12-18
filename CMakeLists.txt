@@ -3,32 +3,41 @@ project(phase2 VERSION 0.1.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 17)
 
-add_compile_options(-Wall -Wextra -march=native)
 
-option(DISTRIBUTED "enable distributed mode (MPI)" OFF)
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
+
+option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
+
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+
+add_compile_definitions(
+        DATA_DIR="${PROJECT_SOURCE_DIR}/simul_data"
+)
+
+
+option(DISTRIBUTED "Enable distributed mode (MPI)" OFF)
 if (DISTRIBUTED)
     message(STATUS "MPI mode enabled")
+    find_package(MPI REQUIRED)
     add_definitions(-DDISTRIBUTED)
-
-    find_package(MPI)
-    include_directories(${MPI_C_INCLUDE_DIRS})
-    link_libraries(${MPI_C_LIBRARIES})
-
-    set(HDF5_PREFER_PARALLEL TRUE)
 endif ()
 
-find_package(HDF5 REQUIRED)
-include_directories(${HDF5_INCLUDE_DIRS})
-link_libraries(${HDF5_LIBRARIES})
-if (HDF5_IS_PARALLEL)
-    message(STATUS "Parallel HDF5 found")
-else ()
-    message(STATUS "Serial HDF5 found")
-endif ()
 
-add_subdirectory(lib/QuEST)
-add_subdirectory(phase2)
+add_subdirectory(backend/QuEST)
+
+add_compile_options(-Wall -Wextra -march=native)
+set(CMAKE_C_FLAGS_RELEASE "-O3")
+
+set(PHASE2_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include)
+include_directories(${PHASE2_INCLUDE_DIRS})
+
+add_subdirectory(data)
+add_subdirectory(circ)
 add_subdirectory(ph2run)
+
 
 include(CTest)
 if (BUILD_TESTING)

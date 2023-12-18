@@ -6,35 +6,43 @@
 
 #define NUM_THREADS (8)
 
-int init_par(void *)
+int
+init_par(void *)
 {
 	return circ_initialize();
 }
 
-TEST(init_parallel, void)
+int
+main(void)
 {
 	volatile int bar;
-	thrd_t th[NUM_THREADS];
-	int th_ret[NUM_THREADS];
+	thrd_t	     th[NUM_THREADS];
+	int	     th_ret[NUM_THREADS];
 
 	for (size_t i = 0; i < NUM_THREADS; i++) {
-		bar = 0;
+		bar	  = 0;
 		th_ret[i] = -1;
-		TEST_ASSERT(thrd_create(&th[i], init_par, NULL) == thrd_success,
-			    "creating thread %zu", i);
+		if (thrd_create(&th[i], init_par, NULL) != thrd_success) {
+			TEST_FAIL("creating thread %zu", i);
+			goto error;
+		}
 	}
 
 	for (size_t i = 0; i < NUM_THREADS; i++) {
 		bar = 0;
-		TEST_ASSERT(thrd_join(th[i], th_ret + i) == thrd_success,
-			    "joining thread %zu", i);
+		if (thrd_join(th[i], th_ret + i) != thrd_success) {
+			TEST_FAIL("joining thread %zu", i);
+			goto error;
+		}
 	}
 
 	size_t num_zeroes = 0, num_ones = 0;
 	for (size_t i = 0; i < NUM_THREADS; i++) {
 		bar = 0;
-		TEST_ASSERT(th_ret[i] >= 0, "thread[%zu] returned %d", i,
-			    th_ret[i]);
+		if (th_ret[i] < 0) {
+			TEST_FAIL("thread[%zu] returned %d", i, th_ret[i]);
+			goto error;
+		}
 
 		if (th_ret[i] == 0)
 			num_zeroes++;
@@ -42,18 +50,17 @@ TEST(init_parallel, void)
 			num_ones++;
 	}
 
-	TEST_ASSERT(num_zeroes == 1, "init should happen exactly once");
-	TEST_ASSERT(num_ones == NUM_THREADS - 1, "the rest should be passes");
+	if (num_zeroes != 1) {
+		TEST_FAIL("init should happen exactly once");
+		goto error;
+	}
 
-	TEST_FINALIZE
-	circ_shutdown();
-}
-TEST_END
+	if (num_ones != NUM_THREADS - 1) {
+		TEST_FAIL("the rest should be passes");
+		goto error;
+	}
 
-int main(int argc, char **argv)
-{
-	(void)argc;
-	(void)argv;
-
-	return init_parallel();
+	return 0;
+error:
+	return -1;
 }

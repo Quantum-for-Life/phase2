@@ -17,8 +17,10 @@ enum log_level {
 #define log_error(...) log_log(LOG_ERROR, __VA_ARGS__)
 #define log_fatal(...) log_log(LOG_FATAL, __VA_ARGS__)
 
-void log_log(int level, const char *fmt, ...);
+void
+log_log(int level, const char *fmt, ...);
 
-int log_init(void);
+int
+log_init(void);
 
 #endif // PH2RUN_LOG_H

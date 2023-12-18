@@ -6,6 +6,7 @@
 #define LINEN_DEFAULT_NUM_SYS_QB (8)
 #define LINEN_DEFAULT_NUM_ANC_QB (4)
 
-int linen_simulate(void);
+int
+linen_simulate(void);
 
-#endif //PHASE2_LINEN_H
+#endif // PHASE2_LINEN_H
