@@ -1,14 +1,26 @@
-link_libraries(circ data)
 
-add_executable(test_circ test_circ.c)
+add_executable(test_circ
+        test_circ.c
+        ${CIRC_SOURCES}
+)
 add_test(NAME test_circ COMMAND $<TARGET_FILE:test_circ>)
 
-add_executable(test_circ_env test_circ_env.c)
+add_executable(test_circ_env
+        test_circ_env.c
+        ${CIRC_SOURCES}
+)
 add_test(NAME test_circ_env COMMAND $<TARGET_FILE:test_circ_env>)
 
-add_executable(test_healthcheck test_health.c)
+add_executable(test_healthcheck
+        test_health.c
+        ${CIRC_SOURCES}
+)
 add_test(NAME test_healthcheck COMMAND $<TARGET_FILE:test_healthcheck>)
 
-add_executable(test_rayon test_rayon.c)
+add_executable(test_rayon
+        test_rayon.c
+        ${CIRC_SOURCES}
+        ${DATA_SOURCES}
+)
 add_test(NAME test_rayon COMMAND $<TARGET_FILE:test_rayon>)
 
