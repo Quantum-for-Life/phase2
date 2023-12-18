@@ -7,31 +7,7 @@
 #include "circ.h"
 #include "data.h"
 
-#define TEST(name, ...)                                                        \
-	static int name(__VA_ARGS__)                                           \
-	{                                                                      \
-		const char *test_name = #name;                                 \
-		int	    test_rc   = 0;
-
-#define TEST_ASSERT(exp, ...)                                                  \
-	if (!(exp)) {                                                          \
-		fprintf(stderr, "FAILED %s: %s\n", test_name, #exp);           \
-		fprintf(stderr, "  %s:%d\n  Reason: \"", __FILE__, __LINE__);  \
-		fprintf(stderr, __VA_ARGS__);                                  \
-		fprintf(stderr, "\"\n");                                       \
-		goto test_error;                                               \
-	}
-
-#define TEST_FIN(STMNT)                                                        \
-	goto test_exit;                                                        \
-test_error:                                                                    \
-	test_rc = -1;                                                          \
-test_exit:                                                                     \
-	STMNT;                                                                 \
-	return test_rc;                                                        \
-	}
-
-#define TEST_CASE(exp) TEST_ASSERT(exp == 0, "%s", #exp)
+#include "test.h"
 
 #define MARGIN (0.0099)
 static const char *CASE_DIR = DATA_DIR "/case-rand";
@@ -68,7 +44,8 @@ error:
 	return -1;
 }
 
-TEST(caserand, const char *prefix)
+static int
+caserand(const char *prefix)
 {
 	static char buf[1024];
 	snprintf(buf, 1024, "%s/%s", CASE_DIR, prefix);
@@ -76,14 +53,21 @@ TEST(caserand, const char *prefix)
 	struct data dat, dat_ref;
 	data_init(&dat);
 	data_init(&dat_ref);
-	TEST_ASSERT(read_data_ref(&dat, &dat_ref, buf) == 0, "Cannot read data "
-							     "file");
+	if (read_data_ref(&dat, &dat_ref, buf) != 0) {
+		TEST_FAIL("Cannot read data file");
+		goto error;
+	}
 
 	struct rayon_data rd;
 	rayon_data_init(&rd);
-	TEST_ASSERT(rayon_data_from_data(&rd, &dat) == 0, "Cannot parse "
-							  "simulation data");
-	TEST_ASSERT(rayon_simulate(&rd) == 0, "Simulation error");
+	if (rayon_data_from_data(&rd, &dat) != 0) {
+		TEST_FAIL("Cannot parse simulation data");
+		goto error;
+	}
+	if (rayon_simulate(&rd) != 0) {
+		TEST_FAIL("Simulation error");
+		goto error;
+	}
 	rayon_data_write_times(&dat.time_series, &rd.times);
 	rayon_data_destroy(&rd);
 
@@ -91,38 +75,52 @@ TEST(caserand, const char *prefix)
 		const _Complex double val = dat.time_series.values[i];
 		const _Complex double ref = dat_ref.time_series.values[i];
 
-		TEST_ASSERT(!(isnan(creal(val))),
-			"Real value at index %zu is Nan", i);
-		TEST_ASSERT(!(isnan(cimag(val))),
-			"Imag value at index %zu is Nan", i);
-
-		TEST_ASSERT(fabs(creal(val) - creal(ref)) < MARGIN,
-			"Real diff exceeded margin (%f): val_re=%f, ref_re=%f",
-			MARGIN, creal(val), creal(ref));
-		TEST_ASSERT(fabs(cimag(val) - cimag(ref)) < MARGIN,
-			"Imag diff exceeded margin (%f): val_re=%f, ref_re=%f",
-			MARGIN, cimag(val), cimag(ref));
+		if (isnan(creal(val))) {
+			TEST_FAIL("Real value at index %zu is Nan", i);
+			goto error;
+		}
+		if (isnan(cimag(val))) {
+			TEST_FAIL("Imag value at index %zu is Nan", i);
+			goto error;
+		}
+		if (fabs(creal(val) - creal(ref)) > MARGIN) {
+			TEST_FAIL("Real diff exceeded margin (%f): val_re=%f, "
+				  "ref_re=%f",
+				MARGIN, creal(val), creal(ref));
+			goto error;
+		}
+		if (fabs(cimag(val) - cimag(ref)) > MARGIN) {
+			TEST_FAIL(
+				"Imag diff exceeded margin (%f): val_re=%f, ref_re=%f",
+				MARGIN, cimag(val), cimag(ref));
+			goto error;
+		}
 	}
 
-	TEST_FIN({
-		data_destroy(&dat);
-		data_destroy(&dat_ref);
-	});
-}
-
-TEST(caserand_suite, void)
-{
-	TEST_CASE(caserand("case-d9f603dc"));
-	TEST_CASE(caserand("case-070d034c"));
-	TEST_CASE(caserand("case-33427110"));
-	TEST_CASE(caserand("case-28aa2595"));
-	TEST_CASE(caserand("case-e1932ef1"));
-
-	TEST_FIN();
+	data_destroy(&dat);
+	data_destroy(&dat_ref);
+	return 0;
+error:
+	data_destroy(&dat);
+	data_destroy(&dat_ref);
+	return -1;
 }
 
 int
 main(void)
 {
-	return caserand_suite();
+	if (caserand("case-d9f603dc") != 0)
+		goto error;
+	if (caserand("case-070d034c") != 0)
+		goto error;
+	if (caserand("case-33427110") != 0)
+		goto error;
+	if (caserand("case-28aa2595") != 0)
+		goto error;
+	if (caserand("case-e1932ef1") != 0)
+		goto error;
+
+	return 0;
+error:
+	return -1;
 }

@@ -7,32 +7,7 @@
 
 #include "circ.h"
 
-#define TEST(name, ...)                                                        \
-	static int name(__VA_ARGS__)                                           \
-	{                                                                      \
-		const char *test_name = #name;                                 \
-		int	    test_rc   = 0;
-
-#define TEST_ASSERT(exp, ...)                                                  \
-	if (!(exp)) {                                                          \
-		fprintf(stderr, "FAILED %s: %s\n", test_name, #exp);           \
-		fprintf(stderr, "  %s:%d\n  Reason: \"", __FILE__, __LINE__);  \
-		fprintf(stderr, __VA_ARGS__);                                  \
-		fprintf(stderr, "\"\n");                                       \
-		goto test_error;                                               \
-	}
-
-#define TEST_FIN(STMNT)                                                        \
-	goto test_exit;                                                        \
-test_error:                                                                    \
-	test_rc = -1;                                                          \
-test_exit:                                                                     \
-	STMNT;                                                                 \
-	return test_rc;                                                        \
-	}
-
-#define TEST_CASE(exp) TEST_ASSERT(exp == 0, "%s", #exp)
-
+#include "test.h"
 
 #define MOCK_CIRCUIT_NAME "mock"
 
@@ -88,57 +63,105 @@ static struct circuit MOCK_CIRCUIT = { .name = MOCK_CIRCUIT_NAME,
 	.effect				     = mock_routine,
 	.measure			     = mock_state_post };
 
-TEST(mock_circ_init, struct circuit *ct)
+static int
+mock_circ_init(struct circuit *ct)
 {
 	struct mock_circ_data dat;
 	struct circ	     *c = circ_create(ct, &dat);
 
-	TEST_ASSERT(c != NULL, "cannot initialize circuit");
-	TEST_ASSERT(memcmp(ct->name, MOCK_CIRCUIT_NAME, 4) == 0,
-		"wrong circuit passed");
+	if (c == NULL) {
+		TEST_FAIL("cannot initialize circuit");
+		goto error;
+	}
+	if (memcmp(ct->name, MOCK_CIRCUIT_NAME, 4) != 0) {
+		TEST_FAIL("wrong circuit passed");
+		goto error;
+	}
 
-	TEST_FIN(circ_destroy(c));
+	circ_destroy(c);
+	return 0;
+error:
+	circ_destroy(c);
+	return -1;
 }
 
-TEST(mock_circ_reset, struct circuit *ct)
+static int
+mock_circ_reset(struct circuit *ct)
 {
 	struct mock_circ_data dat = { .index = 0 };
 	struct circ	     *c	  = circ_create(ct, &dat);
 
-	TEST_ASSERT(c != NULL, "cannot initialize circuit");
-	TEST_ASSERT(circ_reset(c) == 0, "reset");
-	TEST_ASSERT(dat.reset_val == 777, "circuit not reset");
+	if (c == NULL) {
+		TEST_FAIL("cannot initialize circuit");
+		goto error;
+	}
+	if (circ_reset(c) != 0) {
+		TEST_FAIL("reset");
+		goto error;
+	}
+	if (dat.reset_val != 777) {
+		TEST_FAIL("circuit not reset");
+		goto error;
+	}
 
-	TEST_FIN(circ_destroy(c));
+	circ_destroy(c);
+	return 0;
+error:
+	circ_destroy(c);
+	return -1;
 }
 
-TEST(mock_circ_simulate, struct circuit *ct)
+static int
+mock_circ_simulate(struct circuit *ct)
 {
 	struct mock_circ_data dat = { .index = 0 };
 	struct circ	     *c	  = circ_create(ct, &dat);
 
-	TEST_ASSERT(c != NULL, "cannot initialize circuit");
-	TEST_ASSERT(circ_run(c) == 0, "simulation error");
-	TEST_ASSERT(dat.reset_val == 777, "reset value");
-	TEST_ASSERT(dat.values[0] == 222, "state_prep value");
-	TEST_ASSERT(dat.values[1] == 333, "effect value");
-	TEST_ASSERT(dat.values[2] == 444, "measure value");
+	if (c == NULL) {
+		TEST_FAIL("cannot initialize circuit");
+		goto error;
+	}
+	if (circ_run(c) != 0) {
+		TEST_FAIL("simulation error");
+		goto error;
+	}
+	if (dat.reset_val != 777) {
+		TEST_FAIL("reset value");
+		goto error;
+	}
+	if (dat.values[0] != 222) {
+		TEST_FAIL("state_prep value");
+		goto error;
+	}
+	if (dat.values[1] != 333) {
+		TEST_FAIL("effect value");
+		goto error;
+	}
+	if (dat.values[2] != 444) {
+		TEST_FAIL("measure value");
+		goto error;
+	}
 
-	TEST_FIN(circ_destroy(c));
-}
-
-TEST(mock_circ_suite, void)
-{
-	TEST_CASE(mock_circ_init(&MOCK_CIRCUIT));
-	TEST_CASE(mock_circ_reset(&MOCK_CIRCUIT));
-	TEST_CASE(mock_circ_simulate(&MOCK_CIRCUIT));
-	TEST_CASE(mock_circ_simulate(&MOCK_CIRCUIT));
-
-	TEST_FIN();
+	circ_destroy(c);
+	return 0;
+error:
+	circ_destroy(c);
+	return -1;
 }
 
 int
 main(void)
 {
-	return mock_circ_suite();
+	if (mock_circ_init(&MOCK_CIRCUIT) != 0)
+		goto error;
+	if (mock_circ_reset(&MOCK_CIRCUIT) != 0)
+		goto error;
+	if (mock_circ_simulate(&MOCK_CIRCUIT) != 0)
+		goto error;
+	if (mock_circ_simulate(&MOCK_CIRCUIT) != 0)
+		goto error;
+
+	return 0;
+error:
+	return -1;
 }
