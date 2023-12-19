@@ -10,7 +10,7 @@
 #include "test.h"
 
 #define MARGIN (0.0099)
-static const char *CASE_DIR = DATA_DIR "/case-rand";
+static const char *CASE_DIR = PH2_SIMUL_DATA "/case-rand";
 
 int
 datio_read_file(struct data *dat, const char *filename)

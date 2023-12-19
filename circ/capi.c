@@ -3,7 +3,7 @@
 #include "QuEST.h"
 
 #include "circ.h"
-#include "circ_intl.h"
+#include "circ_private.h"
 
 void
 capi_hadamard(struct circ *c, qbid qb)

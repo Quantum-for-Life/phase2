@@ -7,7 +7,7 @@
 #include "QuEST.h"
 
 #include "circ.h"
-#include "circ_intl.h"
+#include "circ_private.h"
 
 static struct {
 	_Atomic _Bool init;

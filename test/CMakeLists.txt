@@ -1,27 +1,12 @@
+macro(more_test name sources)
+    string(CONCAT test_name "test_" ${name})
+    string(CONCAT test_source ${test_name} ".c")
+    add_executable(${test_name} ${test_source})
+    target_sources(${test_name} PUBLIC ${${sources}})
+    add_test(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}>)
+endmacro()
 
-add_executable(test_circ
-        test_circ.c
-        ${CIRC_SOURCES}
-)
-add_test(NAME test_circ COMMAND $<TARGET_FILE:test_circ>)
-
-add_executable(test_circ_env
-        test_circ_env.c
-        ${CIRC_SOURCES}
-)
-add_test(NAME test_circ_env COMMAND $<TARGET_FILE:test_circ_env>)
-
-add_executable(test_healthcheck
-        test_health.c
-        ${CIRC_SOURCES}
-)
-add_test(NAME test_healthcheck COMMAND $<TARGET_FILE:test_healthcheck>)
-
-add_executable(test_rayon
-        test_rayon.c
-        ${CIRC_SOURCES}
-        ${ALGOS_SOURCES}
-        ${DATA_SOURCES}
-)
-add_test(NAME test_rayon COMMAND $<TARGET_FILE:test_rayon>)
-
+more_test(circ CIRC_SOURCES)
+more_test(circ_env CIRC_SOURCES)
+more_test(healthchk CIRC_SOURCES)
+more_test(rayon PH2_COMMON_SOURCES)
