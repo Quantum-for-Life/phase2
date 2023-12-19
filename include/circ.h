@@ -118,17 +118,15 @@ struct circ_hamil {
 };
 
 void
-circ_hamil_init(struct circ_hamil *hamil);
+circ_hamil_init(struct circ_hamil *h);
 
 void
-circ_hamil_destroy(struct circ_hamil *hamil);
+circ_hamil_destroy(struct circ_hamil *h);
 
 int
-circ_hamil_from_data(
-	struct circ_hamil *hamil, const struct data_pauli_hamil *dat_ph);
-
+circ_hamil_from_data(struct circ_hamil *h, const struct data_pauli_hamil *dat);
 
 void
-circ_hamil_paulis(const struct circ_hamil *hamil, size_t term, int *paulis);
+circ_hamil_paulis(const struct circ_hamil *h, size_t n, int *paulis);
 
 #endif // PHASE2_CIRC_H

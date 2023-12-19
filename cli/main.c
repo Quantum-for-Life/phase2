@@ -7,8 +7,8 @@
 
 #endif
 
-#include "data.h"
 #include "circ.h"
+#include "data.h"
 
 #include "log.h"
 
