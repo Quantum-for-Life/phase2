@@ -18,15 +18,6 @@ static struct {
 	.lock = ATOMIC_FLAG_INIT,
 };
 
-struct circ {
-	struct circuit *ct;
-	void	       *data;
-	int	       *cl, *qb;
-
-	/* Qubit register */
-	Qureg quest_qureg;
-};
-
 int
 circ_initialize(void)
 {
@@ -252,19 +243,4 @@ qbid
 circ_ancqb(const struct circ *c, size_t idx)
 {
 	return idx + circ_num_meaqb(c) + circ_num_sysqb(c);
-}
-
-/*
- * Internals
- */
-Qureg
-circ_intl_quest_qureg(const struct circ *c)
-{
-	return c->quest_qureg;
-}
-
-int *
-circ_intl_get_qb(const struct circ *c)
-{
-	return c->qb;
 }

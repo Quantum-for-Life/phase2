@@ -5,10 +5,13 @@
 
 #include "circ.h"
 
-Qureg
-circ_intl_quest_qureg(const struct circ *c);
+struct circ {
+	struct circuit *ct;
+	void	       *data;
+	int	       *cl, *qb;
 
-int *
-circ_intl_get_qb(const struct circ *c);
+	/* Qubit register */
+	Qureg quest_qureg;
+};
 
 #endif // PHASE2_CIRC_PRIVATE_H
