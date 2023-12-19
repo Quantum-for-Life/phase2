@@ -1,27 +1,19 @@
 #ifndef PHASE2_RAYON_H
 #define PHASE2_RAYON_H
 
+#include "circ.h"
 #include "data.h"
 
 #define RAYON_NAME "rayon"
 #define RAYON_NUM_MEA_QB (1)
 #define RAYON_NUM_ANC_QB (0)
 
-typedef unsigned long pauli_pak_t;
-
-struct rayon_data_hamil {
-	size_t	     num_qubits;
-	size_t	     num_terms;
-	double      *coeffs;
-	pauli_pak_t *pak;
-};
-
 struct rayon_data_multidet {
 	size_t num_dets;
 	struct {
 		long long	index;
 		_Complex double coeff;
-	} * dets;
+	} *dets;
 };
 
 struct rayon_data_times {
@@ -29,11 +21,11 @@ struct rayon_data_times {
 	struct {
 		double		t;
 		_Complex double val;
-	} * steps;
+	} *steps;
 };
 
 struct rayon_data {
-	struct rayon_data_hamil	   hamil;
+	struct circ_hamil	   hamil;
 	struct rayon_data_multidet multidet;
 	struct rayon_data_times	   times;
 };

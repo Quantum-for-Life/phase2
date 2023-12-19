@@ -6,6 +6,8 @@
 
 #include <stdlib.h>
 
+#include "data.h"
+
 typedef size_t qbid;
 
 struct circ;
@@ -88,7 +90,6 @@ circ_sysqb(const struct circ *c, size_t idx);
 qbid
 circ_ancqb(const struct circ *c, size_t idx);
 
-
 void
 circ_ops_hadamard(struct circ *c, qbid qb);
 
@@ -106,5 +107,28 @@ circ_ops_set_sysamp(struct circ *c, size_t idx, _Complex double amp);
 
 void
 circ_ops_ctl_rotate_pauli(struct circ *c, int *paulis, double angle);
+
+typedef unsigned long pauli_pak_t;
+
+struct circ_hamil {
+	size_t	     num_qubits;
+	size_t	     num_terms;
+	double	    *coeffs;
+	pauli_pak_t *pak;
+};
+
+void
+circ_hamil_init(struct circ_hamil *hamil);
+
+void
+circ_hamil_destroy(struct circ_hamil *hamil);
+
+int
+circ_hamil_from_data(
+	struct circ_hamil *hamil, const struct data_pauli_hamil *dat_ph);
+
+
+void
+circ_hamil_paulis(const struct circ_hamil *hamil, size_t term, int *paulis);
 
 #endif // PHASE2_CIRC_H

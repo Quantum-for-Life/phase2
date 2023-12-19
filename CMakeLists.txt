@@ -64,6 +64,7 @@ set(CIRC_SRC_DIR ${PROJECT_SOURCE_DIR}/circ)
 set(CIRC_SOURCES
         ${CIRC_SRC_DIR}/circ.c
         ${CIRC_SRC_DIR}/ops.c
+        ${CIRC_SRC_DIR}/hamil.c
 )
 
 set(ALGOS_SRC_DIR ${PROJECT_SOURCE_DIR}/algos)

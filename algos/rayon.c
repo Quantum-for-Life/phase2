@@ -14,73 +14,12 @@
 #include "algos/rayon.h"
 #include "circ.h"
 
-static const size_t PAULI_MASK	   = 3;
-static const size_t PAULI_WIDTH	   = 2;
-static const size_t PAULI_PAK_SIZE = sizeof(pauli_pak_t) * 8 / PAULI_WIDTH;
-
 struct circ_data {
 	const struct rayon_data *rd;
 	double			 t;
 	double			 prob0_re, prob0_im;
 	int			 scratch[64];
 };
-
-void
-rayon_hamil_init(struct rayon_data_hamil *hamil)
-{
-	hamil->num_qubits = 0;
-	hamil->num_terms  = 0;
-	hamil->coeffs	  = NULL;
-	hamil->pak	  = NULL;
-}
-
-void
-rayon_hamil_destroy(struct rayon_data_hamil *hamil)
-{
-	if (hamil->pak) {
-		free(hamil->pak);
-		hamil->pak = NULL;
-	}
-	if (hamil->coeffs) {
-		free(hamil->coeffs);
-		hamil->coeffs = NULL;
-	}
-	hamil->num_terms  = 0;
-	hamil->num_qubits = 0;
-}
-
-int
-rayon_hamil_from_data(
-	struct rayon_data_hamil *hamil, const struct data_pauli_hamil *dat_ph)
-{
-	double      *coeffs = malloc(sizeof(*coeffs) * dat_ph->num_terms);
-	pauli_pak_t *pak    = calloc(
-		   dat_ph->num_terms * dat_ph->num_qubits / PAULI_PAK_SIZE + 1,
-		   sizeof(pauli_pak_t));
-	if (!(coeffs && pak)) {
-		free(coeffs);
-		free(pak);
-		return -1;
-	}
-
-	for (size_t i = 0; i < dat_ph->num_terms; i++) {
-		coeffs[i] = dat_ph->coeffs[i] * dat_ph->norm;
-		for (size_t j = 0; j < dat_ph->num_qubits; j++) {
-			const size_t pauli_idx = i * dat_ph->num_qubits + j;
-			const size_t pak_idx   = pauli_idx / PAULI_PAK_SIZE;
-			const size_t pak_offset =
-				PAULI_WIDTH * (pauli_idx % PAULI_PAK_SIZE);
-			const pauli_pak_t pauli = dat_ph->paulis[pauli_idx];
-			pak[pak_idx] += pauli << pak_offset;
-		}
-	}
-	hamil->num_qubits = dat_ph->num_qubits;
-	hamil->num_terms  = dat_ph->num_terms;
-	hamil->coeffs	  = coeffs;
-	hamil->pak	  = pak;
-
-	return 0;
-}
 
 void
 rayon_multidet_init(struct rayon_data_multidet *md)
@@ -101,7 +40,7 @@ rayon_multidet_destroy(struct rayon_data_multidet *md)
 
 int
 rayon_multidet_from_data(struct rayon_data_multidet *md,
-	const struct data_state_prep_multidet	      *dat_md)
+	const struct data_state_prep_multidet	    *dat_md)
 {
 	md->dets = malloc(sizeof(*md->dets) * dat_md->num_terms);
 	if (!md->dets)
@@ -168,7 +107,7 @@ rayon_data_write_times(
 void
 rayon_data_init(struct rayon_data *rd)
 {
-	rayon_hamil_init(&rd->hamil);
+	circ_hamil_init(&rd->hamil);
 	rayon_multidet_init(&rd->multidet);
 	rayon_times_init(&rd->times);
 }
@@ -178,14 +117,14 @@ rayon_data_destroy(struct rayon_data *rd)
 {
 	rayon_times_destroy(&rd->times);
 	rayon_multidet_destroy(&rd->multidet);
-	rayon_hamil_destroy(&rd->hamil);
+	circ_hamil_destroy(&rd->hamil);
 }
 
 int
 rayon_data_from_data(struct rayon_data *rd, const struct data *dat)
 {
 	int rc = 0;
-	rc |= rayon_hamil_from_data(&rd->hamil, &dat->pauli_hamil);
+	rc |= circ_hamil_from_data(&rd->hamil, &dat->pauli_hamil);
 	rc |= rayon_multidet_from_data(
 		&rd->multidet, &dat->state_prep.multidet);
 	rc |= rayon_times_from_data(&rd->times, &dat->time_series);
@@ -213,20 +152,13 @@ rayon_prepst(struct circ *c)
 static void
 trotter_step(struct circ *c, double omega)
 {
-	struct circ_data		 *cdat = circ_data(c);
-	const struct rayon_data_hamil *hamil =
+	struct circ_data	*cdat = circ_data(c);
+	const struct circ_hamil *hamil =
 		&((const struct rayon_data *)cdat->rd)->hamil;
 	int *paulis = cdat->scratch;
 
 	for (size_t i = 0; i < hamil->num_terms; i++) {
-		for (size_t j = 0; j < hamil->num_qubits; j++) {
-			const size_t pauli_idx = i * hamil->num_qubits + j;
-			const size_t pak_idx   = pauli_idx / PAULI_PAK_SIZE;
-			const size_t pak_offset =
-				PAULI_WIDTH * (pauli_idx % PAULI_PAK_SIZE);
-			paulis[j] = (hamil->pak[pak_idx] >> pak_offset) &
-				    PAULI_MASK;
-		}
+		circ_hamil_paulis(hamil, i, paulis);
 		/* *
 		 * The minus sign below, together with `sgate` in
 		 * rayon_measure()` (instead of the Hermitian conjugate
