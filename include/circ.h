@@ -88,4 +88,23 @@ circ_sysqb(const struct circ *c, size_t idx);
 qbid
 circ_ancqb(const struct circ *c, size_t idx);
 
+
+void
+circ_ops_hadamard(struct circ *c, qbid qb);
+
+void
+circ_ops_sgate(struct circ *c, qbid qb);
+
+double
+circ_ops_prob0(struct circ *c, qbid qb);
+
+void
+circ_ops_blankstate(struct circ *c);
+
+void
+circ_ops_set_sysamp(struct circ *c, size_t idx, _Complex double amp);
+
+void
+circ_ops_ctl_rotate_pauli(struct circ *c, int *paulis, double angle);
+
 #endif // PHASE2_CIRC_H

@@ -12,7 +12,6 @@
 #include <stdlib.h>
 
 #include "algos/rayon.h"
-#include "capi.h"
 #include "circ.h"
 
 static const size_t PAULI_MASK	   = 3;
@@ -201,12 +200,12 @@ rayon_prepst(struct circ *c)
 	const struct rayon_data_multidet *md =
 		&((const struct rayon_data *)cdat->rd)->multidet;
 
-	capi_blankstate(c);
+	circ_ops_blankstate(c);
 	for (size_t i = 0; i < md->num_dets; i++) {
-		capi_set_sysamp(c, md->dets[i].index, md->dets[i].coeff);
+		circ_ops_set_sysamp(c, md->dets[i].index, md->dets[i].coeff);
 	}
 	const qbid mea_qb0 = circ_meaqb(c, 0);
-	capi_hadamard(c, mea_qb0);
+	circ_ops_hadamard(c, mea_qb0);
 
 	return 0;
 }
@@ -235,7 +234,7 @@ trotter_step(struct circ *c, double omega)
 		 * of the expectation value.
 		 */
 		const double angle = -1.0 * omega * hamil->coeffs[i];
-		capi_ctl_rotate_pauli(c, paulis, angle);
+		circ_ops_ctl_rotate_pauli(c, paulis, angle);
 	}
 }
 
@@ -263,20 +262,20 @@ rayon_measure(struct circ *c)
 	struct circ_data *d	  = circ_data(c);
 	const qbid	  mea_qb0 = circ_meaqb(c, 0);
 
-	capi_hadamard(c, mea_qb0);
-	d->prob0_re = capi_prob0(c, mea_qb0);
+	circ_ops_hadamard(c, mea_qb0);
+	d->prob0_re = circ_ops_prob0(c, mea_qb0);
 
 	/* Revert the H gate */
-	capi_hadamard(c, mea_qb0);
+	circ_ops_hadamard(c, mea_qb0);
 	/**
 	 * To obtain the correct sign of the imaginary part of the
 	 * expectation value, the gate effected here should be
 	 * `S^{\dagger}`.  We use `sgate()` function and change the
 	 * sign of the angle argument in `rayon_effect()` instead.
 	 */
-	capi_sgate(c, mea_qb0);
-	capi_hadamard(c, mea_qb0);
-	d->prob0_im = capi_prob0(c, mea_qb0);
+	circ_ops_sgate(c, mea_qb0);
+	circ_ops_hadamard(c, mea_qb0);
+	d->prob0_im = circ_ops_prob0(c, mea_qb0);
 
 	return 0;
 }

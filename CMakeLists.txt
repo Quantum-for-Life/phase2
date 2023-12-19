@@ -35,7 +35,6 @@ set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 set(PH2_PUBLIC_HEADERS
         ${PH2_INCLUDE_DIRS}/circ.h
-        ${PH2_INCLUDE_DIRS}/capi.h
         ${PH2_INCLUDE_DIRS}/data.h
         ${PH2_INCLUDE_DIRS}/algos/linen.h
         ${PH2_INCLUDE_DIRS}/algos/rayon.h
@@ -64,7 +63,7 @@ set(DATA_SOURCES
 set(CIRC_SRC_DIR ${PROJECT_SOURCE_DIR}/circ)
 set(CIRC_SOURCES
         ${CIRC_SRC_DIR}/circ.c
-        ${CIRC_SRC_DIR}/capi.c
+        ${CIRC_SRC_DIR}/ops.c
 )
 
 set(ALGOS_SRC_DIR ${PROJECT_SOURCE_DIR}/algos)
