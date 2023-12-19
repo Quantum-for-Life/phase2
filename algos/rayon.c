@@ -123,8 +123,9 @@ rayon_data_destroy(struct rayon_data *rd)
 int
 rayon_data_from_data(struct rayon_data *rd, const struct data *dat)
 {
-	int rc = 0;
-	rc |= circ_hamil_from_data(&rd->hamil, &dat->pauli_hamil);
+	int rc;
+
+	rc = circ_hamil_from_data(&rd->hamil, &dat->pauli_hamil);
 	rc |= rayon_multidet_from_data(
 		&rd->multidet, &dat->state_prep.multidet);
 	rc |= rayon_times_from_data(&rd->times, &dat->time_series);
@@ -135,7 +136,8 @@ rayon_data_from_data(struct rayon_data *rd, const struct data *dat)
 int
 rayon_prepst(struct circ *c)
 {
-	struct circ_data		 *cdat = circ_data(c);
+	struct circ_data *cdat = circ_data(c);
+
 	const struct rayon_data_multidet *md =
 		&((const struct rayon_data *)cdat->rd)->multidet;
 
@@ -158,7 +160,7 @@ trotter_step(struct circ *c, double omega)
 	int *paulis = cdat->scratch;
 
 	for (size_t i = 0; i < hamil->num_terms; i++) {
-		circ_hamil_paulis(hamil, i, paulis);
+		circ_hamil_paulistr(hamil, i, paulis);
 		/* *
 		 * The minus sign below, together with `sgate` in
 		 * rayon_measure()` (instead of the Hermitian conjugate
