@@ -15,11 +15,11 @@ error:
 }
 
 int
-test_data_open(void)
+test_data_open(const char* filename)
 {
 	data_id fid;
 
-	if ((fid = data2_open(TEST_DATA_FILE) == DATA_INVALID_FID))
+	if ((fid = data2_open(filename) == DATA_INVALID_FID))
 		goto error;
 
 	data2_close(fid);

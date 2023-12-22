@@ -2,6 +2,13 @@
 
 #include "data.h"
 
+/* Group, dataset names */
+#define DATA2_STATE_PREP "state_prep"
+#define DATA2_STATE_PREP_MULTIDET "multidet"
+#define DATA2_STATE_PREP_MULTIDET_COEFFS "coeffs"
+#define DATA2_STATE_PREP_MULTIDET_DETS "dets"
+
+/* Open, close data file */
 data_id
 data2_open(const char *filename)
 {
@@ -30,6 +37,97 @@ void
 data2_close(const data_id fid)
 {
 	H5Fclose(fid);
+}
+
+/* --- State prep --- */
+static int
+state_prep_open(data_id fid, hid_t *grpid)
+{
+	hid_t hid = H5Gopen2(fid, DATA2_STATE_PREP, H5P_DEFAULT);
+	if (hid == H5I_INVALID_HID)
+		return -1;
+	*grpid = hid;
+
+	return 0;
+}
+
+static void
+state_prep_close(hid_t grpid)
+{
+	H5Gclose(grpid);
+}
+
+/* --- Multidet --- */
+
+struct multidet_handle {
+	hid_t state_prep_grpid;
+	hid_t multidet_grpid;
+};
+
+static int
+multidet_open(data_id fid, struct multidet_handle *md)
+{
+	hid_t sp_id, md_id;
+
+	if (state_prep_open(fid, &sp_id) < 0)
+		return -1;
+	md_id = H5Gopen2(sp_id, DATA2_STATE_PREP_MULTIDET, H5P_DEFAULT);
+	if (md_id == H5I_INVALID_HID) {
+		state_prep_close(sp_id);
+		return -1;
+	}
+	md->state_prep_grpid = sp_id;
+	md->multidet_grpid   = md_id;
+
+	return 0;
+}
+
+static void
+multidet_close(struct multidet_handle md)
+{
+	H5Gclose(md.multidet_grpid);
+	state_prep_close(md.state_prep_grpid);
+}
+
+static int
+multidet_get_dimension(data_id fid, size_t *n, int dim)
+{
+	struct multidet_handle md;
+
+	if (multidet_open(fid, &md) < 0)
+		return -1;
+
+	const hid_t dset_dets_id = H5Dopen2(
+		md.multidet_grpid, DATA2_STATE_PREP_MULTIDET_DETS, H5P_DEFAULT);
+	if (dset_dets_id == H5I_INVALID_HID) {
+		goto error;
+	}
+	const hid_t dspace_dets_id = H5Dget_space(dset_dets_id);
+	hsize_t	    dspace_dets_dims[2];
+	H5Sget_simple_extent_dims(dspace_dets_id, dspace_dets_dims, NULL);
+
+	*n = dspace_dets_dims[dim];
+
+	H5Sclose(dspace_dets_id);
+	H5Dclose(dset_dets_id);
+	multidet_close(md);
+	return 0;
+
+error:
+	multidet_close(md);
+	return -1;
+}
+
+int
+data2_multidet_num_qubits(data_id fid, size_t *n)
+{
+	return multidet_get_dimension(fid, n, 1);
+}
+
+int
+data2_multidet_num_terms(data_id fid, size_t *n)
+{
+	return multidet_get_dimension(fid, n, 0);
 }
 
 /* ---------------------------------------------------------------------------
@@ -482,4 +580,5 @@ state_prep_fail:
 	return res;
 }
 
-/* -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+ */
