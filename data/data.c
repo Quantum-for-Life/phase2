@@ -2,6 +2,36 @@
 
 #include "data.h"
 
+data_id
+data2_open(const char *filename)
+{
+	hid_t file_id, access_plist;
+#ifdef DISTRIBUTED
+	// init MPI environment
+	int initialized;
+	MPI_Initialized(&initialized);
+	if (!initialized) {
+		MPI_Init(NULL, NULL);
+	}
+	access_plist = H5Pcreate(H5P_FILE_ACCESS);
+	H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
+#else
+	access_plist = H5P_DEFAULT;
+#endif
+	file_id = H5Fopen(filename, H5F_ACC_RDWR, access_plist);
+	if (file_id == H5I_INVALID_HID) {
+		return DATA_INVALID_FID;
+	}
+
+	return file_id;
+}
+
+void
+data2_close(const data_id fid)
+{
+	H5Fclose(fid);
+}
+
 /* ---------------------------------------------------------------------------
  * This API is deprecated.
  */
@@ -204,7 +234,7 @@ data_pauli_hamil_parse(struct data_pauli_hamil *dat, const data_id obj_id)
 	hsize_t	    dspace_coeffs_dims[1];
 	H5Sget_simple_extent_dims(dspace_coeffs_id, dspace_coeffs_dims, NULL);
 	const size_t num_terms = dspace_coeffs_dims[0];
-	double      *coeffs    = malloc(sizeof(double) * num_terms);
+	double	    *coeffs    = malloc(sizeof(double) * num_terms);
 	if (!coeffs) {
 		res = -1;
 		goto coeffs_alloc_fail;
@@ -301,7 +331,7 @@ data_time_series_parse(struct data_time_series *dat, const data_id obj_id)
 	hsize_t	    dspace_times_dims[1];
 	H5Sget_simple_extent_dims(dspace_times_id, dspace_times_dims, NULL);
 	const size_t num_steps = dspace_times_dims[0];
-	double      *times     = malloc(sizeof(double) * num_steps);
+	double	    *times     = malloc(sizeof(double) * num_steps);
 	if (times == NULL) {
 		res = -1;
 		goto times_alloc_fail;

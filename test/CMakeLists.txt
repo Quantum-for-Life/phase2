@@ -11,8 +11,12 @@ more_test(circ_env CIRC_SOURCES)
 more_test(healthchk CIRC_SOURCES)
 more_test(rayon PH2_COMMON_SOURCES)
 
+set(TEST_DATA_SRC
+    ${PROJECT_SOURCE_DIR}/test/data
+)
 set(TEST_DATA_SOURCES
         ${DATA_SOURCES}
-        data/test_data_open.c
+        ${TEST_DATA_SRC}/test_data_open.c
 )
+add_compile_definitions(TEST_DATA_FILE="${TEST_DATA_SRC}/H2O_CAS56.h5")
 more_test(data TEST_DATA_SOURCES)

@@ -9,6 +9,9 @@
 typedef int64_t data_id;
 
 
+data_id data2_open(const char* filename);
+
+void data2_close(data_id);
 
 /* ---------------------------------------------------------------------------
  * This is a deprecated API.  To be removed.
