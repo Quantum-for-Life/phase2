@@ -5,6 +5,16 @@
 
 #define DATA_INVALID_FID (-1)
 
+
+typedef int64_t data_id;
+
+
+
+/* ---------------------------------------------------------------------------
+ * This is a deprecated API.  To be removed.
+ */
+
+
 #define DATA_STATE_PREP "state_prep"
 
 #define DATA_STATE_PREP_MULTIDET "multidet"
@@ -19,8 +29,6 @@
 #define DATA_TIME_SERIES "time_series"
 #define DATA_TIME_SERIES_TIMES "times"
 #define DATA_TIME_SERIES_VALUES "values"
-
-typedef int64_t data_id; // This is the same as HDF5's hid_t
 
 struct data_state_prep_multidet {
 	size_t		 num_qubits;
@@ -70,5 +78,7 @@ data_parse(struct data *dat, data_id fid);
 
 int
 data_time_series_write(data_id fid, const struct data_time_series *dat);
+
+/* ---------------------------------------------------------------------------*/
 
 #endif // DATA_H

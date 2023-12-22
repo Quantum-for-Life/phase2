@@ -2,6 +2,10 @@
 
 #include "data.h"
 
+/* ---------------------------------------------------------------------------
+ * This API is deprecated.
+ */
+
 data_id
 data_file_open(const char *filename)
 {
@@ -447,3 +451,5 @@ pauli_hamil_fail:
 state_prep_fail:
 	return res;
 }
+
+/* -------------------------------------------------------------------------- */
