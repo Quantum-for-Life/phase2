@@ -7,7 +7,7 @@
 #endif
 
 #define NUM_TEST_FILES (2)
-struct test_data {
+const struct test_data {
 	const char *filename;
 	size_t	    num_qubits;
 	size_t	    num_terms;
@@ -34,11 +34,13 @@ int test_data_multidet(data_id, struct test_data);
 int
 main(void)
 {
+	/* Check open/close facility */
 	if (test_data_open(TEST_DATA[0].filename) < 0)
 		goto error;
 	if (test_data_open_nonexist() < 0)
 		goto error;
 
+	/* Check if num_qubits, num_dets is retrieved correctly */
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
 		data_id	    fid;
 		const char *filename = TEST_DATA[i].filename;
@@ -52,6 +54,8 @@ main(void)
 		}
 		data2_close(fid);
 	}
+
+	/* test iteration */
 
 	return 0;
 error:

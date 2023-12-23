@@ -106,7 +106,7 @@ data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets)
 	hsize_t	    dspace_dets_dims[2];
 	H5Sget_simple_extent_dims(dspace_dets_id, dspace_dets_dims, NULL);
 
-	*num_dets = dspace_dets_dims[0];
+	*num_dets   = dspace_dets_dims[0];
 	*num_qubits = dspace_dets_dims[1];
 
 	H5Sclose(dspace_dets_id);
@@ -117,6 +117,95 @@ data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets)
 error:
 	multidet_close(md);
 	return -1;
+}
+
+int
+multidet_read_data(
+	data_id fid, _Complex double *coeffs_buf, unsigned char *dets_buf)
+{
+	int rc;
+
+	struct multidet_handle md;
+	if (multidet_open(fid, &md) < 0) {
+		rc = -1;
+		goto multidet_open_fail;
+	}
+
+	const hid_t dset_coeffs_id = H5Dopen2(md.multidet_grpid,
+		DATA2_STATE_PREP_MULTIDET_COEFFS, H5P_DEFAULT);
+	if (dset_coeffs_id == H5I_INVALID_HID) {
+		rc = -1;
+		goto coeffs_open_fail;
+	}
+	/* _Complex double has the same representation as double[2] */
+	if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
+		    H5P_DEFAULT, coeffs_buf) < 0) {
+		rc = -1;
+		goto coeffs_read_fail;
+	}
+
+	const hid_t dset_dets_id = H5Dopen2(
+		md.multidet_grpid, DATA2_STATE_PREP_MULTIDET_DETS, H5P_DEFAULT);
+	if (dset_dets_id == H5I_INVALID_HID) {
+		rc = -1;
+		goto dets_open_fail;
+	}
+	if (H5Dread(dset_dets_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
+		    H5P_DEFAULT, dets_buf) < 0) {
+		rc = -1;
+		goto dets_read_fail;
+	}
+
+	rc = 0;
+dets_read_fail:
+	H5Dclose(dset_dets_id);
+dets_open_fail:
+coeffs_read_fail:
+	H5Dclose(dset_coeffs_id);
+coeffs_open_fail:
+	multidet_close(md);
+multidet_open_fail:
+
+	return rc;
+}
+
+int
+data2_multidet_foreach(
+	data_id fid, int (*op)(_Complex double, size_t, void *), void *op_data)
+{
+	int    rc = 0;
+	size_t num_qubits, num_dets;
+
+	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
+		return -1;
+
+	_Complex double *coeffs_buf = malloc(sizeof *coeffs_buf * num_dets);
+	unsigned char	*dets_buf =
+		malloc(sizeof *dets_buf * num_dets * num_qubits);
+	if (!(coeffs_buf && dets_buf))
+		goto error;
+
+	/* read the content of the data file */
+	if (multidet_read_data(fid, coeffs_buf, dets_buf) < 0)
+		goto error;
+
+	for (size_t i = 0; i < num_dets; i++) {
+		size_t idx = 0;
+		for (size_t j = 0; j < num_qubits; j++) {
+			idx += dets_buf[i * num_qubits + j] << j;
+		}
+		rc = op(coeffs_buf[i], idx, op_data);
+		if (rc != 0)
+			goto exit;
+	}
+
+	goto exit;
+error:
+	rc = -1;
+exit:
+	free(coeffs_buf);
+	free(dets_buf);
+	return rc;
 }
 
 /* ---------------------------------------------------------------------------

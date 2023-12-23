@@ -4,9 +4,9 @@
 
 struct test_data {
 	const char *filename;
-	size_t      num_qubits;
-	size_t      num_terms;
-	size_t      num_dets;
+	size_t	    num_qubits;
+	size_t	    num_terms;
+	size_t	    num_dets;
 };
 
 static int
