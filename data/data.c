@@ -89,8 +89,8 @@ multidet_close(struct multidet_handle md)
 	state_prep_close(md.state_prep_grpid);
 }
 
-static int
-multidet_get_dimension(data_id fid, size_t *n, int dim)
+int
+data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets)
 {
 	struct multidet_handle md;
 
@@ -106,7 +106,8 @@ multidet_get_dimension(data_id fid, size_t *n, int dim)
 	hsize_t	    dspace_dets_dims[2];
 	H5Sget_simple_extent_dims(dspace_dets_id, dspace_dets_dims, NULL);
 
-	*n = dspace_dets_dims[dim];
+	*num_dets = dspace_dets_dims[0];
+	*num_qubits = dspace_dets_dims[1];
 
 	H5Sclose(dspace_dets_id);
 	H5Dclose(dset_dets_id);
@@ -116,18 +117,6 @@ multidet_get_dimension(data_id fid, size_t *n, int dim)
 error:
 	multidet_close(md);
 	return -1;
-}
-
-int
-data2_multidet_num_qubits(data_id fid, size_t *n)
-{
-	return multidet_get_dimension(fid, n, 1);
-}
-
-int
-data2_multidet_num_terms(data_id fid, size_t *n)
-{
-	return multidet_get_dimension(fid, n, 0);
 }
 
 /* ---------------------------------------------------------------------------

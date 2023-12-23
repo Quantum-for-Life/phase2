@@ -27,41 +27,28 @@ data2_open(const char *filename);
  * Close the file that has been open with the call to data2_open().  Free the
  * resources.
  */
-void data2_close(data_id);
+void
+data2_close(data_id);
 
 /**
- * Get the number of qubits for the "multidet" group.
+ * Get the number of qubits and terms for the "multidet" group.
  *
- * After a successful call, the value pointed to by the argument "n" stores the
- * number of qubits saved for the "multidet" group.  If the value cannot be
- * read, the function returns '-1', an the value of `n` is not changed.
+ * After a successful call, the value pointed to by the argument "num_qubits"
+ * stores the number of qubits saved for the "multidet" group.  Similarly, the
+ * argument "num_dets" stores the number of terms in the multidet
+ * representation.  If the value cannot be read, the function returns '-1',
+ * an the value variables poited to is unchanged.
  *
- * Arguments:		fid	Open file id obtained from data2_open()
- * 			n	Pointer to a variable where the result will be
- *				stored.
+ * Arguments:		fid		Open file id obtained from data2_open()
+ * 			num_qubits
+ * 			num_terms	Pointer to a variable where the result
+ * 					will be stored.
  *
  * Return value:	 0	if the value was successfully retrieved
  * 			-1	in case of error
  */
 int
-data2_multidet_num_qubits(data_id fid, size_t *n);
-
-/**
- * Get the number of terms for the "multidet" group.
- *
- * After a successful call, the value pointed to by the argument "n" stores the
- * number of terms saved for the "multidet" group.  If the value cannot be
- * read, the function returns '-1', an the value of `n` is not changed.
- *
- * Arguments:		fid	Open file id obtained from data2_open()
- * 			n	Pointer to a variable where the result will be
- *				stored.
- *
- * Return value:	 0	if the value was successfully retrieved
- * 			-1	in case of error
- */
-int
-data2_multidet_num_terms(data_id fid, size_t *n);
+data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets);
 
 int
 data2_multidet_foreach(
@@ -87,10 +74,10 @@ data2_multidet_foreach(
 #define DATA_TIME_SERIES_VALUES "values"
 
 struct data_state_prep_multidet {
-	size_t		 num_qubits;
-	size_t		 num_terms;
+	size_t           num_qubits;
+	size_t           num_terms;
 	_Complex double *coeffs;
-	unsigned char	*dets;
+	unsigned char *  dets;
 };
 
 struct data_state_prep {
@@ -98,21 +85,21 @@ struct data_state_prep {
 };
 
 struct data_pauli_hamil {
-	size_t	       num_qubits;
-	size_t	       num_terms;
-	double	      *coeffs;
+	size_t         num_qubits;
+	size_t         num_terms;
+	double *       coeffs;
 	unsigned char *paulis;
-	double	       norm;
+	double         norm;
 };
 
 struct data_time_series {
-	size_t		 num_steps;
-	double		*times;
+	size_t           num_steps;
+	double *         times;
 	_Complex double *values;
 };
 
 struct data {
-	struct data_state_prep	state_prep;
+	struct data_state_prep  state_prep;
 	struct data_pauli_hamil pauli_hamil;
 	struct data_time_series time_series;
 };
