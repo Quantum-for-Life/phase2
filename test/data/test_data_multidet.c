@@ -1,16 +1,10 @@
 #include "data.h"
 
 #include "test.h"
-
-struct test_data {
-	const char *filename;
-	size_t	    num_qubits;
-	size_t	    num_terms;
-	size_t	    num_dets;
-};
+#include "test_data.h"
 
 static int
-test_nums(data_id fid, struct test_data td)
+get_nums(data_id fid, struct test_data td)
 {
 	size_t num_qubits = 0, num_dets = 0;
 
@@ -32,10 +26,37 @@ error:
 	return -1;
 }
 
-int
-test_data_multidet(data_id fid, struct test_data td)
+static int
+iter_test0(void)
 {
-	if (test_nums(fid, td) < 0)
+
+	return -1;
+}
+
+int
+test_data_multidet()
+{
+	int rc = 0;
+
+	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
+		const char *filename = TEST_DATA[i].filename;
+
+		data_id fid = data2_open(filename);
+		if (fid == DATA_INVALID_FID) {
+			TEST_FAIL("open file: %s", filename);
+			rc = -1;
+			break;
+		}
+
+		if (get_nums(fid, TEST_DATA[i]) < 0) {
+			TEST_FAIL("get nums for file: %s", filename);
+			rc = -1;
+		}
+
+		data2_close(fid);
+	}
+
+	if (rc != 0)
 		goto error;
 
 	return 0;
