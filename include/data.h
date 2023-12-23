@@ -13,10 +13,11 @@ typedef int64_t data_id;
 /**
  * Open data file.
  *
- * Arguments:		filename	Path to the data file.
+ * Arguments:
+ *	filename	Path to the data file.
  *
- * Return value: 	A valid data_id value or DATA_INVALID_FID
- * 			in case of error
+ * Return value:
+ *	A valid data_id value or DATA_INVALID_FID in case of error
  */
 data_id
 data2_open(const char *filename);
@@ -38,13 +39,15 @@ void data2_close(data_id);
  * representation.  If the value cannot be read, the function returns '-1',
  * an the value variables poited to is unchanged.
  *
- * Arguments:		fid		Open file id obtained from data2_open()
- * 			num_qubits
- * 			num_terms	Pointer to a variable where the result
- * 					will be stored.
+ * Arguments:
+ *  fid			Open file id obtained from data2_open()
+ *  num_qubits
+ *  num_terms	Pointer to a variable where the result will be stored.
  *
- * Return value:	 0	if the value was successfully retrieved
- * 			-1	in case of error
+ *
+ * Return value:
+ *   0			if the value was successfully retrieved
+ *  -1			in case of error
  */
 int
 data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets);
@@ -66,9 +69,10 @@ data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets);
  *a positive value should mean that the iteration terminated early but with no
  *error.
  *
- * Return value:	 0	if the full iteration completed sucessfully
- *					-1	if the data could not be
- * retrieved, or a user-defined value, if the iteration was terminated early
+ * Return value:
+ *   0      if the full iteration completed sucessfully
+ *  -1      if the data could not be retrieved,
+ *  or a user-defined value, if the iteration was terminated early
  */
 int
 data2_multidet_foreach(
@@ -77,21 +81,6 @@ data2_multidet_foreach(
 /* ---------------------------------------------------------------------------
  * This is a deprecated API.  To be removed.
  */
-
-#define DATA_STATE_PREP "state_prep"
-
-#define DATA_STATE_PREP_MULTIDET "multidet"
-#define DATA_STATE_PREP_MULTIDET_COEFFS "coeffs"
-#define DATA_STATE_PREP_MULTIDET_DETS "dets"
-
-#define DATA_PAULI_HAMIL "pauli_hamil"
-#define DATA_PAULI_HAMIL_COEFFS "coeffs"
-#define DATA_PAULI_HAMIL_PAULIS "paulis"
-#define DATA_PAULI_HAMIL_NORM "normalization"
-
-#define DATA_TIME_SERIES "time_series"
-#define DATA_TIME_SERIES_TIMES "times"
-#define DATA_TIME_SERIES_VALUES "values"
 
 struct data_state_prep_multidet {
 	size_t		 num_qubits;

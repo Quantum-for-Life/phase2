@@ -34,8 +34,6 @@ error:
 int
 test_data_open(void)
 {
-	data_id fid;
-
 	if (open_nonexist() < 0) {
 		TEST_FAIL("data open nonexits");
 		goto error;

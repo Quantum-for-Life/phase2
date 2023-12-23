@@ -8,6 +8,15 @@
 #define DATA2_STATE_PREP_MULTIDET_COEFFS "coeffs"
 #define DATA2_STATE_PREP_MULTIDET_DETS "dets"
 
+#define DATA_PAULI_HAMIL "pauli_hamil"
+#define DATA_PAULI_HAMIL_COEFFS "coeffs"
+#define DATA_PAULI_HAMIL_PAULIS "paulis"
+#define DATA_PAULI_HAMIL_NORM "normalization"
+
+#define DATA_TIME_SERIES "time_series"
+#define DATA_TIME_SERIES_TIMES "times"
+#define DATA_TIME_SERIES_VALUES "values"
+
 /* Open, close data file */
 data_id
 data2_open(const char *filename)
