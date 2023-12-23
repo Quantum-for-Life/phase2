@@ -2,7 +2,7 @@
 #define TEST_DATA_H
 
 #define NUM_TEST_FILES (2)
-const static struct test_data {
+static struct test_data {
 	const char *filename;
 	size_t	    num_qubits;
 	size_t	    num_terms;
