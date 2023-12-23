@@ -243,135 +243,6 @@ data_file_close(const data_id fid)
 }
 
 void
-data_state_prep_multidet_init(struct data_state_prep_multidet *dat)
-{
-	dat->num_qubits = 0;
-	dat->num_terms	= 0;
-	dat->coeffs	= NULL;
-	dat->dets	= NULL;
-}
-
-void
-data_state_prep_multidet_destroy(struct data_state_prep_multidet *dat)
-{
-	if (dat->dets) {
-		free(dat->dets);
-		dat->dets = NULL;
-	}
-	if (dat->coeffs) {
-		free(dat->coeffs);
-		dat->coeffs = NULL;
-	}
-	dat->num_terms	= 0;
-	dat->num_qubits = 0;
-}
-
-int
-data_state_prep_multidet_parse(
-	struct data_state_prep_multidet *dat, const data_id obj_id)
-{
-	int res = 0;
-
-	const hid_t dset_coeffs_id =
-		H5Dopen2(obj_id, DATA_STATE_PREP_MULTIDET_COEFFS, H5P_DEFAULT);
-	if (dset_coeffs_id == H5I_INVALID_HID) {
-		res = -1;
-		goto dset_coeffs_fail;
-	}
-	const hid_t dspace_coeffs_id = H5Dget_space(dset_coeffs_id);
-	hsize_t	    dspace_coeffs_dims[2];
-	H5Sget_simple_extent_dims(dspace_coeffs_id, dspace_coeffs_dims, NULL);
-	const size_t	 num_terms = dspace_coeffs_dims[0];
-	_Complex double *coeffs	   = malloc(sizeof(*coeffs) * num_terms);
-	if (!coeffs) {
-		res = -1;
-		goto coeffs_alloc_fail;
-	}
-	/* _Complex double has the same representation as double[2] */
-	if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, coeffs) < 0) {
-		free(coeffs);
-		coeffs = NULL;
-		res    = -1;
-	}
-
-	const hid_t dset_dets_id =
-		H5Dopen2(obj_id, DATA_STATE_PREP_MULTIDET_DETS, H5P_DEFAULT);
-	if (dset_dets_id == H5I_INVALID_HID) {
-		res = -1;
-		goto dset_dets_fail;
-	}
-	const hid_t dspace_dets_id = H5Dget_space(dset_dets_id);
-	hsize_t	    dspace_dets_dims[2];
-	H5Sget_simple_extent_dims(dspace_dets_id, dspace_dets_dims, NULL);
-	/* It must be that:
-	 * dspace_dets_dims[0] = dspace_coeffs_dims[0] = num_terms */
-	const size_t   num_qubits = dspace_dets_dims[1];
-	unsigned char *dets = malloc(sizeof(*dets) * num_terms * num_qubits);
-	if (!dets) {
-		res = -1;
-		goto dets_alloc_fail;
-	}
-	if (H5Dread(dset_dets_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, dets) < 0) {
-		free(dets);
-		dets = NULL;
-		res  = -1;
-	}
-
-	dat->num_qubits = num_qubits;
-	dat->num_terms	= num_terms;
-
-	dat->dets = dets;
-dets_alloc_fail:
-	H5Sclose(dspace_dets_id);
-	H5Dclose(dset_dets_id);
-dset_dets_fail:
-	dat->coeffs = coeffs;
-coeffs_alloc_fail:
-	H5Sclose(dspace_coeffs_id);
-	H5Dclose(dset_coeffs_id);
-dset_coeffs_fail:
-	return res;
-}
-
-void
-data_state_prep_init(struct data_state_prep *dat)
-{
-	(void)dat;
-}
-
-void
-data_state_prep_destroy(struct data_state_prep *dat)
-{
-	data_state_prep_multidet_destroy(&dat->multidet);
-}
-
-int
-data_state_prep_parse(struct data_state_prep *dat, const data_id obj_id)
-{
-	int res;
-
-	const hid_t multidet_id =
-		H5Gopen2(obj_id, DATA_STATE_PREP_MULTIDET, H5P_DEFAULT);
-	if (multidet_id == H5I_INVALID_HID) {
-		res = -1;
-		goto multidet_fail;
-	}
-	struct data_state_prep_multidet multidet;
-	data_state_prep_multidet_init(&multidet);
-	res = data_state_prep_multidet_parse(&multidet, multidet_id);
-	if (res != 0) {
-		data_state_prep_multidet_destroy(&multidet);
-	}
-
-	dat->multidet = multidet;
-	H5Gclose(multidet_id);
-multidet_fail:
-	return res;
-}
-
-void
 data_pauli_hamil_init(struct data_pauli_hamil *dat)
 {
 	dat->num_qubits = 0;
@@ -598,7 +469,6 @@ data_init(struct data *dat)
 void
 data_destroy(struct data *dat)
 {
-	data_state_prep_destroy(&dat->state_prep);
 	data_pauli_hamil_destroy(&dat->pauli_hamil);
 	data_time_series_destroy(&dat->time_series);
 }
@@ -607,18 +477,6 @@ int
 data_parse(struct data *dat, const data_id fid)
 {
 	int res;
-
-	const hid_t state_prep_id = H5Gopen2(fid, DATA_STATE_PREP, H5P_DEFAULT);
-	if (state_prep_id == H5I_INVALID_HID) {
-		res = -1;
-		goto state_prep_fail;
-	}
-	struct data_state_prep state_prep;
-	data_state_prep_init(&state_prep);
-	res = data_state_prep_parse(&state_prep, state_prep_id);
-	if (res != 0) {
-		data_state_prep_destroy(&state_prep);
-	}
 
 	const hid_t pauli_hamil_id =
 		H5Gopen2(fid, DATA_PAULI_HAMIL, H5P_DEFAULT);
@@ -652,11 +510,7 @@ time_series_fail:
 	dat->pauli_hamil = pauli_hamil;
 	H5Gclose(pauli_hamil_id);
 pauli_hamil_fail:
-	dat->state_prep = state_prep;
-	H5Gclose(state_prep_id);
-state_prep_fail:
 	return res;
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */

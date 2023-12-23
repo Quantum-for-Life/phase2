@@ -58,16 +58,28 @@ caserand(const char *prefix)
 		goto error;
 	}
 
+	char filename[1024] = { 0 };
+	snprintf(filename, 1024, "%s/%s.h5", CASE_DIR, prefix);
+	data_id fid = data2_open(filename);
+	if (fid == DATA_INVALID_FID) {
+		TEST_FAIL("Cannot read data file: %s", buf);
+		goto error;
+	}
+
 	struct rayon_data rd;
 	rayon_data_init(&rd);
-	if (rayon_data_from_data(&rd, &dat) != 0) {
+	if (rayon_data_from_data(&rd, &dat, fid) != 0) {
 		TEST_FAIL("Cannot parse simulation data");
 		goto error;
 	}
+	data2_close(fid);
+
 	if (rayon_simulate(&rd) != 0) {
 		TEST_FAIL("Simulation error");
 		goto error;
 	}
+
+
 	rayon_data_write_times(&dat.time_series, &rd.times);
 	rayon_data_destroy(&rd);
 

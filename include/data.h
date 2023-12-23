@@ -67,8 +67,8 @@ data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets);
  *error.
  *
  * Return value:	 0	if the full iteration completed sucessfully
- *			-1	if the data could not be retrieved
- *		or a user-defined value, if the iteration was terminated early
+ *					-1	if the data could not be
+ * retrieved, or a user-defined value, if the iteration was terminated early
  */
 int
 data2_multidet_foreach(

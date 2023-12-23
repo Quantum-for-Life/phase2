@@ -36,7 +36,7 @@ datio_save_file(const char *filename, const struct data *dat);
 int
 run_linen(struct data *dat);
 int
-run_rayon(struct data *dat);
+run_rayon(struct data *dat, data_id fid);
 
 int
 main(const int argc, char **argv)
@@ -69,6 +69,10 @@ main(const int argc, char **argv)
 		goto error;
 	datio_print_info(&dat);
 
+	data_id fid = data2_open(opt.dat_filename);
+	if (fid == DATA_INVALID_FID)
+		goto error;
+
 	log_info("*** Circuit ***");
 	if (strncmp(argv[1], "linen", 5) == 0) {
 		log_info("Circuit: linen");
@@ -76,7 +80,7 @@ main(const int argc, char **argv)
 			goto error;
 	} else if (strncmp(argv[1], "rayon", 5) == 0) {
 		log_info("Circuit: rayon");
-		if (run_rayon(&dat) < 0) {
+		if (run_rayon(&dat, fid) < 0) {
 			log_error("Failure: simulation error");
 			goto error;
 		}
@@ -84,6 +88,8 @@ main(const int argc, char **argv)
 		log_error("No circ named %s", argv[1]);
 		goto error;
 	}
+
+	data2_close(fid);
 
 	if (datio_save_file(opt.dat_filename, &dat) < 0)
 		goto error;

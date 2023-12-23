@@ -10,13 +10,13 @@ run_linen(struct data *dat)
 }
 
 int
-run_rayon(struct data *dat)
+run_rayon(struct data *dat, data_id fid)
 {
 	int rc = 0;
 
 	struct rayon_data rd;
 	rayon_data_init(&rd);
-	if (rayon_data_from_data(&rd, dat) < 0)
+	if (rayon_data_from_data(&rd, dat, fid) < 0)
 		goto error;
 	if (rayon_simulate(&rd) < 0)
 		goto error;
