@@ -104,25 +104,26 @@ test_iter0(void)
 	int count = 0;
 	if (data2_multidet_foreach(fid, iter_count_dets, &count) != 0) {
 		TEST_FAIL("iteration terminated early");
-		goto error;
+		goto err;
 	}
 	if (count != 1) {
 		TEST_FAIL("number of iterations: %d", count);
-		goto error;
+		goto err;
 	}
 	count = 0;
 	if (data2_multidet_foreach(fid, iter_count_dets_onlytwo, &count) != 0) {
 		TEST_FAIL("iteration return wrong code");
-		goto error;
+		goto err;
 	}
 	if (count != 1) {
 		TEST_FAIL("number of iterations: %d", count);
-		goto error;
+		goto err;
 	}
 
+exit:
 	data2_close(fid);
 	return 0;
-error:
+err:
 	data2_close(fid);
 	return -1;
 }
@@ -143,21 +144,21 @@ test_iter1(void)
 	int count = 0;
 	if (data2_multidet_foreach(fid, iter_count_dets, &count) != 0) {
 		TEST_FAIL("iteration terminated early");
-		goto error;
+		goto err;
 	}
 	if (count != 3) {
 		TEST_FAIL("number of iterations: %d", count);
-		goto error;
+		goto err;
 	}
 	count = 0;
 	if (data2_multidet_foreach(fid, iter_count_dets_onlytwo, &count) !=
 		91) {
-		TEST_FAIL("iteration return wrong code");
-		goto error;
+		TEST_FAIL("iteration returned wrong code");
+		goto err;
 	}
 	if (count != 2) {
 		TEST_FAIL("number of iterations: %d", count);
-		goto error;
+		goto err;
 	}
 
 	struct iter_store is;
@@ -168,30 +169,31 @@ test_iter1(void)
 	is.index = 0;
 	if (data2_multidet_foreach(fid, iter_store_dets, &is) != 0) {
 		TEST_FAIL("iteration terminated early");
-		goto error;
+		goto err;
 	}
 	if (is.index != 3) {
 		TEST_FAIL("iteration terminated early");
-		goto error;
+		goto err;
 	}
 
 	for (size_t i = 0; i < td.num_dets; i++) {
 		if (exp_idx[i] != is.idx[i]) {
 			TEST_FAIL("idx cmp fail: %zu vs. %zu", exp_idx[i],
 				is.idx[i]);
-			goto error;
+			goto err;
 		}
 		if (cabs(exp_coeff[i] - is.coeff[i]) > MARGIN) {
 			TEST_FAIL("complex cmp fail %f + %f i vs. %f + %f i",
 				creal(is.coeff[i]), cimag(is.coeff[i]),
 				creal(exp_coeff[i]), cimag(exp_coeff[i]));
-			goto error;
+			goto err;
 		}
 	}
 
+exit:
 	data2_close(fid);
 	return 0;
-error:
+err:
 	data2_close(fid);
 	return -1;
 }
@@ -200,13 +202,14 @@ int
 test_data_multidet()
 {
 	if (test_get_nums() < 0)
-		goto error;
+		goto err;
 	if (test_iter0() < 0)
-		goto error;
+		goto err;
 	if (test_iter1() < 0)
-		goto error;
+		goto err;
 
+exit:
 	return 0;
-error:
+err:
 	return -1;
 }

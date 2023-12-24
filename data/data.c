@@ -10,7 +10,7 @@
 
 #define DATA_PAULI_HAMIL "pauli_hamil"
 #define DATA_PAULI_HAMIL_COEFFS "coeffs"
-#define DATA_PAULI_HAMIL_PAULIS "paulis"
+#define DATA2_PAULI_HAMIL_PAULIS "paulis"
 #define DATA_PAULI_HAMIL_NORM "normalization"
 
 #define DATA_TIME_SERIES "time_series"
@@ -104,78 +104,74 @@ data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets)
 	struct multidet_handle md;
 
 	if (multidet_open(fid, &md) < 0)
-		return -1;
+		goto err_open;
 
-	const hid_t dset_dets_id = H5Dopen2(
+	const hid_t dset_id = H5Dopen2(
 		md.multidet_grpid, DATA2_STATE_PREP_MULTIDET_DETS, H5P_DEFAULT);
-	if (dset_dets_id == H5I_INVALID_HID) {
-		goto error;
-	}
-	const hid_t dspace_dets_id = H5Dget_space(dset_dets_id);
-	hsize_t	    dspace_dets_dims[2];
-	H5Sget_simple_extent_dims(dspace_dets_id, dspace_dets_dims, NULL);
+	if (dset_id == H5I_INVALID_HID)
+		goto err_md_open;
 
-	*num_dets   = dspace_dets_dims[0];
-	*num_qubits = dspace_dets_dims[1];
+	const hid_t dsp_id = H5Dget_space(dset_id);
+	hsize_t	    dsp_dims[2];
+	if (H5Sget_simple_extent_dims(dsp_id, dsp_dims, NULL) != 2)
+		goto err_dims;
 
-	H5Sclose(dspace_dets_id);
-	H5Dclose(dset_dets_id);
+	*num_dets   = dsp_dims[0];
+	*num_qubits = dsp_dims[1];
+
+exit:
+	H5Sclose(dsp_id);
+	H5Dclose(dset_id);
 	multidet_close(md);
 	return 0;
 
-error:
+err_dims:
+err_md_open:
 	multidet_close(md);
+err_open:
 	return -1;
 }
 
-int
+static int
 multidet_read_data(
 	data_id fid, _Complex double *coeffs_buf, unsigned char *dets_buf)
 {
-	int rc;
-
 	struct multidet_handle md;
-	if (multidet_open(fid, &md) < 0) {
-		rc = -1;
-		goto multidet_open_fail;
-	}
+	if (multidet_open(fid, &md) < 0)
+		goto err_multidet_open;
 
 	const hid_t dset_coeffs_id = H5Dopen2(md.multidet_grpid,
 		DATA2_STATE_PREP_MULTIDET_COEFFS, H5P_DEFAULT);
-	if (dset_coeffs_id == H5I_INVALID_HID) {
-		rc = -1;
-		goto coeffs_open_fail;
-	}
+	if (dset_coeffs_id == H5I_INVALID_HID)
+		goto err_coeffs_open;
 	/* _Complex double has the same representation as double[2] */
 	if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, coeffs_buf) < 0) {
-		rc = -1;
-		goto coeffs_read_fail;
-	}
+		    H5P_DEFAULT, coeffs_buf) < 0)
+		goto err_coeffs_read;
 
 	const hid_t dset_dets_id = H5Dopen2(
 		md.multidet_grpid, DATA2_STATE_PREP_MULTIDET_DETS, H5P_DEFAULT);
-	if (dset_dets_id == H5I_INVALID_HID) {
-		rc = -1;
-		goto dets_open_fail;
-	}
+	if (dset_dets_id == H5I_INVALID_HID)
+		goto err_dets_open;
 	if (H5Dread(dset_dets_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, dets_buf) < 0) {
-		rc = -1;
-		goto dets_read_fail;
-	}
+		    H5P_DEFAULT, dets_buf) < 0)
+		goto err_dets_read;
 
-	rc = 0;
-dets_read_fail:
+exit:
 	H5Dclose(dset_dets_id);
-dets_open_fail:
-coeffs_read_fail:
 	H5Dclose(dset_coeffs_id);
-coeffs_open_fail:
 	multidet_close(md);
-multidet_open_fail:
+	return 0;
 
-	return rc;
+err_dets_read:
+	H5Dclose(dset_dets_id);
+err_dets_open:
+err_coeffs_read:
+	H5Dclose(dset_coeffs_id);
+err_coeffs_open:
+	multidet_close(md);
+err_multidet_open:
+	return -1;
 }
 
 int
@@ -186,17 +182,19 @@ data2_multidet_foreach(
 	size_t num_qubits, num_dets;
 
 	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
-		return -1;
+		goto err_getnums;
 
 	_Complex double *coeffs_buf = malloc(sizeof *coeffs_buf * num_dets);
-	unsigned char	*dets_buf =
+	if (!coeffs_buf)
+		goto err_alloc_coeffs;
+	unsigned char *dets_buf =
 		malloc(sizeof *dets_buf * num_dets * num_qubits);
-	if (!(coeffs_buf && dets_buf))
-		goto error;
+	if (!dets_buf)
+		goto err_alloc_dets;
 
-	/* read the content of the data file */
+	/* Read the content of the data file */
 	if (multidet_read_data(fid, coeffs_buf, dets_buf) < 0)
-		goto error;
+		goto err_data_read;
 
 	for (size_t i = 0; i < num_dets; i++) {
 		size_t idx = 0;
@@ -204,19 +202,77 @@ data2_multidet_foreach(
 			idx += dets_buf[i * num_qubits + j] << j;
 		}
 		rc = op(coeffs_buf[i], idx, op_data);
+		/* This isn't an error, but rather the user telling us to
+		   short-circuit the iteration. */
 		if (rc != 0)
 			goto exit;
 	}
 
-	goto exit;
-error:
-	rc = -1;
 exit:
-	free(coeffs_buf);
 	free(dets_buf);
+	free(coeffs_buf);
 	return rc;
+
+err_data_read:
+	free(dets_buf);
+err_alloc_dets:
+	free(coeffs_buf);
+err_alloc_coeffs:
+err_getnums:
+	return -1;
 }
 
+static int
+hamil_open(data_id fid, hid_t *grpid)
+{
+	hid_t hamil_id = H5Gopen2(fid, DATA_PAULI_HAMIL, H5P_DEFAULT);
+	if (hamil_id == H5I_INVALID_HID)
+		return -1;
+	*grpid = hamil_id;
+
+	return 0;
+}
+
+static void
+hamil_close(hid_t grpid)
+{
+	H5Gclose(grpid);
+}
+
+int
+data2_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms)
+{
+	hid_t grpid;
+	if (hamil_open(fid, &grpid) < 0)
+		goto err_open;
+
+	const hid_t dset_id =
+		H5Dopen2(grpid, DATA2_PAULI_HAMIL_PAULIS, H5P_DEFAULT);
+	if (dset_id == H5I_INVALID_HID)
+		goto err_read;
+
+	const hid_t dsp_id = H5Dget_space(dset_id);
+	hsize_t	    dsp_dims[2];
+	if (H5Sget_simple_extent_dims(dsp_id, dsp_dims, NULL) != 2)
+		goto err_dims;
+
+	*num_terms  = dsp_dims[0];
+	*num_qubits = dsp_dims[1];
+
+exit:
+	H5Sclose(dsp_id);
+	H5Dclose(dset_id);
+	hamil_close(grpid);
+	return 0;
+
+err_dims:
+	H5Sclose(dsp_id);
+	H5Dclose(dset_id);
+err_read:
+	hamil_close(grpid);
+err_open:
+	return -1;
+}
 /* ---------------------------------------------------------------------------
  * This API is deprecated.
  */
@@ -303,7 +359,7 @@ data_pauli_hamil_parse(struct data_pauli_hamil *dat, const data_id obj_id)
 	}
 
 	const hid_t dset_paulis_id =
-		H5Dopen2(obj_id, DATA_PAULI_HAMIL_PAULIS, H5P_DEFAULT);
+		H5Dopen2(obj_id, DATA2_PAULI_HAMIL_PAULIS, H5P_DEFAULT);
 	if (dset_paulis_id == H5I_INVALID_HID) {
 		res = -1;
 		goto paulis_fail;

@@ -86,7 +86,7 @@ data2_hamil_foreach(data_id fid,
 	int (*op)(_Complex double, unsigned char *, void *), void *op_data);
 
 int
-data2_times_getnums(data_id fid, size_t &num_steps);
+data2_times_getnums(data_id fid, size_t *num_steps);
 
 int
 data2_times_foreach(

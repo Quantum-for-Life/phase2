@@ -15,19 +15,26 @@ int
 test_data_multidet(void);
 
 int
+test_data_hamil(void);
+
+int
 main(void)
 {
 	if (test_data_open() < 0) {
 		TEST_FAIL("data_open");
-		goto error;
+		goto err;
 	}
-
 	if (test_data_multidet() < 0) {
 		TEST_FAIL("data_multidet");
-		goto error;
+		goto err;
+	}
+	if (test_data_hamil() < 0) {
+		TEST_FAIL("data_hamil");
+		goto err;
 	}
 
+exit:
 	return 0;
-error:
+err:
 	return -1;
 }
