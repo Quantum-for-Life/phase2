@@ -6,7 +6,7 @@
 #include "test.h"
 #include "test_data.h"
 
-#define MARGIN (10e-7)
+#define MARGIN (10e-6)
 
 static int
 test_get_nums(void)

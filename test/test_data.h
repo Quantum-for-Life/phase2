@@ -7,15 +7,18 @@ static struct test_data {
 	size_t	    num_qubits;
 	size_t	    num_terms;
 	size_t	    num_dets;
+	double	    norm;
 } TEST_DATA[NUM_TEST_FILES] = {
 	{ .filename	    = TEST_DATA_SRC "/H2O_CAS56.h5",
 		.num_qubits = 10,
 		.num_terms  = 251,
-		.num_dets   = 1 },
+		.num_dets   = 1,
+		.norm	    = 0.07170948 },
 	{ .filename	    = TEST_DATA_SRC "/case-d9f603dc.h5_solved",
 		.num_qubits = 3,
 		.num_terms  = 10,
-		.num_dets   = 3 }
+		.num_dets   = 3,
+		.norm	    = 0.18535287 }
 };
 
-#endif //TEST_DATA_H
+#endif // TEST_DATA_H

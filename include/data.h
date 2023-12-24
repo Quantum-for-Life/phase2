@@ -82,6 +82,9 @@ int
 data2_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms);
 
 int
+data2_hamil_getnorm(data_id fid, double *norm);
+
+int
 data2_hamil_foreach(data_id fid,
 	int (*op)(_Complex double, unsigned char *, void *), void *op_data);
 
@@ -91,7 +94,6 @@ data2_times_getnums(data_id fid, size_t *num_steps);
 int
 data2_times_foreach(
 	data_id fid, int (*op)(double, _Complex double, void *), void *op_data);
-
 
 /* ---------------------------------------------------------------------------
  * This is a deprecated API.  To be removed.

@@ -8,10 +8,10 @@
 #define DATA2_STATE_PREP_MULTIDET_COEFFS "coeffs"
 #define DATA2_STATE_PREP_MULTIDET_DETS "dets"
 
-#define DATA_PAULI_HAMIL "pauli_hamil"
-#define DATA_PAULI_HAMIL_COEFFS "coeffs"
+#define DATA2_PAULI_HAMIL "pauli_hamil"
+#define DATA2_PAULI_HAMIL_COEFFS "coeffs"
 #define DATA2_PAULI_HAMIL_PAULIS "paulis"
-#define DATA_PAULI_HAMIL_NORM "normalization"
+#define DATA2_PAULI_HAMIL_NORM "normalization"
 
 #define DATA_TIME_SERIES "time_series"
 #define DATA_TIME_SERIES_TIMES "times"
@@ -118,7 +118,6 @@ data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets)
 
 	*num_dets   = dsp_dims[0];
 	*num_qubits = dsp_dims[1];
-
 exit:
 	H5Sclose(dsp_id);
 	H5Dclose(dset_id);
@@ -126,6 +125,8 @@ exit:
 	return 0;
 
 err_dims:
+	H5Sclose(dsp_id);
+	H5Dclose(dset_id);
 err_md_open:
 	multidet_close(md);
 err_open:
@@ -133,8 +134,7 @@ err_open:
 }
 
 static int
-multidet_read_data(
-	data_id fid, _Complex double *coeffs_buf, unsigned char *dets_buf)
+multidet_read_data(data_id fid, _Complex double *coeffs, unsigned char *dets)
 {
 	struct multidet_handle md;
 	if (multidet_open(fid, &md) < 0)
@@ -146,7 +146,7 @@ multidet_read_data(
 		goto err_coeffs_open;
 	/* _Complex double has the same representation as double[2] */
 	if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, coeffs_buf) < 0)
+		    H5P_DEFAULT, coeffs) < 0)
 		goto err_coeffs_read;
 
 	const hid_t dset_dets_id = H5Dopen2(
@@ -154,9 +154,8 @@ multidet_read_data(
 	if (dset_dets_id == H5I_INVALID_HID)
 		goto err_dets_open;
 	if (H5Dread(dset_dets_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, dets_buf) < 0)
+		    H5P_DEFAULT, dets) < 0)
 		goto err_dets_read;
-
 exit:
 	H5Dclose(dset_dets_id);
 	H5Dclose(dset_coeffs_id);
@@ -205,9 +204,8 @@ data2_multidet_foreach(
 		/* This isn't an error, but rather the user telling us to
 		   short-circuit the iteration. */
 		if (rc != 0)
-			goto exit;
+			break;
 	}
-
 exit:
 	free(dets_buf);
 	free(coeffs_buf);
@@ -225,7 +223,7 @@ err_getnums:
 static int
 hamil_open(data_id fid, hid_t *grpid)
 {
-	hid_t hamil_id = H5Gopen2(fid, DATA_PAULI_HAMIL, H5P_DEFAULT);
+	hid_t hamil_id = H5Gopen2(fid, DATA2_PAULI_HAMIL, H5P_DEFAULT);
 	if (hamil_id == H5I_INVALID_HID)
 		return -1;
 	*grpid = hamil_id;
@@ -258,7 +256,6 @@ data2_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms)
 
 	*num_terms  = dsp_dims[0];
 	*num_qubits = dsp_dims[1];
-
 exit:
 	H5Sclose(dsp_id);
 	H5Dclose(dset_id);
@@ -273,6 +270,81 @@ err_read:
 err_open:
 	return -1;
 }
+
+int
+data2_hamil_getnorm(data_id fid, double *norm)
+{
+	hid_t grpid;
+	if (hamil_open(fid, &grpid) < 0)
+		goto err_open;
+
+	const hid_t attr_norm_id =
+		H5Aopen(grpid, DATA2_PAULI_HAMIL_NORM, H5P_DEFAULT);
+	if (attr_norm_id == H5I_INVALID_HID)
+		goto err_attr_open;
+	double n;
+	if (H5Aread(attr_norm_id, H5T_NATIVE_DOUBLE, &n) < 0)
+		goto err_attr_read;
+	*norm = n;
+exit:
+	H5Aclose(attr_norm_id);
+	hamil_close(grpid);
+	return 0;
+
+err_attr_read:
+	H5Aclose(attr_norm_id);
+err_attr_open:
+	hamil_close(grpid);
+err_open:
+	return -1;
+}
+
+static int
+hamil_read_data(data_id fid, _Complex double *coeffs, unsigned char *paulis)
+{
+	hid_t grpid;
+	if (hamil_open(fid, &grpid) < 0)
+		goto err_hamil_open;
+
+	const hid_t dset_coeffs_id =
+		H5Dopen2(grpid, DATA2_PAULI_HAMIL_COEFFS, H5P_DEFAULT);
+	if (dset_coeffs_id == H5I_INVALID_HID)
+		goto err_coeffs_open;
+	/* _Complex double has the same representation as double[2] */
+	if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
+		    H5P_DEFAULT, coeffs) < 0)
+		goto err_coeffs_read;
+
+	const hid_t dset_paulis_id =
+		H5Dopen2(grpid, DATA2_PAULI_HAMIL_PAULIS, H5P_DEFAULT);
+	if (dset_paulis_id == H5I_INVALID_HID)
+		goto err_paulis_open;
+	if (H5Dread(dset_paulis_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
+		    H5P_DEFAULT, paulis) < 0)
+		goto err_pauli_read;
+exit:
+	H5Dclose(dset_paulis_id);
+	H5Dclose(dset_coeffs_id);
+	hamil_close(grpid);
+	return 0;
+
+err_pauli_read:
+	H5Dclose(dset_paulis_id);
+err_paulis_open:
+err_coeffs_read:
+	H5Dclose(dset_coeffs_id);
+err_coeffs_open:
+	hamil_close(grpid);
+err_hamil_open:
+	return -1;
+}
+
+// int
+// data2_hamil_foreach(data_id fid,
+// 	int (*op)(_Complex double, unsigned char *, void *), void *op_data)
+// {
+// }
+
 /* ---------------------------------------------------------------------------
  * This API is deprecated.
  */
@@ -337,7 +409,7 @@ data_pauli_hamil_parse(struct data_pauli_hamil *dat, const data_id obj_id)
 	int res = 0;
 
 	const hid_t dset_coeffs_id =
-		H5Dopen2(obj_id, DATA_PAULI_HAMIL_COEFFS, H5P_DEFAULT);
+		H5Dopen2(obj_id, DATA2_PAULI_HAMIL_COEFFS, H5P_DEFAULT);
 	if (dset_coeffs_id == H5I_INVALID_HID) {
 		res = -1;
 		goto coeffs_fail;
@@ -379,7 +451,7 @@ data_pauli_hamil_parse(struct data_pauli_hamil *dat, const data_id obj_id)
 		paulis);
 
 	const hid_t attr_norm_id =
-		H5Aopen(obj_id, DATA_PAULI_HAMIL_NORM, H5P_DEFAULT);
+		H5Aopen(obj_id, DATA2_PAULI_HAMIL_NORM, H5P_DEFAULT);
 	if (attr_norm_id == H5I_INVALID_HID) {
 		res = -1;
 		goto attr_norm_fail;
@@ -544,7 +616,7 @@ data_parse(struct data *dat, const data_id fid)
 	int res;
 
 	const hid_t pauli_hamil_id =
-		H5Gopen2(fid, DATA_PAULI_HAMIL, H5P_DEFAULT);
+		H5Gopen2(fid, DATA2_PAULI_HAMIL, H5P_DEFAULT);
 	if (pauli_hamil_id == H5I_INVALID_HID) {
 		res = -1;
 		goto pauli_hamil_fail;

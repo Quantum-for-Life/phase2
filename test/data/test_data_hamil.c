@@ -5,11 +5,12 @@
 
 #include "test.h"
 #include "test_data.h"
+#include <math.h>
 
-#define MARGIN (10e-7)
+#define MARGIN (10e-8)
 
 static int
-test_get_nums(void)
+test_getnums(void)
 {
 	int rc = 0;
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
@@ -46,9 +47,44 @@ test_get_nums(void)
 }
 
 int
+test_getnorm(void)
+{
+	int rc = 0;
+	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
+		struct test_data td	  = TEST_DATA[i];
+		const char	*filename = td.filename;
+
+		data_id fid = data2_open(filename);
+		if (fid == DATA_INVALID_FID) {
+			TEST_FAIL("open file: %s", filename);
+			rc = -1;
+			break;
+		}
+
+		double norm;
+		if (data2_hamil_getnorm(fid, &norm) < 0) {
+			TEST_FAIL("read multidet getnums()");
+			rc = -1;
+			break;
+		}
+		if (fabs(norm - td.norm) > MARGIN) {
+			TEST_FAIL("norm for hamil: %f (expect. %f)", norm,
+				td.norm);
+			rc = -1;
+		}
+
+		data2_close(fid);
+	}
+
+	return rc;
+}
+
+int
 test_data_hamil()
 {
-	if (test_get_nums() < 0)
+	if (test_getnums() < 0)
+		goto err;
+	if (test_getnorm() < 0)
 		goto err;
 
 exit:
