@@ -1,11 +1,11 @@
 #include <complex.h>
+#include <math.h>
 #include <stdio.h>
 
 #include "data.h"
 
 #include "test.h"
 #include "test_data.h"
-#include <math.h>
 
 #define MARGIN (10e-8)
 
@@ -119,11 +119,57 @@ iter_store(double coeff, unsigned char *paulis, void *op_data)
 
 	is->coeffs[is->idx] = coeff;
 	for (size_t i = 0; i < is->num_qubits; i++) {
-		is->paulis[is->idx * is->num_qubits + i] = paulis[i];
+		size_t store_idx = is->idx * is->num_qubits + i;
+		if (store_idx < 128)
+			is->paulis[store_idx] = paulis[i];
 	}
 	is->idx++;
 
 	return 0;
+}
+
+static int
+test_iter0(void)
+{
+	const struct test_data td  = TEST_DATA[0];
+	data_id		       fid = data2_open(td.filename);
+	if (fid == DATA_INVALID_FID) {
+		TEST_FAIL("open file: %s", td.filename);
+		return -1;
+	}
+
+	size_t num_qubits, num_terms;
+	if (data2_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
+		TEST_FAIL("wron number of qubits and terms: %zu, %zu",
+			num_qubits, num_terms);
+		goto err;
+	}
+
+	int count = 0;
+	if (data2_hamil_foreach(fid, iter_count, &count) != 0) {
+		TEST_FAIL("iteration terminated early");
+		goto err;
+	}
+	if (count != td.num_terms) {
+		TEST_FAIL("number of iterations: %d", count);
+		goto err;
+	}
+
+	count = 0;
+	if (data2_hamil_foreach(fid, iter_count_onlytwo, &count) == 0) {
+		TEST_FAIL("iteration didn't terminate early");
+		goto err;
+	}
+	if (count != 2) {
+		TEST_FAIL("number of iterations: %d", count);
+		goto err;
+	}
+exit:
+	data2_close(fid);
+	return 0;
+err:
+	data2_close(fid);
+	return -1;
 }
 
 static int
@@ -201,6 +247,8 @@ err:
 static int
 test_iter(void)
 {
+	if (test_iter0() < 0)
+		return -1;
 	if (test_iter1() < 0)
 		return -1;
 
