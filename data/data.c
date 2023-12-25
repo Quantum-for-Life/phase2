@@ -118,7 +118,7 @@ data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets)
 
 	*num_dets   = dsp_dims[0];
 	*num_qubits = dsp_dims[1];
-exit:
+
 	H5Sclose(dsp_id);
 	H5Dclose(dset_id);
 	multidet_close(md);
@@ -156,7 +156,7 @@ multidet_read_data(data_id fid, _Complex double *coeffs, unsigned char *dets)
 	if (H5Dread(dset_dets_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
 		    H5P_DEFAULT, dets) < 0)
 		goto err_dets_read;
-exit:
+
 	H5Dclose(dset_dets_id);
 	H5Dclose(dset_coeffs_id);
 	multidet_close(md);
@@ -206,7 +206,7 @@ data2_multidet_foreach(
 		if (rc != 0)
 			break;
 	}
-exit:
+
 	free(dets_buf);
 	free(coeffs_buf);
 	return rc;
@@ -256,7 +256,7 @@ data2_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms)
 
 	*num_terms  = dsp_dims[0];
 	*num_qubits = dsp_dims[1];
-exit:
+
 	H5Sclose(dsp_id);
 	H5Dclose(dset_id);
 	hamil_close(grpid);
@@ -286,7 +286,7 @@ data2_hamil_getnorm(data_id fid, double *norm)
 	if (H5Aread(attr_norm_id, H5T_NATIVE_DOUBLE, &n) < 0)
 		goto err_attr_read;
 	*norm = n;
-exit:
+
 	H5Aclose(attr_norm_id);
 	hamil_close(grpid);
 	return 0;
@@ -300,7 +300,7 @@ err_open:
 }
 
 static int
-hamil_read_data(data_id fid, _Complex double *coeffs, unsigned char *paulis)
+hamil_read_data(data_id fid, double *coeffs, unsigned char *paulis)
 {
 	hid_t grpid;
 	if (hamil_open(fid, &grpid) < 0)
@@ -310,7 +310,6 @@ hamil_read_data(data_id fid, _Complex double *coeffs, unsigned char *paulis)
 		H5Dopen2(grpid, DATA2_PAULI_HAMIL_COEFFS, H5P_DEFAULT);
 	if (dset_coeffs_id == H5I_INVALID_HID)
 		goto err_coeffs_open;
-	/* _Complex double has the same representation as double[2] */
 	if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
 		    H5P_DEFAULT, coeffs) < 0)
 		goto err_coeffs_read;
@@ -322,7 +321,7 @@ hamil_read_data(data_id fid, _Complex double *coeffs, unsigned char *paulis)
 	if (H5Dread(dset_paulis_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
 		    H5P_DEFAULT, paulis) < 0)
 		goto err_pauli_read;
-exit:
+
 	H5Dclose(dset_paulis_id);
 	H5Dclose(dset_coeffs_id);
 	hamil_close(grpid);
@@ -339,11 +338,54 @@ err_hamil_open:
 	return -1;
 }
 
-// int
-// data2_hamil_foreach(data_id fid,
-// 	int (*op)(_Complex double, unsigned char *, void *), void *op_data)
-// {
-// }
+int
+data2_hamil_foreach(
+	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data)
+{
+	int	       rc = 0;
+	unsigned char *paulis, *paustr;
+	double	      *coeffs;
+	size_t	       num_qubits, num_terms;
+
+	if (data2_hamil_getnums(fid, &num_qubits, &num_terms) < 0)
+		goto err_getnums;
+	coeffs = malloc(sizeof *coeffs * num_terms);
+	if (!coeffs)
+		goto err_coeffs_alloc;
+	paulis = malloc(sizeof *paulis * num_qubits * num_terms);
+	if (!paulis)
+		goto err_paulis_alloc;
+	if (hamil_read_data(fid, coeffs, paulis) < 0)
+		goto err_hamil_read;
+	paustr = malloc(sizeof *paustr * num_qubits);
+	if (!paustr)
+		goto err_paustr_alloc;
+
+	for (size_t i = 0; i < num_terms; i++) {
+		double cf = coeffs[i];
+		for (size_t j = 0; j < num_qubits; j++) {
+			paustr[j] = paulis[i * num_qubits + j];
+		}
+		rc = op(cf, paustr, op_data);
+		if (rc != 0)
+			break;
+	}
+
+	free(paustr);
+	free(paulis);
+	free(coeffs);
+	return rc;
+
+err_paustr_alloc:
+err_hamil_read:
+	free(paulis);
+err_paulis_alloc:
+	free(coeffs);
+err_coeffs_alloc:
+err_getnums:
+	return -1;
+}
+
 
 /* ---------------------------------------------------------------------------
  * This API is deprecated.

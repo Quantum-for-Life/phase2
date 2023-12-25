@@ -190,7 +190,6 @@ test_iter1(void)
 		}
 	}
 
-exit:
 	data2_close(fid);
 	return 0;
 err:
@@ -208,7 +207,6 @@ test_data_multidet()
 	if (test_iter1() < 0)
 		goto err;
 
-exit:
 	return 0;
 err:
 	return -1;
