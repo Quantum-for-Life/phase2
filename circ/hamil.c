@@ -29,52 +29,65 @@ circ_hamil_destroy(struct circ_hamil *h)
 	h->num_qubits = 0;
 }
 
-int
-circ_hamil_from_paulis(struct circ_hamil *h, size_t num_qubits,
-	size_t num_terms, unsigned char *paulis, double *coeffs)
-{
-	double	    *hamil_coeffs = malloc(sizeof(*hamil_coeffs) * num_terms);
-	pauli_pak_t *pak = calloc(num_terms * num_qubits / PAULI_PAK_SIZE + 1,
-		sizeof(pauli_pak_t));
-	if (!(hamil_coeffs && pak)) {
-		free(coeffs);
-		free(pak);
-		return -1;
-	}
+struct hamil_iter_data {
+	size_t	     idx;
+	size_t	     num_qubits;
+	double	     norm;
+	double	    *coeffs;
+	pauli_pak_t *pak;
+};
 
-	for (size_t i = 0; i < num_terms; i++) {
-		hamil_coeffs[i] = coeffs[i];
-		for (size_t j = 0; j < num_qubits; j++) {
-			const size_t	  pauli_idx = i * num_qubits + j;
-			const pauli_pak_t pauli	    = paulis[pauli_idx];
-			ldiv_t		  dv = ldiv(pauli_idx, PAULI_PAK_SIZE);
-			pak[dv.quot] += pauli << (dv.rem * PAULI_WIDTH);
-		}
+static int
+hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
+{
+	struct hamil_iter_data *idat = iter_data;
+	size_t			i = idat->idx++, num_qubits = idat->num_qubits;
+
+	idat->coeffs[i] = coeff * idat->norm;
+	for (size_t j = 0; j < num_qubits; j++) {
+		ldiv_t		  dv = ldiv(i * num_qubits + j, PAULI_PAK_SIZE);
+		const pauli_pak_t pauli = paulis[j];
+		idat->pak[dv.quot] += pauli << (dv.rem * PAULI_WIDTH);
 	}
-	h->num_qubits = num_qubits;
-	h->num_terms  = num_terms;
-	h->coeffs     = hamil_coeffs;
-	h->pak	      = pak;
 
 	return 0;
 }
 
 int
-circ_hamil_from_data(struct circ_hamil *h, const struct data_pauli_hamil *dat)
+circ_hamil_from_data2(struct circ_hamil *h, data_id fid)
 {
-	int rc;
+	size_t num_qubits, num_terms;
+	double norm;
 
-	double *norm_coeffs = malloc(sizeof(*norm_coeffs) * dat->num_terms);
-	if (!norm_coeffs)
+	if (data2_hamil_getnums(fid, &num_qubits, &num_terms) < 0)
 		return -1;
-	for (size_t i = 0; i < dat->num_terms; i++) {
-		norm_coeffs[i] = dat->coeffs[i] * dat->norm;
-	}
-	rc = circ_hamil_from_paulis(
-		h, dat->num_qubits, dat->num_terms, dat->paulis, norm_coeffs);
-	free(norm_coeffs);
+	if (data2_hamil_getnorm(fid, &norm) < 0)
+		return -1;
 
-	return rc;
+	double	    *coeffs = malloc(sizeof *coeffs * num_terms);
+	pauli_pak_t *pak = calloc(num_terms * num_qubits / PAULI_PAK_SIZE + 1,
+		sizeof(pauli_pak_t));
+	if (!(coeffs && pak))
+		goto err;
+
+	struct hamil_iter_data idat = { .idx = 0,
+		.num_qubits		     = num_qubits,
+		.norm			     = norm,
+		.coeffs			     = coeffs,
+		.pak			     = pak };
+	if (data2_hamil_foreach(fid, hamil_iter, &idat) != 0)
+		goto err;
+
+	h->num_qubits = num_qubits;
+	h->num_terms  = num_terms;
+	h->coeffs     = coeffs;
+	h->pak	      = pak;
+
+	return 0;
+err:
+	free(coeffs);
+	free(pak);
+	return -1;
 }
 
 void

@@ -14,9 +14,11 @@ typedef int64_t data_id;
  * Open data file.
  *
  * Arguments:
+ *
  *	filename	Path to the data file.
  *
  * Return value:
+ *
  *	A valid data_id value or DATA_INVALID_FID in case of error
  */
 data_id
@@ -40,11 +42,13 @@ void data2_close(data_id);
  * the value of the variables poited to remains unchanged.
  *
  * Arguments:
+ *
  *  fid			Open file id obtained from data2_open()
  *  num_qubits
  *  num_dets	Pointer to a variable where the result will be stored.
  *
  * Return value:
+ *
  *   0			if the value was successfully retrieved
  *  -1			in case of error
  */
@@ -68,6 +72,7 @@ data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets);
  * error.
  *
  * Return value:
+ *
  *   0      if the full iteration completed sucessfully
  *  -1      if the data could not be retrieved,
  *  or a user-defined value, if the iteration was terminated early
@@ -86,11 +91,13 @@ data2_multidet_foreach(
  * variables poited to remains unchanged.
  *
  * Arguments:
+ *
  *  fid			Open file id obtained from data2_open()
  *  num_qubits
  *  num_terms	Pointer to a variable where the result will be stored.
  *
  * Return value:
+ *
  *   0			if the value was successfully retrieved
  *  -1			in case of error
  */
@@ -106,10 +113,12 @@ data2_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms);
  * unchanged.
  *
  * Arguments:
+ *
  *  fid			Open file id obtained from data2_open()
  *  norm		Pointer to a variable where the result will be stored.
  *
  * Return value:
+ *
  *   0			if the value was successfully retrieved
  *  -1			in case of error
  */
@@ -142,6 +151,7 @@ data2_hamil_getnorm(data_id fid, double *norm);
  * error.
  *
  * Return value:
+ *
  *   0      if the full iteration completed sucessfully
  *  -1      if the data could not be retrieved,
  *  or a user-defined value, if the iteration was terminated early

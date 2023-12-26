@@ -143,7 +143,7 @@ rayon_data_from_data(struct rayon_data *rd, const struct data *dat, data_id fid)
 {
 	int rc;
 
-	rc = circ_hamil_from_data(&rd->hamil, &dat->pauli_hamil);
+	rc = circ_hamil_from_data2(&rd->hamil, fid);
 	rc |= rayon_multidet_from_data(&rd->multidet, fid);
 	rc |= rayon_times_from_data(&rd->times, &dat->time_series);
 

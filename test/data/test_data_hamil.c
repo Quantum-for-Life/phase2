@@ -164,7 +164,6 @@ test_iter0(void)
 		TEST_FAIL("number of iterations: %d", count);
 		goto err;
 	}
-exit:
 	data2_close(fid);
 	return 0;
 err:
@@ -236,7 +235,6 @@ test_iter1(void)
 		}
 	}
 
-exit:
 	data2_close(fid);
 	return 0;
 err:
@@ -265,7 +263,6 @@ test_data_hamil()
 	if (test_iter() < 0)
 		goto err;
 
-exit:
 	return 0;
 err:
 	return -1;
