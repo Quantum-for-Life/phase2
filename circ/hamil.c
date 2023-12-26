@@ -1,5 +1,5 @@
 #include "circ.h"
-#include "data.h"
+#include "data2.h"
 
 static const size_t PAULI_MASK	   = 3;
 static const size_t PAULI_WIDTH	   = 2;

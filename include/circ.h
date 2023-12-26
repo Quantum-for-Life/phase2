@@ -6,7 +6,7 @@
 
 #include <stdlib.h>
 
-#include "data.h"
+#include "data2.h"
 
 typedef size_t qbid;
 

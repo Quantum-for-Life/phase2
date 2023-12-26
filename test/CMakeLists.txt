@@ -18,7 +18,7 @@ set(TEST_DATA_SRC
         ${PROJECT_SOURCE_DIR}/test/data
 )
 set(TEST_DATA_SOURCES
-        ${DATA_SOURCES}
+        ${DATA2_SOURCES}
         ${TEST_DATA_SRC}/test_data_open.c
         ${TEST_DATA_SRC}/test_data_multidet.c
         ${TEST_DATA_SRC}/test_data_hamil.c

@@ -1,6 +1,6 @@
 #include "hdf5.h"
 
-#include "data.h"
+#include "data2.h"
 
 /* Group, dataset names */
 #define DATA2_STATE_PREP "state_prep"

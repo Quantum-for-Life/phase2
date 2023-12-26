@@ -8,7 +8,7 @@
 #endif
 
 #include "circ.h"
-#include "data.h"
+#include "data2.h"
 
 #include "log.h"
 #include "opt.h"

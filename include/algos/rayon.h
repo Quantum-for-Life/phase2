@@ -2,7 +2,7 @@
 #define PHASE2_RAYON_H
 
 #include "circ.h"
-#include "data.h"
+#include "data2.h"
 
 #define RAYON_NAME "rayon"
 #define RAYON_NUM_MEA_QB (1)

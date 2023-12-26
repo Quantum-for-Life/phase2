@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "algos/rayon.h"
-#include "data.h"
+#include "data2.h"
 
 #include "test.h"
 
