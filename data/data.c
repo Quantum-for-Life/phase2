@@ -475,6 +475,46 @@ err_open:
 	return -1;
 }
 
+static int
+times_write_data(data_id fid, double *times, _Complex double *values)
+{
+	hid_t grpid;
+	if (times_open(fid, &grpid) < 0)
+		goto err_open;
+
+	const hid_t times_id =
+		H5Dopen2(grpid, DATA2_TIME_SERIES_TIMES, H5P_DEFAULT);
+	if (times_id == H5I_INVALID_HID)
+		goto err_times;
+	if (H5Dwrite(times_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+		    times) < 0)
+		goto err_times_write;
+
+	const hid_t values_id =
+		H5Dopen2(grpid, DATA2_TIME_SERIES_VALUES, H5P_DEFAULT);
+	if (values_id == H5I_INVALID_HID)
+		goto err_values;
+	/* _Complex double has the same representation of double[2] */
+	if (H5Dwrite(values_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
+		    H5P_DEFAULT, values) < 0)
+		goto err_values_write;
+
+	H5Dclose(values_id);
+	H5Dclose(times_id);
+	times_close(grpid);
+	return 0;
+
+err_values_write:
+	H5Dclose(values_id);
+err_values:
+err_times_write:
+	H5Dclose(times_id);
+err_times:
+	times_close(grpid);
+err_open:
+	return -1;
+}
+
 int
 data2_times_foreach(
 	data_id fid, int (*op)(double, _Complex double, void *), void *op_data)
@@ -506,6 +546,48 @@ data2_times_foreach(
 	free(times);
 	return rc;
 
+err_times_read:
+	free(values);
+err_values_alloc:
+	free(times);
+err_times_alloc:
+err_getnums:
+	return -1;
+}
+
+int
+data2_times_update(data_id fid, int (*op)(double *, _Complex double *, void *),
+	void *op_data)
+{
+	int rc = 0;
+
+	double		*times;
+	_Complex double *values;
+	size_t		 num_steps;
+
+	if (data2_times_getnums(fid, &num_steps) < 0)
+		goto err_getnums;
+	times = malloc(sizeof *times * num_steps);
+	if (!times)
+		goto err_times_alloc;
+	values = malloc(sizeof *values * num_steps);
+	if (!values)
+		goto err_values_alloc;
+	if (times_read_data(fid, times, values) < 0)
+		goto err_times_read;
+	for (size_t i = 0; i < num_steps; i++) {
+		rc = op(&times[i], &values[i], op_data);
+		if (rc != 0)
+			break;
+	}
+	if (times_write_data(fid, times, values) < 0)
+		goto err_times_write;
+
+	free(values);
+	free(times);
+	return rc;
+
+err_times_write:
 err_times_read:
 	free(values);
 err_values_alloc:

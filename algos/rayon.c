@@ -137,6 +137,31 @@ rayon_times_from_data2(struct rayon_data_times *ts, data_id fid)
 	return 0;
 }
 
+struct times_iter_write_data {
+	size_t			 idx;
+	struct rayon_data_times *ts;
+};
+
+static int
+times_iter_write(double *t, _Complex double *v, void *iter_data)
+{
+	struct times_iter_write_data *idat = iter_data;
+	struct rayon_data_times	     *ts   = idat->ts;
+	size_t			      i	   = idat->idx++;
+
+	*t = ts->steps[i].t;
+	*v = ts->steps[i].val;
+
+	return 0;
+}
+
+int
+rayon_data_times_write(data_id fid, struct rayon_data_times *ts)
+{
+	struct times_iter_write_data idat = { .idx = 0, .ts = ts };
+	return data2_times_update(fid, times_iter_write, &idat);
+}
+
 void
 rayon_data_write_times(
 	struct data_time_series *dat, const struct rayon_data_times *rt)

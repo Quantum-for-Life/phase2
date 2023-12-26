@@ -182,7 +182,7 @@ int
 data2_times_getnums(data_id fid, size_t *num_steps);
 
 /**
- * Perform action "op" on each determinant in "time_series" group.
+ * Perform action "op" on each 'time step' in "time_series" group.
  *
  * Call user-supplied "op" function on each step in the "time_series" group. The
  * operator "op" takes as arguments a floating point number representing time
@@ -205,6 +205,10 @@ data2_times_getnums(data_id fid, size_t *num_steps);
 int
 data2_times_foreach(
 	data_id fid, int (*op)(double, _Complex double, void *), void *op_data);
+
+int
+data2_times_update(data_id fid, int (*op)(double *, _Complex double *, void *),
+	void *op_data);
 
 /* ---------------------------------------------------------------------------
  * This is a deprecated API.  To be removed.
