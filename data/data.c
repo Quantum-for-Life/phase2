@@ -18,7 +18,7 @@
 #define DATA2_TIME_SERIES_VALUES "values"
 
 /* Open, close data file */
-data_id
+data2_id
 data2_open(const char *filename)
 {
 	hid_t file_id, access_plist;
@@ -36,21 +36,21 @@ data2_open(const char *filename)
 #endif
 	file_id = H5Fopen(filename, H5F_ACC_RDWR, access_plist);
 	if (file_id == H5I_INVALID_HID) {
-		return DATA_INVALID_FID;
+		return DATA2_INVALID_FID;
 	}
 
 	return file_id;
 }
 
 void
-data2_close(const data_id fid)
+data2_close(const data2_id fid)
 {
 	H5Fclose(fid);
 }
 
 /* --- State prep --- */
 static int
-state_prep_open(data_id fid, hid_t *grpid)
+state_prep_open(data2_id fid, hid_t *grpid)
 {
 	hid_t hid = H5Gopen2(fid, DATA2_STATE_PREP, H5P_DEFAULT);
 	if (hid == H5I_INVALID_HID)
@@ -74,7 +74,7 @@ struct multidet_handle {
 };
 
 static int
-multidet_open(data_id fid, struct multidet_handle *md)
+multidet_open(data2_id fid, struct multidet_handle *md)
 {
 	hid_t sp_id, md_id;
 
@@ -99,7 +99,7 @@ multidet_close(struct multidet_handle md)
 }
 
 int
-data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets)
+data2_multidet_getnums(data2_id fid, size_t *num_qubits, size_t *num_dets)
 {
 	struct multidet_handle md;
 
@@ -134,7 +134,7 @@ err_open:
 }
 
 static int
-multidet_read_data(data_id fid, _Complex double *coeffs, unsigned char *dets)
+multidet_read_data(data2_id fid, _Complex double *coeffs, unsigned char *dets)
 {
 	struct multidet_handle md;
 	if (multidet_open(fid, &md) < 0)
@@ -175,7 +175,7 @@ err_multidet_open:
 
 int
 data2_multidet_foreach(
-	data_id fid, int (*op)(_Complex double, size_t, void *), void *op_data)
+	data2_id fid, int (*op)(_Complex double, size_t, void *), void *op_data)
 {
 	int    rc = 0;
 	size_t num_qubits, num_dets;
@@ -221,7 +221,7 @@ err_getnums:
 }
 
 static int
-hamil_open(data_id fid, hid_t *grpid)
+hamil_open(data2_id fid, hid_t *grpid)
 {
 	const hid_t hamil_id = H5Gopen2(fid, DATA2_PAULI_HAMIL, H5P_DEFAULT);
 	if (hamil_id == H5I_INVALID_HID)
@@ -238,7 +238,7 @@ hamil_close(hid_t grpid)
 }
 
 int
-data2_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms)
+data2_hamil_getnums(data2_id fid, size_t *num_qubits, size_t *num_terms)
 {
 	hid_t grpid;
 	if (hamil_open(fid, &grpid) < 0)
@@ -272,7 +272,7 @@ err_open:
 }
 
 int
-data2_hamil_getnorm(data_id fid, double *norm)
+data2_hamil_getnorm(data2_id fid, double *norm)
 {
 	hid_t grpid;
 	if (hamil_open(fid, &grpid) < 0)
@@ -300,7 +300,7 @@ err_open:
 }
 
 static int
-hamil_read_data(data_id fid, double *coeffs, unsigned char *paulis)
+hamil_read_data(data2_id fid, double *coeffs, unsigned char *paulis)
 {
 	hid_t grpid;
 	if (hamil_open(fid, &grpid) < 0)
@@ -340,7 +340,7 @@ err_hamil_open:
 
 int
 data2_hamil_foreach(
-	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data)
+	data2_id fid, int (*op)(double, unsigned char *, void *), void *op_data)
 {
 	int	       rc = 0;
 	unsigned char *paulis, *paustr;
@@ -386,7 +386,7 @@ err_getnums:
 }
 
 static int
-times_open(data_id fid, hid_t *grpid)
+times_open(data2_id fid, hid_t *grpid)
 {
 	const hid_t id = H5Gopen2(fid, DATA2_TIME_SERIES, H5P_DEFAULT);
 	if (id == H5I_INVALID_HID)
@@ -403,7 +403,7 @@ times_close(hid_t grpid)
 }
 
 int
-data2_times_getnums(data_id fid, size_t *num_steps)
+data2_times_getnums(data2_id fid, size_t *num_steps)
 {
 	hid_t grpid;
 	if (times_open(fid, &grpid) < 0)
@@ -436,7 +436,7 @@ err_open:
 }
 
 static int
-times_read_data(data_id fid, double *times, _Complex double *values)
+times_read_data(data2_id fid, double *times, _Complex double *values)
 {
 	hid_t grpid;
 	if (times_open(fid, &grpid) < 0)
@@ -476,7 +476,7 @@ err_open:
 }
 
 static int
-times_write_data(data_id fid, double *times, _Complex double *values)
+times_write_data(data2_id fid, double *times, _Complex double *values)
 {
 	hid_t grpid;
 	if (times_open(fid, &grpid) < 0)
@@ -517,7 +517,7 @@ err_open:
 
 int
 data2_times_foreach(
-	data_id fid, int (*op)(double, _Complex double, void *), void *op_data)
+	data2_id fid, int (*op)(double, _Complex double, void *), void *op_data)
 {
 	int rc = 0;
 
@@ -556,7 +556,7 @@ err_getnums:
 }
 
 int
-data2_times_update(data_id fid, int (*op)(double *, _Complex double *, void *),
+data2_times_update(data2_id fid, int (*op)(double *, _Complex double *, void *),
 	void *op_data)
 {
 	int rc = 0;

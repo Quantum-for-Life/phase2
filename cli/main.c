@@ -24,7 +24,7 @@ opt_parse(struct opt *o, int argc, char **argv);
 int
 run_linen(void);
 int
-run_rayon(data_id fid);
+run_rayon(data2_id fid);
 
 int
 main(const int argc, char **argv)
@@ -52,8 +52,8 @@ main(const int argc, char **argv)
 	log_info("MPI mode not enabled.");
 #endif
 
-	data_id fid = data2_open(opt.dat_filename);
-	if (fid == DATA_INVALID_FID)
+	data2_id fid = data2_open(opt.dat_filename);
+	if (fid == DATA2_INVALID_FID)
 		goto error;
 
 	log_info("*** Circuit ***");

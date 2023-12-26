@@ -54,7 +54,7 @@ hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 }
 
 int
-circ_hamil_from_data2(struct circ_hamil *h, data_id fid)
+circ_hamil_from_data2(struct circ_hamil *h, data2_id fid)
 {
 	size_t num_qubits, num_terms;
 	double norm;

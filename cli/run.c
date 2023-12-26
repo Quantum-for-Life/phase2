@@ -8,7 +8,7 @@ run_linen(void)
 }
 
 int
-run_rayon(data_id fid)
+run_rayon(data2_id fid)
 {
 	int rc = 0;
 

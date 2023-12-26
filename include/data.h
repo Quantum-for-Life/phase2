@@ -1,14 +1,14 @@
-#ifndef DATA_H
-#define DATA_H
+#ifndef DATA2_H
+#define DATA2_H
 
 #include <stdlib.h>
 
-#define DATA_INVALID_FID (-1)
+#define DATA2_INVALID_FID (-1)
 
 /**
  * Handle to a data file
  */
-typedef int64_t data_id;
+typedef int64_t data2_id;
 
 /**
  * Open data file.
@@ -21,7 +21,7 @@ typedef int64_t data_id;
  *
  *	A valid data_id value or DATA_INVALID_FID in case of error
  */
-data_id
+data2_id
 data2_open(const char *filename);
 
 /**
@@ -30,7 +30,7 @@ data2_open(const char *filename);
  * Close the file that has been open with the call to data2_open().  Free the
  * resources.
  */
-void data2_close(data_id);
+void data2_close(data2_id);
 
 /**
  * Get the number of qubits and terms for the "multidet" group.
@@ -53,7 +53,7 @@ void data2_close(data_id);
  *  -1			in case of error
  */
 int
-data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets);
+data2_multidet_getnums(data2_id fid, size_t *num_qubits, size_t *num_dets);
 
 /**
  * Perform action "op" on each determinant in "multidet" group.
@@ -79,7 +79,7 @@ data2_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets);
  */
 int
 data2_multidet_foreach(
-	data_id fid, int (*op)(_Complex double, size_t, void *), void *op_data);
+	data2_id fid, int (*op)(_Complex double, size_t, void *), void *op_data);
 
 /**
  * Get the number of qubits and terms for the "hamil" group.
@@ -102,7 +102,7 @@ data2_multidet_foreach(
  *  -1			in case of error
  */
 int
-data2_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms);
+data2_hamil_getnums(data2_id fid, size_t *num_qubits, size_t *num_terms);
 
 /**
  * Get the normalization factor for the "hamil" group.
@@ -123,7 +123,7 @@ data2_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms);
  *  -1			in case of error
  */
 int
-data2_hamil_getnorm(data_id fid, double *norm);
+data2_hamil_getnorm(data2_id fid, double *norm);
 
 /**
  * Perform action "op" on each term of the Hamiltonian in "pauli_hamil" group.
@@ -158,7 +158,7 @@ data2_hamil_getnorm(data_id fid, double *norm);
  */
 int
 data2_hamil_foreach(
-	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
+	data2_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
 
 /**
  * Get the number of steps for the "time_series" group.
@@ -179,7 +179,7 @@ data2_hamil_foreach(
  *  -1			in case of error
  */
 int
-data2_times_getnums(data_id fid, size_t *num_steps);
+data2_times_getnums(data2_id fid, size_t *num_steps);
 
 /**
  * Perform action "op" on each 'time step' in "time_series" group.
@@ -204,10 +204,10 @@ data2_times_getnums(data_id fid, size_t *num_steps);
  */
 int
 data2_times_foreach(
-	data_id fid, int (*op)(double, _Complex double, void *), void *op_data);
+	data2_id fid, int (*op)(double, _Complex double, void *), void *op_data);
 
 int
-data2_times_update(data_id fid, int (*op)(double *, _Complex double *, void *),
+data2_times_update(data2_id fid, int (*op)(double *, _Complex double *, void *),
 	void *op_data);
 
-#endif // DATA_H
+#endif // DATA2_H

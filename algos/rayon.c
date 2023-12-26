@@ -56,7 +56,7 @@ iter_multidet(_Complex double coeff, size_t idx, void *op_data)
 }
 
 int
-rayon_multidet_from_data(struct rayon_data_multidet *md, const data_id fid)
+rayon_multidet_from_data(struct rayon_data_multidet *md, const data2_id fid)
 {
 	size_t num_qubits, num_dets;
 	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
@@ -115,7 +115,7 @@ times_iter(double t, _Complex double v, void *iter_data)
 }
 
 int
-rayon_times_from_data2(struct rayon_data_times *ts, data_id fid)
+rayon_times_from_data2(struct rayon_data_times *ts, data2_id fid)
 {
 	size_t num_steps;
 
@@ -156,7 +156,7 @@ times_iter_write(double *t, _Complex double *v, void *iter_data)
 }
 
 int
-rayon_data_times_write(data_id fid, struct rayon_data_times *ts)
+rayon_data_times_write(data2_id fid, struct rayon_data_times *ts)
 {
 	struct times_iter_write_data idat = { .idx = 0, .ts = ts };
 	return data2_times_update(fid, times_iter_write, &idat);
@@ -179,7 +179,7 @@ rayon_data_destroy(struct rayon_data *rd)
 }
 
 int
-rayon_data_from_data(struct rayon_data *rd, data_id fid)
+rayon_data_from_data(struct rayon_data *rd, data2_id fid)
 {
 	int rc;
 

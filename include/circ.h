@@ -124,7 +124,7 @@ void
 circ_hamil_destroy(struct circ_hamil *h);
 
 int
-circ_hamil_from_data2(struct circ_hamil *h, data_id fid);
+circ_hamil_from_data2(struct circ_hamil *h, data2_id fid);
 
 void
 circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis);

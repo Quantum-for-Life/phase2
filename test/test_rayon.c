@@ -17,8 +17,8 @@ caserand(const char *prefix)
 	char filename[1024] = { 0 };
 
 	snprintf(filename, 1024, "%s/%s.h5", CASE_DIR, prefix);
-	data_id fid = data2_open(filename);
-	if (fid == DATA_INVALID_FID) {
+	data2_id fid = data2_open(filename);
+	if (fid == DATA2_INVALID_FID) {
 		TEST_FAIL("Cannot read data file: %s", filename);
 		goto err_data_open;
 	}
@@ -36,8 +36,8 @@ caserand(const char *prefix)
 	}
 
 	snprintf(filename, 1024, "%s/%s.h5_solved", CASE_DIR, prefix);
-	data_id fid_ref = data2_open(filename);
-	if (fid_ref == DATA_INVALID_FID) {
+	data2_id fid_ref = data2_open(filename);
+	if (fid_ref == DATA2_INVALID_FID) {
 		TEST_FAIL("Cannot read data file: %s", filename);
 		goto err_data_open_ref;
 	}

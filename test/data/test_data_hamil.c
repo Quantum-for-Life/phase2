@@ -17,8 +17,8 @@ test_getnums(void)
 		struct test_data td	  = TEST_DATA[i];
 		const char	*filename = td.filename;
 
-		data_id fid = data2_open(filename);
-		if (fid == DATA_INVALID_FID) {
+		data2_id fid = data2_open(filename);
+		if (fid == DATA2_INVALID_FID) {
 			TEST_FAIL("open file: %s", filename);
 			rc = -1;
 			break;
@@ -54,8 +54,8 @@ test_getnorm(void)
 		struct test_data td	  = TEST_DATA[i];
 		const char	*filename = td.filename;
 
-		data_id fid = data2_open(filename);
-		if (fid == DATA_INVALID_FID) {
+		data2_id fid = data2_open(filename);
+		if (fid == DATA2_INVALID_FID) {
 			TEST_FAIL("open file: %s", filename);
 			rc = -1;
 			break;
@@ -132,8 +132,8 @@ static int
 test_iter0(void)
 {
 	const struct test_data td  = TEST_DATA[0];
-	data_id		       fid = data2_open(td.filename);
-	if (fid == DATA_INVALID_FID) {
+	data2_id		       fid = data2_open(td.filename);
+	if (fid == DATA2_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;
 	}
@@ -175,8 +175,8 @@ static int
 test_iter1(void)
 {
 	const struct test_data td  = TEST_DATA[1];
-	data_id		       fid = data2_open(td.filename);
-	if (fid == DATA_INVALID_FID) {
+	data2_id		       fid = data2_open(td.filename);
+	if (fid == DATA2_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;
 	}
