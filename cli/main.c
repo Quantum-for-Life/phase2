@@ -11,8 +11,6 @@
 #include "data.h"
 
 #include "log.h"
-
-/* Command line arguments and env vars */
 #include "opt.h"
 
 static struct opt opt;
@@ -22,21 +20,11 @@ opt_help_page(int argc, char **argv);
 int
 opt_parse(struct opt *o, int argc, char **argv);
 
-/* Data */
-static struct data dat;
-
-void
-datio_print_info(const struct data *dat);
-int
-datio_read_file(struct data *dat, const char *filename);
-int
-datio_save_file(const char *filename, const struct data *dat);
-
 /* Runners */
 int
-run_linen(struct data *dat);
+run_linen(void);
 int
-run_rayon(struct data *dat, data_id fid);
+run_rayon(data_id fid);
 
 int
 main(const int argc, char **argv)
@@ -64,11 +52,6 @@ main(const int argc, char **argv)
 	log_info("MPI mode not enabled.");
 #endif
 
-	data_init(&dat);
-	if (datio_read_file(&dat, opt.dat_filename) < 0)
-		goto error;
-	datio_print_info(&dat);
-
 	data_id fid = data2_open(opt.dat_filename);
 	if (fid == DATA_INVALID_FID)
 		goto error;
@@ -76,11 +59,11 @@ main(const int argc, char **argv)
 	log_info("*** Circuit ***");
 	if (strncmp(argv[1], "linen", 5) == 0) {
 		log_info("Circuit: linen");
-		if (run_linen(&dat) < 0)
+		if (run_linen() < 0)
 			goto error;
 	} else if (strncmp(argv[1], "rayon", 5) == 0) {
 		log_info("Circuit: rayon");
-		if (run_rayon(&dat, fid) < 0) {
+		if (run_rayon(fid) < 0) {
 			log_error("Failure: simulation error");
 			goto error;
 		}
@@ -88,18 +71,13 @@ main(const int argc, char **argv)
 		log_error("No circ named %s", argv[1]);
 		goto error;
 	}
-
 	data2_close(fid);
-
-	if (datio_save_file(opt.dat_filename, &dat) < 0)
-		goto error;
 
 	goto cleanup;
 error:
 	rc = -1;
 cleanup:
 	log_info("Shut down simulation environment");
-	data_destroy(&dat);
 
 	return rc;
 }

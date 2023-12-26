@@ -82,7 +82,6 @@ set(PH2_COMMON_SOURCES
 set(CLI_SRC_DIR ${PROJECT_SOURCE_DIR}/cli)
 set(CLI_SOURCES
         ${CLI_SRC_DIR}/main.c
-        ${CLI_SRC_DIR}/dataio.c
         ${CLI_SRC_DIR}/log.c
         ${CLI_SRC_DIR}/opt.c
         ${CLI_SRC_DIR}/run.c

@@ -2,15 +2,13 @@
 #include "algos/rayon.h"
 
 int
-run_linen(struct data *dat)
+run_linen(void)
 {
-	(void)(dat);
-
 	return linen_simulate();
 }
 
 int
-run_rayon(struct data *dat, data_id fid)
+run_rayon(data_id fid)
 {
 	int rc = 0;
 
@@ -20,7 +18,7 @@ run_rayon(struct data *dat, data_id fid)
 		goto error;
 	if (rayon_simulate(&rd) < 0)
 		goto error;
-	rayon_data_write_times(&dat->time_series, &rd.times);
+	rayon_data_times_write(fid, &rd.times);
 	goto cleanup;
 error:
 	rc = -1;
