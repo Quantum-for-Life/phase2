@@ -68,7 +68,7 @@ caserand(const char *prefix)
 
 	struct rayon_data rd;
 	rayon_data_init(&rd);
-	if (rayon_data_from_data(&rd, &dat, fid) != 0) {
+	if (rayon_data_from_data(&rd, fid) != 0) {
 		TEST_FAIL("Cannot parse simulation data");
 		goto error;
 	}
@@ -78,7 +78,6 @@ caserand(const char *prefix)
 		TEST_FAIL("Simulation error");
 		goto error;
 	}
-
 
 	rayon_data_write_times(&dat.time_series, &rd.times);
 	rayon_data_destroy(&rd);

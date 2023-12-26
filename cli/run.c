@@ -16,7 +16,7 @@ run_rayon(struct data *dat, data_id fid)
 
 	struct rayon_data rd;
 	rayon_data_init(&rd);
-	if (rayon_data_from_data(&rd, dat, fid) < 0)
+	if (rayon_data_from_data(&rd, fid) < 0)
 		goto error;
 	if (rayon_simulate(&rd) < 0)
 		goto error;

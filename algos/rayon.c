@@ -96,19 +96,43 @@ rayon_times_destroy(struct rayon_data_times *ts)
 	ts->num_steps = 0;
 }
 
-int
-rayon_times_from_data(
-	struct rayon_data_times *ts, const struct data_time_series *dat_ts)
+struct times_iter_data {
+	size_t			 idx;
+	struct rayon_data_times *ts_uninit;
+};
+
+static int
+times_iter(double t, _Complex double v, void *iter_data)
 {
-	ts->steps = malloc(sizeof(*ts->steps) * dat_ts->num_steps);
+	struct times_iter_data	*idat	   = iter_data;
+	struct rayon_data_times *ts_uninit = idat->ts_uninit;
+	size_t			 i	   = idat->idx++;
+
+	ts_uninit->steps[i].t	= t;
+	ts_uninit->steps[i].val = v;
+
+	return 0;
+}
+
+int
+rayon_times_from_data2(struct rayon_data_times *ts, data_id fid)
+{
+	size_t num_steps;
+
+	if (data2_times_getnums(fid, &num_steps) < 0)
+		return -1;
+
+	ts->steps = malloc(sizeof *ts->steps * num_steps);
 	if (!(ts->steps))
 		return -1;
 
-	for (size_t i = 0; i < dat_ts->num_steps; i++) {
-		ts->steps[i].t	 = dat_ts->times[i];
-		ts->steps[i].val = dat_ts->values[i];
+	struct times_iter_data idat = { .idx = 0, .ts_uninit = ts };
+	if (data2_times_foreach(fid, times_iter, &idat) < 0) {
+		free(ts->steps);
+		ts->steps = NULL;
+		return -1;
 	}
-	ts->num_steps = dat_ts->num_steps;
+	ts->num_steps = num_steps;
 
 	return 0;
 }
@@ -139,13 +163,13 @@ rayon_data_destroy(struct rayon_data *rd)
 }
 
 int
-rayon_data_from_data(struct rayon_data *rd, const struct data *dat, data_id fid)
+rayon_data_from_data(struct rayon_data *rd, data_id fid)
 {
 	int rc;
 
 	rc = circ_hamil_from_data2(&rd->hamil, fid);
 	rc |= rayon_multidet_from_data(&rd->multidet, fid);
-	rc |= rayon_times_from_data(&rd->times, &dat->time_series);
+	rc |= rayon_times_from_data2(&rd->times, fid);
 
 	return rc;
 }

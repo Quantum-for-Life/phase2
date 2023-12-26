@@ -38,7 +38,7 @@ rayon_data_destroy(struct rayon_data *rd);
 
 int
 rayon_data_from_data(
-	struct rayon_data *rd, const struct data *dat, data_id fid);
+	struct rayon_data *rd, data_id fid);
 
 void
 rayon_data_write_times(
