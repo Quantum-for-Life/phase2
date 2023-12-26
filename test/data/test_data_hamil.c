@@ -26,7 +26,7 @@ test_getnums(void)
 
 		size_t num_qubits = 0, num_terms = 0;
 		if (data2_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
-			TEST_FAIL("read multidet getnums()");
+			TEST_FAIL("read hamil getnums()");
 			rc = -1;
 			break;
 		}

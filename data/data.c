@@ -13,9 +13,9 @@
 #define DATA2_PAULI_HAMIL_PAULIS "paulis"
 #define DATA2_PAULI_HAMIL_NORM "normalization"
 
-#define DATA_TIME_SERIES "time_series"
-#define DATA_TIME_SERIES_TIMES "times"
-#define DATA_TIME_SERIES_VALUES "values"
+#define DATA2_TIME_SERIES "time_series"
+#define DATA2_TIME_SERIES_TIMES "times"
+#define DATA2_TIME_SERIES_VALUES "values"
 
 /* Open, close data file */
 data_id
@@ -223,7 +223,7 @@ err_getnums:
 static int
 hamil_open(data_id fid, hid_t *grpid)
 {
-	hid_t hamil_id = H5Gopen2(fid, DATA2_PAULI_HAMIL, H5P_DEFAULT);
+	const hid_t hamil_id = H5Gopen2(fid, DATA2_PAULI_HAMIL, H5P_DEFAULT);
 	if (hamil_id == H5I_INVALID_HID)
 		return -1;
 	*grpid = hamil_id;
@@ -362,11 +362,10 @@ data2_hamil_foreach(
 		goto err_paustr_alloc;
 
 	for (size_t i = 0; i < num_terms; i++) {
-		double cf = coeffs[i];
 		for (size_t j = 0; j < num_qubits; j++) {
 			paustr[j] = paulis[i * num_qubits + j];
 		}
-		rc = op(cf, paustr, op_data);
+		rc = op(coeffs[i], paustr, op_data);
 		if (rc != 0)
 			break;
 	}
@@ -386,6 +385,135 @@ err_getnums:
 	return -1;
 }
 
+static int
+times_open(data_id fid, hid_t *grpid)
+{
+	const hid_t id = H5Gopen2(fid, DATA2_TIME_SERIES, H5P_DEFAULT);
+	if (id == H5I_INVALID_HID)
+		return -1;
+
+	*grpid = id;
+	return 0;
+}
+
+static void
+times_close(hid_t grpid)
+{
+	H5Gclose(grpid);
+}
+
+int
+data2_times_getnums(data_id fid, size_t *num_steps)
+{
+	hid_t grpid;
+	if (times_open(fid, &grpid) < 0)
+		goto err_open;
+
+	const hid_t dset_id =
+		H5Dopen2(grpid, DATA2_TIME_SERIES_TIMES, H5P_DEFAULT);
+	if (dset_id == H5I_INVALID_HID)
+		goto err_dset_open;
+
+	const hid_t dsp_id = H5Dget_space(dset_id);
+	hsize_t	    dsp_dims[1];
+	if (H5Sget_simple_extent_dims(dsp_id, dsp_dims, NULL) != 1)
+		goto err_dims;
+
+	*num_steps = dsp_dims[0];
+
+	H5Sclose(dsp_id);
+	H5Dclose(dset_id);
+	times_close(grpid);
+	return 0;
+
+err_dims:
+	H5Sclose(dsp_id);
+	H5Dclose(dset_id);
+err_dset_open:
+	times_close(grpid);
+err_open:
+	return -1;
+}
+
+static int
+times_read_data(data_id fid, double *times, _Complex double *values)
+{
+	hid_t grpid;
+	if (times_open(fid, &grpid) < 0)
+		goto err_open;
+
+	const hid_t times_id =
+		H5Dopen2(grpid, DATA2_TIME_SERIES_TIMES, H5P_DEFAULT);
+	if (times_id == H5I_INVALID_HID)
+		goto err_times;
+	if (H5Dread(times_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+		    times) < 0)
+		goto err_times_read;
+
+	const hid_t values_id =
+		H5Dopen2(grpid, DATA2_TIME_SERIES_VALUES, H5P_DEFAULT);
+	if (values_id == H5I_INVALID_HID)
+		goto err_values;
+	/* _Complex double has the same representation of double[2] */
+	if (H5Dread(values_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+		    values) < 0)
+		goto err_values_read;
+
+	H5Dclose(values_id);
+	H5Dclose(times_id);
+	times_close(grpid);
+	return 0;
+
+err_values_read:
+	H5Dclose(values_id);
+err_values:
+err_times_read:
+	H5Dclose(times_id);
+err_times:
+	times_close(grpid);
+err_open:
+	return -1;
+}
+
+int
+data2_times_foreach(
+	data_id fid, int (*op)(double, _Complex double, void *), void *op_data)
+{
+	int rc = 0;
+
+	double		*times;
+	_Complex double *values;
+	size_t		 num_steps;
+
+	if (data2_times_getnums(fid, &num_steps) < 0)
+		goto err_getnums;
+	times = malloc(sizeof *times * num_steps);
+	if (!times)
+		goto err_times_alloc;
+	values = malloc(sizeof *values * num_steps);
+	if (!values)
+		goto err_values_alloc;
+	if (times_read_data(fid, times, values) < 0)
+		goto err_times_read;
+
+	for (size_t i = 0; i < num_steps; i++) {
+		rc = op(times[i], values[i], op_data);
+		if (rc != 0)
+			break;
+	}
+
+	free(values);
+	free(times);
+	return rc;
+
+err_times_read:
+	free(values);
+err_values_alloc:
+	free(times);
+err_times_alloc:
+err_getnums:
+	return -1;
+}
 
 /* ---------------------------------------------------------------------------
  * This API is deprecated.
@@ -548,7 +676,7 @@ data_time_series_parse(struct data_time_series *dat, const data_id obj_id)
 	int res = 0;
 
 	const hid_t dset_times_id =
-		H5Dopen2(obj_id, DATA_TIME_SERIES_TIMES, H5P_DEFAULT);
+		H5Dopen2(obj_id, DATA2_TIME_SERIES_TIMES, H5P_DEFAULT);
 	if (dset_times_id == H5I_INVALID_HID) {
 		res = -1;
 		goto times_fail;
@@ -566,7 +694,7 @@ data_time_series_parse(struct data_time_series *dat, const data_id obj_id)
 		times);
 
 	const hid_t dset_values_id =
-		H5Dopen2(obj_id, DATA_TIME_SERIES_VALUES, H5P_DEFAULT);
+		H5Dopen2(obj_id, DATA2_TIME_SERIES_VALUES, H5P_DEFAULT);
 	if (dset_values_id == H5I_INVALID_HID) {
 		res = -1;
 		goto values_fail;
@@ -602,13 +730,13 @@ data_time_series_write(const hid_t fid, const struct data_time_series *dat)
 {
 	int res = 0;
 
-	const hid_t grp_id = H5Gopen2(fid, DATA_TIME_SERIES, H5P_DEFAULT);
+	const hid_t grp_id = H5Gopen2(fid, DATA2_TIME_SERIES, H5P_DEFAULT);
 	if (grp_id == H5I_INVALID_HID) {
 		res = -1;
 		goto grp_fail;
 	}
 	const hid_t dset_times_id =
-		H5Dopen2(grp_id, DATA_TIME_SERIES_TIMES, H5P_DEFAULT);
+		H5Dopen2(grp_id, DATA2_TIME_SERIES_TIMES, H5P_DEFAULT);
 	if (dset_times_id == H5I_INVALID_HID) {
 		res = -1;
 		goto dset_times_fail;
@@ -620,7 +748,7 @@ data_time_series_write(const hid_t fid, const struct data_time_series *dat)
 	H5Dclose(dset_times_id);
 
 	const hid_t dset_values_id =
-		H5Dopen2(grp_id, DATA_TIME_SERIES_VALUES, H5P_DEFAULT);
+		H5Dopen2(grp_id, DATA2_TIME_SERIES_VALUES, H5P_DEFAULT);
 	if (dset_values_id == H5I_INVALID_HID) {
 		res = -1;
 		goto dset_values_fail;
@@ -671,7 +799,7 @@ data_parse(struct data *dat, const data_id fid)
 	}
 
 	const hid_t time_series_id =
-		H5Gopen2(fid, DATA_TIME_SERIES, H5P_DEFAULT);
+		H5Gopen2(fid, DATA2_TIME_SERIES, H5P_DEFAULT);
 	if (time_series_id == H5I_INVALID_HID) {
 		res = -1;
 		goto time_series_fail;
