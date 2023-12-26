@@ -163,15 +163,6 @@ rayon_data_times_write(data_id fid, struct rayon_data_times *ts)
 }
 
 void
-rayon_data_write_times(
-	struct data_time_series *dat, const struct rayon_data_times *rt)
-{
-	for (size_t i = 0; i < rt->num_steps; i++) {
-		dat->values[i] = rt->steps[i].val;
-	}
-}
-
-void
 rayon_data_init(struct rayon_data *rd)
 {
 	circ_hamil_init(&rd->hamil);
