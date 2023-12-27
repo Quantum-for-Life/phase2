@@ -78,8 +78,8 @@ data2_multidet_getnums(data2_id fid, size_t *num_qubits, size_t *num_dets);
  *  or a user-defined value, if the iteration was terminated early
  */
 int
-data2_multidet_foreach(
-	data2_id fid, int (*op)(_Complex double, size_t, void *), void *op_data);
+data2_multidet_foreach(data2_id fid, int (*op)(_Complex double, size_t, void *),
+	void *op_data);
 
 /**
  * Get the number of qubits and terms for the "hamil" group.
@@ -157,8 +157,8 @@ data2_hamil_getnorm(data2_id fid, double *norm);
  *  or a user-defined value, if the iteration was terminated early
  */
 int
-data2_hamil_foreach(
-	data2_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
+data2_hamil_foreach(data2_id fid, int (*op)(double, unsigned char *, void *),
+	void *op_data);
 
 /**
  * Get the number of steps for the "time_series" group.
@@ -203,9 +203,32 @@ data2_times_getnums(data2_id fid, size_t *num_steps);
  *  or a user-defined value, if the iteration was terminated early
  */
 int
-data2_times_foreach(
-	data2_id fid, int (*op)(double, _Complex double, void *), void *op_data);
+data2_times_foreach(data2_id fid, int (*op)(double, _Complex double, void *),
+	void *op_data);
 
+/**
+ * Update values in the "time_series" group.
+ *
+ * Call user-supplied "op" function on each step in the "time_series" group. The
+ * operator "op" takes as arguments pointers to a floating point number
+ * representing time and a complex number representing value of the time series;
+ * and a generic pointer to the data specified by the user.  The function "op"
+ * can modify values pointed to.  By the end of the iteration, updated values
+ * will be save to the file accessible by the destricptor "fid".
+ *
+ * The return value of the operator "op" controls the iteration.  If "op"
+ * returns "0", the iteration will continue with the next element.  If the
+ * return value is non-zero, the iteration will stop and the value is returned
+ * to the caller.  By convention, a negative value should indicate an error,
+ * whereas a positive value means that the iteration simply terminated early no
+ * error.
+ *
+ * Return value:
+ *
+ *   0      if the full iteration completed sucessfully
+ *  -1      if the data could not be retrieved,
+ *  or a user-defined value, if the iteration was terminated early
+ */
 int
 data2_times_update(data2_id fid, int (*op)(double *, _Complex double *, void *),
 	void *op_data);
