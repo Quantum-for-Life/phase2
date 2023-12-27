@@ -6,7 +6,7 @@
 
 #include <stdlib.h>
 
-#include "data.h"
+#include "data2.h"
 
 typedef size_t qbid;
 
@@ -124,11 +124,7 @@ void
 circ_hamil_destroy(struct circ_hamil *h);
 
 int
-circ_hamil_from_paulis(struct circ_hamil *h, size_t num_qubits,
-	size_t num_terms, unsigned char *paulis, double *coeffs);
-
-int
-circ_hamil_from_data(struct circ_hamil *h, const struct data_pauli_hamil *dat);
+circ_hamil_from_data2(struct circ_hamil *h, data2_id fid);
 
 void
 circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis);

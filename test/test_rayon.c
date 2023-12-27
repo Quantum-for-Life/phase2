@@ -4,76 +4,54 @@
 #include <string.h>
 
 #include "algos/rayon.h"
-#include "circ.h"
-#include "data.h"
+#include "data2.h"
 
 #include "test.h"
 
 #define MARGIN (0.0099)
 static const char *CASE_DIR = PH2_SIMUL_DATA "/case-rand";
 
-int
-datio_read_file(struct data *dat, const char *filename)
-{
-	const data_id fid = data_file_open(filename);
-	const int     rc  = data_parse(dat, fid);
-	data_file_close(fid);
-
-	return rc;
-}
-
-int
-read_data_ref(struct data *dat, struct data *dat_ref, const char *path_prefix)
-{
-	const size_t buf_len = strlen(path_prefix) + strlen(".h5_solved") + 1;
-	char	    *buf     = calloc(buf_len, sizeof(*buf));
-	if (!buf)
-		return -1;
-
-	snprintf(buf, buf_len, "%s.h5", path_prefix);
-	if (datio_read_file(dat, buf) < 0)
-		goto error;
-	snprintf(buf, buf_len, "%s.h5_solved", path_prefix);
-	if (datio_read_file(dat_ref, buf) < 0)
-		goto error;
-
-	free(buf);
-	return 0;
-error:
-	free(buf);
-	return -1;
-}
-
 static int
 caserand(const char *prefix)
 {
-	static char buf[1024];
-	snprintf(buf, 1024, "%s/%s", CASE_DIR, prefix);
+	char filename[1024] = { 0 };
 
-	struct data dat, dat_ref;
-	data_init(&dat);
-	data_init(&dat_ref);
-	if (read_data_ref(&dat, &dat_ref, buf) != 0) {
-		TEST_FAIL("Cannot read data file");
-		goto error;
+	snprintf(filename, 1024, "%s/%s.h5", CASE_DIR, prefix);
+	data2_id fid = data2_open(filename);
+	if (fid == DATA2_INVALID_FID) {
+		TEST_FAIL("Cannot read data file: %s", filename);
+		goto err_data_open;
 	}
 
 	struct rayon_data rd;
 	rayon_data_init(&rd);
-	if (rayon_data_from_data(&rd, &dat) != 0) {
+	if (rayon_data_from_data(&rd, fid) != 0) {
 		TEST_FAIL("Cannot parse simulation data");
-		goto error;
+		goto err_rd_read;
 	}
+
 	if (rayon_simulate(&rd) != 0) {
 		TEST_FAIL("Simulation error");
-		goto error;
+		goto err_simul;
 	}
-	rayon_data_write_times(&dat.time_series, &rd.times);
-	rayon_data_destroy(&rd);
 
-	for (size_t i = 0; i < dat.time_series.num_steps; i++) {
-		const _Complex double val = dat.time_series.values[i];
-		const _Complex double ref = dat_ref.time_series.values[i];
+	snprintf(filename, 1024, "%s/%s.h5_solved", CASE_DIR, prefix);
+	data2_id fid_ref = data2_open(filename);
+	if (fid_ref == DATA2_INVALID_FID) {
+		TEST_FAIL("Cannot read data file: %s", filename);
+		goto err_data_open_ref;
+	}
+
+	struct rayon_data rd_ref;
+	rayon_data_init(&rd_ref);
+	if (rayon_data_from_data(&rd_ref, fid_ref) != 0) {
+		TEST_FAIL("Cannot parse reference data");
+		goto err_rd_ref_read;
+	}
+
+	for (size_t i = 0; i < rd.times.num_steps; i++) {
+		const _Complex double val = rd.times.steps[i].val;
+		const _Complex double ref = rd_ref.times.steps[i].val;
 
 		if (isnan(creal(val))) {
 			TEST_FAIL("Real value at index %zu is Nan", i);
@@ -97,12 +75,22 @@ caserand(const char *prefix)
 		}
 	}
 
-	data_destroy(&dat);
-	data_destroy(&dat_ref);
+	rayon_data_destroy(&rd_ref);
+	data2_close(fid_ref);
+	rayon_data_destroy(&rd);
+	data2_close(fid);
 	return 0;
+
 error:
-	data_destroy(&dat);
-	data_destroy(&dat_ref);
+	rayon_data_destroy(&rd_ref);
+err_rd_ref_read:
+	data2_close(fid_ref);
+err_data_open_ref:
+err_simul:
+	rayon_data_destroy(&rd);
+err_rd_read:
+	data2_close(fid);
+err_data_open:
 	return -1;
 }
 

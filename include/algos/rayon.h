@@ -2,7 +2,7 @@
 #define PHASE2_RAYON_H
 
 #include "circ.h"
-#include "data.h"
+#include "data2.h"
 
 #define RAYON_NAME "rayon"
 #define RAYON_NUM_MEA_QB (1)
@@ -37,11 +37,10 @@ void
 rayon_data_destroy(struct rayon_data *rd);
 
 int
-rayon_data_from_data(struct rayon_data *rd, const struct data *dat);
+rayon_data_from_data(struct rayon_data *rd, data2_id fid);
 
-void
-rayon_data_write_times(
-	struct data_time_series *dat, const struct rayon_data_times *rt);
+int
+rayon_data_times_write(data2_id fid, struct rayon_data_times *ts);
 
 int
 rayon_simulate(const struct rayon_data *rd);

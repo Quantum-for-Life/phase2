@@ -38,27 +38,45 @@ rayon_multidet_destroy(struct rayon_data_multidet *md)
 	md->num_dets = 0;
 }
 
-int
-rayon_multidet_from_data(struct rayon_data_multidet *md,
-	const struct data_state_prep_multidet	    *dat_md)
+struct iter_multidet_data {
+	size_t			    idx;
+	struct rayon_data_multidet *md;
+};
+
+static int
+iter_multidet(_Complex double coeff, size_t idx, void *op_data)
 {
-	md->dets = malloc(sizeof(*md->dets) * dat_md->num_terms);
+	struct iter_multidet_data *imd = op_data;
+
+	imd->md->dets[imd->idx].coeff = coeff;
+	imd->md->dets[imd->idx].index = idx;
+	imd->idx++;
+
+	return 0;
+}
+
+int
+rayon_multidet_from_data(struct rayon_data_multidet *md, const data2_id fid)
+{
+	size_t num_qubits, num_dets;
+	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
+		return -1;
+	md->dets = malloc(sizeof *md->dets * num_dets);
 	if (!md->dets)
 		return -1;
 
-	for (size_t i = 0; i < dat_md->num_terms; i++) {
-		md->dets[i].coeff = dat_md->coeffs[i];
-		const unsigned char *det_seq =
-			dat_md->dets + dat_md->num_qubits * i;
-		long long index = 0;
-		for (size_t j = 0; j < dat_md->num_qubits; j++) {
-			index += det_seq[j] << j;
-		}
-		md->dets[i].index = index;
-	}
-	md->num_dets = dat_md->num_terms;
+	struct iter_multidet_data imd;
+	imd.idx = 0;
+	imd.md	= md;
+	if (data2_multidet_foreach(fid, iter_multidet, &imd) < 0)
+		goto error;
+
+	md->num_dets = num_dets;
 
 	return 0;
+error:
+	free(md->dets);
+	return -1;
 }
 
 void
@@ -78,30 +96,70 @@ rayon_times_destroy(struct rayon_data_times *ts)
 	ts->num_steps = 0;
 }
 
-int
-rayon_times_from_data(
-	struct rayon_data_times *ts, const struct data_time_series *dat_ts)
-{
-	ts->steps = malloc(sizeof(*ts->steps) * dat_ts->num_steps);
-	if (!(ts->steps))
-		return -1;
+struct times_iter_data {
+	size_t			 idx;
+	struct rayon_data_times *ts_uninit;
+};
 
-	for (size_t i = 0; i < dat_ts->num_steps; i++) {
-		ts->steps[i].t	 = dat_ts->times[i];
-		ts->steps[i].val = dat_ts->values[i];
-	}
-	ts->num_steps = dat_ts->num_steps;
+static int
+times_iter(double t, _Complex double v, void *iter_data)
+{
+	struct times_iter_data	*idat	   = iter_data;
+	struct rayon_data_times *ts_uninit = idat->ts_uninit;
+	size_t			 i	   = idat->idx++;
+
+	ts_uninit->steps[i].t	= t;
+	ts_uninit->steps[i].val = v;
 
 	return 0;
 }
 
-void
-rayon_data_write_times(
-	struct data_time_series *dat, const struct rayon_data_times *rt)
+int
+rayon_times_from_data2(struct rayon_data_times *ts, data2_id fid)
 {
-	for (size_t i = 0; i < rt->num_steps; i++) {
-		dat->values[i] = rt->steps[i].val;
+	size_t num_steps;
+
+	if (data2_times_getnums(fid, &num_steps) < 0)
+		return -1;
+
+	ts->steps = malloc(sizeof *ts->steps * num_steps);
+	if (!(ts->steps))
+		return -1;
+
+	struct times_iter_data idat = { .idx = 0, .ts_uninit = ts };
+	if (data2_times_foreach(fid, times_iter, &idat) < 0) {
+		free(ts->steps);
+		ts->steps = NULL;
+		return -1;
 	}
+	ts->num_steps = num_steps;
+
+	return 0;
+}
+
+struct times_iter_write_data {
+	size_t			 idx;
+	struct rayon_data_times *ts;
+};
+
+static int
+times_iter_write(double *t, _Complex double *v, void *iter_data)
+{
+	struct times_iter_write_data *idat = iter_data;
+	struct rayon_data_times	     *ts   = idat->ts;
+	size_t			      i	   = idat->idx++;
+
+	*t = ts->steps[i].t;
+	*v = ts->steps[i].val;
+
+	return 0;
+}
+
+int
+rayon_data_times_write(data2_id fid, struct rayon_data_times *ts)
+{
+	struct times_iter_write_data idat = { .idx = 0, .ts = ts };
+	return data2_times_update(fid, times_iter_write, &idat);
 }
 
 void
@@ -121,14 +179,13 @@ rayon_data_destroy(struct rayon_data *rd)
 }
 
 int
-rayon_data_from_data(struct rayon_data *rd, const struct data *dat)
+rayon_data_from_data(struct rayon_data *rd, data2_id fid)
 {
 	int rc;
 
-	rc = circ_hamil_from_data(&rd->hamil, &dat->pauli_hamil);
-	rc |= rayon_multidet_from_data(
-		&rd->multidet, &dat->state_prep.multidet);
-	rc |= rayon_times_from_data(&rd->times, &dat->time_series);
+	rc = circ_hamil_from_data2(&rd->hamil, fid);
+	rc |= rayon_multidet_from_data(&rd->multidet, fid);
+	rc |= rayon_times_from_data2(&rd->times, fid);
 
 	return rc;
 }
@@ -138,8 +195,7 @@ rayon_prepst(struct circ *c)
 {
 	struct circ_data *cdat = circ_data(c);
 
-	const struct rayon_data_multidet *md =
-		&((const struct rayon_data *)cdat->rd)->multidet;
+	const struct rayon_data_multidet *md = &(cdat->rd)->multidet;
 
 	circ_ops_blankstate(c);
 	for (size_t i = 0; i < md->num_dets; i++) {
@@ -176,7 +232,7 @@ int
 rayon_effect(struct circ *c)
 {
 	struct circ_data *cdat = circ_data(c);
-	const double	  t    = ((struct circ_data *)cdat)->t;
+	const double	  t    = (cdat)->t;
 	if (isnan(t))
 		return -1;
 	if (fabs(t) < DBL_EPSILON)

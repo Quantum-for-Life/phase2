@@ -55,9 +55,9 @@ if (DISTRIBUTED)
 endif ()
 
 
-set(DATA_SRC_DIR ${PROJECT_SOURCE_DIR}/data)
-set(DATA_SOURCES
-        ${DATA_SRC_DIR}/data.c
+set(DATA2_SRC_DIR ${PROJECT_SOURCE_DIR}/data2)
+set(DATA2_SOURCES
+        ${DATA2_SRC_DIR}/data2.c
 )
 
 set(CIRC_SRC_DIR ${PROJECT_SOURCE_DIR}/circ)
@@ -74,7 +74,7 @@ set(ALGOS_SOURCES
 )
 
 set(PH2_COMMON_SOURCES
-        ${DATA_SOURCES}
+        ${DATA2_SOURCES}
         ${CIRC_SOURCES}
         ${ALGOS_SOURCES}
 )
@@ -82,7 +82,6 @@ set(PH2_COMMON_SOURCES
 set(CLI_SRC_DIR ${PROJECT_SOURCE_DIR}/cli)
 set(CLI_SOURCES
         ${CLI_SRC_DIR}/main.c
-        ${CLI_SRC_DIR}/dataio.c
         ${CLI_SRC_DIR}/log.c
         ${CLI_SRC_DIR}/opt.c
         ${CLI_SRC_DIR}/run.c
