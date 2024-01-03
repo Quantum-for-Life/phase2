@@ -8,6 +8,19 @@
 #include "circ.h"
 #include "circ_private.h"
 
+/* ----------------------------------------------------------------------------
+ * Initialize and control global circ environment.
+ *
+ * This part was meant to provide safe initialization of a global environment in
+ * a multithreaded setup.  Hence the use of atomic flags and memory ordering.
+ *
+ * Unfortunatelly, our main cluster setup (ETHZ Euler) does not support C11
+ * threads. Hence, we put on hold the development of a concurrent simulation
+ * environment using bare C threads, and focus insead on OpenMP/MPI concurrency.
+ *
+ * The code below should work just as well in a single-threaded situation, so
+ * there's no reason to remove it.
+ * -------------------------------------------------------------------------- */
 static struct {
 	_Atomic _Bool init;
 	atomic_flag   lock;
@@ -17,13 +30,13 @@ static struct {
 	.lock = ATOMIC_FLAG_INIT,
 };
 
-#ifndef __STDC_NO_THREADS__
-#include <threads.h>
-#else
+#ifdef __STDC_NO_THREADS__
 void
 thrd_yield(void)
 {
 }
+#else
+#include <threads.h>
 #endif
 
 int

@@ -10,7 +10,15 @@ init_par(void *)
 	return circ_initialize();
 }
 
-#ifndef __STDC_NO_THREADS__
+#ifdef __STDC_NO_THREADS__
+
+int
+main(void)
+{
+	return 0;
+}
+
+#else
 #include <threads.h>
 
 int
@@ -66,10 +74,4 @@ error:
 	return -1;
 }
 
-#else
-int
-main(void)
-{
-	return 0;
-}
 #endif //__STDC_NO_THREADS__
