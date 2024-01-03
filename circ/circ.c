@@ -2,7 +2,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <threads.h>
 
 #include "QuEST.h"
 
@@ -17,6 +16,15 @@ static struct {
 	.init = false,
 	.lock = ATOMIC_FLAG_INIT,
 };
+
+#ifndef __STDC_NO_THREADS__
+#include <threads.h>
+#else
+void
+thrd_yield(void)
+{
+}
+#endif
 
 int
 circ_initialize(void)

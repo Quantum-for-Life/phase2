@@ -1,5 +1,3 @@
-#include <threads.h>
-
 #include "circ.h"
 
 #include "test.h"
@@ -11,6 +9,9 @@ init_par(void *)
 {
 	return circ_initialize();
 }
+
+#ifndef __STDC_NO_THREADS__
+#include <threads.h>
 
 int
 main(void)
@@ -64,3 +65,11 @@ main(void)
 error:
 	return -1;
 }
+
+#else
+int
+main(void)
+{
+	return 0;
+}
+#endif //__STDC_NO_THREADS__
