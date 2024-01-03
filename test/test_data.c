@@ -40,7 +40,6 @@ main(void)
 		goto err;
 	}
 
-exit:
 	return 0;
 err:
 	return -1;

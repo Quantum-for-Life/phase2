@@ -12,7 +12,6 @@ open_nonexist(void)
 	if (data2_open(NULL) != DATA2_INVALID_FID)
 		goto err;
 
-exit:
 	return 0;
 err:
 	return -1;
@@ -27,7 +26,6 @@ open_exist(const char *filename)
 
 	data2_close(fid);
 
-exit:
 	return 0;
 err:
 	return -1;
@@ -49,7 +47,6 @@ test_data_open(void)
 		}
 	}
 
-exit:
 	return 0;
 err:
 	return -1;
