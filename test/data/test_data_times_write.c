@@ -33,12 +33,13 @@ static struct {
 static char filename[L_tmpnam];
 
 enum ret_code {
-	OK,
+	ERR = INT_MIN,
 	ERR_PREP,
 	ERR_CREATEFILE,
 	ERR_DELFILE,
 	ERR_H5DSET,
 	ERR_H5WRITE,
+	OK = 0,
 };
 
 int
@@ -57,15 +58,15 @@ prepare_dset_times(hid_t grp_id)
 		rc = ERR_H5DSET;
 		goto ex_dspace;
 	}
-	dset = H5Dcreate2(grp_id, H5_GRP_TIMES, H5T_NATIVE_DOUBLE,
-		dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+	dset = H5Dcreate2(grp_id, H5_GRP_TIMES, H5T_NATIVE_DOUBLE, dspace,
+		H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 	if (dset == H5I_INVALID_HID) {
 		rc = ERR_H5DSET;
 		goto ex_dset;
 	}
 
-	if (H5Dwrite(dset, H5T_NATIVE_DOUBLE, H5S_ALL, dspace,
-		    H5P_DEFAULT, times) < 0) {
+	if (H5Dwrite(dset, H5T_NATIVE_DOUBLE, H5S_ALL, dspace, H5P_DEFAULT,
+		    times) < 0) {
 		rc = ERR_H5WRITE;
 		goto ex_write;
 	}
@@ -94,15 +95,15 @@ prepare_dset_values(hid_t grp_id)
 		rc = ERR_H5DSET;
 		goto ex_dspace;
 	}
-	dset = H5Dcreate2(grp_id, H5_GRP_VALUES, H5T_NATIVE_DOUBLE,
-		dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+	dset = H5Dcreate2(grp_id, H5_GRP_VALUES, H5T_NATIVE_DOUBLE, dspace,
+		H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 	if (dset == H5I_INVALID_HID) {
 		rc = ERR_H5DSET;
 		goto ex_dset;
 	}
 
-	if (H5Dwrite(dset, H5T_NATIVE_DOUBLE, H5S_ALL, dspace,
-		    H5P_DEFAULT, values) < 0) {
+	if (H5Dwrite(dset, H5T_NATIVE_DOUBLE, H5S_ALL, dspace, H5P_DEFAULT,
+		    values) < 0) {
 		rc = ERR_H5WRITE;
 		goto ex_write;
 	}
@@ -131,12 +132,12 @@ prepare_test_file(hid_t file_id)
 	}
 
 	/* Write zeroed data sets */
-	if (prepare_dset_times(grp_id) < 0) {
+	if (prepare_dset_times(grp_id) < OK) {
 		TEST_FAIL("prepare dataset: times");
 		rc = ERR_PREP;
 		goto ex_prepare;
 	}
-	if (prepare_dset_values(grp_id) < 0) {
+	if (prepare_dset_values(grp_id) < OK) {
 		TEST_FAIL("prepare dataset: values");
 		rc = ERR_PREP;
 		goto ex_prepare;
@@ -166,8 +167,9 @@ test_data_times_write(void)
 		rc = ERR_CREATEFILE;
 		goto ex_create;
 	}
-
-	if (prepare_test_file(file_id) < 0) {
+	rc = prepare_test_file(file_id);
+	H5Fclose(file_id);
+	if (rc < OK) {
 		TEST_FAIL("prepare test file");
 		rc = ERR_PREP;
 		goto ex_prepare;
@@ -175,7 +177,6 @@ test_data_times_write(void)
 
 ex_prepare:
 	/* Delete temporary file */
-	H5Fclose(file_id);
 	if (remove(filename) != 0) {
 		// printf("Temp fiile: %s\n", filename);
 		TEST_FAIL("remove temp file");
