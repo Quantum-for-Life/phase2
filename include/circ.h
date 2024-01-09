@@ -26,7 +26,7 @@ struct circuit {
 	int (*measure)(struct circ *);
 };
 
-/**
+/*
  * Initialize global circuit environment.
  *
  * Although this function is exposed in the public API, the user doesn't need
@@ -51,33 +51,92 @@ struct circuit {
 int
 circ_initialize(void);
 
+/*
+ * Shut down global environment.
+ *
+ * This function is registered (using atexit()) during the first call to
+ * circ_initialize() to be called automatically when the application closes. The
+ * user doesn't need to call this function directly.
+ */
 void
 circ_shutdown(void);
 
+/*
+ * Create instance of a circuit.
+ *
+ * Using the circuit description `ct`, allocate memory for a new circuit
+ * instance.  The pointer `data` will be stored and will be available during
+ * call to `circ_simulate()`.
+ */
 struct circ *
 circ_create(struct circuit *ct, void *data);
 
+/*
+ * Destroy circuit instance.
+ *
+ * Free allocated memory.  After the function call, the pointer `c` will no
+ * longer point to a valid structure and must be discarded.
+ */
 void
 circ_destroy(struct circ *c);
 
+/*
+ * Retrieve generic pointer to user data.
+ */
 void *
 circ_data(const struct circ *c);
 
+/*
+ * Print information about the circuit instance to standard output.
+ *
+ * Return value:	 0	if successful
+ *			-1	in case of failure
+ */
 int
 circ_report(struct circ const *c);
 
+/*
+ * Reset circuit.
+ *
+ * Set classical register to zero and call `reset()` function specified by
+ * the circuit template (if any).
+ *
+ * Return value:	 0	if successful
+ *			-1	in case of failure
+ */
 int
 circ_reset(struct circ *c);
 
+/*
+ * Run circuit simulation.
+ *
+ * This will reset the circuit with circ_reset() and call functions specified by
+ * the circuit template in the following order:
+ *	prepst(),
+ *	effect(),
+ *	measure()
+ *
+ * Return value:	 0	if successful
+ *			-1	in case of failure
+ */
 int
 circ_run(struct circ *c);
 
+/*
+ * Return number of qubits in the "measurement" register.
+ */
 size_t
 circ_num_meaqb(const struct circ *c);
 
+/*
+ * Return number of qubits in the "system" register.
+ */
 size_t
 circ_num_sysqb(const struct circ *c);
 
+/*
+ * Return number of qubits in the "ancilla" register.
+ */
 size_t
 circ_num_ancqb(const struct circ *c);
 
