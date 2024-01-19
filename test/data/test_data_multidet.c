@@ -120,7 +120,6 @@ test_iter0(void)
 		goto err;
 	}
 
-exit:
 	data2_close(fid);
 	return 0;
 err:

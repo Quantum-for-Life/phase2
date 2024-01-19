@@ -85,7 +85,7 @@ iter_count(double coeff, unsigned char *paulis, void *op_data)
 	(void)coeff;
 	(void)paulis;
 
-	int *count = op_data;
+	size_t *count = op_data;
 	(*count)++;
 
 	return 0;
@@ -97,7 +97,7 @@ iter_count_onlytwo(double coeff, unsigned char *paulis, void *op_data)
 	(void)coeff;
 	(void)paulis;
 
-	int *count = op_data;
+	size_t *count = op_data;
 	(*count)++;
 	if (*count == 2)
 		return 77;
@@ -145,13 +145,13 @@ test_iter0(void)
 		goto err;
 	}
 
-	int count = 0;
+	size_t count = 0;
 	if (data2_hamil_foreach(fid, iter_count, &count) != 0) {
 		TEST_FAIL("iteration terminated early");
 		goto err;
 	}
 	if (count != td.num_terms) {
-		TEST_FAIL("number of iterations: %d", count);
+		TEST_FAIL("number of iterations: %zu", count);
 		goto err;
 	}
 
@@ -161,7 +161,7 @@ test_iter0(void)
 		goto err;
 	}
 	if (count != 2) {
-		TEST_FAIL("number of iterations: %d", count);
+		TEST_FAIL("number of iterations: %zu", count);
 		goto err;
 	}
 	data2_close(fid);
@@ -188,13 +188,13 @@ test_iter1(void)
 		goto err;
 	}
 
-	int count = 0;
+	size_t count = 0;
 	if (data2_hamil_foreach(fid, iter_count, &count) != 0) {
 		TEST_FAIL("iteration terminated early");
 		goto err;
 	}
 	if (count != td.num_terms) {
-		TEST_FAIL("number of iterations: %d", count);
+		TEST_FAIL("number of iterations: %zu", count);
 		goto err;
 	}
 
@@ -204,7 +204,7 @@ test_iter1(void)
 		goto err;
 	}
 	if (count != 2) {
-		TEST_FAIL("number of iterations: %d", count);
+		TEST_FAIL("number of iterations: %zu", count);
 		goto err;
 	}
 
