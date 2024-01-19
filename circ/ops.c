@@ -25,7 +25,7 @@ void circ_ops_blankstate(struct circ *c)
 	initBlankState(c->quest_qureg);
 }
 
-void circ_ops_set_sysamp(struct circ *c, size_t idx, _Complex double amp)
+void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp)
 {
 	double	  amp_re    = creal(amp);
 	double	  amp_im    = cimag(amp);
@@ -33,7 +33,7 @@ void circ_ops_set_sysamp(struct circ *c, size_t idx, _Complex double amp)
 	setAmps(c->quest_qureg, start_ind, &amp_re, &amp_im, 1);
 }
 
-void circ_ops_ctl_rotate_pauli(struct circ *c, int *paulis, double angle)
+void circ_ops_crotpauli(struct circ *c, int *paulis, double angle)
 {
 	const size_t num_mea_qb = circ_num_meaqb(c);
 	const size_t num_sys_qb = circ_num_sysqb(c);

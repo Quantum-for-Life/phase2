@@ -143,9 +143,9 @@ double circ_ops_prob0(struct circ *c, qbid qb);
 
 void circ_ops_blankstate(struct circ *c);
 
-void circ_ops_set_sysamp(struct circ *c, size_t idx, _Complex double amp);
+void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp);
 
-void circ_ops_ctl_rotate_pauli(struct circ *c, int *paulis, double angle);
+void circ_ops_crotpauli(struct circ *c, int *paulis, double angle);
 
 typedef unsigned long pauli_pak_t;
 

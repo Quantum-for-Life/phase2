@@ -185,7 +185,7 @@ int rayon_prepst(struct circ *c)
 
 	circ_ops_blankstate(c);
 	for (size_t i = 0; i < md->num_dets; i++) {
-		circ_ops_set_sysamp(c, md->dets[i].index, md->dets[i].coeff);
+		circ_ops_setsysamp(c, md->dets[i].index, md->dets[i].coeff);
 	}
 	const qbid mea_qb0 = circ_meaqb(c, 0);
 	circ_ops_hadamard(c, mea_qb0);
@@ -209,7 +209,7 @@ static void trotter_step(struct circ *c, double omega)
 		 * of the expectation value.
 		 */
 		const double angle = -1.0 * omega * hamil->coeffs[i];
-		circ_ops_ctl_rotate_pauli(c, paulis, angle);
+		circ_ops_crotpauli(c, paulis, angle);
 	}
 }
 
