@@ -169,22 +169,62 @@ circ_ops_ctl_rotate_pauli(struct circ *c, int *paulis, double angle);
 
 typedef unsigned long pauli_pak_t;
 
+/*
+ * Hamiltonian module.
+ */
+
+/*
+ * Structure representing a Hamiltonian as a real linear combination of Pauli
+ * strings (codes).  The Pauli operators are packed as a continuous string
+ * of pairs of bits.
+ */
 struct circ_hamil {
-	size_t	     num_qubits;
-	size_t	     num_terms;
-	double	    *coeffs;
-	pauli_pak_t *pak;
+	size_t	     num_qubits; /* number of qubits */
+	size_t	     num_terms; /* number of terms in the sum */
+	double	    *coeffs; /* array of coefficients */
+	pauli_pak_t *pak; /* array of Pauli operators */
 };
 
+/*
+ * Initialize Hamiltonian.
+ *
+ * This function must be called first before any other operation on the
+ * structure is performed.
+ */
 void
 circ_hamil_init(struct circ_hamil *h);
 
+/*
+ * Destroy Hamiltonian.
+ *
+ * Free allocated memory.
+ */
 void
 circ_hamil_destroy(struct circ_hamil *h);
 
+/*
+ * Parse data from the open file represented by `fid` descriptor.
+ *
+ * Return value:  	 0	Data was parsed successfully
+ *			-1	Error while reading data
+ */
 int
 circ_hamil_from_data2(struct circ_hamil *h, data2_id fid);
 
+/*
+ * Retrieve a single Pauli string corresponding to the index `n` in the sum of
+ * terms.
+ *
+ * The value of `n` must be smaller than `h->num_qubits`.  The array `paulis`
+ * must be of size at least `n`.
+ *
+ * After the call to this function, the value of `paulis` will be overwritten
+ * with numbers specifying operators in the Pauli string:
+ *	0	- I
+ *	1	- X
+ *	2	- Y
+ *	3	- Z
+ */
 void
 circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis);
 
