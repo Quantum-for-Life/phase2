@@ -31,16 +31,14 @@ static struct {
 };
 
 #ifdef __STDC_NO_THREADS__
-void
-thrd_yield(void)
+void thrd_yield(void)
 {
 }
 #else
 #include <threads.h>
 #endif
 
-int
-circ_initialize(void)
+int circ_initialize(void)
 {
 	int rc = 1;
 
@@ -76,8 +74,7 @@ circ_initialize(void)
 	return rc;
 }
 
-void
-circ_shutdown(void)
+void circ_shutdown(void)
 {
 	if (!atomic_load_explicit(&circ_env.init, memory_order_relaxed))
 		return;
@@ -92,8 +89,7 @@ circ_shutdown(void)
 	atomic_flag_clear(&circ_env.lock);
 }
 
-static QuESTEnv *
-env_get_questenv(void)
+static QuESTEnv *env_get_questenv(void)
 {
 	if (!atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
 		if (circ_initialize() < 0)
@@ -103,8 +99,7 @@ env_get_questenv(void)
 	return &circ_env.quest_env;
 }
 
-static int
-env_report(void)
+static int env_report(void)
 {
 	const QuESTEnv *quest_env = env_get_questenv();
 	if (!quest_env) {
@@ -116,8 +111,7 @@ env_report(void)
 	return 0;
 }
 
-struct circ *
-circ_create(struct circuit *ct, void *data)
+struct circ *circ_create(struct circuit *ct, void *data)
 {
 	struct circ *c = malloc(sizeof(*c));
 	if (!c)
@@ -153,8 +147,7 @@ circ_fail:
 	return NULL;
 }
 
-void
-circ_destroy(struct circ *c)
+void circ_destroy(struct circ *c)
 {
 	const QuESTEnv *quest_env = env_get_questenv();
 	if (!quest_env)
@@ -168,14 +161,12 @@ circ_destroy(struct circ *c)
 	c = NULL;
 }
 
-void *
-circ_data(const struct circ *c)
+void *circ_data(const struct circ *c)
 {
 	return c->data;
 }
 
-int
-circ_report(struct circ const *c)
+int circ_report(struct circ const *c)
 {
 	if (env_report() < 0)
 		return -1;
@@ -200,8 +191,7 @@ circ_report(struct circ const *c)
 	return 0;
 }
 
-int
-circ_reset(struct circ *c)
+int circ_reset(struct circ *c)
 {
 	initZeroState(c->quest_qureg);
 	for (size_t i = 0; i < circ_num_meaqb(c); i++) {
@@ -213,8 +203,7 @@ circ_reset(struct circ *c)
 	return 0;
 }
 
-int
-circ_run(struct circ *c)
+int circ_run(struct circ *c)
 {
 	if (circ_reset(c) < 0)
 		return -1;
@@ -229,39 +218,33 @@ circ_run(struct circ *c)
 	return 0;
 }
 
-size_t
-circ_num_meaqb(const struct circ *c)
+size_t circ_num_meaqb(const struct circ *c)
 {
 	return c->ct->num_mea_qb;
 }
 
-size_t
-circ_num_sysqb(const struct circ *c)
+size_t circ_num_sysqb(const struct circ *c)
 {
 	return c->ct->num_sys_qb;
 }
 
-size_t
-circ_num_ancqb(const struct circ *c)
+size_t circ_num_ancqb(const struct circ *c)
 {
 	return c->ct->num_anc_qb;
 }
 
-qbid
-circ_meaqb(const struct circ *c, size_t idx)
+qbid circ_meaqb(const struct circ *c, size_t idx)
 {
 	(void)c;
 	return idx;
 }
 
-qbid
-circ_sysqb(const struct circ *c, size_t idx)
+qbid circ_sysqb(const struct circ *c, size_t idx)
 {
 	return idx + circ_num_meaqb(c);
 }
 
-qbid
-circ_ancqb(const struct circ *c, size_t idx)
+qbid circ_ancqb(const struct circ *c, size_t idx)
 {
 	return idx + circ_num_meaqb(c) + circ_num_sysqb(c);
 }

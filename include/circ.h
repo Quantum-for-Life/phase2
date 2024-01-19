@@ -48,8 +48,7 @@ struct circuit {
  *				by another call to this function
  *			-1	in case of failure
  */
-int
-circ_initialize(void);
+int circ_initialize(void);
 
 /*
  * Shut down global environment.
@@ -58,8 +57,7 @@ circ_initialize(void);
  * circ_initialize() to be called automatically when the application closes. The
  * user doesn't need to call this function directly.
  */
-void
-circ_shutdown(void);
+void circ_shutdown(void);
 
 /*
  * Create instance of a circuit.
@@ -68,8 +66,7 @@ circ_shutdown(void);
  * instance.  The pointer `data` will be stored and will be available during
  * call to `circ_simulate()`.
  */
-struct circ *
-circ_create(struct circuit *ct, void *data);
+struct circ *circ_create(struct circuit *ct, void *data);
 
 /*
  * Destroy circuit instance.
@@ -77,14 +74,12 @@ circ_create(struct circuit *ct, void *data);
  * Free allocated memory.  After the function call, the pointer `c` will no
  * longer point to a valid structure and must be discarded.
  */
-void
-circ_destroy(struct circ *c);
+void circ_destroy(struct circ *c);
 
 /*
  * Retrieve generic pointer to user data.
  */
-void *
-circ_data(const struct circ *c);
+void *circ_data(const struct circ *c);
 
 /*
  * Print information about the circuit instance to standard output.
@@ -92,8 +87,7 @@ circ_data(const struct circ *c);
  * Return value:	 0	if successful
  *			-1	in case of failure
  */
-int
-circ_report(struct circ const *c);
+int circ_report(struct circ const *c);
 
 /*
  * Reset circuit.
@@ -104,8 +98,7 @@ circ_report(struct circ const *c);
  * Return value:	 0	if successful
  *			-1	in case of failure
  */
-int
-circ_reset(struct circ *c);
+int circ_reset(struct circ *c);
 
 /*
  * Run circuit simulation.
@@ -119,53 +112,40 @@ circ_reset(struct circ *c);
  * Return value:	 0	if successful
  *			-1	in case of failure
  */
-int
-circ_run(struct circ *c);
+int circ_run(struct circ *c);
 
 /*
  * Return number of qubits in the "measurement" register.
  */
-size_t
-circ_num_meaqb(const struct circ *c);
+size_t circ_num_meaqb(const struct circ *c);
 
 /*
  * Return number of qubits in the "system" register.
  */
-size_t
-circ_num_sysqb(const struct circ *c);
+size_t circ_num_sysqb(const struct circ *c);
 
 /*
  * Return number of qubits in the "ancilla" register.
  */
-size_t
-circ_num_ancqb(const struct circ *c);
+size_t circ_num_ancqb(const struct circ *c);
 
-qbid
-circ_meaqb(const struct circ *c, size_t idx);
+qbid circ_meaqb(const struct circ *c, size_t idx);
 
-qbid
-circ_sysqb(const struct circ *c, size_t idx);
+qbid circ_sysqb(const struct circ *c, size_t idx);
 
-qbid
-circ_ancqb(const struct circ *c, size_t idx);
+qbid circ_ancqb(const struct circ *c, size_t idx);
 
-void
-circ_ops_hadamard(struct circ *c, qbid qb);
+void circ_ops_hadamard(struct circ *c, qbid qb);
 
-void
-circ_ops_sgate(struct circ *c, qbid qb);
+void circ_ops_sgate(struct circ *c, qbid qb);
 
-double
-circ_ops_prob0(struct circ *c, qbid qb);
+double circ_ops_prob0(struct circ *c, qbid qb);
 
-void
-circ_ops_blankstate(struct circ *c);
+void circ_ops_blankstate(struct circ *c);
 
-void
-circ_ops_set_sysamp(struct circ *c, size_t idx, _Complex double amp);
+void circ_ops_set_sysamp(struct circ *c, size_t idx, _Complex double amp);
 
-void
-circ_ops_ctl_rotate_pauli(struct circ *c, int *paulis, double angle);
+void circ_ops_ctl_rotate_pauli(struct circ *c, int *paulis, double angle);
 
 typedef unsigned long pauli_pak_t;
 
@@ -181,7 +161,7 @@ typedef unsigned long pauli_pak_t;
 struct circ_hamil {
 	size_t	     num_qubits; /* number of qubits */
 	size_t	     num_terms; /* number of terms in the sum */
-	double	    *coeffs; /* array of coefficients */
+	double      *coeffs; /* array of coefficients */
 	pauli_pak_t *pak; /* array of Pauli operators */
 };
 
@@ -191,16 +171,14 @@ struct circ_hamil {
  * This function must be called first before any other operation on the
  * structure is performed.
  */
-void
-circ_hamil_init(struct circ_hamil *h);
+void circ_hamil_init(struct circ_hamil *h);
 
 /*
  * Destroy Hamiltonian.
  *
  * Free allocated memory.
  */
-void
-circ_hamil_destroy(struct circ_hamil *h);
+void circ_hamil_destroy(struct circ_hamil *h);
 
 /*
  * Parse data from the open file represented by `fid` descriptor.
@@ -208,8 +186,7 @@ circ_hamil_destroy(struct circ_hamil *h);
  * Return value:  	 0	Data was parsed successfully
  *			-1	Error while reading data
  */
-int
-circ_hamil_from_data2(struct circ_hamil *h, data2_id fid);
+int circ_hamil_from_data2(struct circ_hamil *h, data2_id fid);
 
 /*
  * Retrieve a single Pauli string corresponding to the index `n` in the sum of
@@ -225,7 +202,6 @@ circ_hamil_from_data2(struct circ_hamil *h, data2_id fid);
  *	2	- Y
  *	3	- Z
  */
-void
-circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis);
+void circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis);
 
 #endif // PHASE2_CIRC_H

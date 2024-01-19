@@ -20,8 +20,7 @@ static struct circuit HC_CIRCUIT = { .name = HEALTHCHECK_LABEL,
 	.effect				   = NULL,
 	.measure			   = NULL };
 
-int
-main(void)
+int main(void)
 {
 	struct circ *c = circ_create(&HC_CIRCUIT, NULL);
 	if (!c) {

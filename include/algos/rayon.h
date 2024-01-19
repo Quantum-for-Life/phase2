@@ -13,7 +13,7 @@ struct rayon_data_multidet {
 	struct {
 		long long	index;
 		_Complex double coeff;
-	} *dets;
+	} * dets;
 };
 
 struct rayon_data_times {
@@ -21,7 +21,7 @@ struct rayon_data_times {
 	struct {
 		double		t;
 		_Complex double val;
-	} *steps;
+	} * steps;
 };
 
 struct rayon_data {
@@ -30,19 +30,14 @@ struct rayon_data {
 	struct rayon_data_times	   times;
 };
 
-void
-rayon_data_init(struct rayon_data *rd);
+void rayon_data_init(struct rayon_data *rd);
 
-void
-rayon_data_destroy(struct rayon_data *rd);
+void rayon_data_destroy(struct rayon_data *rd);
 
-int
-rayon_data_from_data(struct rayon_data *rd, data2_id fid);
+int rayon_data_from_data(struct rayon_data *rd, data2_id fid);
 
-int
-rayon_data_times_write(data2_id fid, struct rayon_data_times *ts);
+int rayon_data_times_write(data2_id fid, struct rayon_data_times *ts);
 
-int
-rayon_simulate(const struct rayon_data *rd);
+int rayon_simulate(const struct rayon_data *rd);
 
 #endif // PHASE2_RAYON_H

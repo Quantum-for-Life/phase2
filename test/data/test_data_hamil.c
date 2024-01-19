@@ -9,13 +9,12 @@
 
 #define MARGIN (10e-8)
 
-static int
-test_getnums(void)
+static int test_getnums(void)
 {
 	int rc = 0;
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
 		struct test_data td	  = TEST_DATA[i];
-		const char	*filename = td.filename;
+		const char	   *filename = td.filename;
 
 		data2_id fid = data2_open(filename);
 		if (fid == DATA2_INVALID_FID) {
@@ -46,13 +45,12 @@ test_getnums(void)
 	return rc;
 }
 
-static int
-test_getnorm(void)
+static int test_getnorm(void)
 {
 	int rc = 0;
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
 		struct test_data td	  = TEST_DATA[i];
-		const char	*filename = td.filename;
+		const char	   *filename = td.filename;
 
 		data2_id fid = data2_open(filename);
 		if (fid == DATA2_INVALID_FID) {
@@ -79,8 +77,7 @@ test_getnorm(void)
 	return rc;
 }
 
-static int
-iter_count(double coeff, unsigned char *paulis, void *op_data)
+static int iter_count(double coeff, unsigned char *paulis, void *op_data)
 {
 	(void)coeff;
 	(void)paulis;
@@ -91,8 +88,8 @@ iter_count(double coeff, unsigned char *paulis, void *op_data)
 	return 0;
 }
 
-static int
-iter_count_onlytwo(double coeff, unsigned char *paulis, void *op_data)
+static int iter_count_onlytwo(
+	double coeff, unsigned char *paulis, void *op_data)
 {
 	(void)coeff;
 	(void)paulis;
@@ -112,8 +109,7 @@ struct iter_store {
 	unsigned char paulis[128];
 };
 
-static int
-iter_store(double coeff, unsigned char *paulis, void *op_data)
+static int iter_store(double coeff, unsigned char *paulis, void *op_data)
 {
 	struct iter_store *is = op_data;
 
@@ -128,8 +124,7 @@ iter_store(double coeff, unsigned char *paulis, void *op_data)
 	return 0;
 }
 
-static int
-test_iter0(void)
+static int test_iter0(void)
 {
 	const struct test_data td  = TEST_DATA[0];
 	data2_id	       fid = data2_open(td.filename);
@@ -171,8 +166,7 @@ err:
 	return -1;
 }
 
-static int
-test_iter1(void)
+static int test_iter1(void)
 {
 	const struct test_data td  = TEST_DATA[1];
 	data2_id	       fid = data2_open(td.filename);
@@ -242,8 +236,7 @@ err:
 	return -1;
 }
 
-static int
-test_iter(void)
+static int test_iter(void)
 {
 	if (test_iter0() < 0)
 		return -1;
@@ -253,8 +246,7 @@ test_iter(void)
 	return 0;
 }
 
-int
-test_data_hamil()
+int test_data_hamil()
 {
 	if (test_getnums() < 0)
 		goto err;

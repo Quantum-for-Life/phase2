@@ -2,8 +2,7 @@
 
 #include "opt.h"
 
-void
-opt_help_page(int argc, char **argv)
+void opt_help_page(int argc, char **argv)
 {
 	(void)argc;
 	fprintf(stderr, "usage: %s CIRCUIT [SIMUL_FILE_H5]\n\n", argv[0]);
@@ -23,8 +22,7 @@ opt_help_page(int argc, char **argv)
 			"\n\n");
 }
 
-int
-opt_parse(struct opt *o, int argc, char **argv)
+int opt_parse(struct opt *o, int argc, char **argv)
 {
 	int rc = 0;
 

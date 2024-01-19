@@ -5,8 +5,7 @@ static const size_t PAULI_MASK	   = 3;
 static const size_t PAULI_WIDTH	   = 2;
 static const size_t PAULI_PAK_SIZE = sizeof(pauli_pak_t) * 8 / PAULI_WIDTH;
 
-void
-circ_hamil_init(struct circ_hamil *h)
+void circ_hamil_init(struct circ_hamil *h)
 {
 	h->num_qubits = 0;
 	h->num_terms  = 0;
@@ -14,8 +13,7 @@ circ_hamil_init(struct circ_hamil *h)
 	h->pak	      = NULL;
 }
 
-void
-circ_hamil_destroy(struct circ_hamil *h)
+void circ_hamil_destroy(struct circ_hamil *h)
 {
 	if (h->pak) {
 		free(h->pak);
@@ -33,12 +31,11 @@ struct hamil_iter_data {
 	size_t	     idx;
 	size_t	     num_qubits;
 	double	     norm;
-	double	    *coeffs;
+	double      *coeffs;
 	pauli_pak_t *pak;
 };
 
-static int
-hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
+static int hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 {
 	struct hamil_iter_data *idat = iter_data;
 	size_t			i = idat->idx++, num_qubits = idat->num_qubits;
@@ -53,8 +50,7 @@ hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 	return 0;
 }
 
-int
-circ_hamil_from_data2(struct circ_hamil *h, data2_id fid)
+int circ_hamil_from_data2(struct circ_hamil *h, data2_id fid)
 {
 	size_t num_qubits, num_terms;
 	double norm;
@@ -64,7 +60,7 @@ circ_hamil_from_data2(struct circ_hamil *h, data2_id fid)
 	if (data2_hamil_getnorm(fid, &norm) < 0)
 		return -1;
 
-	double	    *coeffs = malloc(sizeof *coeffs * num_terms);
+	double      *coeffs = malloc(sizeof *coeffs * num_terms);
 	pauli_pak_t *pak = calloc(num_terms * num_qubits / PAULI_PAK_SIZE + 1,
 		sizeof(pauli_pak_t));
 	if (!(coeffs && pak))
@@ -90,8 +86,7 @@ err:
 	return -1;
 }
 
-void
-circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis)
+void circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis)
 {
 	for (size_t j = 0; j < h->num_qubits; j++) {
 		const size_t pauli_idx = n * h->num_qubits + j;

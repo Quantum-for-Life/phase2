@@ -11,8 +11,7 @@
 #define MARGIN (0.0099)
 static const char *CASE_DIR = PH2_SIMUL_DATA "/case-rand";
 
-static int
-caserand(const char *prefix)
+static int caserand(const char *prefix)
 {
 	char filename[1024] = { 0 };
 
@@ -94,8 +93,7 @@ err_data_open:
 	return -1;
 }
 
-int
-main(void)
+int main(void)
 {
 	if (caserand("case-d9f603dc") != 0)
 		goto error;

@@ -24,15 +24,14 @@ static struct {
 	double		t;
 	_Complex double v;
 } tst_ts[SIZE] = {
-	{ 1.1,  0.0 + _Complex_I * 000.01 },
-	{ 13.1, 1.8 + _Complex_I * 000.11 },
-	{ 0.42, 2.7 + _Complex_I * 001.11 },
-	{ 24,   3.6 + _Complex_I * 011.11 },
-	{ 0.01, 4.5 + _Complex_I * 111.11 },
+	{1.1,   0.0 + _Complex_I * 000.01},
+	{ 13.1, 1.8 + _Complex_I * 000.11},
+	{ 0.42, 2.7 + _Complex_I * 001.11},
+	{ 24,   3.6 + _Complex_I * 011.11},
+	{ 0.01, 4.5 + _Complex_I * 111.11},
 };
 
-int
-iter_update(double *t, _Complex double *v, void *iter_dat)
+int iter_update(double *t, _Complex double *v, void *iter_dat)
 {
 	size_t *i = iter_dat;
 	*t	  = tst_ts[*i].t;
@@ -42,8 +41,7 @@ iter_update(double *t, _Complex double *v, void *iter_dat)
 	return 0;
 }
 
-int
-iter_check(double t, _Complex double v, void *iter_dat)
+int iter_check(double t, _Complex double v, void *iter_dat)
 {
 	size_t *i = iter_dat;
 	if (t != tst_ts[*i].t || v != tst_ts[*i].v)
@@ -66,8 +64,7 @@ enum ret_code {
 	OK = 0,
 };
 
-int
-prepare_dset_times(hid_t grp_id)
+int prepare_dset_times(hid_t grp_id)
 {
 	enum ret_code rc = OK;
 
@@ -102,8 +99,7 @@ ex_dspace:
 	return rc;
 }
 
-int
-prepare_dset_values(hid_t grp_id)
+int prepare_dset_values(hid_t grp_id)
 {
 	enum ret_code rc = OK;
 
@@ -138,8 +134,7 @@ ex_dspace:
 	return rc;
 }
 
-int
-prepare_test_file(hid_t file_id)
+int prepare_test_file(hid_t file_id)
 {
 	enum ret_code rc = OK;
 
@@ -169,8 +164,7 @@ ex_create:
 	return rc;
 }
 
-int
-test_data_times_write(void)
+int test_data_times_write(void)
 {
 	enum ret_code rc;
 

@@ -9,13 +9,12 @@
 
 #define MARGIN (10e-5)
 
-static int
-test_getnums(void)
+static int test_getnums(void)
 {
 	int rc = 0;
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
 		struct test_data td	  = TEST_DATA[i];
-		const char	*filename = td.filename;
+		const char	   *filename = td.filename;
 
 		data2_id fid = data2_open(filename);
 		if (fid == DATA2_INVALID_FID) {
@@ -41,8 +40,7 @@ test_getnums(void)
 	return rc;
 }
 
-static int
-iter_count(double t, _Complex double v, void *op_data)
+static int iter_count(double t, _Complex double v, void *op_data)
 {
 	(void)t;
 	(void)v;
@@ -53,8 +51,7 @@ iter_count(double t, _Complex double v, void *op_data)
 	return 0;
 }
 
-static int
-iter_count_onlytwo(double t, _Complex double v, void *op_data)
+static int iter_count_onlytwo(double t, _Complex double v, void *op_data)
 {
 	(void)t;
 	(void)v;
@@ -74,8 +71,7 @@ struct iter_store_data {
 	_Complex double values[128];
 };
 
-static int
-iter_store(double t, _Complex double v, void *op_data)
+static int iter_store(double t, _Complex double v, void *op_data)
 {
 	struct iter_store_data *idat = op_data;
 
@@ -86,11 +82,10 @@ iter_store(double t, _Complex double v, void *op_data)
 	return 0;
 }
 
-static int
-test_iter0(void)
+static int test_iter0(void)
 {
 	const struct test_data td  = TEST_DATA[0];
-	data2_id		       fid = data2_open(td.filename);
+	data2_id	       fid = data2_open(td.filename);
 	if (fid == DATA2_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;
@@ -155,11 +150,10 @@ err:
 	return -1;
 }
 
-static int
-test_iter1(void)
+static int test_iter1(void)
 {
 	const struct test_data td  = TEST_DATA[1];
-	data2_id		       fid = data2_open(td.filename);
+	data2_id	       fid = data2_open(td.filename);
 	if (fid == DATA2_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;
@@ -235,8 +229,7 @@ err:
 	return -1;
 }
 
-int
-test_data_times()
+int test_data_times()
 {
 	if (test_getnums() < 0)
 		goto err;

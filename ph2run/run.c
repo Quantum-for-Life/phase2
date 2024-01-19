@@ -1,14 +1,12 @@
 #include "algos/linen.h"
 #include "algos/rayon.h"
 
-int
-run_linen(void)
+int run_linen(void)
 {
 	return linen_simulate();
 }
 
-int
-run_rayon(data2_id fid)
+int run_rayon(data2_id fid)
 {
 	int rc = 0;
 

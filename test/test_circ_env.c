@@ -4,16 +4,14 @@
 
 #define NUM_THREADS (8)
 
-int
-init_par(void *)
+int init_par(void *)
 {
 	return circ_initialize();
 }
 
 #ifdef __STDC_NO_THREADS__
 
-int
-main(void)
+int main(void)
 {
 	return 0;
 }
@@ -21,8 +19,7 @@ main(void)
 #else
 #include <threads.h>
 
-int
-main(void)
+int main(void)
 {
 	volatile int bar;
 	thrd_t	     th[NUM_THREADS];

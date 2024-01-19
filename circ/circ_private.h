@@ -7,8 +7,8 @@
 
 struct circ {
 	struct circuit *ct;
-	void	       *data;
-	int	       *cl, *qb;
+	void	     *data;
+	int	    *cl, *qb;
 
 	/* Qubit register */
 	Qureg quest_qureg;

@@ -16,16 +16,14 @@ struct linen_circ_data {
 	int pass_measure;
 };
 
-int
-linen_reset(struct circ *c)
+int linen_reset(struct circ *c)
 {
 	(void)c;
 
 	return 0;
 }
 
-int
-linen_prepst(struct circ *c)
+int linen_prepst(struct circ *c)
 {
 	struct linen_circ_data *dat = circ_data(c);
 	dat->pass_prepst	    = dat->val_prepst;
@@ -33,8 +31,7 @@ linen_prepst(struct circ *c)
 	return 0;
 }
 
-int
-linen_effect(struct circ *c)
+int linen_effect(struct circ *c)
 {
 	struct linen_circ_data *dat = circ_data(c);
 	dat->pass_effect	    = dat->val_effect;
@@ -42,8 +39,7 @@ linen_effect(struct circ *c)
 	return 0;
 }
 
-int
-linen_measure(struct circ *c)
+int linen_measure(struct circ *c)
 {
 	struct linen_circ_data *dat = circ_data(c);
 	dat->pass_measure	    = dat->val_measure;
@@ -51,8 +47,7 @@ linen_measure(struct circ *c)
 	return 0;
 }
 
-void
-linen_circuit_init(struct circuit *ct)
+void linen_circuit_init(struct circuit *ct)
 {
 	ct->name       = LINEN_NAME;
 	ct->num_mea_qb = LINEN_DEFAULT_NUM_MEA_QB;
@@ -64,8 +59,7 @@ linen_circuit_init(struct circuit *ct)
 	ct->measure    = linen_measure;
 }
 
-int
-linen_simulate(void)
+int linen_simulate(void)
 {
 	struct circuit ct;
 

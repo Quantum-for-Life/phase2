@@ -18,8 +18,7 @@
 #define DATA2_TIME_SERIES_VALUES "values"
 
 /* Open, close data file */
-data2_id
-data2_open(const char *filename)
+data2_id data2_open(const char *filename)
 {
 	hid_t file_id, access_plist;
 #ifdef DISTRIBUTED
@@ -42,15 +41,13 @@ data2_open(const char *filename)
 	return file_id;
 }
 
-void
-data2_close(const data2_id fid)
+void data2_close(const data2_id fid)
 {
 	H5Fclose(fid);
 }
 
 /* --- State prep --- */
-static int
-state_prep_open(data2_id fid, hid_t *grpid)
+static int state_prep_open(data2_id fid, hid_t *grpid)
 {
 	hid_t hid = H5Gopen2(fid, DATA2_STATE_PREP, H5P_DEFAULT);
 	if (hid == H5I_INVALID_HID)
@@ -60,8 +57,7 @@ state_prep_open(data2_id fid, hid_t *grpid)
 	return 0;
 }
 
-static void
-state_prep_close(hid_t grpid)
+static void state_prep_close(hid_t grpid)
 {
 	H5Gclose(grpid);
 }
@@ -73,8 +69,7 @@ struct multidet_handle {
 	hid_t multidet_grpid;
 };
 
-static int
-multidet_open(data2_id fid, struct multidet_handle *md)
+static int multidet_open(data2_id fid, struct multidet_handle *md)
 {
 	hid_t sp_id, md_id;
 
@@ -91,15 +86,13 @@ multidet_open(data2_id fid, struct multidet_handle *md)
 	return 0;
 }
 
-static void
-multidet_close(struct multidet_handle md)
+static void multidet_close(struct multidet_handle md)
 {
 	H5Gclose(md.multidet_grpid);
 	state_prep_close(md.state_prep_grpid);
 }
 
-int
-data2_multidet_getnums(data2_id fid, size_t *num_qubits, size_t *num_dets)
+int data2_multidet_getnums(data2_id fid, size_t *num_qubits, size_t *num_dets)
 {
 	struct multidet_handle md;
 
@@ -133,8 +126,8 @@ err_open:
 	return -1;
 }
 
-static int
-multidet_read_data(data2_id fid, _Complex double *coeffs, unsigned char *dets)
+static int multidet_read_data(
+	data2_id fid, _Complex double *coeffs, unsigned char *dets)
 {
 	struct multidet_handle md;
 	if (multidet_open(fid, &md) < 0)
@@ -173,8 +166,7 @@ err_multidet_open:
 	return -1;
 }
 
-int
-data2_multidet_foreach(
+int data2_multidet_foreach(
 	data2_id fid, int (*op)(_Complex double, size_t, void *), void *op_data)
 {
 	int    rc = 0;
@@ -220,8 +212,7 @@ err_getnums:
 	return -1;
 }
 
-static int
-hamil_open(data2_id fid, hid_t *grpid)
+static int hamil_open(data2_id fid, hid_t *grpid)
 {
 	const hid_t hamil_id = H5Gopen2(fid, DATA2_PAULI_HAMIL, H5P_DEFAULT);
 	if (hamil_id == H5I_INVALID_HID)
@@ -231,14 +222,12 @@ hamil_open(data2_id fid, hid_t *grpid)
 	return 0;
 }
 
-static void
-hamil_close(hid_t grpid)
+static void hamil_close(hid_t grpid)
 {
 	H5Gclose(grpid);
 }
 
-int
-data2_hamil_getnums(data2_id fid, size_t *num_qubits, size_t *num_terms)
+int data2_hamil_getnums(data2_id fid, size_t *num_qubits, size_t *num_terms)
 {
 	hid_t grpid;
 	if (hamil_open(fid, &grpid) < 0)
@@ -271,8 +260,7 @@ err_open:
 	return -1;
 }
 
-int
-data2_hamil_getnorm(data2_id fid, double *norm)
+int data2_hamil_getnorm(data2_id fid, double *norm)
 {
 	hid_t grpid;
 	if (hamil_open(fid, &grpid) < 0)
@@ -299,8 +287,7 @@ err_open:
 	return -1;
 }
 
-static int
-hamil_read_data(data2_id fid, double *coeffs, unsigned char *paulis)
+static int hamil_read_data(data2_id fid, double *coeffs, unsigned char *paulis)
 {
 	hid_t grpid;
 	if (hamil_open(fid, &grpid) < 0)
@@ -338,13 +325,12 @@ err_hamil_open:
 	return -1;
 }
 
-int
-data2_hamil_foreach(
+int data2_hamil_foreach(
 	data2_id fid, int (*op)(double, unsigned char *, void *), void *op_data)
 {
 	int	       rc = 0;
 	unsigned char *paulis, *paustr;
-	double	      *coeffs;
+	double	       *coeffs;
 	size_t	       num_qubits, num_terms;
 
 	if (data2_hamil_getnums(fid, &num_qubits, &num_terms) < 0)
@@ -385,8 +371,7 @@ err_getnums:
 	return -1;
 }
 
-static int
-times_open(data2_id fid, hid_t *grpid)
+static int times_open(data2_id fid, hid_t *grpid)
 {
 	const hid_t id = H5Gopen2(fid, DATA2_TIME_SERIES, H5P_DEFAULT);
 	if (id == H5I_INVALID_HID)
@@ -396,14 +381,12 @@ times_open(data2_id fid, hid_t *grpid)
 	return 0;
 }
 
-static void
-times_close(hid_t grpid)
+static void times_close(hid_t grpid)
 {
 	H5Gclose(grpid);
 }
 
-int
-data2_times_getnums(data2_id fid, size_t *num_steps)
+int data2_times_getnums(data2_id fid, size_t *num_steps)
 {
 	hid_t grpid;
 	if (times_open(fid, &grpid) < 0)
@@ -435,8 +418,7 @@ err_open:
 	return -1;
 }
 
-static int
-times_read_data(data2_id fid, double *times, _Complex double *values)
+static int times_read_data(data2_id fid, double *times, _Complex double *values)
 {
 	hid_t grpid;
 	if (times_open(fid, &grpid) < 0)
@@ -475,8 +457,8 @@ err_open:
 	return -1;
 }
 
-static int
-times_write_data(data2_id fid, double *times, _Complex double *values)
+static int times_write_data(
+	data2_id fid, double *times, _Complex double *values)
 {
 	hid_t grpid;
 	if (times_open(fid, &grpid) < 0)
@@ -515,13 +497,12 @@ err_open:
 	return -1;
 }
 
-int
-data2_times_foreach(
+int data2_times_foreach(
 	data2_id fid, int (*op)(double, _Complex double, void *), void *op_data)
 {
 	int rc = 0;
 
-	double		*times;
+	double	       *times;
 	_Complex double *values;
 	size_t		 num_steps;
 
@@ -555,13 +536,12 @@ err_getnums:
 	return -1;
 }
 
-int
-data2_times_update(data2_id fid, int (*op)(double *, _Complex double *, void *),
-	void *op_data)
+int data2_times_update(data2_id fid,
+	int (*op)(double *, _Complex double *, void *), void *op_data)
 {
 	int rc = 0;
 
-	double		*times;
+	double	       *times;
 	_Complex double *values;
 	size_t		 num_steps;
 

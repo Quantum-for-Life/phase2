@@ -15,19 +15,14 @@
 
 static struct opt opt;
 
-void
-opt_help_page(int argc, char **argv);
-int
-opt_parse(struct opt *o, int argc, char **argv);
+void opt_help_page(int argc, char **argv);
+int  opt_parse(struct opt *o, int argc, char **argv);
 
 /* Runners */
-int
-run_linen(void);
-int
-run_rayon(data2_id fid);
+int run_linen(void);
+int run_rayon(data2_id fid);
 
-int
-main(const int argc, char **argv)
+int main(const int argc, char **argv)
 {
 	int rc = 0;
 

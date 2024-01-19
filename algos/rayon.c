@@ -21,15 +21,13 @@ struct circ_data {
 	int			 scratch[64];
 };
 
-void
-rayon_multidet_init(struct rayon_data_multidet *md)
+void rayon_multidet_init(struct rayon_data_multidet *md)
 {
 	md->num_dets = 0;
 	md->dets     = NULL;
 }
 
-void
-rayon_multidet_destroy(struct rayon_data_multidet *md)
+void rayon_multidet_destroy(struct rayon_data_multidet *md)
 {
 	if (md->dets) {
 		free(md->dets);
@@ -43,8 +41,7 @@ struct iter_multidet_data {
 	struct rayon_data_multidet *md;
 };
 
-static int
-iter_multidet(_Complex double coeff, size_t idx, void *op_data)
+static int iter_multidet(_Complex double coeff, size_t idx, void *op_data)
 {
 	struct iter_multidet_data *imd = op_data;
 
@@ -55,8 +52,7 @@ iter_multidet(_Complex double coeff, size_t idx, void *op_data)
 	return 0;
 }
 
-int
-rayon_multidet_from_data(struct rayon_data_multidet *md, const data2_id fid)
+int rayon_multidet_from_data(struct rayon_data_multidet *md, const data2_id fid)
 {
 	size_t num_qubits, num_dets;
 	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
@@ -79,15 +75,13 @@ error:
 	return -1;
 }
 
-void
-rayon_times_init(struct rayon_data_times *ts)
+void rayon_times_init(struct rayon_data_times *ts)
 {
 	ts->num_steps = 0;
 	ts->steps     = NULL;
 }
 
-void
-rayon_times_destroy(struct rayon_data_times *ts)
+void rayon_times_destroy(struct rayon_data_times *ts)
 {
 	if (ts->steps) {
 		free(ts->steps);
@@ -101,10 +95,9 @@ struct times_iter_data {
 	struct rayon_data_times *ts_uninit;
 };
 
-static int
-times_iter(double t, _Complex double v, void *iter_data)
+static int times_iter(double t, _Complex double v, void *iter_data)
 {
-	struct times_iter_data	*idat	   = iter_data;
+	struct times_iter_data  *idat	   = iter_data;
 	struct rayon_data_times *ts_uninit = idat->ts_uninit;
 	size_t			 i	   = idat->idx++;
 
@@ -114,8 +107,7 @@ times_iter(double t, _Complex double v, void *iter_data)
 	return 0;
 }
 
-int
-rayon_times_from_data2(struct rayon_data_times *ts, data2_id fid)
+int rayon_times_from_data2(struct rayon_data_times *ts, data2_id fid)
 {
 	size_t num_steps;
 
@@ -142,11 +134,10 @@ struct times_iter_write_data {
 	struct rayon_data_times *ts;
 };
 
-static int
-times_iter_write(double *t, _Complex double *v, void *iter_data)
+static int times_iter_write(double *t, _Complex double *v, void *iter_data)
 {
 	struct times_iter_write_data *idat = iter_data;
-	struct rayon_data_times	     *ts   = idat->ts;
+	struct rayon_data_times	*ts   = idat->ts;
 	size_t			      i	   = idat->idx++;
 
 	*t = ts->steps[i].t;
@@ -155,31 +146,27 @@ times_iter_write(double *t, _Complex double *v, void *iter_data)
 	return 0;
 }
 
-int
-rayon_data_times_write(data2_id fid, struct rayon_data_times *ts)
+int rayon_data_times_write(data2_id fid, struct rayon_data_times *ts)
 {
 	struct times_iter_write_data idat = { .idx = 0, .ts = ts };
 	return data2_times_update(fid, times_iter_write, &idat);
 }
 
-void
-rayon_data_init(struct rayon_data *rd)
+void rayon_data_init(struct rayon_data *rd)
 {
 	circ_hamil_init(&rd->hamil);
 	rayon_multidet_init(&rd->multidet);
 	rayon_times_init(&rd->times);
 }
 
-void
-rayon_data_destroy(struct rayon_data *rd)
+void rayon_data_destroy(struct rayon_data *rd)
 {
 	rayon_times_destroy(&rd->times);
 	rayon_multidet_destroy(&rd->multidet);
 	circ_hamil_destroy(&rd->hamil);
 }
 
-int
-rayon_data_from_data(struct rayon_data *rd, data2_id fid)
+int rayon_data_from_data(struct rayon_data *rd, data2_id fid)
 {
 	int rc;
 
@@ -190,8 +177,7 @@ rayon_data_from_data(struct rayon_data *rd, data2_id fid)
 	return rc;
 }
 
-int
-rayon_prepst(struct circ *c)
+int rayon_prepst(struct circ *c)
 {
 	struct circ_data *cdat = circ_data(c);
 
@@ -207,10 +193,9 @@ rayon_prepst(struct circ *c)
 	return 0;
 }
 
-static void
-trotter_step(struct circ *c, double omega)
+static void trotter_step(struct circ *c, double omega)
 {
-	struct circ_data	*cdat = circ_data(c);
+	struct circ_data	 *cdat = circ_data(c);
 	const struct circ_hamil *hamil =
 		&((const struct rayon_data *)cdat->rd)->hamil;
 	int *paulis = cdat->scratch;
@@ -228,8 +213,7 @@ trotter_step(struct circ *c, double omega)
 	}
 }
 
-int
-rayon_effect(struct circ *c)
+int rayon_effect(struct circ *c)
 {
 	struct circ_data *cdat = circ_data(c);
 	const double	  t    = (cdat)->t;
@@ -246,8 +230,7 @@ rayon_effect(struct circ *c)
 	return 0;
 }
 
-int
-rayon_measure(struct circ *c)
+int rayon_measure(struct circ *c)
 {
 	struct circ_data *d	  = circ_data(c);
 	const qbid	  mea_qb0 = circ_meaqb(c, 0);
@@ -270,8 +253,7 @@ rayon_measure(struct circ *c)
 	return 0;
 }
 
-static void
-rayon_circuit_init(struct circuit *ct, size_t num_sys_qb)
+static void rayon_circuit_init(struct circuit *ct, size_t num_sys_qb)
 {
 	ct->name       = RAYON_NAME;
 	ct->num_mea_qb = RAYON_NUM_MEA_QB;
@@ -283,14 +265,12 @@ rayon_circuit_init(struct circuit *ct, size_t num_sys_qb)
 	ct->measure    = rayon_measure;
 }
 
-static void
-rayon_circuit_destroy(const struct circuit *ct)
+static void rayon_circuit_destroy(const struct circuit *ct)
 {
 	(void)(ct);
 }
 
-int
-rayon_simulate(const struct rayon_data *rd)
+int rayon_simulate(const struct rayon_data *rd)
 {
 	int ret = 0;
 
