@@ -21,7 +21,7 @@ int  opt_parse(struct opt *o, int argc, char **argv);
 /* Runners */
 int run_linen(void);
 int run_rayon(data2_id fid);
-int run_silk(data2_id fid);
+int run_silk(data2_id fid, size_t num_steps);
 
 int main(const int argc, char **argv)
 {
@@ -31,11 +31,11 @@ int main(const int argc, char **argv)
 	if (opt_parse(&opt, argc, argv) < 0)
 		exit(EXIT_FAILURE);
 
-	circ_initialize();
-
 	/* Initiallize logging */
 	if (log_init() < 0)
 		exit(EXIT_FAILURE);
+
+	circ_initialize();
 
 	log_info("*** Init ***");
 #ifdef DISTRIBUTED
@@ -53,26 +53,29 @@ int main(const int argc, char **argv)
 		goto error;
 
 	log_info("*** Circuit ***");
-	if (strncmp(argv[1], "linen", 5) == 0) {
+	switch (opt.cicuit) {
+	case OPT_CICUIT_LINEN:
 		log_info("Circuit: linen");
 		if (run_linen() < 0)
 			goto error;
-	} else if (strncmp(argv[1], "rayon", 5) == 0) {
+		break;
+	case OPT_CICUIT_RAYON:
 		log_info("Circuit: rayon");
 		if (run_rayon(fid) < 0) {
 			log_error("Failure: simulation error");
 			goto error;
 		}
-	} else if (strncmp(argv[1], "silk", 4) == 0) {
+		break;
+	case OPT_CICUIT_SILK:
 		log_info("Circuit: silk");
-		if (run_silk(fid) < 0) {
+		log_info("Num_steps: %zu", opt.circuit_args.silk.num_steps);
+		if (run_silk(fid, opt.circuit_args.silk.num_steps) < 0) {
 			log_error("Failure: simulation error");
 			goto error;
 		}
-	} else {
-		log_error("No circ named %s", argv[1]);
-		goto error;
+		break;
 	}
+
 	data2_close(fid);
 
 	goto cleanup;
