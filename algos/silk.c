@@ -1,8 +1,6 @@
 /** circ: silk
  *
  * Quantum phase estimation with Hadamard test.
- * Computes expectation value of `exp(i t H)` for a given initial state,
- * Hamiltonian and a sequence of times.
  */
 
 #include <complex.h>
@@ -16,9 +14,8 @@
 
 struct circ_data {
 	const struct silk_data *rd;
-	double			 t;
-	double			 prob0_re, prob0_im;
-	int			 scratch[64];
+	double			prob0_re, prob0_im;
+	int			scratch[64];
 };
 
 void silk_multidet_init(struct silk_data_multidet *md)
@@ -37,7 +34,7 @@ void silk_multidet_destroy(struct silk_data_multidet *md)
 }
 
 struct iter_multidet_data {
-	size_t			    idx;
+	size_t			   idx;
 	struct silk_data_multidet *md;
 };
 
@@ -75,93 +72,15 @@ error:
 	return -1;
 }
 
-void silk_times_init(struct silk_data_times *ts)
-{
-	ts->num_steps = 0;
-	ts->steps     = NULL;
-}
-
-void silk_times_destroy(struct silk_data_times *ts)
-{
-	if (ts->steps) {
-		free(ts->steps);
-		ts->steps = NULL;
-	}
-	ts->num_steps = 0;
-}
-
-struct times_iter_data {
-	size_t			 idx;
-	struct silk_data_times *ts_uninit;
-};
-
-static int times_iter(double t, _Complex double v, void *iter_data)
-{
-	struct times_iter_data	*idat	   = iter_data;
-	struct silk_data_times *ts_uninit = idat->ts_uninit;
-	size_t			 i	   = idat->idx++;
-
-	ts_uninit->steps[i].t	= t;
-	ts_uninit->steps[i].val = v;
-
-	return 0;
-}
-
-int silk_times_from_data2(struct silk_data_times *ts, data2_id fid)
-{
-	size_t num_steps;
-
-	if (data2_times_getnums(fid, &num_steps) < 0)
-		return -1;
-
-	ts->steps = malloc(sizeof *ts->steps * num_steps);
-	if (!(ts->steps))
-		return -1;
-
-	struct times_iter_data idat = { .idx = 0, .ts_uninit = ts };
-	if (data2_times_foreach(fid, times_iter, &idat) < 0) {
-		free(ts->steps);
-		ts->steps = NULL;
-		return -1;
-	}
-	ts->num_steps = num_steps;
-
-	return 0;
-}
-
-struct times_iter_write_data {
-	size_t			 idx;
-	struct silk_data_times *ts;
-};
-
-static int times_iter_write(double *t, _Complex double *v, void *iter_data)
-{
-	struct times_iter_write_data *idat = iter_data;
-	struct silk_data_times	     *ts   = idat->ts;
-	size_t			      i	   = idat->idx++;
-
-	*t = ts->steps[i].t;
-	*v = ts->steps[i].val;
-
-	return 0;
-}
-
-int silk_data_times_write(data2_id fid, struct silk_data_times *ts)
-{
-	struct times_iter_write_data idat = { .idx = 0, .ts = ts };
-	return data2_times_update(fid, times_iter_write, &idat);
-}
-
-void silk_data_init(struct silk_data *rd)
+void silk_data_init(struct silk_data *rd, size_t num_steps)
 {
 	circ_hamil_init(&rd->hamil);
 	silk_multidet_init(&rd->multidet);
-	silk_times_init(&rd->times);
+	rd->num_steps = num_steps;
 }
 
 void silk_data_destroy(struct silk_data *rd)
 {
-	silk_times_destroy(&rd->times);
 	silk_multidet_destroy(&rd->multidet);
 	circ_hamil_destroy(&rd->hamil);
 }
@@ -172,7 +91,6 @@ int silk_data_from_data(struct silk_data *rd, data2_id fid)
 
 	rc = circ_hamil_from_data2(&rd->hamil, fid);
 	rc |= silk_multidet_from_data(&rd->multidet, fid);
-	rc |= silk_times_from_data2(&rd->times, fid);
 
 	return rc;
 }
@@ -181,7 +99,7 @@ int silk_prepst(struct circ *c)
 {
 	struct circ_data *cdat = circ_data(c);
 
-	const struct silk_data_multidet *md = &(cdat->rd)->multidet;
+	const struct silk_data_multidet *md = &cdat->rd->multidet;
 
 	circ_ops_blankstate(c);
 	for (size_t i = 0; i < md->num_dets; i++) {
@@ -215,16 +133,13 @@ static void trotter_step(struct circ *c, double omega)
 int silk_effect(struct circ *c)
 {
 	struct circ_data *cdat = circ_data(c);
-	const double	  t    = (cdat)->t;
+	const double	  t    = cdat->rd->time_factor;
 	if (isnan(t))
 		return -1;
 	if (fabs(t) < DBL_EPSILON)
 		return 0;
 
-	const double REPS = t * t;
-	for (size_t r = 0; r < (size_t)REPS; r++) {
-		trotter_step(c, t / REPS);
-	}
+	trotter_step(c, t);
 
 	return 0;
 }
@@ -254,10 +169,10 @@ int silk_measure(struct circ *c)
 
 static void silk_circuit_init(struct circuit *ct, size_t num_sys_qb)
 {
-	ct->name       = silk_NAME;
-	ct->num_mea_qb = silk_NUM_MEA_QB;
+	ct->name       = SILK_NAME;
+	ct->num_mea_qb = SILK_NUM_MEA_QB;
 	ct->num_sys_qb = num_sys_qb;
-	ct->num_anc_qb = silk_NUM_ANC_QB;
+	ct->num_anc_qb = SILK_NUM_ANC_QB;
 	ct->reset      = NULL;
 	ct->prepst     = silk_prepst;
 	ct->effect     = silk_effect;
@@ -281,14 +196,13 @@ int silk_simulate(const struct silk_data *rd)
 	struct circ *c = circ_create(&ct, &cdat);
 	if (!c)
 		goto error;
-	const struct silk_data_times *ts = &rd->times;
-	for (size_t i = 0; i < ts->num_steps; i++) {
-		cdat.t = ts->steps[i].t;
+
+	for (size_t i = 0; i < rd->num_steps; i++) {
 		if (circ_run(c) < 0)
 			goto error;
 
-		ts->steps[i].val = 2.0 * cdat.prob0_re - 1.0 +
-				   (2.0 * cdat.prob0_im - 1.0) * _Complex_I;
+		rd->trotter_steps[i] = 2.0 * cdat.prob0_re - 1.0 +
+				       (2.0 * cdat.prob0_im - 1.0) * _Complex_I;
 	}
 
 	goto exit;
