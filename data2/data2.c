@@ -17,6 +17,10 @@
 #define DATA2_TIME_SERIES_TIMES "times"
 #define DATA2_TIME_SERIES_VALUES "values"
 
+#define DATA2_TROTTER_STEPS "trotter_steps"
+#define DATA2_TROTTER_STEPS_TIME_FACTOR "time_factor"
+#define DATA2_TROTTER_STEPS_VALUES "values"
+
 /* Open, close data file */
 data2_id data2_open(const char *filename)
 {
@@ -330,7 +334,7 @@ int data2_hamil_foreach(
 {
 	int	       rc = 0;
 	unsigned char *paulis, *paustr;
-	double	       *coeffs;
+	double	      *coeffs;
 	size_t	       num_qubits, num_terms;
 
 	if (data2_hamil_getnums(fid, &num_qubits, &num_terms) < 0)
@@ -502,7 +506,7 @@ int data2_times_foreach(
 {
 	int rc = 0;
 
-	double	       *times;
+	double		*times;
 	_Complex double *values;
 	size_t		 num_steps;
 
@@ -541,7 +545,7 @@ int data2_times_update(data2_id fid,
 {
 	int rc = 0;
 
-	double	       *times;
+	double		*times;
 	_Complex double *values;
 	size_t		 num_steps;
 
@@ -574,5 +578,83 @@ err_values_alloc:
 	free(times);
 err_times_alloc:
 err_getnums:
+	return -1;
+}
+
+static int trotter_open(data2_id fid, hid_t *grpid)
+{
+	const hid_t id = H5Gopen2(fid, DATA2_TROTTER_STEPS, H5P_DEFAULT);
+	if (id == H5I_INVALID_HID)
+		return -1;
+
+	*grpid = id;
+	return 0;
+}
+
+static void trotter_close(hid_t grpid)
+{
+	H5Gclose(grpid);
+}
+
+int data2_trotter_get_factor(data2_id fid, double *factor)
+{
+	hid_t grpid;
+	if (trotter_open(fid, &grpid) < 0)
+		goto err_open;
+
+	const hid_t attr_norm_id =
+		H5Aopen(grpid, DATA2_TROTTER_STEPS_TIME_FACTOR, H5P_DEFAULT);
+	if (attr_norm_id == H5I_INVALID_HID)
+		goto err_attr_open;
+	double n;
+	if (H5Aread(attr_norm_id, H5T_NATIVE_DOUBLE, &n) < 0)
+		goto err_attr_read;
+	*factor = n;
+
+	H5Aclose(attr_norm_id);
+	trotter_close(grpid);
+	return 0;
+
+err_attr_read:
+	H5Aclose(attr_norm_id);
+err_attr_open:
+	trotter_close(grpid);
+err_open:
+	return -1;
+}
+
+int data2_trotter_write_values(
+	data2_id fid, _Complex double *values, size_t num_values)
+{
+	hid_t grpid, dspace, dset;
+
+	if (trotter_open(fid, &grpid) < 0)
+		goto err_open;
+
+	if ((dspace = H5Screate_simple(2, (hsize_t[]){ 2, num_values },
+		     NULL)) == H5I_INVALID_HID) {
+		goto err_fspace;
+	}
+	if ((dset = H5Dcreate2(grpid, DATA2_TROTTER_STEPS_VALUES,
+		     H5T_IEEE_F64LE, dspace, H5P_DEFAULT, H5P_DEFAULT,
+		     H5P_DEFAULT)) == H5I_INVALID_HID) {
+		goto err_dset;
+	}
+	if (H5Dwrite(dset, H5T_NATIVE_DOUBLE, H5S_ALL, dspace, H5P_DEFAULT,
+		    values) < 0)
+		goto err_dset_write;
+
+	H5Dclose(dset);
+	H5Sclose(dspace);
+	trotter_close(grpid);
+	return 0;
+
+err_dset_write:
+	H5Dclose(dset);
+err_dset:
+	H5Sclose(dspace);
+err_fspace:
+	trotter_close(grpid);
+err_open:
 	return -1;
 }
