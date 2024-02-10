@@ -97,7 +97,7 @@ struct times_iter_data {
 
 static int times_iter(double t, _Complex double v, void *iter_data)
 {
-	struct times_iter_data  *idat	   = iter_data;
+	struct times_iter_data	*idat	   = iter_data;
 	struct rayon_data_times *ts_uninit = idat->ts_uninit;
 	size_t			 i	   = idat->idx++;
 
@@ -137,7 +137,7 @@ struct times_iter_write_data {
 static int times_iter_write(double *t, _Complex double *v, void *iter_data)
 {
 	struct times_iter_write_data *idat = iter_data;
-	struct rayon_data_times	*ts   = idat->ts;
+	struct rayon_data_times	     *ts   = idat->ts;
 	size_t			      i	   = idat->idx++;
 
 	*t = ts->steps[i].t;
@@ -195,10 +195,9 @@ int rayon_prepst(struct circ *c)
 
 static void trotter_step(struct circ *c, double omega)
 {
-	struct circ_data	 *cdat = circ_data(c);
-	const struct circ_hamil *hamil =
-		&((const struct rayon_data *)cdat->rd)->hamil;
-	int *paulis = cdat->scratch;
+	struct circ_data	*cdat	= circ_data(c);
+	const struct circ_hamil *hamil	= &cdat->rd->hamil;
+	int			*paulis = cdat->scratch;
 
 	for (size_t i = 0; i < hamil->num_terms; i++) {
 		circ_hamil_paulistr(hamil, i, paulis);

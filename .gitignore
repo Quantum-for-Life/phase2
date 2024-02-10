@@ -65,6 +65,8 @@ _deps
 
 *.bak
 
+venv
+.venv
 build/
 cmake-build-*
 tmp/
