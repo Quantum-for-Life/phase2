@@ -38,6 +38,7 @@ set(PH2_PUBLIC_HEADERS
         ${PH2_INCLUDE_DIRS}/data.h
         ${PH2_INCLUDE_DIRS}/algos/linen.h
         ${PH2_INCLUDE_DIRS}/algos/rayon.h
+        ${PH2_INCLUDE_DIRS}/algos/silk.h
 )
 
 set(PH2_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include)
@@ -71,6 +72,7 @@ set(ALGOS_SRC_DIR ${PROJECT_SOURCE_DIR}/algos)
 set(ALGOS_SOURCES
         ${ALGOS_SRC_DIR}/linen.c
         ${ALGOS_SRC_DIR}/rayon.c
+        ${ALGOS_SRC_DIR}/silk.c
 )
 
 set(PH2_COMMON_SOURCES

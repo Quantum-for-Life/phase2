@@ -2,7 +2,7 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "algos/rayon.h"
+#include "algos/silk.h"
 #include "data2.h"
 
 #include "test.h"
@@ -21,14 +21,14 @@ static int caserand(const char *prefix)
 		goto err_data_open;
 	}
 
-	struct rayon_data rd;
-	rayon_data_init(&rd);
-	if (rayon_data_from_data(&rd, fid) != 0) {
+	struct silk_data rd;
+	silk_data_init(&rd);
+	if (silk_data_from_data(&rd, fid) != 0) {
 		TEST_FAIL("Cannot parse simulation data");
 		goto err_rd_read;
 	}
 
-	if (rayon_simulate(&rd) != 0) {
+	if (silk_simulate(&rd) != 0) {
 		TEST_FAIL("Simulation error");
 		goto err_simul;
 	}
@@ -40,9 +40,9 @@ static int caserand(const char *prefix)
 		goto err_data_open_ref;
 	}
 
-	struct rayon_data rd_ref;
-	rayon_data_init(&rd_ref);
-	if (rayon_data_from_data(&rd_ref, fid_ref) != 0) {
+	struct silk_data rd_ref;
+	silk_data_init(&rd_ref);
+	if (silk_data_from_data(&rd_ref, fid_ref) != 0) {
 		TEST_FAIL("Cannot parse reference data");
 		goto err_rd_ref_read;
 	}
@@ -73,19 +73,19 @@ static int caserand(const char *prefix)
 		}
 	}
 
-	rayon_data_destroy(&rd_ref);
+	silk_data_destroy(&rd_ref);
 	data2_close(fid_ref);
-	rayon_data_destroy(&rd);
+	silk_data_destroy(&rd);
 	data2_close(fid);
 	return 0;
 
 error:
-	rayon_data_destroy(&rd_ref);
+	silk_data_destroy(&rd_ref);
 err_rd_ref_read:
 	data2_close(fid_ref);
 err_data_open_ref:
 err_simul:
-	rayon_data_destroy(&rd);
+	silk_data_destroy(&rd);
 err_rd_read:
 	data2_close(fid);
 err_data_open:

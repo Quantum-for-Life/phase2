@@ -21,6 +21,7 @@ int  opt_parse(struct opt *o, int argc, char **argv);
 /* Runners */
 int run_linen(void);
 int run_rayon(data2_id fid);
+int run_silk(data2_id fid);
 
 int main(const int argc, char **argv)
 {
@@ -59,6 +60,12 @@ int main(const int argc, char **argv)
 	} else if (strncmp(argv[1], "rayon", 5) == 0) {
 		log_info("Circuit: rayon");
 		if (run_rayon(fid) < 0) {
+			log_error("Failure: simulation error");
+			goto error;
+		}
+	} else if (strncmp(argv[1], "silk", 4) == 0) {
+		log_info("Circuit: silk");
+		if (run_silk(fid) < 0) {
 			log_error("Failure: simulation error");
 			goto error;
 		}
