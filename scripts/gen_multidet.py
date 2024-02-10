@@ -22,8 +22,8 @@ def h5_output(outfile: str):
         multidet = state_prep.create_group("multidet")
         multidet.create_dataset("coeffs", (1, 2), dtype="d")[...] = [[1.0, 0.0]]
         multidet.create_dataset("dets", (1, 10), dtype="u1")[...] = [
-            [1, 1, 1, 1, 1,
-             0, 0, 0, 0, 0]]
+            [1, 1, 1, 0, 0,
+             1, 1, 1, 0, 0]]
         # num_qubits = 4
         # norm = 1.0 / math.sqrt(2 ** num_qubits)
         # coeffs = [[norm, 0.0] for i in range(0, 2 ** num_qubits)]

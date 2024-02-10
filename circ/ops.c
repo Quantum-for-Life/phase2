@@ -15,6 +15,13 @@ void circ_ops_sgate(struct circ *c, qbid qb)
 	sGate(c->quest_qureg, qb);
 }
 
+
+void circ_ops_sgate_conj(struct circ *c, qbid qb)
+{
+	sGate(c->quest_qureg, qb);
+	pauliZ(c->quest_qureg, qb);
+}
+
 double circ_ops_prob0(struct circ *c, qbid qb)
 {
 	return calcProbOfOutcome(c->quest_qureg, qb, 0);

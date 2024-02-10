@@ -173,7 +173,7 @@ int silk_measure(struct circ *c)
 	circ_ops_hadamard(c, mea_qb0);
 	d->prob0_im = circ_ops_prob0(c, mea_qb0);
 	circ_ops_hadamard(c, mea_qb0);
-	circ_ops_sgate(c, mea_qb0);
+	circ_ops_sgate_conj(c, mea_qb0);
 
 	return 0;
 }
