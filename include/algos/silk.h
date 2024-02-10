@@ -24,7 +24,7 @@ struct silk_data {
 	_Complex double		 *trotter_steps;
 };
 
-void silk_data_init(struct silk_data *rd, size_t num_steps);
+int silk_data_init(struct silk_data *rd, size_t num_steps);
 
 void silk_data_destroy(struct silk_data *rd);
 

@@ -631,7 +631,7 @@ int data2_trotter_write_values(
 	if (trotter_open(fid, &grpid) < 0)
 		goto err_open;
 
-	if ((dspace = H5Screate_simple(2, (hsize_t[]){ 2, num_values },
+	if ((dspace = H5Screate_simple(2, (hsize_t[]){ num_values, 2 },
 		     NULL)) == H5I_INVALID_HID) {
 		goto err_fspace;
 	}

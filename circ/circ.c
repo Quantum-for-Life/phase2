@@ -193,7 +193,7 @@ int circ_report(struct circ const *c)
 
 int circ_reset(struct circ *c)
 {
-	initZeroState(c->quest_qureg);
+	// initZeroState(c->quest_qureg);
 	for (size_t i = 0; i < circ_num_meaqb(c); i++) {
 		c->cl[i] = 0;
 	}

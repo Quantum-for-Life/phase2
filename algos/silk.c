@@ -72,17 +72,25 @@ error:
 	return -1;
 }
 
-void silk_data_init(struct silk_data *rd, size_t num_steps)
+int silk_data_init(struct silk_data *rd, size_t num_steps)
 {
 	circ_hamil_init(&rd->hamil);
 	silk_multidet_init(&rd->multidet);
 	rd->num_steps = num_steps;
+
+	rd->trotter_steps = malloc(sizeof *rd->trotter_steps * num_steps);
+	if (!rd->trotter_steps)
+		return -1;
+
+	return 0;
 }
 
 void silk_data_destroy(struct silk_data *rd)
 {
 	silk_multidet_destroy(&rd->multidet);
 	circ_hamil_destroy(&rd->hamil);
+
+	free(rd->trotter_steps);
 }
 
 int silk_data_from_data(struct silk_data *rd, data2_id fid)
@@ -91,6 +99,7 @@ int silk_data_from_data(struct silk_data *rd, data2_id fid)
 
 	rc = circ_hamil_from_data2(&rd->hamil, fid);
 	rc |= silk_multidet_from_data(&rd->multidet, fid);
+	data2_trotter_get_factor(fid, &rd->time_factor);
 
 	return rc;
 }
@@ -163,6 +172,8 @@ int silk_measure(struct circ *c)
 	circ_ops_sgate(c, mea_qb0);
 	circ_ops_hadamard(c, mea_qb0);
 	d->prob0_im = circ_ops_prob0(c, mea_qb0);
+	circ_ops_hadamard(c, mea_qb0);
+	circ_ops_sgate(c, mea_qb0);
 
 	return 0;
 }
@@ -174,7 +185,7 @@ static void silk_circuit_init(struct circuit *ct, size_t num_sys_qb)
 	ct->num_sys_qb = num_sys_qb;
 	ct->num_anc_qb = SILK_NUM_ANC_QB;
 	ct->reset      = NULL;
-	ct->prepst     = silk_prepst;
+	ct->prepst     = NULL;
 	ct->effect     = silk_effect;
 	ct->measure    = silk_measure;
 }
@@ -196,6 +207,7 @@ int silk_simulate(const struct silk_data *rd)
 	struct circ *c = circ_create(&ct, &cdat);
 	if (!c)
 		goto error;
+	silk_prepst(c);
 
 	for (size_t i = 0; i < rd->num_steps; i++) {
 		if (circ_run(c) < 0)
