@@ -1,11 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef DISTRIBUTED
 
 #include "mpi.h"
-
-#endif
 
 #include "circ.h"
 #include "data2.h"

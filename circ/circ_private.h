@@ -1,7 +1,7 @@
 #ifndef PHASE2_CIRC_PRIVATE_H
 #define PHASE2_CIRC_PRIVATE_H
 
-#include "QuEST.h"
+#include "qreg.h"
 
 #include "circ.h"
 
@@ -11,7 +11,7 @@ struct circ {
 	int	    *cl, *qb;
 
 	/* Qubit register */
-	Qureg quest_qureg;
+	struct qreg quest_qureg;
 };
 
 #endif // PHASE2_CIRC_PRIVATE_H
