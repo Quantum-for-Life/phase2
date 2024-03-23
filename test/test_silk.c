@@ -9,15 +9,13 @@
 
 #define NUM_STEPS (128)
 
-#define NUM_CASES (6)
+#define NUM_CASES (16)
 const char *CASEIDS[NUM_CASES] = {
 
-	"19f7187e",
-	"f2a421c7",
-	"eedff5bd",
-	"04ba000b",
-	"e502d0bb",
-	"caf81b88"
+	"19f7187e", "f2a421c7", "eedff5bd", "04ba000b", "e502d0bb", "caf81b88",
+	"beb0578e", "39663512", "00358789", "cf50c04b", "6171a3c8", "fb20d1f9",
+	"39a48d76", "2779488a", "e13d2e13", "019c97dc"
+
 };
 
 #define MARGIN (1e-14)
