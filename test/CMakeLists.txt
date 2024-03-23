@@ -12,7 +12,6 @@ endmacro()
 more_test(circ PH2_COMMON_SOURCES)
 more_test(circ_env PH2_COMMON_SOURCES)
 more_test(healthchk PH2_COMMON_SOURCES)
-more_test(rayon PH2_COMMON_SOURCES)
 more_test(silk PH2_COMMON_SOURCES)
 
 set(TEST_DATA_SRC

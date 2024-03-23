@@ -656,3 +656,30 @@ err_fspace:
 err_open:
 	return -1;
 }
+
+int data2_trotter_read_values_test(data2_id fid, _Complex double *values)
+{
+	hid_t grpid;
+
+	if (trotter_open(fid, &grpid) < 0)
+		goto err_open;
+
+	hid_t dset = H5Dopen2(grpid, DATA2_TROTTER_STEPS_VALUES, H5P_DEFAULT);
+	if (dset == H5I_INVALID_HID)
+		goto err_dset;
+
+	if (H5Dread(dset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+		    values) < 0)
+		goto err_read;
+
+	H5Dclose(dset);
+	trotter_close(grpid);
+	return 0;
+
+err_read:
+	H5Dclose(dset);
+err_dset:
+	trotter_close(grpid);
+err_open:
+	return -1;
+}
