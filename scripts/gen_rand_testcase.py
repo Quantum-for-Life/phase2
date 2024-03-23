@@ -142,12 +142,12 @@ class Case:
         state = multidet_to_vector(self.multidet["coeffs"],
                                    self.multidet["indices"],
                                    self.num_qubits)
-        print(state)
+        #print(state)
         state_work = state
         for step in range(NUM_STEPS):
             for k, pauli_str in enumerate(self.pauli_hamil["paulis"]):
-                print(f'step: {step}, Pauli {k}: {pauli_str}, state_work[0]:'
-                      f' {state_work[0]}')
+                #print(f'step: {step}, Pauli {k}: {pauli_str}, state_work[0]:'
+                #      f' {state_work[0]}')
                 matrix = pauli_string_to_matrix(pauli_str)
                 coeff = self.pauli_hamil["coeffs"][k]
                 state_work = math.cos(coeff) * state_work + 1j * math.sin(
