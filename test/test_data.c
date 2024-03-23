@@ -18,6 +18,8 @@ int test_data_times(void);
 
 int test_data_times_write(void);
 
+int test_data_trotter_steps(void);
+
 int main(void)
 {
 	if (test_data_open() < 0) {
@@ -38,6 +40,10 @@ int main(void)
 	}
 	if (test_data_times_write() < 0) {
 		TEST_FAIL("data_times_write");
+		goto err;
+	}
+	if (test_data_trotter_steps() < 0) {
+		TEST_FAIL("data_trotter_steps");
 		goto err;
 	}
 

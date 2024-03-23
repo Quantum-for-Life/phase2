@@ -1,7 +1,6 @@
 #include <complex.h>
 #include <math.h>
 #include <stdio.h>
-#include <string.h>
 
 #include "algos/rayon.h"
 #include "data2.h"

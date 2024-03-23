@@ -31,7 +31,7 @@ static struct {
 	{ 0.01, 4.5 + _Complex_I * 111.11},
 };
 
-int iter_update(double *t, _Complex double *v, void *iter_dat)
+static int iter_update(double *t, _Complex double *v, void *iter_dat)
 {
 	size_t *i = iter_dat;
 	*t	  = tst_ts[*i].t;
@@ -41,7 +41,7 @@ int iter_update(double *t, _Complex double *v, void *iter_dat)
 	return 0;
 }
 
-int iter_check(double t, _Complex double v, void *iter_dat)
+static int iter_check(double t, _Complex double v, void *iter_dat)
 {
 	size_t *i = iter_dat;
 	if (t != tst_ts[*i].t || v != tst_ts[*i].v)
@@ -58,13 +58,13 @@ enum ret_code {
 	ERR_PREP,
 	ERR_CREATEFILE,
 	ERR_DELFILE,
-	ERR_H5DSET,
+	ERR_H5ATTR,
 	ERR_H5WRITE,
 	ERR_DAT2,
 	OK = 0,
 };
 
-int prepare_dset_times(hid_t grp_id)
+static int prepare_dset_times(hid_t grp_id)
 {
 	enum ret_code rc = OK;
 
@@ -75,13 +75,13 @@ int prepare_dset_times(hid_t grp_id)
 
 	const hid_t dspace = H5Screate_simple(1, (hsize_t[]){ SIZE }, NULL);
 	if (dspace == H5I_INVALID_HID) {
-		rc = ERR_H5DSET;
+		rc = ERR_H5ATTR;
 		goto ex_dspace;
 	}
 	const hid_t dset = H5Dcreate2(grp_id, H5_GRP_TIMES, H5T_NATIVE_DOUBLE,
 		dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 	if (dset == H5I_INVALID_HID) {
-		rc = ERR_H5DSET;
+		rc = ERR_H5ATTR;
 		goto ex_dset;
 	}
 
@@ -99,7 +99,7 @@ ex_dspace:
 	return rc;
 }
 
-int prepare_dset_values(hid_t grp_id)
+static int prepare_dset_values(hid_t grp_id)
 {
 	enum ret_code rc = OK;
 
@@ -110,13 +110,13 @@ int prepare_dset_values(hid_t grp_id)
 
 	const hid_t dspace = H5Screate_simple(2, (hsize_t[]){ SIZE, 2 }, NULL);
 	if (dspace == H5I_INVALID_HID) {
-		rc = ERR_H5DSET;
+		rc = ERR_H5ATTR;
 		goto ex_dspace;
 	}
 	const hid_t dset = H5Dcreate2(grp_id, H5_GRP_VALUES, H5T_NATIVE_DOUBLE,
 		dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 	if (dset == H5I_INVALID_HID) {
-		rc = ERR_H5DSET;
+		rc = ERR_H5ATTR;
 		goto ex_dset;
 	}
 
@@ -134,7 +134,7 @@ ex_dspace:
 	return rc;
 }
 
-int prepare_test_file(hid_t file_id)
+static int prepare_test_file(hid_t file_id)
 {
 	enum ret_code rc = OK;
 

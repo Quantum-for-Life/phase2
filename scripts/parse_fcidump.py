@@ -93,6 +93,10 @@ def h5_output(problem: ElectronicStructureProblem, outfile: str):
         grp.attrs["normalization"] = norm[0]
         grp.attrs["offset"] = offset
 
+        grp = f.create_group("trotter_steps")
+        grp.attrs["time_factor"] = 0.1
+
+
 
 if __name__ == "__main__":
     args = parse_arguments()

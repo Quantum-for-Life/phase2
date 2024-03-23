@@ -138,12 +138,15 @@ qbid circ_ancqb(const struct circ *c, size_t idx);
 void circ_ops_hadamard(struct circ *c, qbid qb);
 
 void circ_ops_sgate(struct circ *c, qbid qb);
+void circ_ops_sgate_conj(struct circ *c, qbid qb);
 
 double circ_ops_prob0(struct circ *c, qbid qb);
 
 void circ_ops_blankstate(struct circ *c);
 
 void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp);
+
+void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp);
 
 void circ_ops_crotpauli(struct circ *c, int *paulis, double angle);
 
@@ -161,7 +164,7 @@ typedef unsigned long pauli_pak_t;
 struct circ_hamil {
 	size_t	     num_qubits; /* number of qubits */
 	size_t	     num_terms; /* number of terms in the sum */
-	double      *coeffs; /* array of coefficients */
+	double	    *coeffs; /* array of coefficients */
 	pauli_pak_t *pak; /* array of Pauli operators */
 };
 

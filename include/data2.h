@@ -224,4 +224,11 @@ int data2_times_foreach(data2_id fid,
 int data2_times_update(data2_id fid,
 	int (*op)(double *, _Complex double *, void *), void *op_data);
 
+int data2_trotter_get_factor(data2_id fid, double *factor);
+
+int data2_trotter_write_values(
+	data2_id fid, _Complex double *values, size_t num_values);
+
+int data2_trotter_read_values_test(data2_id fid, _Complex double *values);
+
 #endif // DATA2_H

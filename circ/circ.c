@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "QuEST.h"
+#include "ev.h"
 
 #include "circ.h"
 #include "circ_private.h"
@@ -24,7 +24,7 @@
 static struct {
 	_Atomic _Bool init;
 	atomic_flag   lock;
-	QuESTEnv      quest_env;
+	struct ev      ev;
 } circ_env = {
 	.init = false,
 	.lock = ATOMIC_FLAG_INIT,
@@ -59,7 +59,7 @@ int circ_initialize(void)
 		/* The call to QuEST always succeeds. If there's something else
 		here to do that might fail, conditionally set the return code
 		rc=-1 and leave the flag off. */
-		circ_env.quest_env = createQuESTEnv();
+		ev_init(&circ_env.ev);
 		int atex_rc	   = atexit(circ_shutdown);
 		if (atex_rc == 0) {
 			atomic_store_explicit(
@@ -82,31 +82,31 @@ void circ_shutdown(void)
 	while (atomic_flag_test_and_set(&circ_env.lock))
 		thrd_yield();
 	if (atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
-		destroyQuESTEnv(circ_env.quest_env);
+		ev_destroy(&circ_env.ev);
 		atomic_store_explicit(
 			&circ_env.init, false, memory_order_release);
 	}
 	atomic_flag_clear(&circ_env.lock);
 }
 
-static QuESTEnv *env_get_questenv(void)
+static struct ev *env_get_questenv(void)
 {
 	if (!atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
 		if (circ_initialize() < 0)
 			return NULL;
 	}
 
-	return &circ_env.quest_env;
+	return &circ_env.ev;
 }
 
 static int env_report(void)
 {
-	const QuESTEnv *quest_env = env_get_questenv();
+	const struct ev *quest_env = env_get_questenv();
 	if (!quest_env) {
 		fprintf(stderr, "Error: circuit environment not initialized\n");
 		return -1;
 	}
-	reportQuESTEnv(*quest_env);
+	//reportQuESTEnv(*quest_env);
 
 	return 0;
 }
@@ -124,14 +124,18 @@ struct circ *circ_create(struct circuit *ct, void *data)
 	int *qb = malloc(sizeof(*qb) * num_qb_tot);
 	if (!qb)
 		goto qb_fail;
-	QuESTEnv *quest_env = env_get_questenv();
+	struct ev *quest_env = env_get_questenv();
 	if (!quest_env)
 		goto quest_env_fail;
-	Qureg qureg = createQureg(num_qb_tot, *quest_env);
+
+	struct qreg reg;
+	qreg_init(&reg, num_qb_tot,quest_env);
+
+
 
 	c->ct	       = ct;
 	c->data	       = data;
-	c->quest_qureg = qureg;
+	c->quest_qureg = reg;
 	c->cl	       = cl;
 	c->qb	       = qb;
 
@@ -149,10 +153,10 @@ circ_fail:
 
 void circ_destroy(struct circ *c)
 {
-	const QuESTEnv *quest_env = env_get_questenv();
+	const struct ev *quest_env = env_get_questenv();
 	if (!quest_env)
 		return;
-	destroyQureg(c->quest_qureg, *quest_env);
+	qreg_destroy(&c->quest_qureg);
 	if (c->qb)
 		free(c->qb);
 	if (c->cl)
@@ -174,7 +178,7 @@ int circ_report(struct circ const *c)
 	printf("----------------\n");
 	printf("CIRCUIT: %s\n", c->ct->name);
 
-	reportQuregParams(c->quest_qureg);
+	//reportQuregParams(c->quest_qureg);
 
 	printf("num_mea_qb: %zu\n", circ_num_meaqb(c));
 	printf("num_sys_qb: %zu\n", circ_num_sysqb(c));
@@ -193,7 +197,7 @@ int circ_report(struct circ const *c)
 
 int circ_reset(struct circ *c)
 {
-	initZeroState(c->quest_qureg);
+	// initZeroState(c->quest_qureg);
 	for (size_t i = 0; i < circ_num_meaqb(c); i++) {
 		c->cl[i] = 0;
 	}
