@@ -34,11 +34,7 @@ int opt_parse(struct opt *o, int argc, char **argv)
 		return -1;
 	}
 
-	if (strncmp(argv[1], "linen", 5) == 0) {
-		o->cicuit = OPT_CICUIT_LINEN;
-	} else if (strncmp(argv[1], "rayon", 5) == 0) {
-		o->cicuit = OPT_CICUIT_RAYON;
-	} else if (strncmp(argv[1], "silk", 4) == 0) {
+	if (strncmp(argv[1], "silk", 4) == 0) {
 		o->cicuit = OPT_CICUIT_SILK;
 	} else {
 		fprintf(stderr, "No circ named %s\n", argv[1]);

@@ -7,8 +7,8 @@ set(CMAKE_C_STANDARD 17)
 
 option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 
-set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+#set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 message(STATUS "MPI is required")
 find_package(MPI REQUIRED)
@@ -17,7 +17,7 @@ include_directories(${MPI_C_INCLUDE_DIRS})
 
 set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
 
-
+set(HDF5_PREFER_PARALLEL ON)
 find_package(HDF5 REQUIRED)
 if (HDF5_IS_PARALLEL)
     message(STATUS "Parallel HDF5 found")
@@ -78,8 +78,6 @@ set(CIRC_SOURCES
 
 set(ALGOS_SRC_DIR ${PROJECT_SOURCE_DIR}/algos)
 set(ALGOS_SOURCES
-        ${ALGOS_SRC_DIR}/linen.c
-        ${ALGOS_SRC_DIR}/rayon.c
         ${ALGOS_SRC_DIR}/silk.c
 )
 

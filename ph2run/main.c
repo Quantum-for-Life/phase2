@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 #include "mpi.h"
 
 #include "circ.h"
@@ -20,9 +19,14 @@ int run_linen(void);
 int run_rayon(data2_id fid);
 int run_silk(data2_id fid, size_t num_steps);
 
-int main(const int argc, char **argv)
+int main(int argc, char **argv)
 {
 	int rc = 0;
+
+	int initialized;
+	MPI_Initialized(&initialized);
+	if (!initialized && MPI_Init(&argc, &argv) != MPI_SUCCESS)
+		return -1;
 
 	/* Parse command line arguments. */
 	if (opt_parse(&opt, argc, argv) < 0)
@@ -35,15 +39,12 @@ int main(const int argc, char **argv)
 	circ_initialize();
 
 	log_info("*** Init ***");
-#ifdef DISTRIBUTED
+
 	int rank, num_ranks;
 	MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	log_info("MPI num_ranks: %d", num_ranks);
 	log_info("This is rank no. %d", rank);
-#else
-	log_info("MPI mode not enabled.");
-#endif
 
 	data2_id fid = data2_open(opt.dat_filename);
 	if (fid == DATA2_INVALID_FID)
@@ -51,18 +52,6 @@ int main(const int argc, char **argv)
 
 	log_info("*** Circuit ***");
 	switch (opt.cicuit) {
-	case OPT_CICUIT_LINEN:
-		log_info("Circuit: linen");
-		if (run_linen() < 0)
-			goto error;
-		break;
-	case OPT_CICUIT_RAYON:
-		log_info("Circuit: rayon");
-		if (run_rayon(fid) < 0) {
-			log_error("Failure: simulation error");
-			goto error;
-		}
-		break;
 	case OPT_CICUIT_SILK:
 		log_info("Circuit: silk");
 		log_info("Num_steps: %zu", opt.circuit_args.silk.num_steps);

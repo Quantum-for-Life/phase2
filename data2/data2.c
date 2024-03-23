@@ -25,7 +25,7 @@
 data2_id data2_open(const char *filename)
 {
 	hid_t file_id, access_plist;
-#ifdef DISTRIBUTED
+
 	// init MPI environment
 	int initialized;
 	MPI_Initialized(&initialized);
@@ -34,9 +34,7 @@ data2_id data2_open(const char *filename)
 	}
 	access_plist = H5Pcreate(H5P_FILE_ACCESS);
 	H5Pset_fapl_mpio(access_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
-#else
-	access_plist = H5P_DEFAULT;
-#endif
+
 	file_id = H5Fopen(filename, H5F_ACC_RDWR, access_plist);
 	if (file_id == H5I_INVALID_HID) {
 		return DATA2_INVALID_FID;

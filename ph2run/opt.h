@@ -7,8 +7,6 @@
 #define PH2RUN_SILK_DEFAULT_NUM_STEPS (8)
 
 enum opt_cicuit {
-	OPT_CICUIT_LINEN,
-	OPT_CICUIT_RAYON,
 	OPT_CICUIT_SILK,
 };
 

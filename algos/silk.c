@@ -14,7 +14,7 @@
 
 struct circ_data {
 	const struct silk_data *rd;
-	double			prob0_re, prob0_im;
+	_Complex double		prod;
 	int			scratch[64];
 };
 
@@ -114,8 +114,6 @@ int silk_prepst(struct circ *c)
 	for (size_t i = 0; i < md->num_dets; i++) {
 		circ_ops_setsysamp(c, md->dets[i].index, md->dets[i].coeff);
 	}
-	const qbid mea_qb0 = circ_meaqb(c, 0);
-	circ_ops_hadamard(c, mea_qb0);
 
 	return 0;
 }
@@ -128,13 +126,7 @@ static void trotter_step(struct circ *c, double omega)
 
 	for (size_t i = 0; i < hamil->num_terms; i++) {
 		circ_hamil_paulistr(hamil, i, paulis);
-		/* *
-		 * The minus sign below, together with `sgate` in
-		 * silk_measure()` (instead of the Hermitian conjugate
-		 * of the S gate) gives the correct sign of the imaginary part
-		 * of the expectation value.
-		 */
-		const double angle = -1.0 * omega * hamil->coeffs[i];
+		const double angle = omega * hamil->coeffs[i];
 		circ_ops_crotpauli(c, paulis, angle);
 	}
 }
@@ -155,26 +147,18 @@ int silk_effect(struct circ *c)
 
 int silk_measure(struct circ *c)
 {
-	struct circ_data *d	  = circ_data(c);
-	const qbid	  mea_qb0 = circ_meaqb(c, 0);
+	struct circ_data *cdat = circ_data(c);
 
-	circ_ops_hadamard(c, mea_qb0);
-	d->prob0_re = circ_ops_prob0(c, mea_qb0);
+	const struct silk_data_multidet *md = &cdat->rd->multidet;
 
-	/* Revert the H gate */
-	circ_ops_hadamard(c, mea_qb0);
-	/**
-	 * To obtain the correct sign of the imaginary part of the
-	 * expectation value, the gate effected here should be
-	 * `S^{\dagger}`.  We use `sgate()` function and change the
-	 * sign of the angle argument in `silk_effect()` instead.
-	 */
-	circ_ops_sgate(c, mea_qb0);
-	circ_ops_hadamard(c, mea_qb0);
-	d->prob0_im = circ_ops_prob0(c, mea_qb0);
-	circ_ops_hadamard(c, mea_qb0);
-	circ_ops_sgate_conj(c, mea_qb0);
+	_Complex double prod = 0;
+	for (size_t i = 0; i < md->num_dets; i++) {
+		_Complex double amp;
+		circ_ops_getsysamp(c, md->dets[i].index, &amp);
+		prod += amp * conj(md->dets[i].coeff);
+	}
 
+	cdat->prod = prod;
 	return 0;
 }
 
@@ -192,7 +176,7 @@ static void silk_circuit_init(struct circuit *ct, size_t num_sys_qb)
 
 static void silk_circuit_destroy(const struct circuit *ct)
 {
-	(void)(ct);
+	(void)ct;
 }
 
 int silk_simulate(const struct silk_data *rd)
@@ -212,9 +196,7 @@ int silk_simulate(const struct silk_data *rd)
 	for (size_t i = 0; i < rd->num_steps; i++) {
 		if (circ_run(c) < 0)
 			goto error;
-
-		rd->trotter_steps[i] = 2.0 * cdat.prob0_re - 1.0 +
-				       (2.0 * cdat.prob0_im - 1.0) * _Complex_I;
+		rd->trotter_steps[i] = cdat.prod;
 	}
 
 	goto exit;

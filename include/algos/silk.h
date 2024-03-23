@@ -5,7 +5,7 @@
 #include "data2.h"
 
 #define SILK_NAME "silk"
-#define SILK_NUM_MEA_QB (1)
+#define SILK_NUM_MEA_QB (0)
 #define SILK_NUM_ANC_QB (0)
 
 struct silk_data_multidet {
