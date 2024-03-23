@@ -124,12 +124,17 @@ void qreg_setamp(struct qreg *reg, const u64 n, const fl z[2])
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
-void qreg_zerostate(struct qreg *reg)
+void qreg_blankstate(struct qreg *reg)
 {
 	for (u64 i = 0; i < reg->num_amps; i++) {
 		reg->amp[0][i] = 0.0;
 		reg->amp[1][i] = 0.0;
 	}
+}
+
+void qreg_zerostate(struct qreg *reg)
+{
+	qreg_blankstate(reg);
 	const fl one[2] = { 1.0, 0.0 };
 	qreg_setamp(reg, 0, one);
 }
@@ -178,8 +183,8 @@ static void kernel_rot(
 	// TODO: simplify this. We know that z is a 4th root of unity
 	fl  zj[2] = { 1, 0 };
 	fl  zi[2] = { 1, 0 };
-	u64 j	  = paulis_effect(code, i, &zi);
-	paulis_effect(code, j, &zj);
+	u64 j	  = paulis_effect(code, i, &zj);
+	paulis_effect(code, j, &zi);
 
 	const fl xi_re = amp[0][i];
 	const fl xi_im = amp[1][i];

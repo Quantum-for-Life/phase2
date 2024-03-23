@@ -12,7 +12,7 @@ double circ_ops_prob0(struct circ *c, qbid qb)
 
 void circ_ops_blankstate(struct circ *c)
 {
-	qreg_zerostate(&c->quest_qureg);
+	qreg_blankstate(&c->quest_qureg);
 }
 
 void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp)

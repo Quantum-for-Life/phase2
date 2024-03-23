@@ -27,6 +27,7 @@ void qreg_destroy(struct qreg *reg);
 void qreg_getamp(const struct qreg *reg, u64 n, fl (*z)[2]);
 void qreg_setamp(struct qreg *reg, u64 n, const fl z[2]);
 
+void qreg_blankstate(struct qreg *reg);
 void qreg_zerostate(struct qreg *reg);
 // void qreg_paulirot(struct qreg *reg, struct paulis code, f64 angle);
 void qreg_paulirot(struct qreg *reg, struct paulis code_hi,

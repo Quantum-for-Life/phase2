@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../circ/circ_private.h"
 #include "algos/silk.h"
 #include "circ.h"
 
@@ -125,6 +126,7 @@ static void trotter_step(struct circ *c, double omega)
 	int			*paulis = cdat->scratch;
 
 	for (size_t i = 0; i < hamil->num_terms; i++) {
+		printf(" pauli: %zu , state[0] = %f +i%f\n", i, c->quest_qureg.amp[0][0],c->quest_qureg.amp[1][0]);
 		circ_hamil_paulistr(hamil, i, paulis);
 		const double angle = omega * hamil->coeffs[i];
 		circ_ops_crotpauli(c, paulis, angle);
@@ -194,6 +196,8 @@ int silk_simulate(const struct silk_data *rd)
 	silk_prepst(c);
 
 	for (size_t i = 0; i < rd->num_steps; i++) {
+		printf("step: %zu\n", i);
+
 		if (circ_run(c) < 0)
 			goto error;
 		rd->trotter_steps[i] = cdat.prod;

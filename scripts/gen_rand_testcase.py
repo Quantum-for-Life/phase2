@@ -20,6 +20,8 @@ PAULI_TABLE = {
     3: [[1, 0], [0, -1]],
 }
 
+NUM_STEPS = 128
+
 
 def pauli_string_to_matrix(paulis: list):
     num_qubits = len(paulis)
@@ -142,8 +144,10 @@ class Case:
                                    self.num_qubits)
         print(state)
         state_work = state
-        for step in range(32):
+        for step in range(NUM_STEPS):
             for k, pauli_str in enumerate(self.pauli_hamil["paulis"]):
+                print(f'step: {step}, Pauli {k}: {pauli_str}, state_work[0]:'
+                      f' {state_work[0]}')
                 matrix = pauli_string_to_matrix(pauli_str)
                 coeff = self.pauli_hamil["coeffs"][k]
                 state_work = math.cos(coeff) * state_work + 1j * math.sin(
@@ -187,7 +191,7 @@ class Case:
         self.write_h5file(filename)
         with h5py.File(filename, 'a') as f:
             h5_ts = f["trotter_steps"]
-            h5_ts_values = h5_ts.create_dataset("values", shape=(32, 2),
+            h5_ts_values = h5_ts.create_dataset("values", shape=(NUM_STEPS, 2),
                                                 dtype="d")
             h5_ts_values[...] = [[z.real, z.imag] for z in
                                  self.trotter_steps["values_comp"]]
