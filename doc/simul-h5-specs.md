@@ -135,23 +135,8 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
     - *Comment*: Elements in the dataset denote single-qubit Pauli operators
       according to the convention:
       ```text
-      Id = 0, X = 1, Y = 2, Z = 3
+      I = 0, X = 1, Y = 2, Z = 3
       ```
-
-## Group: `/time_series`
-
-For a given integer `NUM_TERMS >= 1`:
-
-- Dataset: `times`
-    - *Type*: double, `H5T_IEEE_F64LE`
-    - *Shape*: `(NUM_TERMS,)`
-
-- Dataset: `values`
-    - *Type*: double, `H5T_IEEE_F64LE`
-    - *Shape*: `(NUM_TERMS, 2)`
-    - *Comment*: Columns specify the real (column 1) and imaginary (column 2)
-      part of a complex number. Uninitialized values (values to be computed)
-      are designated by `NaN`.
 
 ## Group: `/trotter_steps`
 

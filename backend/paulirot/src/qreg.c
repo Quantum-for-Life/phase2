@@ -27,7 +27,8 @@ int qreg_init(struct qreg *reg, const u32 num_qubits, const struct ev *ev)
 	int ret;
 
 	const u32 qb_hi = ulog2(ev->num_ranks);
-	if (qb_hi >= num_qubits) return -ESIZE;
+	if (qb_hi >= num_qubits)
+		return -ESIZE;
 	const u32 qb_lo	   = num_qubits - qb_hi;
 	const u64 num_amps = (u64)1 << qb_lo;
 
@@ -69,13 +70,15 @@ err_reqs_alloc:
 
 void qreg_destroy(struct qreg *reg)
 {
-	if (reg->amp[0]) free(reg->amp[0]);
+	if (reg->amp[0])
+		free(reg->amp[0]);
 	reg->amp[0] = NULL;
 	reg->amp[1] = NULL;
 	reg->buf[0] = NULL;
 	reg->buf[1] = NULL;
 
-	if (reg->reqs_snd) free(reg->reqs_snd);
+	if (reg->reqs_snd)
+		free(reg->reqs_snd);
 	reg->reqs_snd = NULL;
 	reg->reqs_rcv = NULL;
 }
@@ -170,19 +173,26 @@ static void kernel_sep(fl *amp, fl *buf, const u64 i)
 }
 
 static void kernel_rot(
-	fl *amp[2], const u64 i, const u64 j, const fl eip[2], const fl z[2])
+	fl *amp[2], struct paulis code, const u64 i, const fl eip[2])
 {
+	// TODO: simplify this. We know that z is a 4th root of unity
+	fl  zj[2] = { 1, 0 };
+	fl  zi[2] = { 1, 0 };
+	u64 j	  = paulis_effect(code, i, &zi);
+	paulis_effect(code, j, &zj);
+
 	const fl xi_re = amp[0][i];
 	const fl xi_im = amp[1][i];
 	const fl xj_re = amp[0][j];
 	const fl xj_im = amp[1][j];
 
-	const fl c1 = eip[1] * z[0];
-	const fl c2 = eip[1] * z[1];
-
+	fl c1	  = eip[1] * zi[0];
+	fl c2	  = eip[1] * zi[1];
 	amp[0][i] = eip[0] * xi_re - c1 * xj_im - c2 * xj_re;
 	amp[1][i] = eip[0] * xi_im + c1 * xj_re - c2 * xj_im;
 
+	c1	  = eip[1] * zj[0];
+	c2	  = eip[1] * zj[1];
 	amp[0][j] = eip[0] * xj_re - c1 * xi_im - c2 * xi_re;
 	amp[1][j] = eip[0] * xj_im + c1 * xi_re - c2 * xi_im;
 }
@@ -229,13 +239,11 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 		const fl eip_buf[2] = { eip_amp[0], -eip_amp[1] };
 
 		for (u64 i = 0; i < reg->num_amps; i++) {
-			if (paulis_effect(codes_lo[k], i, NULL) < i) continue;
+			if (paulis_effect(codes_lo[k], i, NULL) < i)
+				continue;
 
-			fl	  z[2] = { 1.0, 0.0 };
-			const u64 j    = paulis_effect(codes_lo[k], i, &z);
-
-			kernel_rot(reg->amp, i, j, eip_amp, z);
-			kernel_rot(reg->buf, i, j, eip_buf, z);
+			kernel_rot(reg->amp, codes_lo[k], i, eip_amp);
+			kernel_rot(reg->buf, codes_lo[k], i, eip_buf);
 		}
 	}
 	for (u64 i = 0; i < reg->num_amps; i++) {

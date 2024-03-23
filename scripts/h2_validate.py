@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 
-with h5py.File("../python/tmp/simul.h5", "r") as f:
+with h5py.File("simul.h5", "r") as f:
     times = np.array(f["time_series/times"])
     values = np.array([complex(z[0], z[1]) for z in f["time_series/values"]])
     ph = f["pauli_hamil"]

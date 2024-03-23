@@ -25,7 +25,7 @@ y_fft_abs = [abs(yf) for yf in y_fft]
 # plt.show()
 
 fft_freqs = np.fft.fftfreq(fft_size)
-peaks = scipy.signal.find_peaks(y_fft_abs, threshold=fft_size * 0.01)[0]
+peaks = scipy.signal.find_peaks(y_fft_abs)[0]
 peaks_freqs = [fft_freqs[p] / norm / time_factor * tau for p in peaks]
 peaks_freqs.sort()
 

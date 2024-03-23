@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import math
 import random
 import uuid
 from math import sqrt
@@ -62,14 +63,6 @@ def parse_arguments():
         "-n", "--num-qubits", required=True, type=int, help="Number of qubits"
     )
     parser.add_argument(
-        "-s", "--num-steps", required=True, type=int,
-        help="Time series (num_steps)"
-    )
-    parser.add_argument(
-        "--time-max", type=float,
-        help="Max time value (num_steps if not " "specified)"
-    )
-    parser.add_argument(
         "-d",
         "--num-dets",
         required=True,
@@ -96,7 +89,7 @@ class Case:
         self.num_qubits = num_qubits
         self.pauli_hamil = {}
         self.multidet = {}
-        self.time_series = {}
+        self.trotter_steps = {}
 
     def generate_pauli_hamil(self, num_terms: int):
         self.pauli_hamil["num_terms"] = num_terms
@@ -113,16 +106,13 @@ class Case:
         paulis = [list(x) for x in terms]
         self.pauli_hamil["paulis"][...] = paulis
         coeffs = np.array(
-            [(random.random() - 0.5) * 2.0 for _ in range(0, num_terms)],
+            [(random.random() - 0.5) * 2.0 * 0.1 for _ in
+             range(0, num_terms)],
             dtype="d"
         )
-        self.pauli_hamil["normalization"] = 1.0 / sum((abs(x) for x in coeffs))
+        self.pauli_hamil["normalization"] = 1.0
         self.pauli_hamil["coeffs"] = coeffs
-        self.pauli_hamil["offset"] = (random.random() - 0.5) * 21.0
-
-        # self.pauli_hamil["eivecs"] = [
-        #     [[v[i].real, v[i].imag] for i in range(0, len(v))] for v in eivecs
-        # ]
+        self.pauli_hamil["offset"] = 0.0
 
     def generate_multidet(self, num_dets: int):
         assert num_dets <= 2 ** self.num_qubits
@@ -145,39 +135,21 @@ class Case:
             for i in range(0, num_dets)
         ]
 
-    def generate_time_series(self, num_steps: int, time_max: float | None):
-        self.time_series["num_steps"] = num_steps
-        self.time_series["times"] = np.ndarray(shape=(num_steps,), dtype="d")
-        self.time_series["values"] = np.ndarray(shape=(num_steps, 2), dtype="d")
-        for i in range(0, num_steps):
-            tmax = num_steps
-            if time_max:
-                tmax = time_max
-            self.time_series["times"][i] = int(random.random() * tmax)
-            self.time_series["values"][i][0] = np.nan
-            self.time_series["values"][i][1] = np.nan
-
     def compute_values(self):
-        matrix = pauli_hamil_to_matrix(
-            self.pauli_hamil["coeffs"], self.pauli_hamil["paulis"]
-        )
-        self.pauli_hamil["matrix"] = matrix
-        eigs, eivecs = np.linalg.eig(matrix)
-        for e in eigs:
-            assert abs(e.imag) < 10e-10
-        eigs_real = [e.real for e in eigs]
-        eigs_real.sort()
-        self.pauli_hamil["eigs"] = eigs_real
-        multidet = multidet_to_vector(
-            self.multidet["coeffs"], self.multidet["indices"], self.num_qubits
-        )
-        hamil = self.pauli_hamil["matrix"] * self.pauli_hamil["normalization"]
-        values = []
-        for t in self.time_series["times"]:
-            unitary = sp.linalg.expm(1j * t * hamil)
-            tmp = np.dot(unitary, multidet)
-            values.append(np.dot(multidet.conj().T, tmp))
-        self.time_series["values_comp"] = values
+        trotter_steps = []
+        state = multidet_to_vector(self.multidet["coeffs"],
+                                   self.multidet["indices"],
+                                   self.num_qubits)
+        print(state)
+        state_work = state
+        for step in range(32):
+            for k, pauli_str in enumerate(self.pauli_hamil["paulis"]):
+                matrix = pauli_string_to_matrix(pauli_str)
+                coeff = self.pauli_hamil["coeffs"][k]
+                state_work = math.cos(coeff) * state_work + 1j * math.sin(
+                    coeff) * matrix.dot(state_work)
+            trotter_steps.append(np.vdot(state, state_work))
+        self.trotter_steps["values_comp"] = trotter_steps
 
     def write_h5file(self, filename=None):
 
@@ -207,58 +179,18 @@ class Case:
             h5_md.create_dataset(
                 "dets", shape=(md["num_dets"], self.num_qubits), dtype="u1"
             )[...] = md["dets"]
-
-            ts = self.time_series
-            h5_ts = f.create_group("time_series")
-            h5_ts.create_dataset("times", shape=(ts["num_steps"],), dtype="d")[
-                ...
-            ] = self.time_series["times"]
-            h5_ts.create_dataset("values", shape=(ts["num_steps"], 2),
-                                 dtype="d")[
-                ...
-            ] = self.time_series["values"]
+            grp = f.create_group("trotter_steps")
+            grp.attrs["time_factor"] = 1.0
 
     def write_h5file_solved(self):
         filename = self.filename_prefix + ".h5_solved"
         self.write_h5file(filename)
         with h5py.File(filename, 'a') as f:
-            h5_ts = f["time_series"]
-            h5_ts["values"][...] = [[z.real, z.imag] for z in
-                                    self.time_series["values_comp"]]
-
-    def write_info(self, compute=False):
-        case_info = {
-            "filename": self.filename_prefix + ".h5",
-            "num_qubits": self.num_qubits,
-            "uuid": self.id_str,
-            "pauli_hamil": {
-                "offset": self.pauli_hamil["offset"],
-                "normalization": self.pauli_hamil["normalization"],
-                "coeffs": list(self.pauli_hamil["coeffs"]),
-                "paulis": [
-                    [
-                        int(self.pauli_hamil["paulis"][i][j])
-                        for j in range(0, self.num_qubits)
-                    ]
-                    for i in range(0, self.pauli_hamil["num_terms"])
-                ],
-            },
-            "multidet": {
-                "coeffs": [[z.real, z.imag] for z in self.multidet["coeffs"]],
-                "indices": list(self.multidet["indices"]),
-            },
-            "time_series": {
-                "times": list(self.time_series["times"]),
-            },
-        }
-        if compute:
-            case_info["time_series"]["values"] = [
-                [z.real, z.imag] for z in self.time_series["values_comp"]
-            ]
-            case_info["pauli_hamil"]["eigs"] = list(self.pauli_hamil["eigs"])
-        with open(self.filename_prefix + ".json", "w") as f:
-            json_str = json.dumps(case_info, indent=4, allow_nan=True)
-            f.write(json_str)
+            h5_ts = f["trotter_steps"]
+            h5_ts_values = h5_ts.create_dataset("values", shape=(32, 2),
+                                                dtype="d")
+            h5_ts_values[...] = [[z.real, z.imag] for z in
+                                 self.trotter_steps["values_comp"]]
 
 
 if __name__ == "__main__":
@@ -267,10 +199,8 @@ if __name__ == "__main__":
     case = Case(FILENAME_STUB, args.num_qubits)
     case.generate_pauli_hamil(args.num_terms)
     case.generate_multidet(args.num_dets)
-    case.generate_time_series(args.num_steps, args.time_max)
     case.write_h5file()
     if args.compute:
-        print("compute times series values")
+        print("compute trotter steps")
         case.compute_values()
         case.write_h5file_solved()
-    case.write_info(compute=args.compute)
