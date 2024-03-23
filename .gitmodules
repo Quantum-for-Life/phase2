@@ -1,3 +1,0 @@
-[submodule "backend/QuEST"]
-	path = backend/QuEST
-	url = http://github.com/QuEST-Kit/QuEST.git
