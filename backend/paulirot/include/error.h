@@ -5,7 +5,7 @@ enum {
 	OK = 0,
 	EARGS,
 	EMPI,
-	ENOMEM,
+	EMEM,
 	ESIZE,
 };
 

@@ -37,12 +37,12 @@ int qreg_init(struct qreg *reg, const u32 num_qubits, const struct ev *ev)
 
 	MPI_Request *const reqs = malloc(sizeof(MPI_Request) * num_reqs * 4);
 	if (reqs == NULL) {
-		ret = -ENOMEM;
+		ret = -EMEM;
 		goto err_reqs_alloc;
 	}
 	fl *const amp = malloc(sizeof(fl) * num_amps * 4);
 	if (amp == NULL) {
-		ret = -ENOMEM;
+		ret = -EMEM;
 		goto err_amp_alloc;
 	}
 
