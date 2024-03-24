@@ -4,7 +4,8 @@
 #ifndef PHASE2_CIRC_H
 #define PHASE2_CIRC_H
 
-#include <stdlib.h>
+#include "paulis.h"
+#include "types.h"
 
 #include "data2.h"
 
@@ -148,7 +149,8 @@ void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp);
 
 void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp);
 
-void circ_ops_crotpauli(struct circ *c, int *paulis, double angle);
+void circ_ops_paulirot(struct circ *c, struct paulis code_hi,
+	const struct paulis *codes_lo, const fl *angles, size_t num_codes);
 
 typedef unsigned long pauli_pak_t;
 

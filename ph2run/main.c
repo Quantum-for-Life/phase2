@@ -19,36 +19,45 @@ int run_linen(void);
 int run_rayon(data2_id fid);
 int run_silk(data2_id fid, size_t num_steps);
 
+static int MAIN_RET = 0;
+
+#define ABORT_ON_ERROR(...)                                                    \
+	{                                                                      \
+		log_error(__VA_ARGS__);                                        \
+		MAIN_RET = EXIT_FAILURE;                                       \
+		goto error;                                                    \
+	}
+
 int main(int argc, char **argv)
 {
-	int rc = 0;
-
 	int initialized;
 	MPI_Initialized(&initialized);
 	if (!initialized && MPI_Init(&argc, &argv) != MPI_SUCCESS)
 		return -1;
 
-	/* Parse command line arguments. */
-	if (opt_parse(&opt, argc, argv) < 0)
-		exit(EXIT_FAILURE);
-
 	/* Initiallize logging */
 	if (log_init() < 0)
 		exit(EXIT_FAILURE);
 
-	circ_initialize();
-
-	log_info("*** Init ***");
-
 	int rank, num_ranks;
 	MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	if ((num_ranks & (num_ranks - 1)) != 0)
+		ABORT_ON_ERROR("number of MPI ranks must be a power of two");
+
+	log_info("*** Init ***");
 	log_info("MPI num_ranks: %d", num_ranks);
 	log_info("This is rank no. %d", rank);
 
+	/* Parse command line arguments. */
+	if (opt_parse(&opt, argc, argv) < 0)
+		exit(EXIT_FAILURE);
+
+	circ_initialize();
+
 	data2_id fid = data2_open(opt.dat_filename);
 	if (fid == DATA2_INVALID_FID)
-		goto error;
+		ABORT_ON_ERROR("cannot process input data");
 
 	log_info("*** Circuit ***");
 	switch (opt.cicuit) {
@@ -64,11 +73,11 @@ int main(int argc, char **argv)
 
 	data2_close(fid);
 
-	goto cleanup;
-error:
-	rc = -1;
-cleanup:
 	log_info("Shut down simulation environment");
+	return EXIT_SUCCESS;
 
-	return rc;
+error:
+	log_error("Shut down simulation environment");
+
+	return MAIN_RET;
 }
