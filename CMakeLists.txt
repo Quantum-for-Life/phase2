@@ -33,10 +33,6 @@ link_libraries(m)
 add_compile_options(-Wall -Wextra -march=native)
 set(CMAKE_C_FLAGS_RELEASE "-O2")
 
-set(PH2_INCLUDE_DIRS
-        ${PROJECT_SOURCE_DIR}/include
-)
-
 set(PH2_PUBLIC_HEADERS
         ${PH2_INCLUDE_DIRS}/circ.h
         ${PH2_INCLUDE_DIRS}/data.h
@@ -45,17 +41,16 @@ set(PH2_PUBLIC_HEADERS
         ${PH2_INCLUDE_DIRS}/algos/silk.h
 )
 
-
 link_libraries(
         ${HDF5_LIBRARIES}
 )
 include_directories(
-        ${PH2_INCLUDE_DIRS}
         ${HDF5_INCLUDE_DIRS}
 )
 
 
 set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
+include_directories(${SRC_DIR})
 
 set(CIRC_SRC_DIR ${SRC_DIR})
 set(CIRC_SOURCES
@@ -75,7 +70,7 @@ set(PH2_COMMON_SOURCES
 
 set(CLI_SRC_DIR ${SRC_DIR})
 set(CLI_SOURCES
-        ${CLI_SRC_DIR}/main.c
+        ${CLI_SRC_DIR}/ph2run.c
         ${CLI_SRC_DIR}/log.c
 )
 

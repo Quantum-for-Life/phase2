@@ -5,9 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../include/qreg.h"
-
-#include "../include/circ.h"
+#include "qreg.h"
+#include "circ.h"
 
 #include <math.h>
 

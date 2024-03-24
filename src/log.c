@@ -29,7 +29,7 @@
 
 #include "mpi.h"
 
-#include "ph2run.h"
+#include "log.h"
 
 #define MAX_CALLBACKS (32)
 
@@ -202,6 +202,8 @@ void log_callback(struct log_event *ev)
 	fprintf(fd, "\n");
 	fflush(fd);
 }
+
+#define PH2RUN_LOG_ENVVAR "PHASE2_LOG"
 
 int log_init(void)
 {
