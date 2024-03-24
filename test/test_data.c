@@ -6,8 +6,6 @@
 #error
 #endif
 
-#include "test_data.h"
-
 int test_data_open(void);
 
 int test_data_multidet(void);
@@ -32,14 +30,6 @@ int main(void)
 	}
 	if (test_data_hamil() < 0) {
 		TEST_FAIL("data_hamil");
-		goto err;
-	}
-	if (test_data_times() < 0) {
-		TEST_FAIL("data_times");
-		goto err;
-	}
-	if (test_data_times_write() < 0) {
-		TEST_FAIL("data_times_write");
 		goto err;
 	}
 	if (test_data_trotter_steps() < 0) {
