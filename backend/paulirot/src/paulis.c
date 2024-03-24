@@ -90,30 +90,25 @@ void paulis_shr(struct paulis *code, const u32 n)
 	code->pak[1] >>= n;
 }
 
-u64 paulis_effect(const struct paulis code, const u64 i, fl (*z)[2])
+u64 paulis_effect(struct paulis code, u64 i, root4 *z)
 {
 	const u64 *p = code.pak;
 	const u64  j = i ^ p[0];
 
-	if (!z) return j;
+	if (z == NULL)
+		return j;
 
 	int root4 = 0;
 	for (u64 yp = ~i & p[0] & p[1]; yp > 0; yp >>= 1)
-		if (yp & 1) root4 += 1;
+		if (yp & 1)
+			root4 += 1;
 	for (u64 zm = i & ~p[0] & p[1]; zm > 0; zm >>= 1)
-		if (zm & 1) root4 += 2;
+		if (zm & 1)
+			root4 += 2;
 	for (u64 ym = i & p[0] & p[1]; ym > 0; ym >>= 1)
-		if (ym & 1) root4 += 3;
-
-	if (root4 & 1) {
-		const fl a = (*z)[0];
-		(*z)[0]	   = -(*z)[1];
-		(*z)[1]	   = a;
-	}
-	if (root4 & 2) {
-		(*z)[0] *= -1;
-		(*z)[1] *= -1;
-	}
+		if (ym & 1)
+			root4 += 3;
+	*z = root4 & 3;
 
 	return j;
 }
