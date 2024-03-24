@@ -4,7 +4,7 @@
 #ifndef PHASE2_CIRC_H
 #define PHASE2_CIRC_H
 
-#include "paulis.h"
+#include "qreg.h"
 #include "types.h"
 
 #include "data2.h"

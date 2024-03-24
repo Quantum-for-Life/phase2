@@ -35,7 +35,6 @@ set(CMAKE_C_FLAGS_RELEASE "-O2")
 
 set(PH2_INCLUDE_DIRS
         ${PROJECT_SOURCE_DIR}/include
-        ${PROJECT_SOURCE_DIR}/backend/paulirot/include/
 )
 
 set(PH2_PUBLIC_HEADERS
@@ -55,10 +54,8 @@ include_directories(
         ${HDF5_INCLUDE_DIRS}
 )
 
-set(PAULIROT_SRC_DIR ${PROJECT_SOURCE_DIR}/backend/paulirot/src)
+set(PAULIROT_SRC_DIR ${PROJECT_SOURCE_DIR}/ph2run)
 set(PAULIROT_SOURCES
-        ${PAULIROT_SRC_DIR}/ev.c
-        ${PAULIROT_SRC_DIR}/paulis.c
         ${PAULIROT_SRC_DIR}/qreg.c
 )
 

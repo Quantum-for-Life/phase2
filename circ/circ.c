@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "ev.h"
+#include "qreg.h"
 
 #include "circ.h"
 #include "circ_private.h"
