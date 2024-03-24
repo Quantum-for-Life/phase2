@@ -54,37 +54,24 @@ include_directories(
         ${HDF5_INCLUDE_DIRS}
 )
 
-set(PAULIROT_SRC_DIR ${PROJECT_SOURCE_DIR}/src)
-set(PAULIROT_SOURCES
-        ${PAULIROT_SRC_DIR}/qreg.c
-)
-
-
 set(DATA2_SRC_DIR ${PROJECT_SOURCE_DIR}/data2)
 set(DATA2_SOURCES
         ${DATA2_SRC_DIR}/data2.c
 )
 
-set(CIRC_SRC_DIR ${PROJECT_SOURCE_DIR}/circ)
+set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
+set(CIRC_SRC_DIR ${SRC_DIR})
 set(CIRC_SOURCES
         ${CIRC_SRC_DIR}/circ.c
-        ${CIRC_SRC_DIR}/ops.c
-        ${CIRC_SRC_DIR}/hamil.c
-        ${PAULIROT_SOURCES}
-)
-
-set(ALGOS_SRC_DIR ${PROJECT_SOURCE_DIR}/algos)
-set(ALGOS_SOURCES
-        ${ALGOS_SRC_DIR}/silk.c
+        ${CIRC_SRC_DIR}/qreg.c
 )
 
 set(PH2_COMMON_SOURCES
         ${DATA2_SOURCES}
         ${CIRC_SOURCES}
-        ${ALGOS_SOURCES}
 )
 
-set(CLI_SRC_DIR ${PROJECT_SOURCE_DIR}/src)
+set(CLI_SRC_DIR ${SRC_DIR})
 set(CLI_SOURCES
         ${CLI_SRC_DIR}/main.c
         ${CLI_SRC_DIR}/log.c
