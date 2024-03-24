@@ -135,8 +135,7 @@ void qreg_blankstate(struct qreg *reg)
 void qreg_zerostate(struct qreg *reg)
 {
 	qreg_blankstate(reg);
-	const fl one[2] = { 1.0, 0.0 };
-	qreg_setamp(reg, 0, one);
+	qreg_setamp(reg, 0, (fl[]){ 1.0, 0.0 });
 }
 
 static void qreg_exchbuf_init(struct qreg *reg, const int rnk_rem)
@@ -177,61 +176,53 @@ static void kernel_sep(fl *amp, fl *buf, const u64 i)
 	buf[i] = (a - b) / 2.0;
 }
 
-static void kernel_rot(
-	fl *amp[2], struct paulis code, const u64 i, const fl eip[2])
+static void kernel_rot(fl *amp[2], const struct paulis code, const u64 i,
+	const u64 j, const fl eip[2])
 {
-	// TODO: simplify this. We know that z is a 4th root of unity
-	root4	  zi, zj;
-	const u64 j = paulis_effect(code, i, &zj);
+	root4 zi, zj;
+	paulis_effect(code, i, &zj);
 	paulis_effect(code, j, &zi);
 
-	const fl xi_re = amp[0][i];
-	const fl xi_im = amp[1][i];
-	const fl xj_re = amp[0][j];
-	const fl xj_im = amp[1][j];
+	const fl xi_re = amp[0][i], xi_im = amp[1][i];
+	const fl xj_re = amp[0][j], xj_im = amp[1][j];
 
-	fl c1, c2;
 	switch (zi) {
 	case R0:
-		c1 = eip[1];
-		c2 = 0;
+		amp[0][i] = eip[0] * xi_re - eip[1] * xj_im;
+		amp[1][i] = eip[0] * xi_im + eip[1] * xj_re;
 		break;
 	case R1:
-		c1 = 0;
-		c2 = eip[1];
+		amp[0][i] = eip[0] * xi_re - eip[1] * xj_re;
+		amp[1][i] = eip[0] * xi_im - eip[1] * xj_im;
 		break;
 	case R2:
-		c1 = -eip[1];
-		c2 = 0;
+		amp[0][i] = eip[0] * xi_re + eip[1] * xj_im;
+		amp[1][i] = eip[0] * xi_im - eip[1] * xj_re;
 		break;
 	case R3:
-		c1 = 0;
-		c2 = -eip[1];
+		amp[0][i] = eip[0] * xi_re + eip[1] * xj_re;
+		amp[1][i] = eip[0] * xi_im + eip[1] * xj_im;
 		break;
 	}
-	amp[0][i] = eip[0] * xi_re - c1 * xj_im - c2 * xj_re;
-	amp[1][i] = eip[0] * xi_im + c1 * xj_re - c2 * xj_im;
 
 	switch (zj) {
 	case R0:
-		c1 = eip[1];
-		c2 = 0;
+		amp[0][j] = eip[0] * xj_re - eip[1] * xi_im;
+		amp[1][j] = eip[0] * xj_im + eip[1] * xi_re;
 		break;
 	case R1:
-		c1 = 0;
-		c2 = eip[1];
+		amp[0][j] = eip[0] * xj_re - eip[1] * xi_re;
+		amp[1][j] = eip[0] * xj_im - eip[1] * xi_im;
 		break;
 	case R2:
-		c1 = -eip[1];
-		c2 = 0;
+		amp[0][j] = eip[0] * xj_re + eip[1] * xi_im;
+		amp[1][j] = eip[0] * xj_im - eip[1] * xi_re;
 		break;
 	case R3:
-		c1 = 0;
-		c2 = -eip[1];
+		amp[0][j] = eip[0] * xj_re + eip[1] * xi_re;
+		amp[1][j] = eip[0] * xj_im + eip[1] * xi_im;
 		break;
 	}
-	amp[0][j] = eip[0] * xj_re - c1 * xi_im - c2 * xi_re;
-	amp[1][j] = eip[0] * xj_im + c1 * xi_re - c2 * xi_im;
 }
 
 static void kernel_add(fl *amp, const fl *buf, const u64 i)
@@ -239,7 +230,7 @@ static void kernel_add(fl *amp, const fl *buf, const u64 i)
 	amp[i] += buf[i];
 }
 
-static void kernel_mul_cpx_scalar(fl *amp[2], const u64 i, root4 z)
+static void kernel_mul_cpx_scalar(fl *amp[2], const u64 i, const root4 z)
 {
 	const fl x = amp[0][i];
 	const fl y = amp[1][i];
@@ -290,11 +281,12 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 		const fl eip_buf[2] = { eip_amp[0], -eip_amp[1] };
 
 		for (u64 i = 0; i < reg->num_amps; i++) {
-			if (paulis_effect(codes_lo[k], i, NULL) < i)
+			const u64 j = paulis_effect(codes_lo[k], i, NULL);
+			if (j < i)
 				continue;
 
-			kernel_rot(reg->amp, codes_lo[k], i, eip_amp);
-			kernel_rot(reg->buf, codes_lo[k], i, eip_buf);
+			kernel_rot(reg->amp, codes_lo[k], i, j, eip_amp);
+			kernel_rot(reg->buf, codes_lo[k], i, j, eip_buf);
 		}
 	}
 	for (u64 i = 0; i < reg->num_amps; i++) {
