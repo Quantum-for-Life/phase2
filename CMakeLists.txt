@@ -54,7 +54,7 @@ include_directories(
         ${HDF5_INCLUDE_DIRS}
 )
 
-set(PAULIROT_SRC_DIR ${PROJECT_SOURCE_DIR}/ph2run)
+set(PAULIROT_SRC_DIR ${PROJECT_SOURCE_DIR}/src)
 set(PAULIROT_SOURCES
         ${PAULIROT_SRC_DIR}/qreg.c
 )
@@ -84,7 +84,7 @@ set(PH2_COMMON_SOURCES
         ${ALGOS_SOURCES}
 )
 
-set(CLI_SRC_DIR ${PROJECT_SOURCE_DIR}/ph2run)
+set(CLI_SRC_DIR ${PROJECT_SOURCE_DIR}/src)
 set(CLI_SOURCES
         ${CLI_SRC_DIR}/main.c
         ${CLI_SRC_DIR}/log.c
