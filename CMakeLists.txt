@@ -54,16 +54,18 @@ include_directories(
         ${HDF5_INCLUDE_DIRS}
 )
 
-set(DATA2_SRC_DIR ${PROJECT_SOURCE_DIR}/data2)
-set(DATA2_SOURCES
-        ${DATA2_SRC_DIR}/data2.c
-)
 
 set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
+
 set(CIRC_SRC_DIR ${SRC_DIR})
 set(CIRC_SOURCES
         ${CIRC_SRC_DIR}/circ.c
         ${CIRC_SRC_DIR}/qreg.c
+)
+
+set(DATA2_SRC_DIR ${SRC_DIR})
+set(DATA2_SOURCES
+        ${DATA2_SRC_DIR}/data2.c
 )
 
 set(PH2_COMMON_SOURCES
