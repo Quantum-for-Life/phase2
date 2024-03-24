@@ -12,13 +12,23 @@
 #include "../circ/circ_private.h"
 #include "algos/silk.h"
 #include "circ.h"
+#include <ev.h>
 
 #define MAX_CODES (128)
+
+struct code_cache {
+	struct paulis code_hi;
+	struct paulis codes_lo[MAX_CODES];
+	fl	      angles[MAX_CODES];
+	size_t	      num_codes;
+};
 
 struct circ_data {
 	const struct silk_data *rd;
 	_Complex double		prod;
 	int			scratch[64];
+
+	struct code_cache cache;
 };
 
 void silk_multidet_init(struct silk_data_multidet *md)
@@ -127,14 +137,49 @@ static void trotter_step(struct circ *c, double omega)
 	const struct circ_hamil *hamil	= &cdat->rd->hamil;
 	int			*paulis = cdat->scratch;
 
+	struct code_cache cache = cdat->cache;
+	cache.num_codes		= 0;
+
 	for (size_t i = 0; i < hamil->num_terms; i++) {
 		circ_hamil_paulistr(hamil, i, paulis);
 		const double  angle = omega * hamil->coeffs[i];
 		struct paulis code  = paulis_new();
 		for (u32 k = 0; k < circ_num_sysqb(c); k++)
 			paulis_set(&code, paulis[k], k);
-		circ_ops_rotpauli(c, code, angle);
+
+		struct paulis code_hi, code_lo;
+		paulis_split(code, c->quest_qureg.qb_lo, c->quest_qureg.qb_hi,
+			&code_lo, &code_hi);
+		paulis_shr(&code_hi, c->quest_qureg.qb_lo);
+
+		if (cache.num_codes == 0) {
+			cache.code_hi	  = code_hi;
+			cache.codes_lo[0] = code_lo;
+			cache.angles[0]	  = angle;
+			cache.num_codes++;
+			continue;
+		}
+
+		if (paulis_eq(cache.code_hi, code_hi) &&
+			cache.num_codes < MAX_CODES) {
+			const size_t k	  = cache.num_codes++;
+			cache.codes_lo[k] = code_lo;
+			cache.angles[k]	  = angle;
+			continue;
+		}
+
+		circ_ops_multirotpauli(c, cache.code_hi, cache.codes_lo,
+			cache.angles, cache.num_codes);
+
+		cache.num_codes	  = 1;
+		cache.code_hi	  = code_hi;
+		cache.codes_lo[0] = code_lo;
+		cache.angles[0]	  = angle;
 	}
+
+	if (cache.num_codes > 0)
+		circ_ops_multirotpauli(c, cache.code_hi, cache.codes_lo,
+			cache.angles, cache.num_codes);
 }
 
 int silk_effect(struct circ *c)

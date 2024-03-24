@@ -38,13 +38,3 @@ void circ_ops_multirotpauli(struct circ *c, struct paulis code_hi,
 {
 	qreg_paulirot(&c->quest_qureg, code_hi, codes_lo, angles, num_codes);
 }
-
-void circ_ops_rotpauli(struct circ *c, struct paulis code, fl angle)
-{
-	struct paulis code_hi, code_lo;
-	paulis_split(code, c->quest_qureg.qb_lo, c->quest_qureg.qb_hi, &code_lo,
-		&code_hi);
-	paulis_shr(&code_hi, c->quest_qureg.qb_lo);
-
-	circ_ops_multirotpauli(c, code_hi, &code_lo, &angle, 1);
-}
