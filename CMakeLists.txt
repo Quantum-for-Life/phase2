@@ -3,14 +3,7 @@ project(phase2 VERSION 0.1.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 17)
 
-#set(CMAKE_VERBOSE_MAKEFILE ON)
-
-option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
-
-#set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
-#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-
-message(STATUS "MPI is required")
+message(STATUS "Parallel MPI is required")
 find_package(MPI REQUIRED)
 link_libraries(${MPI_C_LIBRARIES})
 include_directories(${MPI_C_INCLUDE_DIRS})
@@ -22,13 +15,12 @@ find_package(HDF5 REQUIRED)
 if (HDF5_IS_PARALLEL)
     message(STATUS "Parallel HDF5 found")
 else ()
-    message(STATUS "Serial HDF5 found")
+    message(STATUS "Parallel HDF5 not found")
+    return()
 endif ()
 
 
 link_libraries(m)
-
-#add_subdirectory(backend/QuEST)
 
 add_compile_options(-Wall -Wextra -march=native)
 set(CMAKE_C_FLAGS_RELEASE "-O2")
@@ -47,7 +39,6 @@ link_libraries(
 include_directories(
         ${HDF5_INCLUDE_DIRS}
 )
-
 
 set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
 include_directories(${SRC_DIR})
