@@ -135,8 +135,7 @@ void qreg_blankstate(struct qreg *reg)
 void qreg_zerostate(struct qreg *reg)
 {
 	qreg_blankstate(reg);
-	const fl one[2] = { 1.0, 0.0 };
-	qreg_setamp(reg, 0, one);
+	qreg_setamp(reg, 0, (fl[]){ 1.0, 0.0 });
 }
 
 static void qreg_exchbuf_init(struct qreg *reg, const int rnk_rem)
@@ -177,29 +176,53 @@ static void kernel_sep(fl *amp, fl *buf, const u64 i)
 	buf[i] = (a - b) / 2.0;
 }
 
-static void kernel_rot(
-	fl *amp[2], struct paulis code, const u64 i, const fl eip[2])
+static void kernel_rot(fl *amp[2], const struct paulis code, const u64 i,
+	const u64 j, const fl eip[2])
 {
-	// TODO: simplify this. We know that z is a 4th root of unity
-	fl  zj[2] = { 1, 0 };
-	fl  zi[2] = { 1, 0 };
-	u64 j	  = paulis_effect(code, i, &zj);
+	root4 zi, zj;
+	paulis_effect(code, i, &zj);
 	paulis_effect(code, j, &zi);
 
-	const fl xi_re = amp[0][i];
-	const fl xi_im = amp[1][i];
-	const fl xj_re = amp[0][j];
-	const fl xj_im = amp[1][j];
+	const fl xi_re = amp[0][i], xi_im = amp[1][i];
+	const fl xj_re = amp[0][j], xj_im = amp[1][j];
 
-	fl c1	  = eip[1] * zi[0];
-	fl c2	  = eip[1] * zi[1];
-	amp[0][i] = eip[0] * xi_re - c1 * xj_im - c2 * xj_re;
-	amp[1][i] = eip[0] * xi_im + c1 * xj_re - c2 * xj_im;
+	switch (zi) {
+	case R0:
+		amp[0][i] = eip[0] * xi_re - eip[1] * xj_im;
+		amp[1][i] = eip[0] * xi_im + eip[1] * xj_re;
+		break;
+	case R1:
+		amp[0][i] = eip[0] * xi_re - eip[1] * xj_re;
+		amp[1][i] = eip[0] * xi_im - eip[1] * xj_im;
+		break;
+	case R2:
+		amp[0][i] = eip[0] * xi_re + eip[1] * xj_im;
+		amp[1][i] = eip[0] * xi_im - eip[1] * xj_re;
+		break;
+	case R3:
+		amp[0][i] = eip[0] * xi_re + eip[1] * xj_re;
+		amp[1][i] = eip[0] * xi_im + eip[1] * xj_im;
+		break;
+	}
 
-	c1	  = eip[1] * zj[0];
-	c2	  = eip[1] * zj[1];
-	amp[0][j] = eip[0] * xj_re - c1 * xi_im - c2 * xi_re;
-	amp[1][j] = eip[0] * xj_im + c1 * xi_re - c2 * xi_im;
+	switch (zj) {
+	case R0:
+		amp[0][j] = eip[0] * xj_re - eip[1] * xi_im;
+		amp[1][j] = eip[0] * xj_im + eip[1] * xi_re;
+		break;
+	case R1:
+		amp[0][j] = eip[0] * xj_re - eip[1] * xi_re;
+		amp[1][j] = eip[0] * xj_im - eip[1] * xi_im;
+		break;
+	case R2:
+		amp[0][j] = eip[0] * xj_re + eip[1] * xi_im;
+		amp[1][j] = eip[0] * xj_im - eip[1] * xi_re;
+		break;
+	case R3:
+		amp[0][j] = eip[0] * xj_re + eip[1] * xi_re;
+		amp[1][j] = eip[0] * xj_im + eip[1] * xi_im;
+		break;
+	}
 }
 
 static void kernel_add(fl *amp, const fl *buf, const u64 i)
@@ -207,13 +230,27 @@ static void kernel_add(fl *amp, const fl *buf, const u64 i)
 	amp[i] += buf[i];
 }
 
-static void kernel_mul_cpx_scalar(fl *amp[2], const u64 i, fl z[2])
+static void kernel_mul_cpx_scalar(fl *amp[2], const u64 i, const root4 z)
 {
 	const fl x = amp[0][i];
 	const fl y = amp[1][i];
 
-	amp[0][i] = x * z[0] - y * z[1];
-	amp[1][i] = x * z[1] + y * z[0];
+	switch (z) {
+	case R0:
+		break;
+	case R1:
+		amp[0][i] = -y;
+		amp[1][i] = x;
+		break;
+	case R2:
+		amp[0][i] = -x;
+		amp[1][i] = -y;
+		break;
+	case R3:
+		amp[0][i] = y;
+		amp[1][i] = -x;
+		break;
+	}
 }
 
 /* All codes are assumed to share the same hi code */
@@ -228,7 +265,7 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	/* Compute multiplication factor for the buffer
 	   code_hi acts on the value of rank_remote now
 	   (as if from receiving end). We discard the result. */
-	fl buf_mul[2] = { 1.0, 0.0 };
+	root4 buf_mul;
 	paulis_effect(code_hi, rnk_rem, &buf_mul);
 
 	qreg_exchbuf_waitall(reg);
@@ -244,11 +281,12 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 		const fl eip_buf[2] = { eip_amp[0], -eip_amp[1] };
 
 		for (u64 i = 0; i < reg->num_amps; i++) {
-			if (paulis_effect(codes_lo[k], i, NULL) < i)
+			const u64 j = paulis_effect(codes_lo[k], i, NULL);
+			if (j < i)
 				continue;
 
-			kernel_rot(reg->amp, codes_lo[k], i, eip_amp);
-			kernel_rot(reg->buf, codes_lo[k], i, eip_buf);
+			kernel_rot(reg->amp, codes_lo[k], i, j, eip_amp);
+			kernel_rot(reg->buf, codes_lo[k], i, j, eip_buf);
 		}
 	}
 	for (u64 i = 0; i < reg->num_amps; i++) {

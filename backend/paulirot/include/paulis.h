@@ -5,6 +5,13 @@
 
 #define PAULI_MAX_WIDTH (64)
 
+typedef enum root4 {
+	R0, // +1
+	R1, // +i
+	R2, // -1
+	R3, // -i:
+} root4;
+
 enum pauli_op {
 	PAULI_I = 0,
 	PAULI_X = 1,
@@ -30,7 +37,7 @@ int paulis_eq(struct paulis code1, struct paulis code2);
 
 void paulis_mask(struct paulis *code, u64 mask);
 void paulis_shr(struct paulis *code, u32 n);
-u64  paulis_effect(struct paulis code, u64 i, fl (*z)[2]);
+u64  paulis_effect(struct paulis code, u64 i, root4 *z);
 void paulis_split(struct paulis code, u32 qb_lo, u32 qb_hi, struct paulis *lo,
 	struct paulis *hi);
 
