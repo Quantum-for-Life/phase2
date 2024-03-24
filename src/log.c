@@ -29,8 +29,7 @@
 
 #include "mpi.h"
 
-#include "log.h"
-#include "opt.h"
+#include "ph2run.h"
 
 #define MAX_CALLBACKS (32)
 

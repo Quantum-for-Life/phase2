@@ -77,8 +77,6 @@ set(CLI_SRC_DIR ${SRC_DIR})
 set(CLI_SOURCES
         ${CLI_SRC_DIR}/main.c
         ${CLI_SRC_DIR}/log.c
-        ${CLI_SRC_DIR}/opt.c
-        ${CLI_SRC_DIR}/run.c
 )
 
 add_executable(ph2run

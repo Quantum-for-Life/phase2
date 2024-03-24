@@ -1,5 +1,10 @@
-#ifndef PH2RUN_LOG_H
-#define PH2RUN_LOG_H
+#ifndef PH2RUN_H
+#define PH2RUN_H
+
+#define PH2RUN_DEFAULT_H5FILE "simul.h5"
+#define PH2RUN_LOG_ENVVAR "PHASE2_LOG"
+
+#define PH2RUN_SILK_DEFAULT_NUM_STEPS (8)
 
 enum log_level {
 	LOG_TRACE,
@@ -21,4 +26,5 @@ void log_log(int level, const char *fmt, ...);
 
 int log_init(void);
 
-#endif // PH2RUN_LOG_H
+
+#endif // PH2RUN_H

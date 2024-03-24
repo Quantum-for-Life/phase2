@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -6,8 +7,23 @@
 #include "circ.h"
 #include "data2.h"
 
-#include "log.h"
-#include "opt.h"
+#include "ph2run.h"
+
+enum opt_cicuit {
+	OPT_CICUIT_SILK,
+};
+
+struct args_silk {
+	size_t num_steps;
+};
+
+struct opt {
+	enum opt_cicuit cicuit;
+	const char     *dat_filename;
+	union {
+		struct args_silk silk;
+	} circuit_args;
+};
 
 static struct opt opt;
 
@@ -15,8 +31,6 @@ void opt_help_page(int argc, char **argv);
 int  opt_parse(struct opt *o, int argc, char **argv);
 
 /* Runners */
-int run_linen(void);
-int run_rayon(data2_id fid);
 int run_silk(data2_id fid, size_t num_steps);
 
 static int MAIN_RET = 0;
@@ -80,4 +94,83 @@ error:
 	log_error("Shut down simulation environment");
 
 	return MAIN_RET;
+}
+
+void opt_help_page(int argc, char **argv)
+{
+	(void)argc;
+	fprintf(stderr, "usage: %s CIRCUIT [SIMUL_FILE_H5] [SIMUL_ARGS]\n\n",
+		argv[0]);
+	fprintf(stderr, "where CIRCUIT is must be one of:\n"
+			"\n"
+			"    linen\n"
+			"    rayon\n"
+			"    silk\n"
+			"\n"
+			"If no simulation input file (HDF5) is specified,\n"
+			"the default is " PH2RUN_DEFAULT_H5FILE " in the "
+			"current directory.\n");
+	fprintf(stderr, "\n"
+			"To set logging level, set environment variable:\n"
+			"\n    " PH2RUN_LOG_ENVVAR "={trace, debug, info, "
+			"warn, error, fatal}"
+			"\n\n");
+}
+
+int opt_parse(struct opt *o, int argc, char **argv)
+{
+	/* Parse command line arguments. */
+	if (argc < 2) {
+		opt_help_page(argc, argv);
+		return -1;
+	}
+
+	if (strncmp(argv[1], "silk", 4) == 0) {
+		o->cicuit = OPT_CICUIT_SILK;
+	} else {
+		fprintf(stderr, "No circ named %s\n", argv[1]);
+		return -1;
+	}
+
+	o->dat_filename = PH2RUN_DEFAULT_H5FILE;
+	if (argc >= 3)
+		o->dat_filename = argv[2];
+
+	if (o->cicuit == OPT_CICUIT_SILK) {
+		if (argc < 4)
+			o->circuit_args.silk.num_steps =
+				PH2RUN_SILK_DEFAULT_NUM_STEPS;
+		else {
+			unsigned long long num_steps =
+				strtoull(argv[3], NULL, 10);
+			if (num_steps == 0) {
+				fprintf(stderr,
+					"Wrong number of Trotter steps\n");
+				return -1;
+			}
+			o->circuit_args.silk.num_steps = num_steps;
+		}
+	}
+
+	return 0;
+}
+
+int run_silk(data2_id fid, size_t num_steps)
+{
+	int rc = 0;
+
+	struct silk_data rd;
+	silk_data_init(&rd, num_steps);
+	if (silk_data_from_data(&rd, fid) < 0)
+		goto error;
+	if (silk_simulate(&rd) < 0)
+		goto error;
+	data2_trotter_write_values(fid, rd.trotter_steps, num_steps);
+	goto cleanup;
+error:
+	rc = -1;
+cleanup:
+	silk_data_destroy(&rd);
+
+	return rc;
 }
