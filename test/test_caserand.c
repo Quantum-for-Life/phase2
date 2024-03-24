@@ -2,10 +2,20 @@
 #include <math.h>
 #include <stdio.h>
 
+#include "mpi.h"
+
 #include "algos/silk.h"
 #include "data2.h"
 
 #include "test.h"
+
+static int MAIN_RET = 0;
+#define ABORT_ON_ERROR(...)                                                    \
+	{                                                                      \
+		fprintf(stderr, __VA_ARGS__);                                  \
+		MAIN_RET = EXIT_FAILURE;                                       \
+		goto error;                                                    \
+	}
 
 #define NUM_STEPS (128)
 
@@ -24,6 +34,7 @@ static const char *CASE_DIR = PH2_SIMUL_DATA "/case-rand";
 static int caserand(const char *prefix)
 {
 	char filename[1024] = { 0 };
+
 
 	snprintf(filename, 1024, "%s/%s.h5", CASE_DIR, prefix);
 	data2_id fid = data2_open(filename);
@@ -92,8 +103,19 @@ err_data_open:
 	return -1;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+	int initialized;
+	MPI_Initialized(&initialized);
+	if (!initialized && MPI_Init(&argc, &argv) != MPI_SUCCESS)
+		return -1;
+
+	int rank, num_ranks;
+	MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	if ((num_ranks & (num_ranks - 1)) != 0)
+		ABORT_ON_ERROR("number of MPI ranks must be a power of two");
+
 	for (size_t i = 0; i < NUM_CASES; i++) {
 		char buf[64];
 		snprintf(buf, 64, "case-%s", CASEIDS[i]);
@@ -103,7 +125,7 @@ int main(void)
 		}
 	}
 
-	return 0;
+	return MAIN_RET;
 error:
-	return -1;
+	return MAIN_RET;
 }

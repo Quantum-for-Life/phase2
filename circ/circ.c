@@ -124,12 +124,12 @@ struct circ *circ_create(struct circuit *ct, void *data)
 	int *qb = malloc(sizeof(*qb) * num_qb_tot);
 	if (!qb)
 		goto qb_fail;
-	struct ev *quest_env = env_get_questenv();
-	if (!quest_env)
-		goto quest_env_fail;
+	struct ev *ev = env_get_questenv();
+	if (!ev)
+		goto ev_fail;
 
 	struct qreg reg;
-	qreg_init(&reg, num_qb_tot,quest_env);
+	qreg_init(&reg, num_qb_tot,ev);
 
 
 
@@ -141,7 +141,7 @@ struct circ *circ_create(struct circuit *ct, void *data)
 
 	return c;
 
-quest_env_fail:
+ev_fail:
 	free(qb);
 qb_fail:
 	free(cl);
