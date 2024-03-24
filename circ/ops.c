@@ -1,5 +1,7 @@
 #include <complex.h>
 
+#include "types.h"
+
 #include "qreg.h"
 
 #include "circ.h"
@@ -31,14 +33,12 @@ void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp)
 	*amp = amps[0] + _Complex_I * amps[1];
 }
 
-void circ_ops_crotpauli(struct circ *c, int *paulis, double angle)
+void circ_ops_rotpauli(struct circ *c, struct paulis code, fl angle)
 {
-	struct paulis code_lo = paulis_new();
-	for (u32 i = 0; i < c->quest_qureg.qb_lo; i++)
-		paulis_set(&code_lo, paulis[i], i);
-	struct paulis code_hi = paulis_new();
-	for (u32 i = 0; i < c->quest_qureg.qb_hi; i++)
-		paulis_set(&code_hi, paulis[i + c->quest_qureg.qb_lo], i);
+	struct paulis code_hi, code_lo;
+	paulis_split(code, c->quest_qureg.qb_lo, c->quest_qureg.qb_hi, &code_lo,
+		&code_hi);
+	paulis_shr(&code_hi, c->quest_qureg.qb_lo);
 
 	qreg_paulirot(&c->quest_qureg, code_hi, &code_lo, &angle, 1);
 }

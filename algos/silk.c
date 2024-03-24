@@ -13,6 +13,8 @@
 #include "algos/silk.h"
 #include "circ.h"
 
+#define MAX_CODES (128)
+
 struct circ_data {
 	const struct silk_data *rd;
 	_Complex double		prod;
@@ -127,8 +129,11 @@ static void trotter_step(struct circ *c, double omega)
 
 	for (size_t i = 0; i < hamil->num_terms; i++) {
 		circ_hamil_paulistr(hamil, i, paulis);
-		const double angle = omega * hamil->coeffs[i];
-		circ_ops_crotpauli(c, paulis, angle);
+		const double  angle = omega * hamil->coeffs[i];
+		struct paulis code  = paulis_new();
+		for (u32 k = 0; k < circ_num_sysqb(c); k++)
+			paulis_set(&code, paulis[k], k);
+		circ_ops_rotpauli(c, code, angle);
 	}
 }
 
