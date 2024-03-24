@@ -33,8 +33,8 @@ void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp)
 	*amp = amps[0] + _Complex_I * amps[1];
 }
 
-void circ_ops_multirotpauli(struct circ *c, struct paulis code_hi,
-	const struct paulis *codes_lo, const fl *angles, size_t num_codes)
+void circ_ops_paulirot(struct circ *c, const struct paulis code_hi,
+	const struct paulis *codes_lo, const fl *angles, const size_t num_codes)
 {
 	qreg_paulirot(&c->quest_qureg, code_hi, codes_lo, angles, num_codes);
 }

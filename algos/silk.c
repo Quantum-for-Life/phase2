@@ -12,9 +12,8 @@
 #include "../circ/circ_private.h"
 #include "algos/silk.h"
 #include "circ.h"
-#include <ev.h>
 
-#define MAX_CODES (128)
+#define MAX_CODES (1024)
 
 struct code_cache {
 	struct paulis code_hi;
@@ -168,7 +167,7 @@ static void trotter_step(struct circ *c, double omega)
 			continue;
 		}
 
-		circ_ops_multirotpauli(c, cache.code_hi, cache.codes_lo,
+		circ_ops_paulirot(c, cache.code_hi, cache.codes_lo,
 			cache.angles, cache.num_codes);
 
 		cache.num_codes	  = 1;
@@ -178,7 +177,7 @@ static void trotter_step(struct circ *c, double omega)
 	}
 
 	if (cache.num_codes > 0)
-		circ_ops_multirotpauli(c, cache.code_hi, cache.codes_lo,
+		circ_ops_paulirot(c, cache.code_hi, cache.codes_lo,
 			cache.angles, cache.num_codes);
 }
 
