@@ -285,7 +285,7 @@ void qreg_setamp(struct qreg *reg, const u64 n, const fl z[2])
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
-void qreg_blankstate(struct qreg *reg)
+void qreg_blank(struct qreg *reg)
 {
 	for (u64 i = 0; i < reg->num_amps; i++) {
 		reg->amp[0][i] = 0.0;
@@ -295,7 +295,7 @@ void qreg_blankstate(struct qreg *reg)
 
 void qreg_zerostate(struct qreg *reg)
 {
-	qreg_blankstate(reg);
+	qreg_blank(reg);
 	qreg_setamp(reg, 0, (fl[]){ 1.0, 0.0 });
 }
 

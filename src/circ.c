@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "qreg.h"
 #include "circ.h"
+#include "qreg.h"
 
 #include <math.h>
 
@@ -38,7 +38,7 @@ struct circ {
 	int	       *cl, *qb;
 
 	/* Qubit register */
-	struct qreg quest_qureg;
+	struct qreg reg;
 };
 
 #ifdef __STDC_NO_THREADS__
@@ -100,7 +100,7 @@ void circ_shutdown(void)
 	atomic_flag_clear(&circ_env.lock);
 }
 
-static struct ev *env_get_questenv(void)
+static struct ev *env_get_ev(void)
 {
 	if (!atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
 		if (circ_initialize() < 0)
@@ -108,18 +108,6 @@ static struct ev *env_get_questenv(void)
 	}
 
 	return &circ_env.ev;
-}
-
-static int env_report(void)
-{
-	const struct ev *quest_env = env_get_questenv();
-	if (!quest_env) {
-		fprintf(stderr, "Error: circuit environment not initialized\n");
-		return -1;
-	}
-	// reportQuESTEnv(*quest_env);
-
-	return 0;
 }
 
 struct circ *circ_create(struct circuit *ct, void *data)
@@ -135,18 +123,18 @@ struct circ *circ_create(struct circuit *ct, void *data)
 	int *qb = malloc(sizeof(*qb) * num_qb_tot);
 	if (!qb)
 		goto qb_fail;
-	struct ev *ev = env_get_questenv();
+	struct ev *ev = env_get_ev();
 	if (!ev)
 		goto ev_fail;
 
 	struct qreg reg;
 	qreg_init(&reg, num_qb_tot, ev);
 
-	c->ct	       = ct;
-	c->data	       = data;
-	c->quest_qureg = reg;
-	c->cl	       = cl;
-	c->qb	       = qb;
+	c->ct	= ct;
+	c->data = data;
+	c->reg	= reg;
+	c->cl	= cl;
+	c->qb	= qb;
 
 	return c;
 
@@ -162,10 +150,10 @@ circ_fail:
 
 void circ_destroy(struct circ *c)
 {
-	const struct ev *quest_env = env_get_questenv();
-	if (!quest_env)
+	const struct ev *ev = env_get_ev();
+	if (!ev)
 		return;
-	qreg_destroy(&c->quest_qureg);
+	qreg_destroy(&c->reg);
 	if (c->qb)
 		free(c->qb);
 	if (c->cl)
@@ -181,13 +169,8 @@ void *circ_data(const struct circ *c)
 
 int circ_report(struct circ const *c)
 {
-	if (env_report() < 0)
-		return -1;
-
 	printf("----------------\n");
 	printf("CIRCUIT: %s\n", c->ct->name);
-
-	// reportQuregParams(c->quest_qureg);
 
 	printf("num_mea_qb: %zu\n", circ_num_meaqb(c));
 	printf("num_sys_qb: %zu\n", circ_num_sysqb(c));
@@ -206,7 +189,6 @@ int circ_report(struct circ const *c)
 
 int circ_reset(struct circ *c)
 {
-	// initZeroState(c->quest_qureg);
 	for (size_t i = 0; i < circ_num_meaqb(c); i++) {
 		c->cl[i] = 0;
 	}
@@ -357,28 +339,23 @@ void circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis)
 	}
 }
 
-double circ_ops_prob0(struct circ *c, qbid qb)
+void circ_ops_blank(struct circ *c)
 {
-	return 0.0; // calcProbOfOutcome(c->quest_qureg, qb, 0);
-}
-
-void circ_ops_blankstate(struct circ *c)
-{
-	qreg_blankstate(&c->quest_qureg);
+	qreg_blank(&c->reg);
 }
 
 void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp)
 {
 	double	  amps[2]   = { creal(amp), cimag(amp) };
 	long long start_ind = idx << circ_num_meaqb(c);
-	qreg_setamp(&c->quest_qureg, start_ind, amps);
+	qreg_setamp(&c->reg, start_ind, amps);
 }
 
 void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp)
 {
 	double	  amps[2];
 	long long start_ind = idx << circ_num_meaqb(c);
-	qreg_getamp(&c->quest_qureg, start_ind, &amps);
+	qreg_getamp(&c->reg, start_ind, &amps);
 
 	*amp = amps[0] + _Complex_I * amps[1];
 }
@@ -386,7 +363,7 @@ void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp)
 void circ_ops_paulirot(struct circ *c, const struct paulis code_hi,
 	const struct paulis *codes_lo, const fl *angles, const size_t num_codes)
 {
-	qreg_paulirot(&c->quest_qureg, code_hi, codes_lo, angles, num_codes);
+	qreg_paulirot(&c->reg, code_hi, codes_lo, angles, num_codes);
 }
 
 #define MAX_CODES (1024)
@@ -494,11 +471,11 @@ int silk_data_from_data(struct silk_data *rd, data2_id fid)
 
 int silk_prepst(struct circ *c)
 {
-	struct circ_data *cdat = circ_data(c);
+	const struct circ_data *cdat = circ_data(c);
 
 	const struct silk_data_multidet *md = &cdat->rd->multidet;
 
-	circ_ops_blankstate(c);
+	circ_ops_blank(c);
 	for (size_t i = 0; i < md->num_dets; i++) {
 		circ_ops_setsysamp(c, md->dets[i].index, md->dets[i].coeff);
 	}
@@ -523,9 +500,9 @@ static void trotter_step(struct circ *c, double omega)
 			paulis_set(&code, paulis[k], k);
 
 		struct paulis code_hi, code_lo;
-		paulis_split(code, c->quest_qureg.qb_lo, c->quest_qureg.qb_hi,
-			&code_lo, &code_hi);
-		paulis_shr(&code_hi, c->quest_qureg.qb_lo);
+		paulis_split(
+			code, c->reg.qb_lo, c->reg.qb_hi, &code_lo, &code_hi);
+		paulis_shr(&code_hi, c->reg.qb_lo);
 
 		if (cache.num_codes == 0) {
 			cache.code_hi	  = code_hi;
@@ -559,7 +536,7 @@ static void trotter_step(struct circ *c, double omega)
 
 int silk_effect(struct circ *c)
 {
-	struct circ_data *cdat = circ_data(c);
+	const struct circ_data *cdat = circ_data(c);
 	const double	  t    = cdat->rd->time_factor;
 	if (isnan(t))
 		return -1;

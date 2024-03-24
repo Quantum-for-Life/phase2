@@ -136,14 +136,7 @@ qbid circ_sysqb(const struct circ *c, size_t idx);
 
 qbid circ_ancqb(const struct circ *c, size_t idx);
 
-void circ_ops_hadamard(struct circ *c, qbid qb);
-
-void circ_ops_sgate(struct circ *c, qbid qb);
-void circ_ops_sgate_conj(struct circ *c, qbid qb);
-
-double circ_ops_prob0(struct circ *c, qbid qb);
-
-void circ_ops_blankstate(struct circ *c);
+void circ_ops_blank(struct circ *c);
 
 void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp);
 
