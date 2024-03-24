@@ -27,9 +27,7 @@
 #include <string.h>
 #include <time.h>
 
-#ifdef DISTRIBUTED
 #include "mpi.h"
-#endif
 
 #include "log.h"
 #include "opt.h"
@@ -41,7 +39,7 @@ struct log_event {
 	const char *fmt;
 	const char *file;
 	struct tm  *time;
-	void	     *data;
+	void	   *data;
 	int	    line;
 	int	    level;
 };
@@ -50,14 +48,14 @@ typedef void (*log_logfn)(struct log_event *ev);
 
 struct callback {
 	log_logfn fn;
-	void     *data;
+	void	 *data;
 	int	  level;
 };
 
 typedef void (*log_lockfn)(bool lock, void *data);
 
 static struct {
-	void	     *data;
+	void	       *data;
 	log_lockfn	lock;
 	int		level;
 	struct callback cb[MAX_CALLBACKS];
@@ -186,7 +184,6 @@ void log_log(const int level, const char *fmt, ...)
 
 void log_callback(struct log_event *ev)
 {
-#ifdef DISTRIBUTED
 	int initialized, finalized;
 	MPI_Initialized(&initialized);
 	MPI_Finalized(&finalized);
@@ -197,7 +194,7 @@ void log_callback(struct log_event *ev)
 			return;
 		}
 	}
-#endif
+
 	char  buf[64];
 	FILE *fd = ev->data;
 	buf[strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", ev->time)] = '\0';
@@ -210,7 +207,7 @@ void log_callback(struct log_event *ev)
 int log_init(void)
 {
 	enum log_level lvl;
-	const char	   *lvl_str = getenv(PH2RUN_LOG_ENVVAR);
+	const char    *lvl_str = getenv(PH2RUN_LOG_ENVVAR);
 	if (!lvl_str || log_level_from_lowercase(&lvl, lvl_str) < 0) {
 		lvl = LOG_ERROR;
 	}
