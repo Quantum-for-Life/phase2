@@ -25,14 +25,6 @@ link_libraries(m)
 add_compile_options(-Wall -Wextra -march=native)
 set(CMAKE_C_FLAGS_RELEASE "-O2")
 
-set(PH2_PUBLIC_HEADERS
-        ${PH2_INCLUDE_DIRS}/circ.h
-        ${PH2_INCLUDE_DIRS}/data.h
-        ${PH2_INCLUDE_DIRS}/algos/linen.h
-        ${PH2_INCLUDE_DIRS}/algos/rayon.h
-        ${PH2_INCLUDE_DIRS}/algos/silk.h
-)
-
 link_libraries(
         ${HDF5_LIBRARIES}
 )
