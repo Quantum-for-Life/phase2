@@ -148,10 +148,10 @@ void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp);
 
 void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp);
 
-void circ_ops_rotpauli(struct circ *c, struct paulis code, fl angle);
-
 void circ_ops_multirotpauli(struct circ *c, struct paulis code_hi,
 	const struct paulis *codes_lo, const fl *angles, size_t num_codes);
+
+void circ_ops_rotpauli(struct circ *c, struct paulis code, fl angle);
 
 typedef unsigned long pauli_pak_t;
 
