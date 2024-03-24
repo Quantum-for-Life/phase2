@@ -10,8 +10,8 @@
 #include <stdlib.h>
 
 #include "../circ/circ_private.h"
-#include "algos/silk.h"
 #include "circ.h"
+
 
 #define MAX_CODES (1024)
 

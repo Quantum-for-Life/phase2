@@ -1,5 +1,5 @@
 
-#include "algos/silk.h"
+#include "circ.h"
 
 int run_silk(data2_id fid, size_t num_steps)
 {

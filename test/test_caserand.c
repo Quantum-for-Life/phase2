@@ -4,7 +4,7 @@
 
 #include "mpi.h"
 
-#include "algos/silk.h"
+#include "circ.h"
 #include "data2.h"
 
 #include "test.h"
