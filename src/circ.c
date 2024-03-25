@@ -10,7 +10,6 @@
 struct circ {
 	void  *data;
 	size_t num_qb;
-	int   *qb;
 
 	/* Qubit register */
 	struct qreg reg;
@@ -18,19 +17,6 @@ struct circ {
 
 static int circuit_effect(struct circ *c);
 static int circuit_measure(struct circ *c);
-
-/*
- * Destroy circuit instance.
- *
- * Free allocated memory.  After the function call, the pointer `c` will no
- * longer point to a valid structure and must be discarded.
- */
-void circ_destroy(struct circ *c);
-
-/*
- * Retrieve generic pointer to user data.
- */
-void *circ_data(const struct circ *c);
 
 /*
  * Run circuit simulation.
@@ -105,40 +91,22 @@ void circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis);
  * instance.  The pointer `data` will be stored and will be available during
  * call to `circ_simulate()`.
  */
-struct circ *circ_create(void *data, size_t num_qubits)
+int circ_create(struct circ *c, void *data, size_t num_qubits)
 {
-	struct circ *c = malloc(sizeof(*c));
-	if (!c)
-		goto circ_fail;
-
-	int *qb = malloc(sizeof(*qb) * num_qubits);
-	if (!qb)
-		goto qb_fail;
-
 	struct qreg reg;
-	qreg_init(&reg, num_qubits);
+	if (qreg_init(&reg, num_qubits) < 0)
+		return -1;
 
 	c->num_qb = num_qubits;
 	c->data	  = data;
 	c->reg	  = reg;
-	c->qb	  = qb;
 
-	return c;
-
-	// free(qb);
-qb_fail:
-	free(c);
-circ_fail:
-	return NULL;
+	return 0;
 }
 
 void circ_destroy(struct circ *c)
 {
 	qreg_destroy(&c->reg);
-	if (c->qb)
-		free(c->qb);
-	free(c);
-	c = NULL;
 }
 
 void *circ_data(const struct circ *c)
@@ -480,14 +448,15 @@ int circuit_simulate(const struct circuit_data *rd)
 	size_t num_qb = rd->hamil.num_qubits;
 
 	struct circ_data cdat;
-	cdat.rd	       = rd;
-	struct circ *c = circ_create(&cdat, num_qb);
-	if (!c)
+	cdat.rd = rd;
+
+	struct circ c;
+	if (circ_create(&c, &cdat, num_qb) < 0)
 		goto error;
-	circuit_prepst(c);
+	circuit_prepst(&c);
 
 	for (size_t i = 0; i < rd->num_steps; i++) {
-		if (circ_run(c) < 0)
+		if (circ_run(&c) < 0)
 			goto error;
 		rd->trotter_steps[i] = cdat.prod;
 	}
@@ -496,7 +465,7 @@ int circuit_simulate(const struct circuit_data *rd)
 error:
 	ret = -1;
 exit:
-	circ_destroy(c);
+	circ_destroy(&c);
 
 	return ret;
 }
