@@ -228,22 +228,6 @@ size_t circ_num_ancqb(const struct circ *c)
 	return c->ct->num_anc_qb;
 }
 
-qbid circ_meaqb(const struct circ *c, size_t idx)
-{
-	(void)c;
-	return idx;
-}
-
-qbid circ_sysqb(const struct circ *c, size_t idx)
-{
-	return idx + circ_num_meaqb(c);
-}
-
-qbid circ_ancqb(const struct circ *c, size_t idx)
-{
-	return idx + circ_num_meaqb(c) + circ_num_sysqb(c);
-}
-
 static const size_t PAULI_MASK	   = 3;
 static const size_t PAULI_WIDTH	   = 2;
 static const size_t PAULI_PAK_SIZE = sizeof(pauli_pak_t) * 8 / PAULI_WIDTH;
@@ -537,7 +521,7 @@ static void trotter_step(struct circ *c, double omega)
 int silk_effect(struct circ *c)
 {
 	const struct circ_data *cdat = circ_data(c);
-	const double	  t    = cdat->rd->time_factor;
+	const double		t    = cdat->rd->time_factor;
 	if (isnan(t))
 		return -1;
 	if (fabs(t) < DBL_EPSILON)

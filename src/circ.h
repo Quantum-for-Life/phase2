@@ -9,8 +9,6 @@
 
 #include "data2.h"
 
-typedef size_t qbid;
-
 struct circ;
 
 struct circuit {
@@ -129,12 +127,6 @@ size_t circ_num_sysqb(const struct circ *c);
  * Return number of qubits in the "ancilla" register.
  */
 size_t circ_num_ancqb(const struct circ *c);
-
-qbid circ_meaqb(const struct circ *c, size_t idx);
-
-qbid circ_sysqb(const struct circ *c, size_t idx);
-
-qbid circ_ancqb(const struct circ *c, size_t idx);
 
 void circ_ops_blank(struct circ *c);
 
