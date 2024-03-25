@@ -1,11 +1,10 @@
 #include <complex.h>
 #include <float.h>
+#include <math.h>
 #include <stdlib.h>
 
 #include "circ.h"
 #include "qreg.h"
-
-#include <math.h>
 
 static struct {
 	struct ev ev;
@@ -268,20 +267,20 @@ struct code_cache {
 };
 
 struct circ_data {
-	const struct silk_data *rd;
+	const struct circuit_data *rd;
 	_Complex double		prod;
 	int			scratch[64];
 
 	struct code_cache cache;
 };
 
-void silk_multidet_init(struct silk_data_multidet *md)
+void silk_multidet_init(struct circuit_data_multidet *md)
 {
 	md->num_dets = 0;
 	md->dets     = NULL;
 }
 
-void silk_multidet_destroy(struct silk_data_multidet *md)
+void silk_multidet_destroy(struct circuit_data_multidet *md)
 {
 	if (md->dets) {
 		free(md->dets);
@@ -292,7 +291,7 @@ void silk_multidet_destroy(struct silk_data_multidet *md)
 
 struct iter_multidet_data {
 	size_t			   idx;
-	struct silk_data_multidet *md;
+	struct circuit_data_multidet *md;
 };
 
 static int iter_multidet(_Complex double coeff, size_t idx, void *op_data)
@@ -306,7 +305,7 @@ static int iter_multidet(_Complex double coeff, size_t idx, void *op_data)
 	return 0;
 }
 
-int silk_multidet_from_data(struct silk_data_multidet *md, const data2_id fid)
+int silk_multidet_from_data(struct circuit_data_multidet *md, const data2_id fid)
 {
 	size_t num_qubits, num_dets;
 	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
@@ -329,7 +328,7 @@ error:
 	return -1;
 }
 
-int silk_data_init(struct silk_data *rd, size_t num_steps)
+int circuit_data_init(struct circuit_data *rd, size_t num_steps)
 {
 	circ_hamil_init(&rd->hamil);
 	silk_multidet_init(&rd->multidet);
@@ -342,7 +341,7 @@ int silk_data_init(struct silk_data *rd, size_t num_steps)
 	return 0;
 }
 
-void silk_data_destroy(struct silk_data *rd)
+void circuit_data_destroy(struct circuit_data *rd)
 {
 	silk_multidet_destroy(&rd->multidet);
 	circ_hamil_destroy(&rd->hamil);
@@ -350,7 +349,7 @@ void silk_data_destroy(struct silk_data *rd)
 	free(rd->trotter_steps);
 }
 
-int silk_data_from_data(struct silk_data *rd, data2_id fid)
+int circuit_data_from_data(struct circuit_data *rd, data2_id fid)
 {
 	int rc;
 
@@ -365,7 +364,7 @@ int silk_prepst(struct circ *c)
 {
 	const struct circ_data *cdat = circ_data(c);
 
-	const struct silk_data_multidet *md = &cdat->rd->multidet;
+	const struct circuit_data_multidet *md = &cdat->rd->multidet;
 
 	circ_ops_blank(c);
 	for (size_t i = 0; i < md->num_dets; i++) {
@@ -444,7 +443,7 @@ int silk_measure(struct circ *c)
 {
 	struct circ_data *cdat = circ_data(c);
 
-	const struct silk_data_multidet *md = &cdat->rd->multidet;
+	const struct circuit_data_multidet *md = &cdat->rd->multidet;
 
 	_Complex double prod = 0;
 	for (size_t i = 0; i < md->num_dets; i++) {
@@ -456,6 +455,10 @@ int silk_measure(struct circ *c)
 	cdat->prod = prod;
 	return 0;
 }
+
+#define SILK_NAME "silk"
+#define SILK_NUM_MEA_QB (0)
+#define SILK_NUM_ANC_QB (0)
 
 static void silk_circuit_init(struct circuit *ct, size_t num_sys_qb)
 {
@@ -474,7 +477,7 @@ static void silk_circuit_destroy(const struct circuit *ct)
 	(void)ct;
 }
 
-int silk_simulate(const struct silk_data *rd)
+int circuit_simulate(const struct circuit_data *rd)
 {
 	int ret = 0;
 

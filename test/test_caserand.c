@@ -43,14 +43,14 @@ static int caserand(const char *prefix)
 		goto err_data_open;
 	}
 
-	struct silk_data rd;
-	silk_data_init(&rd, NUM_STEPS);
-	if (silk_data_from_data(&rd, fid) != 0) {
+	struct circuit_data rd;
+	circuit_data_init(&rd, NUM_STEPS);
+	if (circuit_data_from_data(&rd, fid) != 0) {
 		TEST_FAIL("Cannot parse simulation data");
 		goto err_rd_read;
 	}
 
-	if (silk_simulate(&rd) != 0) {
+	if (circuit_simulate(&rd) != 0) {
 		TEST_FAIL("Simulation error");
 		goto err_simul;
 	}
@@ -87,7 +87,7 @@ static int caserand(const char *prefix)
 	}
 
 	data2_close(fid_ref);
-	silk_data_destroy(&rd);
+	circuit_data_destroy(&rd);
 	data2_close(fid);
 	return 0;
 
@@ -96,7 +96,7 @@ err_rd_ref_read:
 	data2_close(fid_ref);
 err_data_open_ref:
 err_simul:
-	silk_data_destroy(&rd);
+	circuit_data_destroy(&rd);
 err_rd_read:
 	data2_close(fid);
 err_data_open:

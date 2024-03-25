@@ -129,7 +129,6 @@ void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp);
 void circ_ops_paulirot(struct circ *c, struct paulis code_hi,
 	const struct paulis *codes_lo, const fl *angles, size_t num_codes);
 
-
 /*
  * Hamiltonian module.
  */
@@ -140,10 +139,10 @@ void circ_ops_paulirot(struct circ *c, struct paulis code_hi,
  * of pairs of bits.
  */
 struct circ_hamil {
-	size_t	     num_qubits; /* number of qubits */
-	size_t	     num_terms; /* number of terms in the sum */
-	double	    *coeffs; /* array of coefficients */
-	u64 *pak; /* array of Pauli operators */
+	size_t	num_qubits; /* number of qubits */
+	size_t	num_terms; /* number of terms in the sum */
+	double *coeffs; /* array of coefficients */
+	u64    *pak; /* array of Pauli operators */
 };
 
 /*
@@ -185,11 +184,7 @@ int circ_hamil_from_data2(struct circ_hamil *h, data2_id fid);
  */
 void circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis);
 
-#define SILK_NAME "silk"
-#define SILK_NUM_MEA_QB (0)
-#define SILK_NUM_ANC_QB (0)
-
-struct silk_data_multidet {
+struct circuit_data_multidet {
 	size_t num_dets;
 	struct {
 		long long	index;
@@ -197,20 +192,20 @@ struct silk_data_multidet {
 	} *dets;
 };
 
-struct silk_data {
-	struct circ_hamil	  hamil;
-	struct silk_data_multidet multidet;
-	double			  time_factor;
-	size_t			  num_steps;
-	_Complex double		 *trotter_steps;
+struct circuit_data {
+	struct circ_hamil	     hamil;
+	struct circuit_data_multidet multidet;
+	double			     time_factor;
+	size_t			     num_steps;
+	_Complex double		    *trotter_steps;
 };
 
-int silk_data_init(struct silk_data *rd, size_t num_steps);
+int circuit_data_init(struct circuit_data *rd, size_t num_steps);
 
-void silk_data_destroy(struct silk_data *rd);
+void circuit_data_destroy(struct circuit_data *rd);
 
-int silk_data_from_data(struct silk_data *rd, data2_id fid);
+int circuit_data_from_data(struct circuit_data *rd, data2_id fid);
 
-int silk_simulate(const struct silk_data *rd);
+int circuit_simulate(const struct circuit_data *rd);
 
 #endif // PHASE2_CIRC_H

@@ -157,18 +157,18 @@ int run_silk(data2_id fid, size_t num_steps)
 {
 	int rc = 0;
 
-	struct silk_data rd;
-	silk_data_init(&rd, num_steps);
-	if (silk_data_from_data(&rd, fid) < 0)
+	struct circuit_data rd;
+	circuit_data_init(&rd, num_steps);
+	if (circuit_data_from_data(&rd, fid) < 0)
 		goto error;
-	if (silk_simulate(&rd) < 0)
+	if (circuit_simulate(&rd) < 0)
 		goto error;
 	data2_trotter_write_values(fid, rd.trotter_steps, num_steps);
 	goto cleanup;
 error:
 	rc = -1;
 cleanup:
-	silk_data_destroy(&rd);
+	circuit_data_destroy(&rd);
 
 	return rc;
 }
