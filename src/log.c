@@ -29,6 +29,7 @@
 
 #include "mpi.h"
 
+#include "common.h"
 #include "log.h"
 
 #define MAX_CALLBACKS (32)
@@ -203,12 +204,10 @@ void log_callback(struct log_event *ev)
 	fflush(fd);
 }
 
-#define PH2RUN_LOG_ENVVAR "PHASE2_LOG"
-
 int log_init(void)
 {
 	enum log_level lvl;
-	const char    *lvl_str = getenv(PH2RUN_LOG_ENVVAR);
+	const char    *lvl_str = getenv(PHASE2_LOG_ENVVAR);
 	if (!lvl_str || log_level_from_lowercase(&lvl, lvl_str) < 0) {
 		lvl = LOG_ERROR;
 	}

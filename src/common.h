@@ -1,7 +1,9 @@
-#ifndef TYPES_H
-#define TYPES_H
+#ifndef PHASE2_COMMON_H
+#define PHASE2_COMMON_H
 
 #include <stdint.h>
+
+#define PHASE2_LOG_ENVVAR "PHASE2_LOG"
 
 typedef int8_t	i8;
 typedef int16_t i16;
@@ -18,4 +20,11 @@ typedef double f64;
 
 typedef f64 fl;
 
-#endif // TYPES_H
+enum eno {
+	OK = 0,
+	EMPI,
+	EMEM,
+	ESIZE,
+};
+
+#endif // PHASE2_COMMON_H

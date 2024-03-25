@@ -4,10 +4,10 @@
 #ifndef PHASE2_CIRC_H
 #define PHASE2_CIRC_H
 
-#include "qreg.h"
-#include "types.h"
-
+#include "common.h"
 #include "data2.h"
+
+#include "qreg.h"
 
 struct circuit_data_multidet {
 	size_t num_dets;
@@ -36,6 +36,8 @@ struct circuit_data {
 	size_t			     num_steps;
 	_Complex double		    *trotter_steps;
 };
+
+int circ_initialize(void);
 
 int circuit_data_init(struct circuit_data *rd, size_t num_steps);
 

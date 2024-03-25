@@ -3,7 +3,9 @@
 
 #include <mpi.h>
 
-#include "types.h"
+#include "common.h"
+
+#define PAULI_MAX_WIDTH (64)
 
 struct ev {
 	int num_ranks;
@@ -13,8 +15,6 @@ struct ev {
 int ev_init(struct ev *);
 
 int ev_destroy(struct ev *);
-
-#define PAULI_MAX_WIDTH (64)
 
 typedef enum root4 {
 	R0, // +1

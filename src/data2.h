@@ -1,5 +1,5 @@
-#ifndef DATA2_H
-#define DATA2_H
+#ifndef PHASE2_DATA2_H
+#define PHASE2_DATA2_H
 
 #include <stdlib.h>
 
@@ -161,4 +161,4 @@ int data2_trotter_write_values(
 
 int data2_trotter_read_values_test(data2_id fid, _Complex double *values);
 
-#endif // DATA2_H
+#endif // PHASE2_DATA2_H

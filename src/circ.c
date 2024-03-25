@@ -3,9 +3,9 @@
 #include <math.h>
 #include <stdlib.h>
 
+#include "common.h"
 #include "circ.h"
 #include "qreg.h"
-
 
 struct circ;
 
@@ -113,7 +113,6 @@ size_t circ_num_meaqb(const struct circ *c);
  */
 size_t circ_num_sysqb(const struct circ *c);
 
-
 void circ_ops_blank(struct circ *c);
 
 void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp);
@@ -165,7 +164,6 @@ int circ_hamil_from_data2(struct circ_hamil *h, data2_id fid);
  *	3	- Z
  */
 void circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis);
-
 
 static struct {
 	struct ev ev;
@@ -429,8 +427,8 @@ struct code_cache {
 
 struct circ_data {
 	const struct circuit_data *rd;
-	_Complex double		prod;
-	int			scratch[64];
+	_Complex double		   prod;
+	int			   scratch[64];
 
 	struct code_cache cache;
 };
@@ -451,7 +449,7 @@ void silk_multidet_destroy(struct circuit_data_multidet *md)
 }
 
 struct iter_multidet_data {
-	size_t			   idx;
+	size_t			      idx;
 	struct circuit_data_multidet *md;
 };
 
@@ -466,7 +464,8 @@ static int iter_multidet(_Complex double coeff, size_t idx, void *op_data)
 	return 0;
 }
 
-int silk_multidet_from_data(struct circuit_data_multidet *md, const data2_id fid)
+int silk_multidet_from_data(
+	struct circuit_data_multidet *md, const data2_id fid)
 {
 	size_t num_qubits, num_dets;
 	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
@@ -667,7 +666,6 @@ exit:
 
 	return ret;
 }
-
 
 int circuit_run(data2_id fid, size_t num_steps)
 {

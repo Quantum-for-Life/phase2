@@ -5,9 +5,9 @@
 
 #include "mpi.h"
 
+#include "common.h"
 #include "error.h"
 #include "qreg.h"
-#include "types.h"
 
 #define MAX_COUNT (1 << 30)
 

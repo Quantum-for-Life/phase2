@@ -53,7 +53,7 @@ set(PH2_COMMON_SOURCES
 
 set(CLI_SRC_DIR ${SRC_DIR})
 set(CLI_SOURCES
-        ${CLI_SRC_DIR}/ph2run.c
+        ${CLI_SRC_DIR}/main.c
         ${CLI_SRC_DIR}/log.c
 )
 

@@ -4,14 +4,14 @@
  */
 
 #include <complex.h>
-#include <data2.h>
+#include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #include <hdf5.h>
-#include <math.h>
 
-#include <test.h>
+#include "common.h"
+#include "data2.h"
+#include "test.h"
 
 #define SIZE (5)
 #define MARGIN (10e-6)
@@ -41,12 +41,12 @@ enum ret_code {
 	ERR_H5WRITE,
 	ERR_H5READ,
 	ERR_DAT2,
-	OK = 0,
+	ERR_OK = 0
 };
 
 static int prepare_test_file(hid_t file_id)
 {
-	enum ret_code rc = OK;
+	enum ret_code rc = ERR_OK;
 
 	hid_t grp_id, fspace, attr;
 
@@ -102,7 +102,7 @@ int test_data_trotter_steps(void)
 	}
 	rc = prepare_test_file(file_id);
 	H5Fclose(file_id);
-	if (rc < OK) {
+	if (rc < ERR_OK) {
 		TEST_FAIL("prepare test file");
 		rc = ERR_PREP;
 		goto ex_prepare;
@@ -173,5 +173,5 @@ ex_prepare:
 		goto ex_create;
 	}
 ex_create:
-	return rc == OK ? 0 : -1;
+	return rc == ERR_OK ? 0 : -1;
 }
