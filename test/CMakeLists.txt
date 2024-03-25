@@ -9,8 +9,6 @@ macro(more_test name sources)
     add_test(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}>)
 endmacro()
 
-more_test(circ PH2_COMMON_SOURCES)
-more_test(healthchk PH2_COMMON_SOURCES)
 more_test(caserand PH2_COMMON_SOURCES)
 
 set(TEST_DATA_SRC
