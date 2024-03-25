@@ -68,16 +68,6 @@ int circ_reset(struct circ *c);
  */
 int circ_run(struct circ *c);
 
-/*
- * Return number of qubits in the "measurement" register.
- */
-size_t circ_num_meaqb(const struct circ *c);
-
-/*
- * Return number of qubits in the "system" register.
- */
-size_t circ_num_sysqb(const struct circ *c);
-
 void circ_ops_blank(struct circ *c);
 
 void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp);
@@ -191,7 +181,7 @@ void *circ_data(const struct circ *c)
 
 int circ_reset(struct circ *c)
 {
-	for (size_t i = 0; i < circ_num_meaqb(c); i++) {
+	for (size_t i = 0; i < c->ct->num_mea_qb; i++) {
 		c->cl[i] = 0;
 	}
 	if (c->ct->reset)
@@ -213,21 +203,6 @@ int circ_run(struct circ *c)
 	}
 
 	return 0;
-}
-
-size_t circ_num_meaqb(const struct circ *c)
-{
-	return c->ct->num_mea_qb;
-}
-
-size_t circ_num_sysqb(const struct circ *c)
-{
-	return c->ct->num_sys_qb;
-}
-
-size_t circ_num_ancqb(const struct circ *c)
-{
-	return c->ct->num_anc_qb;
 }
 
 static const size_t PAULI_MASK	   = 3;
@@ -333,14 +308,14 @@ void circ_ops_blank(struct circ *c)
 void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp)
 {
 	double	  amps[2]   = { creal(amp), cimag(amp) };
-	long long start_ind = idx << circ_num_meaqb(c);
+	long long start_ind = idx << c->ct->num_mea_qb;
 	qreg_setamp(&c->reg, start_ind, amps);
 }
 
 void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp)
 {
 	double	  amps[2];
-	long long start_ind = idx << circ_num_meaqb(c);
+	long long start_ind = idx << c->ct->num_mea_qb;
 	qreg_getamp(&c->reg, start_ind, &amps);
 
 	*amp = amps[0] + _Complex_I * amps[1];
@@ -482,7 +457,7 @@ static void trotter_step(struct circ *c, double omega)
 		circ_hamil_paulistr(hamil, i, paulis);
 		const double  angle = omega * hamil->coeffs[i];
 		struct paulis code  = paulis_new();
-		for (u32 k = 0; k < circ_num_sysqb(c); k++)
+		for (u32 k = 0; k < c->ct->num_sys_qb; k++)
 			paulis_set(&code, paulis[k], k);
 
 		struct paulis code_hi, code_lo;
