@@ -9,7 +9,6 @@
 
 #include <hdf5.h>
 
-#include "common.h"
 #include "data2.h"
 #include "test.h"
 
