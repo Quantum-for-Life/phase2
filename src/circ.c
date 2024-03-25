@@ -10,8 +10,6 @@
 struct circ;
 
 struct circuit {
-	const char *name;
-
 	size_t num_mea_qb;
 	size_t num_sys_qb;
 	size_t num_anc_qb;
@@ -22,39 +20,6 @@ struct circuit {
 	int (*effect)(struct circ *);
 	int (*measure)(struct circ *);
 };
-
-/*
- * Initialize global circuit environment.
- *
- * Although this function is exposed in the public API, the user doesn't need
- * to call it directly.  It will be called by circ_create() as well.
- *
- * Similarly, the function circ_shutdown() belows will be scheduled with
- * atexit() to clear the global environment during program exit.
- *
- * The initialization may take some time, especially when MPI mode is enabled.
- * It the user cannot wait longer than usual during the first call
- * to circ_init(), it is recomended that that circ_initialize() be called
- * directly at the beginning of the program.
- *
- * This function can be called multiple times from different threads.
- *
- * Return value:	 0	if the environment was successfully initialized
- *				by this function call
- *			 1	if the environment has already been initialized
- *				by another call to this function
- *			-1	in case of failure
- */
-int circ_initialize(void);
-
-/*
- * Shut down global environment.
- *
- * This function is registered (using atexit()) during the first call to
- * circ_initialize() to be called automatically when the application closes. The
- * user doesn't need to call this function directly.
- */
-void circ_shutdown(void);
 
 /*
  * Create instance of a circuit.
@@ -636,24 +601,4 @@ exit:
 	silk_circuit_destroy(&ct);
 
 	return ret;
-}
-
-int circuit_run(data2_id fid, size_t num_steps)
-{
-	int rc = 0;
-
-	struct circuit_data rd;
-	circuit_data_init(&rd, num_steps);
-	if (circuit_data_from_data(&rd, fid) < 0)
-		goto error;
-	if (circuit_simulate(&rd) < 0)
-		goto error;
-	data2_trotter_write_values(fid, rd.trotter_steps, num_steps);
-	goto cleanup;
-error:
-	rc = -1;
-cleanup:
-	circuit_data_destroy(&rd);
-
-	return rc;
 }

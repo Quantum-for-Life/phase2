@@ -24,6 +24,8 @@ static int MAIN_RET = 0;
 		goto error;                                                    \
 	}
 
+int run_circuit(data2_id fid, size_t num_steps);
+
 int main(int argc, char **argv)
 {
 	int initialized;
@@ -52,7 +54,7 @@ int main(int argc, char **argv)
 
 	log_info("*** Circuit ***");
 	log_info("Num_steps: %zu", OPT.num_steps);
-	if (circuit_run(fid, OPT.num_steps) < 0) {
+	if (run_circuit(fid, OPT.num_steps) < 0) {
 		log_error("Failure: simulation error");
 		goto error;
 	}
@@ -96,4 +98,24 @@ int opt_parse(int argc, char **argv)
 	OPT.num_steps = num_steps;
 
 	return 0;
+}
+
+int run_circuit(data2_id fid, size_t num_steps)
+{
+	int rc = 0;
+
+	struct circuit_data rd;
+	circuit_data_init(&rd, num_steps);
+	if (circuit_data_from_data(&rd, fid) < 0)
+		goto error;
+	if (circuit_simulate(&rd) < 0)
+		goto error;
+	data2_trotter_write_values(fid, rd.trotter_steps, num_steps);
+	goto cleanup;
+error:
+	rc = -1;
+cleanup:
+	circuit_data_destroy(&rd);
+
+	return rc;
 }
