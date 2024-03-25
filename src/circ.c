@@ -7,32 +7,17 @@
 #include "common.h"
 #include "qreg.h"
 
-struct circ;
-
-int circuit_effect(struct circ *c);
-int circuit_measure(struct circ *c);
-
-static struct circuit {
+struct circ {
+	void  *data;
 	size_t num_qb;
+	int   *qb;
 
-	int (*reset)(struct circ *);
-	int (*effect)(struct circ *);
-	int (*measure)(struct circ *);
-} CT = {
-
-	.reset	 = NULL,
-	.effect	 = circuit_effect,
-	.measure = circuit_measure
+	/* Qubit register */
+	struct qreg reg;
 };
 
-/*
- * Create instance of a circuit.
- *
- * Using the circuit description `ct`, allocate memory for a new circuit
- * instance.  The pointer `data` will be stored and will be available during
- * call to `circ_simulate()`.
- */
-struct circ *circ_create(void *data);
+static int circuit_effect(struct circ *c);
+static int circuit_measure(struct circ *c);
 
 /*
  * Destroy circuit instance.
@@ -46,17 +31,6 @@ void circ_destroy(struct circ *c);
  * Retrieve generic pointer to user data.
  */
 void *circ_data(const struct circ *c);
-
-/*
- * Reset circuit.
- *
- * Set classical register to zero and call `reset()` function specified by
- * the circuit template (if any).
- *
- * Return value:	 0	if successful
- *			-1	in case of failure
- */
-int circ_reset(struct circ *c);
 
 /*
  * Run circuit simulation.
@@ -124,32 +98,30 @@ int circ_hamil_from_data2(struct circ_hamil *h, data2_id fid);
  */
 void circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis);
 
-struct circ {
-	void *data;
-	int  *qb;
-
-	/* Qubit register */
-	struct qreg reg;
-};
-
-struct circ *circ_create(void *data)
+/*
+ * Create instance of a circuit.
+ *
+ * Using the circuit description `ct`, allocate memory for a new circuit
+ * instance.  The pointer `data` will be stored and will be available during
+ * call to `circ_simulate()`.
+ */
+struct circ *circ_create(void *data, size_t num_qubits)
 {
 	struct circ *c = malloc(sizeof(*c));
 	if (!c)
 		goto circ_fail;
 
-	const size_t num_qb = CT.num_qb;
-
-	int *qb = malloc(sizeof(*qb) * num_qb);
+	int *qb = malloc(sizeof(*qb) * num_qubits);
 	if (!qb)
 		goto qb_fail;
 
 	struct qreg reg;
-	qreg_init(&reg, num_qb);
+	qreg_init(&reg, num_qubits);
 
-	c->data = data;
-	c->reg	= reg;
-	c->qb	= qb;
+	c->num_qb = num_qubits;
+	c->data	  = data;
+	c->reg	  = reg;
+	c->qb	  = qb;
 
 	return c;
 
@@ -174,25 +146,11 @@ void *circ_data(const struct circ *c)
 	return c->data;
 }
 
-int circ_reset(struct circ *c)
-{
-	if (CT.reset)
-		return CT.reset(c);
-
-	return 0;
-}
-
 int circ_run(struct circ *c)
 {
-	if (circ_reset(c) < 0)
+	if (circuit_effect(c) < 0)
 		return -1;
-
-	int (*ops[2])(struct circ *) = { CT.effect, CT.measure };
-	for (int i = 0; i < 2; i++) {
-		if (ops[i] && ops[i](c) < 0)
-			return -1;
-	}
-
+	circuit_measure(c);
 	return 0;
 }
 
@@ -446,7 +404,7 @@ static void trotter_step(struct circ *c, double omega)
 		circ_hamil_paulistr(hamil, i, paulis);
 		const double  angle = omega * hamil->coeffs[i];
 		struct paulis code  = paulis_new();
-		for (u32 k = 0; k < CT.num_qb; k++)
+		for (u32 k = 0; k < c->num_qb; k++)
 			paulis_set(&code, paulis[k], k);
 
 		struct paulis code_hi, code_lo;
@@ -484,7 +442,7 @@ static void trotter_step(struct circ *c, double omega)
 			cache.angles, cache.num_codes);
 }
 
-int circuit_effect(struct circ *c)
+static int circuit_effect(struct circ *c)
 {
 	const struct circ_data *cdat = circ_data(c);
 	const double		t    = cdat->rd->time_factor;
@@ -498,7 +456,7 @@ int circuit_effect(struct circ *c)
 	return 0;
 }
 
-int circuit_measure(struct circ *c)
+static int circuit_measure(struct circ *c)
 {
 	struct circ_data *cdat = circ_data(c);
 
@@ -519,11 +477,11 @@ int circuit_simulate(const struct circuit_data *rd)
 {
 	int ret = 0;
 
-	CT.num_qb = rd->hamil.num_qubits;
+	size_t num_qb = rd->hamil.num_qubits;
 
 	struct circ_data cdat;
 	cdat.rd	       = rd;
-	struct circ *c = circ_create(&cdat);
+	struct circ *c = circ_create(&cdat, num_qb);
 	if (!c)
 		goto error;
 	circuit_prepst(c);
