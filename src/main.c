@@ -106,7 +106,7 @@ int run_circuit(data2_id fid, size_t num_steps)
 
 	struct circuit_data rd;
 	circuit_data_init(&rd, num_steps);
-	if (circuit_data_from_data(&rd, fid) < 0)
+	if (circuit_data_from_file(&rd, fid) < 0)
 		goto error;
 	if (circuit_simulate(&rd) < 0)
 		goto error;

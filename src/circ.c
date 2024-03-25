@@ -369,13 +369,13 @@ struct circ_data {
 	struct code_cache cache;
 };
 
-void silk_multidet_init(struct circuit_data_multidet *md)
+void silk_multidet_init(struct circuit_multidet *md)
 {
 	md->num_dets = 0;
 	md->dets     = NULL;
 }
 
-void silk_multidet_destroy(struct circuit_data_multidet *md)
+void silk_multidet_destroy(struct circuit_multidet *md)
 {
 	if (md->dets) {
 		free(md->dets);
@@ -385,8 +385,8 @@ void silk_multidet_destroy(struct circuit_data_multidet *md)
 }
 
 struct iter_multidet_data {
-	size_t			      idx;
-	struct circuit_data_multidet *md;
+	size_t			 idx;
+	struct circuit_multidet *md;
 };
 
 static int iter_multidet(_Complex double coeff, size_t idx, void *op_data)
@@ -400,8 +400,7 @@ static int iter_multidet(_Complex double coeff, size_t idx, void *op_data)
 	return 0;
 }
 
-int silk_multidet_from_data(
-	struct circuit_data_multidet *md, const data2_id fid)
+int silk_multidet_from_data(struct circuit_multidet *md, const data2_id fid)
 {
 	size_t num_qubits, num_dets;
 	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
@@ -445,7 +444,7 @@ void circuit_data_destroy(struct circuit_data *rd)
 	free(rd->trotter_steps);
 }
 
-int circuit_data_from_data(struct circuit_data *rd, data2_id fid)
+int circuit_data_from_file(struct circuit_data *rd, data2_id fid)
 {
 	int rc;
 
@@ -460,7 +459,7 @@ int silk_prepst(struct circ *c)
 {
 	const struct circ_data *cdat = circ_data(c);
 
-	const struct circuit_data_multidet *md = &cdat->rd->multidet;
+	const struct circuit_multidet *md = &cdat->rd->multidet;
 
 	circ_ops_blank(c);
 	for (size_t i = 0; i < md->num_dets; i++) {
@@ -539,7 +538,7 @@ int silk_measure(struct circ *c)
 {
 	struct circ_data *cdat = circ_data(c);
 
-	const struct circuit_data_multidet *md = &cdat->rd->multidet;
+	const struct circuit_multidet *md = &cdat->rd->multidet;
 
 	_Complex double prod = 0;
 	for (size_t i = 0; i < md->num_dets; i++) {
@@ -552,16 +551,11 @@ int silk_measure(struct circ *c)
 	return 0;
 }
 
-#define SILK_NAME "silk"
-#define SILK_NUM_MEA_QB (0)
-#define SILK_NUM_ANC_QB (0)
-
 static void silk_circuit_init(struct circuit *ct, size_t num_sys_qb)
 {
-	ct->name       = SILK_NAME;
-	ct->num_mea_qb = SILK_NUM_MEA_QB;
+	ct->num_mea_qb = 0;
 	ct->num_sys_qb = num_sys_qb;
-	ct->num_anc_qb = SILK_NUM_ANC_QB;
+	ct->num_anc_qb = 0;
 	ct->reset      = NULL;
 	ct->prepst     = NULL;
 	ct->effect     = silk_effect;

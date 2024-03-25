@@ -45,7 +45,7 @@ static int caserand(const char *prefix)
 
 	struct circuit_data rd;
 	circuit_data_init(&rd, NUM_STEPS);
-	if (circuit_data_from_data(&rd, fid) != 0) {
+	if (circuit_data_from_file(&rd, fid) != 0) {
 		TEST_FAIL("Cannot parse simulation data");
 		goto err_rd_read;
 	}
