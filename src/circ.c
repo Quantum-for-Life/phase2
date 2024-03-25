@@ -10,9 +10,7 @@
 struct circ;
 
 struct circuit {
-	size_t num_mea_qb;
-	size_t num_sys_qb;
-	size_t num_anc_qb;
+	size_t num_qb;
 
 	int (*reset)(struct circ *);
 
@@ -123,7 +121,7 @@ void circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis);
 struct circ {
 	struct circuit *ct;
 	void	       *data;
-	int	       *cl, *qb;
+	int	       *qb;
 
 	/* Qubit register */
 	struct qreg reg;
@@ -134,30 +132,25 @@ struct circ *circ_create(struct circuit *ct, void *data)
 	struct circ *c = malloc(sizeof(*c));
 	if (!c)
 		goto circ_fail;
-	int *cl = malloc(sizeof(*cl) * ct->num_mea_qb);
-	if (!cl)
-		goto cl_fail;
-	const size_t num_qb_tot =
-		ct->num_mea_qb + ct->num_sys_qb + ct->num_anc_qb;
-	int *qb = malloc(sizeof(*qb) * num_qb_tot);
+
+	const size_t num_qb = ct->num_qb;
+
+	int *qb = malloc(sizeof(*qb) * num_qb);
 	if (!qb)
 		goto qb_fail;
 
 	struct qreg reg;
-	qreg_init(&reg, num_qb_tot);
+	qreg_init(&reg, num_qb);
 
 	c->ct	= ct;
 	c->data = data;
 	c->reg	= reg;
-	c->cl	= cl;
 	c->qb	= qb;
 
 	return c;
 
 	// free(qb);
 qb_fail:
-	free(cl);
-cl_fail:
 	free(c);
 circ_fail:
 	return NULL;
@@ -168,8 +161,6 @@ void circ_destroy(struct circ *c)
 	qreg_destroy(&c->reg);
 	if (c->qb)
 		free(c->qb);
-	if (c->cl)
-		free(c->cl);
 	free(c);
 	c = NULL;
 }
@@ -181,9 +172,6 @@ void *circ_data(const struct circ *c)
 
 int circ_reset(struct circ *c)
 {
-	for (size_t i = 0; i < c->ct->num_mea_qb; i++) {
-		c->cl[i] = 0;
-	}
 	if (c->ct->reset)
 		return c->ct->reset(c);
 
@@ -307,16 +295,14 @@ void circ_ops_blank(struct circ *c)
 
 void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp)
 {
-	double	  amps[2]   = { creal(amp), cimag(amp) };
-	long long start_ind = idx << c->ct->num_mea_qb;
-	qreg_setamp(&c->reg, start_ind, amps);
+	double amps[2] = { creal(amp), cimag(amp) };
+	qreg_setamp(&c->reg, idx, amps);
 }
 
 void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp)
 {
-	double	  amps[2];
-	long long start_ind = idx << c->ct->num_mea_qb;
-	qreg_getamp(&c->reg, start_ind, &amps);
+	double amps[2];
+	qreg_getamp(&c->reg, idx, &amps);
 
 	*amp = amps[0] + _Complex_I * amps[1];
 }
@@ -457,7 +443,7 @@ static void trotter_step(struct circ *c, double omega)
 		circ_hamil_paulistr(hamil, i, paulis);
 		const double  angle = omega * hamil->coeffs[i];
 		struct paulis code  = paulis_new();
-		for (u32 k = 0; k < c->ct->num_sys_qb; k++)
+		for (u32 k = 0; k < c->ct->num_qb; k++)
 			paulis_set(&code, paulis[k], k);
 
 		struct paulis code_hi, code_lo;
@@ -526,15 +512,13 @@ int silk_measure(struct circ *c)
 	return 0;
 }
 
-static void silk_circuit_init(struct circuit *ct, size_t num_sys_qb)
+static void silk_circuit_init(struct circuit *ct, size_t num_qb)
 {
-	ct->num_mea_qb = 0;
-	ct->num_sys_qb = num_sys_qb;
-	ct->num_anc_qb = 0;
-	ct->reset      = NULL;
-	ct->prepst     = NULL;
-	ct->effect     = silk_effect;
-	ct->measure    = silk_measure;
+	ct->num_qb  = num_qb;
+	ct->reset   = NULL;
+	ct->prepst  = NULL;
+	ct->effect  = silk_effect;
+	ct->measure = silk_measure;
 }
 
 static void silk_circuit_destroy(const struct circuit *ct)
