@@ -167,26 +167,6 @@ void *circ_data(const struct circ *c)
 	return c->data;
 }
 
-int circ_report(struct circ const *c)
-{
-	printf("----------------\n");
-	printf("CIRCUIT: %s\n", c->ct->name);
-
-	printf("num_mea_qb: %zu\n", circ_num_meaqb(c));
-	printf("num_sys_qb: %zu\n", circ_num_sysqb(c));
-	printf("num_anc_qb: %zu\n", circ_num_ancqb(c));
-
-	printf("cl register: [");
-	for (size_t i = 0; i < c->ct->num_mea_qb; i++) {
-		printf("%d", c->cl[i]);
-	}
-	printf("]\n");
-
-	printf("----------------\n");
-
-	return 0;
-}
-
 int circ_reset(struct circ *c)
 {
 	for (size_t i = 0; i < circ_num_meaqb(c); i++) {
@@ -230,7 +210,7 @@ size_t circ_num_ancqb(const struct circ *c)
 
 static const size_t PAULI_MASK	   = 3;
 static const size_t PAULI_WIDTH	   = 2;
-static const size_t PAULI_PAK_SIZE = sizeof(pauli_pak_t) * 8 / PAULI_WIDTH;
+static const size_t PAULI_PAK_SIZE = sizeof(u64) * 8 / PAULI_WIDTH;
 
 void circ_hamil_init(struct circ_hamil *h)
 {
@@ -259,7 +239,7 @@ struct hamil_iter_data {
 	size_t	     num_qubits;
 	double	     norm;
 	double	    *coeffs;
-	pauli_pak_t *pak;
+	u64 *pak;
 };
 
 static int hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
@@ -270,7 +250,7 @@ static int hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 	idat->coeffs[i] = coeff * idat->norm;
 	for (size_t j = 0; j < num_qubits; j++) {
 		ldiv_t		  dv = ldiv(i * num_qubits + j, PAULI_PAK_SIZE);
-		const pauli_pak_t pauli = paulis[j];
+		const u64 pauli = paulis[j];
 		idat->pak[dv.quot] += pauli << (dv.rem * PAULI_WIDTH);
 	}
 
@@ -288,8 +268,8 @@ int circ_hamil_from_data2(struct circ_hamil *h, data2_id fid)
 		return -1;
 
 	double	    *coeffs = malloc(sizeof *coeffs * num_terms);
-	pauli_pak_t *pak = calloc(num_terms * num_qubits / PAULI_PAK_SIZE + 1,
-		sizeof(pauli_pak_t));
+	u64 *pak = calloc(num_terms * num_qubits / PAULI_PAK_SIZE + 1,
+		sizeof(u64));
 	if (!(coeffs && pak))
 		goto err;
 

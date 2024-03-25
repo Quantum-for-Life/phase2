@@ -81,14 +81,6 @@ void circ_destroy(struct circ *c);
 void *circ_data(const struct circ *c);
 
 /*
- * Print information about the circuit instance to standard output.
- *
- * Return value:	 0	if successful
- *			-1	in case of failure
- */
-int circ_report(struct circ const *c);
-
-/*
  * Reset circuit.
  *
  * Set classical register to zero and call `reset()` function specified by
@@ -137,7 +129,6 @@ void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp);
 void circ_ops_paulirot(struct circ *c, struct paulis code_hi,
 	const struct paulis *codes_lo, const fl *angles, size_t num_codes);
 
-typedef unsigned long pauli_pak_t;
 
 /*
  * Hamiltonian module.
@@ -152,7 +143,7 @@ struct circ_hamil {
 	size_t	     num_qubits; /* number of qubits */
 	size_t	     num_terms; /* number of terms in the sum */
 	double	    *coeffs; /* array of coefficients */
-	pauli_pak_t *pak; /* array of Pauli operators */
+	u64 *pak; /* array of Pauli operators */
 };
 
 /*
