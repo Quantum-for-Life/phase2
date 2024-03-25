@@ -9,14 +9,20 @@
 
 struct circ;
 
-struct circuit {
+int circuit_effect(struct circ *c);
+int circuit_measure(struct circ *c);
+
+static struct circuit {
 	size_t num_qb;
 
 	int (*reset)(struct circ *);
-
-	int (*prepst)(struct circ *);
 	int (*effect)(struct circ *);
 	int (*measure)(struct circ *);
+} CT = {
+
+	.reset	 = NULL,
+	.effect	 = circuit_effect,
+	.measure = circuit_measure
 };
 
 /*
@@ -26,7 +32,7 @@ struct circuit {
  * instance.  The pointer `data` will be stored and will be available during
  * call to `circ_simulate()`.
  */
-struct circ *circ_create(struct circuit *ct, void *data);
+struct circ *circ_create(void *data);
 
 /*
  * Destroy circuit instance.
@@ -119,21 +125,20 @@ int circ_hamil_from_data2(struct circ_hamil *h, data2_id fid);
 void circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis);
 
 struct circ {
-	struct circuit *ct;
-	void	       *data;
-	int	       *qb;
+	void *data;
+	int  *qb;
 
 	/* Qubit register */
 	struct qreg reg;
 };
 
-struct circ *circ_create(struct circuit *ct, void *data)
+struct circ *circ_create(void *data)
 {
 	struct circ *c = malloc(sizeof(*c));
 	if (!c)
 		goto circ_fail;
 
-	const size_t num_qb = ct->num_qb;
+	const size_t num_qb = CT.num_qb;
 
 	int *qb = malloc(sizeof(*qb) * num_qb);
 	if (!qb)
@@ -142,7 +147,6 @@ struct circ *circ_create(struct circuit *ct, void *data)
 	struct qreg reg;
 	qreg_init(&reg, num_qb);
 
-	c->ct	= ct;
 	c->data = data;
 	c->reg	= reg;
 	c->qb	= qb;
@@ -172,8 +176,8 @@ void *circ_data(const struct circ *c)
 
 int circ_reset(struct circ *c)
 {
-	if (c->ct->reset)
-		return c->ct->reset(c);
+	if (CT.reset)
+		return CT.reset(c);
 
 	return 0;
 }
@@ -183,9 +187,8 @@ int circ_run(struct circ *c)
 	if (circ_reset(c) < 0)
 		return -1;
 
-	int (*ops[3])(struct circ *) = { c->ct->prepst, c->ct->effect,
-		c->ct->measure };
-	for (int i = 0; i < 3; i++) {
+	int (*ops[2])(struct circ *) = { CT.effect, CT.measure };
+	for (int i = 0; i < 2; i++) {
 		if (ops[i] && ops[i](c) < 0)
 			return -1;
 	}
@@ -361,7 +364,7 @@ static int iter_multidet(_Complex double coeff, size_t idx, void *op_data)
 	return 0;
 }
 
-int silk_multidet_from_data(struct circuit_multidet *md, const data2_id fid)
+int circuit_multidet_from_data(struct circuit_multidet *md, const data2_id fid)
 {
 	size_t num_qubits, num_dets;
 	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
@@ -410,13 +413,13 @@ int circuit_data_from_file(struct circuit_data *rd, data2_id fid)
 	int rc;
 
 	rc = circ_hamil_from_data2(&rd->hamil, fid);
-	rc |= silk_multidet_from_data(&rd->multidet, fid);
+	rc |= circuit_multidet_from_data(&rd->multidet, fid);
 	data2_trotter_get_factor(fid, &rd->time_factor);
 
 	return rc;
 }
 
-int silk_prepst(struct circ *c)
+int circuit_prepst(struct circ *c)
 {
 	const struct circ_data *cdat = circ_data(c);
 
@@ -443,7 +446,7 @@ static void trotter_step(struct circ *c, double omega)
 		circ_hamil_paulistr(hamil, i, paulis);
 		const double  angle = omega * hamil->coeffs[i];
 		struct paulis code  = paulis_new();
-		for (u32 k = 0; k < c->ct->num_qb; k++)
+		for (u32 k = 0; k < CT.num_qb; k++)
 			paulis_set(&code, paulis[k], k);
 
 		struct paulis code_hi, code_lo;
@@ -481,7 +484,7 @@ static void trotter_step(struct circ *c, double omega)
 			cache.angles, cache.num_codes);
 }
 
-int silk_effect(struct circ *c)
+int circuit_effect(struct circ *c)
 {
 	const struct circ_data *cdat = circ_data(c);
 	const double		t    = cdat->rd->time_factor;
@@ -495,7 +498,7 @@ int silk_effect(struct circ *c)
 	return 0;
 }
 
-int silk_measure(struct circ *c)
+int circuit_measure(struct circ *c)
 {
 	struct circ_data *cdat = circ_data(c);
 
@@ -512,33 +515,18 @@ int silk_measure(struct circ *c)
 	return 0;
 }
 
-static void silk_circuit_init(struct circuit *ct, size_t num_qb)
-{
-	ct->num_qb  = num_qb;
-	ct->reset   = NULL;
-	ct->prepst  = NULL;
-	ct->effect  = silk_effect;
-	ct->measure = silk_measure;
-}
-
-static void silk_circuit_destroy(const struct circuit *ct)
-{
-	(void)ct;
-}
-
 int circuit_simulate(const struct circuit_data *rd)
 {
 	int ret = 0;
 
-	struct circuit ct;
-	silk_circuit_init(&ct, rd->hamil.num_qubits);
+	CT.num_qb = rd->hamil.num_qubits;
 
 	struct circ_data cdat;
 	cdat.rd	       = rd;
-	struct circ *c = circ_create(&ct, &cdat);
+	struct circ *c = circ_create(&cdat);
 	if (!c)
 		goto error;
-	silk_prepst(c);
+	circuit_prepst(c);
 
 	for (size_t i = 0; i < rd->num_steps; i++) {
 		if (circ_run(c) < 0)
@@ -551,7 +539,6 @@ error:
 	ret = -1;
 exit:
 	circ_destroy(c);
-	silk_circuit_destroy(&ct);
 
 	return ret;
 }
