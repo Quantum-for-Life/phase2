@@ -21,7 +21,6 @@
  */
 
 #include <stdarg.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,10 +36,8 @@
 struct log_event {
 	va_list	    ap;
 	const char *fmt;
-	const char *file;
 	struct tm  *time;
 	void	   *data;
-	int	    line;
 	int	    level;
 };
 
@@ -52,36 +49,14 @@ struct callback {
 	int	  level;
 };
 
-typedef void (*log_lockfn)(bool lock, void *data);
-
 static struct {
 	void	       *data;
-	log_lockfn	lock;
 	int		level;
 	struct callback cb[MAX_CALLBACKS];
 } L;
 
 static const char *level_strings[] = { "TRACE", "DEBUG", "INFO", "WARN",
 	"ERROR", "FATAL" };
-
-#ifdef LOG_USE_COLOR
-static const char *level_colors[] = { "\x1b[94m", "\x1b[36m", "\x1b[32m",
-	"\x1b[33m", "\x1b[31m", "\x1b[35m" };
-#endif
-
-static void lock(void)
-{
-	if (L.lock) {
-		L.lock(true, L.data);
-	}
-}
-
-static void unlock(void)
-{
-	if (L.lock) {
-		L.lock(false, L.data);
-	}
-}
 
 const char *log_level_string(const int level)
 {
@@ -121,12 +96,6 @@ int log_level_from_lowercase(enum log_level *level, const char *name)
 	return -1;
 }
 
-void log_set_lock(const log_lockfn fn, void *data)
-{
-	L.lock = fn;
-	L.data = data;
-}
-
 void log_set_level(const int level)
 {
 	L.level = level;
@@ -159,8 +128,6 @@ void log_vlog(const int level, const char *fmt, va_list ap)
 		.level = level,
 	};
 
-	lock();
-
 	for (int i = 0; i < MAX_CALLBACKS && L.cb[i].fn; i++) {
 		const struct callback *cb = &L.cb[i];
 		if (level >= cb->level) {
@@ -170,8 +137,6 @@ void log_vlog(const int level, const char *fmt, va_list ap)
 			va_end(ev.ap);
 		}
 	}
-
-	unlock();
 }
 
 void log_log(const int level, const char *fmt, ...)
