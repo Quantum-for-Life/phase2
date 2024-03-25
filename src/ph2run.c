@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "mpi.h"
 
@@ -8,33 +7,15 @@
 #include "data2.h"
 #include "log.h"
 
-#define PH2RUN_DEFAULT_H5FILE "simul.h5"
-
-#define PH2RUN_SILK_DEFAULT_NUM_STEPS (8)
-
-enum opt_cicuit {
-	OPT_CICUIT_SILK,
-};
-
-struct args_silk {
-	size_t num_steps;
-};
-
 struct opt {
-	enum opt_cicuit cicuit;
-	const char     *dat_filename;
-	union {
-		struct args_silk silk;
-	} circuit_args;
+	const char *dat_filename;
+	size_t	    num_steps;
 };
 
 static struct opt opt;
 
 void opt_help_page(int argc, char **argv);
 int  opt_parse(struct opt *o, int argc, char **argv);
-
-/* Runners */
-int run_silk(data2_id fid, size_t num_steps);
 
 static int MAIN_RET = 0;
 
@@ -77,15 +58,10 @@ int main(int argc, char **argv)
 		ABORT_ON_ERROR("cannot process input data");
 
 	log_info("*** Circuit ***");
-	switch (opt.cicuit) {
-	case OPT_CICUIT_SILK:
-		log_info("Circuit: silk");
-		log_info("Num_steps: %zu", opt.circuit_args.silk.num_steps);
-		if (run_silk(fid, opt.circuit_args.silk.num_steps) < 0) {
-			log_error("Failure: simulation error");
-			goto error;
-		}
-		break;
+	log_info("Num_steps: %zu", opt.num_steps);
+	if (circuit_run(fid, opt.num_steps) < 0) {
+		log_error("Failure: simulation error");
+		goto error;
 	}
 
 	data2_close(fid);
@@ -102,73 +78,25 @@ error:
 void opt_help_page(int argc, char **argv)
 {
 	(void)argc;
-	fprintf(stderr, "usage: %s CIRCUIT [SIMUL_FILE_H5] [SIMUL_ARGS]\n\n",
+	fprintf(stderr, "usage: %s CIRCUIT [SIMUL_FILE_H5] [NUM_STEPS]\n\n",
 		argv[0]);
-	fprintf(stderr, "where CIRCUIT is must be one of:\n"
-			"\n"
-			"    linen\n"
-			"    rayon\n"
-			"    silk\n"
-			"\n"
-			"If no simulation input file (HDF5) is specified,\n"
-			"the default is " PH2RUN_DEFAULT_H5FILE " in the "
-			"current directory.\n");
 }
 
 int opt_parse(struct opt *o, int argc, char **argv)
 {
 	/* Parse command line arguments. */
-	if (argc < 2) {
+	if (argc < 3) {
 		opt_help_page(argc, argv);
 		return -1;
 	}
 
-	if (strncmp(argv[1], "silk", 4) == 0) {
-		o->cicuit = OPT_CICUIT_SILK;
-	} else {
-		fprintf(stderr, "No circ named %s\n", argv[1]);
+	o->dat_filename		     = argv[1];
+	unsigned long long num_steps = strtoull(argv[2], NULL, 10);
+	if (num_steps == 0) {
+		fprintf(stderr, "Wrong number of Trotter steps\n");
 		return -1;
 	}
-
-	o->dat_filename = PH2RUN_DEFAULT_H5FILE;
-	if (argc >= 3)
-		o->dat_filename = argv[2];
-
-	if (o->cicuit == OPT_CICUIT_SILK) {
-		if (argc < 4)
-			o->circuit_args.silk.num_steps =
-				PH2RUN_SILK_DEFAULT_NUM_STEPS;
-		else {
-			unsigned long long num_steps =
-				strtoull(argv[3], NULL, 10);
-			if (num_steps == 0) {
-				fprintf(stderr,
-					"Wrong number of Trotter steps\n");
-				return -1;
-			}
-			o->circuit_args.silk.num_steps = num_steps;
-		}
-	}
+	o->num_steps = num_steps;
 
 	return 0;
-}
-
-int run_silk(data2_id fid, size_t num_steps)
-{
-	int rc = 0;
-
-	struct circuit_data rd;
-	circuit_data_init(&rd, num_steps);
-	if (circuit_data_from_data(&rd, fid) < 0)
-		goto error;
-	if (circuit_simulate(&rd) < 0)
-		goto error;
-	data2_trotter_write_values(fid, rd.trotter_steps, num_steps);
-	goto cleanup;
-error:
-	rc = -1;
-cleanup:
-	circuit_data_destroy(&rd);
-
-	return rc;
 }

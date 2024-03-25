@@ -208,4 +208,6 @@ int circuit_data_from_data(struct circuit_data *rd, data2_id fid);
 
 int circuit_simulate(const struct circuit_data *rd);
 
+int circuit_run(data2_id fid, size_t num_steps);
+
 #endif // PHASE2_CIRC_H
