@@ -5,8 +5,6 @@
 
 #include "types.h"
 
-#define QREG_MAX_NUM_QUBITS (64)
-
 struct ev {
 	int num_ranks;
 	int rank;
@@ -39,9 +37,6 @@ struct paulis {
 };
 
 struct paulis paulis_new(void);
-struct paulis paulis_from_ops(const enum pauli_op *paulis, u32 num_paulis);
-
-void paulis_print(struct paulis code);
 
 void	      paulis_set(struct paulis *code, enum pauli_op pauli, u32 n);
 enum pauli_op paulis_get(struct paulis code, u32 n);
@@ -74,7 +69,6 @@ void qreg_getamp(const struct qreg *reg, u64 n, fl (*z)[2]);
 void qreg_setamp(struct qreg *reg, u64 n, const fl z[2]);
 
 void qreg_blank(struct qreg *reg);
-void qreg_zerostate(struct qreg *reg);
 void qreg_paulirot(struct qreg *reg, struct paulis code_hi,
 	const struct paulis *codes_lo, const fl *angles, size_t num_codes);
 

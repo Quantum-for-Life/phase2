@@ -6,12 +6,10 @@
 #include "mpi.h"
 
 #include "error.h"
-#include "types.h"
 #include "qreg.h"
-
+#include "types.h"
 
 #define MAX_COUNT (1 << 30)
-
 
 int ev_init(struct ev *ev)
 {
@@ -48,7 +46,6 @@ int ev_destroy(struct ev *ev)
 	return OK;
 }
 
-
 struct paulis paulis_new(void)
 {
 	struct paulis code;
@@ -56,24 +53,6 @@ struct paulis paulis_new(void)
 	code.pak[1] = (u64)0;
 
 	return code;
-}
-
-struct paulis paulis_from_ops(const enum pauli_op *paulis, const u32 num_paulis)
-{
-	struct paulis code = paulis_new();
-	for (u32 i = 0; i < num_paulis; i++)
-		paulis_set(&code, paulis[i], i);
-
-	return code;
-}
-
-void paulis_print(const struct paulis code)
-{
-	for (int i = 0; i < PAULI_MAX_WIDTH; i++) {
-		const enum pauli_op pauli = paulis_get(code, i);
-		printf("%c", PAULI_LABEL[pauli]);
-	}
-	printf("\n");
 }
 
 void paulis_set(struct paulis *code, const enum pauli_op pauli, const u32 n)
@@ -171,7 +150,6 @@ void paulis_split(const struct paulis code, const u32 qb_lo, const u32 qb_hi,
 	*hi = code;
 	paulis_mask(hi, ((u64)1 << (qb_lo + qb_hi)) - mask_lo);
 }
-
 
 // Assume n > 0
 static u32 ulog2(const u64 n)
