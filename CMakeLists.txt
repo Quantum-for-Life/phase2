@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.19.0)
 project(phase2 VERSION 0.1.0 LANGUAGES C)
 
-set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD 11)
 
 message(STATUS "Parallel MPI is required")
 find_package(MPI REQUIRED)
