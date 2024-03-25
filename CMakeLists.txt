@@ -25,41 +25,21 @@ link_libraries(m)
 add_compile_options(-Wall -Wextra -march=native)
 set(CMAKE_C_FLAGS_RELEASE "-O2")
 
-link_libraries(
-        ${HDF5_LIBRARIES}
-)
-include_directories(
-        ${HDF5_INCLUDE_DIRS}
-)
+link_libraries(${HDF5_LIBRARIES})
+include_directories(${HDF5_INCLUDE_DIRS})
 
 set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
 include_directories(${SRC_DIR})
 
-set(CIRC_SRC_DIR ${SRC_DIR})
-set(CIRC_SOURCES
-        ${CIRC_SRC_DIR}/circ.c
-        ${CIRC_SRC_DIR}/qreg.c
+set(PHASE2_SOURCES
+        ${SRC_DIR}/data2.c
+        ${SRC_DIR}/qreg.c
+        ${SRC_DIR}/circ.c
+        ${SRC_DIR}/log.c
 )
-
-set(DATA2_SRC_DIR ${SRC_DIR})
-set(DATA2_SOURCES
-        ${DATA2_SRC_DIR}/data2.c
-)
-
-set(PH2_COMMON_SOURCES
-        ${DATA2_SOURCES}
-        ${CIRC_SOURCES}
-)
-
-set(CLI_SRC_DIR ${SRC_DIR})
-set(CLI_SOURCES
-        ${CLI_SRC_DIR}/main.c
-        ${CLI_SRC_DIR}/log.c
-)
-
 add_executable(ph2run
-        ${PH2_COMMON_SOURCES}
-        ${CLI_SOURCES}
+        ${SRC_DIR}/main.c
+        ${PHASE2_SOURCES}
 )
 
 # -----------------------------------------------------------------------------

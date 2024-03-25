@@ -1,12 +1,9 @@
-#include <complex.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "mpi.h"
 
 #include "common.h"
-#include "error.h"
 #include "qreg.h"
 
 #define MAX_COUNT (1 << 30)
@@ -28,20 +25,6 @@ int ev_init(struct ev *ev)
 
 	ev->num_ranks = num_ranks;
 	ev->rank      = rank;
-
-	return OK;
-}
-
-int ev_destroy(struct ev *ev)
-{
-	(void)ev;
-
-	int finalized;
-	MPI_Finalized(&finalized);
-	if (!finalized && MPI_Finalize() != MPI_SUCCESS)
-		return -EMPI;
-
-	ev->num_ranks = 0;
 
 	return OK;
 }
@@ -161,11 +144,16 @@ static u32 ulog2(const u64 n)
 	return l;
 }
 
-int qreg_init(struct qreg *reg, const u32 num_qubits, const struct ev *ev)
+int qreg_init(struct qreg *reg, const u32 num_qubits)
 {
 	int ret;
 
-	const u32 qb_hi = ulog2(ev->num_ranks);
+	if (ev_init(&reg->ev) < 0) {
+		ret = -EMPI;
+		goto err_ev;
+	}
+
+	const u32 qb_hi = ulog2(reg->ev.num_ranks);
 	if (qb_hi >= num_qubits)
 		return -ESIZE;
 	const u32 qb_lo	   = num_qubits - qb_hi;
@@ -185,7 +173,6 @@ int qreg_init(struct qreg *reg, const u32 num_qubits, const struct ev *ev)
 		goto err_amp_alloc;
 	}
 
-	reg->ev	       = ev;
 	reg->qb_lo     = qb_lo;
 	reg->qb_hi     = qb_hi;
 	reg->amp[0]    = amp;
@@ -204,6 +191,7 @@ int qreg_init(struct qreg *reg, const u32 num_qubits, const struct ev *ev)
 err_amp_alloc:
 	free(reqs);
 err_reqs_alloc:
+err_ev:
 	return ret;
 }
 
@@ -244,7 +232,7 @@ void qreg_getamp(const struct qreg *reg, const u64 n, fl (*z)[2])
 {
 	const struct distidx di = distidx_fromn(reg->qb_lo, reg->qb_hi, n);
 
-	if (reg->ev->rank == di.rank) {
+	if (reg->ev.rank == di.rank) {
 		(*z)[0] = reg->amp[0][di.i];
 		(*z)[1] = reg->amp[1][di.i];
 	};
@@ -255,7 +243,7 @@ void qreg_setamp(struct qreg *reg, const u64 n, const fl z[2])
 {
 	const struct distidx di = distidx_fromn(reg->qb_lo, reg->qb_hi, n);
 
-	if (reg->ev->rank == di.rank) {
+	if (reg->ev.rank == di.rank) {
 		reg->amp[0][di.i] = z[0];
 		reg->amp[1][di.i] = z[1];
 	};
@@ -263,18 +251,12 @@ void qreg_setamp(struct qreg *reg, const u64 n, const fl z[2])
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
-void qreg_blank(struct qreg *reg)
+void qreg_zero(struct qreg *reg)
 {
 	for (u64 i = 0; i < reg->num_amps; i++) {
 		reg->amp[0][i] = 0.0;
 		reg->amp[1][i] = 0.0;
 	}
-}
-
-void qreg_zerostate(struct qreg *reg)
-{
-	qreg_blank(reg);
-	qreg_setamp(reg, 0, (fl[]){ 1.0, 0.0 });
 }
 
 static void qreg_exchbuf_init(struct qreg *reg, const int rnk_rem)
@@ -397,7 +379,7 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	const struct paulis *codes_lo, const fl *angles, const size_t num_codes)
 {
 	/* Compute permutation from outer qubits */
-	const u64 rnk_loc = reg->ev->rank;
+	const u64 rnk_loc = reg->ev.rank;
 	const u64 rnk_rem = paulis_effect(code_hi, rnk_loc, NULL);
 	qreg_exchbuf_init(reg, rnk_rem);
 

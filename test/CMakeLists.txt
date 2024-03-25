@@ -9,13 +9,14 @@ macro(more_test name sources)
     add_test(NAME ${test_name} COMMAND $<TARGET_FILE:${test_name}>)
 endmacro()
 
-more_test(caserand PH2_COMMON_SOURCES)
+more_test(caserand PHASE2_SOURCES)
 
 set(TEST_DATA_SRC
         ${PROJECT_SOURCE_DIR}/test/data
 )
 set(TEST_DATA_SOURCES
         ${DATA2_SOURCES}
+        ${PHASE2_SOURCES}
         ${TEST_DATA_SRC}/test_data_open.c
         ${TEST_DATA_SRC}/test_data_multidet.c
         ${TEST_DATA_SRC}/test_data_hamil.c

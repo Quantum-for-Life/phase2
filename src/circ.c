@@ -3,8 +3,8 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include "common.h"
 #include "circ.h"
+#include "common.h"
 #include "qreg.h"
 
 struct circ;
@@ -165,10 +165,6 @@ int circ_hamil_from_data2(struct circ_hamil *h, data2_id fid);
  */
 void circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis);
 
-static struct {
-	struct ev ev;
-} circ_env;
-
 struct circ {
 	struct circuit *ct;
 	void	       *data;
@@ -177,24 +173,6 @@ struct circ {
 	/* Qubit register */
 	struct qreg reg;
 };
-
-int circ_initialize(void)
-{
-	int rc = ev_init(&circ_env.ev);
-	atexit(circ_shutdown);
-
-	return rc;
-}
-
-void circ_shutdown(void)
-{
-	ev_destroy(&circ_env.ev);
-}
-
-static struct ev *env_get_ev(void)
-{
-	return &circ_env.ev;
-}
 
 struct circ *circ_create(struct circuit *ct, void *data)
 {
@@ -209,12 +187,9 @@ struct circ *circ_create(struct circuit *ct, void *data)
 	int *qb = malloc(sizeof(*qb) * num_qb_tot);
 	if (!qb)
 		goto qb_fail;
-	struct ev *ev = env_get_ev();
-	if (!ev)
-		goto ev_fail;
 
 	struct qreg reg;
-	qreg_init(&reg, num_qb_tot, ev);
+	qreg_init(&reg, num_qb_tot);
 
 	c->ct	= ct;
 	c->data = data;
@@ -224,8 +199,7 @@ struct circ *circ_create(struct circuit *ct, void *data)
 
 	return c;
 
-ev_fail:
-	free(qb);
+	// free(qb);
 qb_fail:
 	free(cl);
 cl_fail:
@@ -236,9 +210,6 @@ circ_fail:
 
 void circ_destroy(struct circ *c)
 {
-	const struct ev *ev = env_get_ev();
-	if (!ev)
-		return;
 	qreg_destroy(&c->reg);
 	if (c->qb)
 		free(c->qb);
@@ -391,7 +362,7 @@ void circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis)
 
 void circ_ops_blank(struct circ *c)
 {
-	qreg_blank(&c->reg);
+	qreg_zero(&c->reg);
 }
 
 void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp)

@@ -37,8 +37,6 @@ struct circuit_data {
 	_Complex double		    *trotter_steps;
 };
 
-int circ_initialize(void);
-
 int circuit_data_init(struct circuit_data *rd, size_t num_steps);
 
 void circuit_data_destroy(struct circuit_data *rd);
