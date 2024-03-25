@@ -1,8 +1,5 @@
 #include <complex.h>
 #include <float.h>
-#include <stdatomic.h>
-#include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "circ.h"
@@ -10,27 +7,9 @@
 
 #include <math.h>
 
-/* ----------------------------------------------------------------------------
- * Initialize and control global circ environment.
- *
- * This part was meant to provide safe initialization of a global environment in
- * a multithreaded setup.  Hence the use of atomic flags and memory ordering.
- *
- * Unfortunatelly, our main cluster setup (ETHZ Euler) does not support C11
- * threads. Hence, we put on hold the development of a concurrent simulation
- * environment using bare C threads, and focus insead on OpenMP/MPI concurrency.
- *
- * The code below should work just as well in a single-threaded situation, so
- * there's no reason to remove it.
- * -------------------------------------------------------------------------- */
 static struct {
-	_Atomic _Bool init;
-	atomic_flag   lock;
-	struct ev     ev;
-} circ_env = {
-	.init = false,
-	.lock = ATOMIC_FLAG_INIT,
-};
+	struct ev ev;
+} circ_env;
 
 struct circ {
 	struct circuit *ct;
@@ -41,72 +20,21 @@ struct circ {
 	struct qreg reg;
 };
 
-#ifdef __STDC_NO_THREADS__
-void thrd_yield(void)
-{
-}
-#else
-#include <threads.h>
-#endif
-
 int circ_initialize(void)
 {
-	int rc = 1;
-
-	/* If circ_env.init flag is set, someone else has already successfully
-	 * initialized the environment, or is in the process of doing it. */
-	if (atomic_load_explicit(&circ_env.init, memory_order_relaxed))
-		return rc;
-
-	/* Try to obtain a spinlock. Enter critical section until the lock is
-	released. */
-	while (atomic_flag_test_and_set(&circ_env.lock))
-		thrd_yield();
-	/* Check if someone hasn't set everything up for us while we were
-	waiting.  If the flag is not set, we need to be sure other members
-	of circ_env haven't been touched yet either.  Hence `acquire`
-	memory order. */
-	if (!atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
-		/* The call to QuEST always succeeds. If there's something else
-		here to do that might fail, conditionally set the return code
-		rc=-1 and leave the flag off. */
-		ev_init(&circ_env.ev);
-		int atex_rc = atexit(circ_shutdown);
-		if (atex_rc == 0) {
-			atomic_store_explicit(
-				&circ_env.init, true, memory_order_release);
-			rc = 0;
-		} else {
-			rc = -1;
-		}
-	}
-	atomic_flag_clear(&circ_env.lock);
+	int rc = ev_init(&circ_env.ev);
+	atexit(circ_shutdown);
 
 	return rc;
 }
 
 void circ_shutdown(void)
 {
-	if (!atomic_load_explicit(&circ_env.init, memory_order_relaxed))
-		return;
-
-	while (atomic_flag_test_and_set(&circ_env.lock))
-		thrd_yield();
-	if (atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
-		ev_destroy(&circ_env.ev);
-		atomic_store_explicit(
-			&circ_env.init, false, memory_order_release);
-	}
-	atomic_flag_clear(&circ_env.lock);
+	ev_destroy(&circ_env.ev);
 }
 
 static struct ev *env_get_ev(void)
 {
-	if (!atomic_load_explicit(&circ_env.init, memory_order_acquire)) {
-		if (circ_initialize() < 0)
-			return NULL;
-	}
-
 	return &circ_env.ev;
 }
 
@@ -235,11 +163,11 @@ void circ_hamil_destroy(struct circ_hamil *h)
 }
 
 struct hamil_iter_data {
-	size_t	     idx;
-	size_t	     num_qubits;
-	double	     norm;
-	double	    *coeffs;
-	u64 *pak;
+	size_t	idx;
+	size_t	num_qubits;
+	double	norm;
+	double *coeffs;
+	u64    *pak;
 };
 
 static int hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
@@ -249,7 +177,7 @@ static int hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 
 	idat->coeffs[i] = coeff * idat->norm;
 	for (size_t j = 0; j < num_qubits; j++) {
-		ldiv_t		  dv = ldiv(i * num_qubits + j, PAULI_PAK_SIZE);
+		ldiv_t	  dv	= ldiv(i * num_qubits + j, PAULI_PAK_SIZE);
 		const u64 pauli = paulis[j];
 		idat->pak[dv.quot] += pauli << (dv.rem * PAULI_WIDTH);
 	}
@@ -267,9 +195,9 @@ int circ_hamil_from_data2(struct circ_hamil *h, data2_id fid)
 	if (data2_hamil_getnorm(fid, &norm) < 0)
 		return -1;
 
-	double	    *coeffs = malloc(sizeof *coeffs * num_terms);
-	u64 *pak = calloc(num_terms * num_qubits / PAULI_PAK_SIZE + 1,
-		sizeof(u64));
+	double *coeffs = malloc(sizeof *coeffs * num_terms);
+	u64    *pak    = calloc(
+		      num_terms * num_qubits / PAULI_PAK_SIZE + 1, sizeof(u64));
 	if (!(coeffs && pak))
 		goto err;
 

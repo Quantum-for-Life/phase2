@@ -10,7 +10,6 @@ macro(more_test name sources)
 endmacro()
 
 more_test(circ PH2_COMMON_SOURCES)
-more_test(circ_env PH2_COMMON_SOURCES)
 more_test(healthchk PH2_COMMON_SOURCES)
 more_test(caserand PH2_COMMON_SOURCES)
 
