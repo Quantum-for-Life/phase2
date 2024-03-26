@@ -160,12 +160,11 @@ struct iter_multidet_data {
 	struct circ_multidet *md;
 };
 
-static int iter_multidet(
-	const _Complex double coeff, const uint64_t idx, void *op_data)
+static int iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
 {
 	struct iter_multidet_data *imd = op_data;
 
-	imd->md->dets[imd->idx].coeff = coeff;
+	imd->md->dets[imd->idx].coeff = coeff[0] + _Complex_I * coeff[1];
 	imd->md->dets[imd->idx].idx   = idx;
 	imd->idx++;
 

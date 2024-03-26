@@ -1,3 +1,4 @@
+#include <complex.h>
 #include <stdint.h>
 
 #include "hdf5.h"
@@ -171,7 +172,7 @@ err_multidet_open:
 }
 
 int data2_multidet_foreach(data2_id fid,
-	int (*op)(_Complex double, uint64_t, void *), void *op_data)
+	int (*op)(double coeff[2], uint64_t idx, void *), void *op_data)
 {
 	int    rc = 0;
 	size_t num_qubits, num_dets;
@@ -192,11 +193,13 @@ int data2_multidet_foreach(data2_id fid,
 		goto err_data_read;
 
 	for (size_t i = 0; i < num_dets; i++) {
-		uint64_t idx = 0;
+		uint64_t it_idx = 0;
 		for (size_t j = 0; j < num_qubits; j++) {
-			idx += dets_buf[i * num_qubits + j] << j;
+			it_idx += dets_buf[i * num_qubits + j] << j;
 		}
-		rc = op(coeffs_buf[i], idx, op_data);
+		double it_coeff[2] = { creal(coeffs_buf[i]),
+			cimag(coeffs_buf[i]) };
+		rc		   = op(it_coeff, it_idx, op_data);
 		/* This isn't an error, but rather the user telling us to
 		   short-circuit the iteration. */
 		if (rc != 0)
@@ -329,8 +332,8 @@ err_hamil_open:
 	return -1;
 }
 
-int data2_hamil_foreach(data2_id fid,
-	int (*op)(const double, const unsigned char *, void *), void *op_data)
+int data2_hamil_foreach(
+	data2_id fid, int (*op)(double, unsigned char *, void *), void *op_data)
 {
 	int	       rc = 0;
 	unsigned char *paulis, *paustr;

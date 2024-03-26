@@ -13,7 +13,7 @@ static int test_get_nums(void)
 	int rc = 0;
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
 		struct test_data td	  = TEST_DATA[i];
-		const char	   *filename = td.filename;
+		const char	*filename = td.filename;
 
 		data2_id fid = data2_open(filename);
 		if (fid == DATA2_INVALID_FID) {
@@ -42,7 +42,7 @@ static int test_get_nums(void)
 	return rc;
 }
 
-static int iter_count_dets(_Complex double coeff, size_t idx, void *op_data)
+static int iter_count_dets(double coeff[2], size_t idx, void *op_data)
 {
 	(void)coeff;
 	(void)idx;
@@ -53,8 +53,7 @@ static int iter_count_dets(_Complex double coeff, size_t idx, void *op_data)
 	return 0;
 }
 
-static int iter_count_dets_onlytwo(
-	_Complex double coeff, size_t idx, void *op_data)
+static int iter_count_dets_onlytwo(double coeff[2], size_t idx, void *op_data)
 {
 	(void)coeff;
 	(void)idx;
@@ -74,11 +73,11 @@ struct iter_store {
 	size_t		idx[128];
 };
 
-static int iter_store_dets(_Complex double coeff, size_t idx, void *op_data)
+static int iter_store_dets(double coeff[2], size_t idx, void *op_data)
 {
 	struct iter_store *is = op_data;
 
-	is->coeff[is->index] = coeff;
+	is->coeff[is->index] = coeff[0] + _Complex_I * coeff[1];
 	is->idx[is->index]   = idx;
 	is->index++;
 

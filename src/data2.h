@@ -77,7 +77,7 @@ int data2_multidet_getnums(data2_id fid, size_t *num_qubits, size_t *num_dets);
  *  or a user-defined value, if the iteration was terminated early
  */
 int data2_multidet_foreach(data2_id fid,
-	int (*op)(_Complex double, uint64_t, void *), void *op_data);
+	int (*op)(double coeff[2], uint64_t idx, void *), void *op_data);
 
 /**
  * Get the number of qubits and terms for the "hamil" group.
@@ -153,7 +153,7 @@ int data2_hamil_getnorm(data2_id fid, double *norm);
  *  or a user-defined value, if the iteration was terminated early
  */
 int data2_hamil_foreach(data2_id fid,
-	int (*op)(const double, const unsigned char *, void *), void *op_data);
+	int (*op)(double, unsigned char *, void *), void *op_data);
 
 int data2_trotter_get_factor(data2_id fid, double *factor);
 
