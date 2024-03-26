@@ -35,7 +35,6 @@ static int caserand(const char *prefix)
 {
 	char filename[1024] = { 0 };
 
-
 	snprintf(filename, 1024, "%s/%s.h5", CASE_DIR, prefix);
 	data2_id fid = data2_open(filename);
 	if (fid == DATA2_INVALID_FID) {
@@ -127,5 +126,6 @@ int main(int argc, char **argv)
 
 	return MAIN_RET;
 error:
+	MAIN_RET = -1;
 	return MAIN_RET;
 }
