@@ -1,11 +1,7 @@
 #ifndef PHASE2_COMMON_H
 #define PHASE2_COMMON_H
 
-#include <stdint.h>
-
 #define PHASE2_LOG_ENVVAR "PHASE2_LOG"
-
-
 
 enum eno {
 	OK = 0,

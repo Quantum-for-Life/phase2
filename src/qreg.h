@@ -1,6 +1,8 @@
 #ifndef QREG_H
 #define QREG_H
 
+#include <stdint.h>
+
 #include <mpi.h>
 
 #define PAULI_MAX_WIDTH (64)
