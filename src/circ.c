@@ -19,7 +19,6 @@ struct circ {
 
 	const struct circ_data *data;
 	_Complex double		prod;
-	int			scratch[64];
 
 	struct code_cache {
 		struct paulis code_hi;
@@ -132,15 +131,19 @@ err:
 	return -1;
 }
 
-void circ_hamil_paulistr(
-	const struct circ_hamil *h, const size_t n, int *paulis)
+static struct paulis circ_hamil_getpaulis(
+	const struct circ_hamil *h, const size_t n)
 {
-	for (size_t j = 0; j < h->num_qubits; j++) {
+	struct paulis paulis = paulis_new();
+	for (u32 j = 0; j < h->num_qubits; j++) {
 		const size_t pauli_idx = n * h->num_qubits + j;
 		const ldiv_t dv	       = ldiv(pauli_idx, HAMIL_PAULI_PAK_SIZE);
-		paulis[j] = (h->pak[dv.quot] >> (dv.rem * HAMIL_PAULI_WIDTH)) &
-			    HAMIL_PAULI_MASK;
+		uint64_t p = (h->pak[dv.quot] >> (dv.rem * HAMIL_PAULI_WIDTH)) &
+			     HAMIL_PAULI_MASK;
+		paulis_set(&paulis, p, j);
 	}
+
+	return paulis;
 }
 
 void circ_reg_blank(struct circ *c)
@@ -195,7 +198,7 @@ static int iter_multidet(
 	struct iter_multidet_data *imd = op_data;
 
 	imd->md->dets[imd->idx].coeff = coeff;
-	imd->md->dets[imd->idx].idx = idx;
+	imd->md->dets[imd->idx].idx   = idx;
 	imd->idx++;
 
 	return 0;
@@ -268,18 +271,14 @@ int circuit_prepst(struct circ *c)
 
 static void trotter_step(struct circ *c, const double omega)
 {
-	const struct circ_hamil *hamil	= &c->data->hamil;
-	int			*paulis = c->scratch;
+	const struct circ_hamil *hamil = &c->data->hamil;
 
 	struct code_cache cache = c->cache;
 	cache.num_codes		= 0;
 
 	for (size_t i = 0; i < hamil->num_terms; i++) {
-		circ_hamil_paulistr(hamil, i, paulis);
-		const double  angle = omega * hamil->coeffs[i];
-		struct paulis code  = paulis_new();
-		for (u32 k = 0; k < c->num_qb; k++)
-			paulis_set(&code, paulis[k], k);
+		const double	    angle = omega * hamil->coeffs[i];
+		const struct paulis code  = circ_hamil_getpaulis(hamil, i);
 
 		struct paulis code_hi, code_lo;
 		paulis_split(
