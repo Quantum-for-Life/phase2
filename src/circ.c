@@ -125,12 +125,6 @@ err:
 	return -1;
 }
 
-static struct paulis circ_hamil_getpaulis(
-	const struct circ_hamil *h, const size_t n)
-{
-	return h->paulis[n];
-}
-
 void circ_reg_blank(struct circ *c)
 {
 	qreg_zero(&c->reg);
@@ -263,7 +257,7 @@ static void trotter_step(struct circ *c, const double omega)
 
 	for (size_t i = 0; i < hamil->num_terms; i++) {
 		const double	    angle = omega * hamil->coeffs[i];
-		const struct paulis code  = circ_hamil_getpaulis(hamil, i);
+		const struct paulis code  = hamil->paulis[i];
 
 		struct paulis code_hi, code_lo;
 		paulis_split(
@@ -321,7 +315,7 @@ static int circ_measure(struct circ *c)
 	for (size_t i = 0; i < md->num_dets; i++) {
 		_Complex double amp;
 		circ_reg_getamp(c, md->dets[i].idx, &amp);
-		prod += amp * conj(md->dets[i].coeff);
+		prod += conj(md->dets[i].coeff) * amp;
 	}
 
 	c->prod = prod;
