@@ -13,7 +13,7 @@
 #include "test.h"
 
 #define SIZE (5)
-#define MARGIN (10e-6)
+#define MARGIN (1e-6)
 
 #define H5_GRP_NAME "trotter_steps"
 #define H5_GRP_TIME_FACTOR "time_factor"

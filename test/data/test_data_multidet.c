@@ -6,7 +6,7 @@
 #include "test.h"
 #include "test_data.h"
 
-#define MARGIN (10e-6)
+#define MARGIN (1e-6)
 
 static int test_get_nums(void)
 {
@@ -73,7 +73,7 @@ struct iter_store {
 	size_t		idx[128];
 };
 
-static int iter_store_dets(double coeff[2], size_t idx, void *op_data)
+static int iter_store_dets(double coeff[2], const size_t idx, void *op_data)
 {
 	struct iter_store *is = op_data;
 
