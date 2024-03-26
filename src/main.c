@@ -104,18 +104,18 @@ int run_circuit(data2_id fid, size_t num_steps)
 {
 	int rc = 0;
 
-	struct circuit_data rd;
-	circuit_data_init(&rd, num_steps);
-	if (circuit_data_from_file(&rd, fid) < 0)
+	struct circ_data rd;
+	circ_data_init(&rd, num_steps);
+	if (circ_data_from_file(&rd, fid) < 0)
 		goto error;
-	if (circuit_simulate(&rd) < 0)
+	if (circ_simulate(&rd) < 0)
 		goto error;
 	data2_trotter_write_values(fid, rd.trotter_steps, num_steps);
 	goto cleanup;
 error:
 	rc = -1;
 cleanup:
-	circuit_data_destroy(&rd);
+	circ_data_destroy(&rd);
 
 	return rc;
 }

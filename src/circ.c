@@ -9,107 +9,24 @@
 
 #define MAX_CODES (1024)
 
-struct code_cache {
-	struct paulis code_hi;
-	struct paulis codes_lo[MAX_CODES];
-	fl	      angles[MAX_CODES];
-	size_t	      num_codes;
-};
-
-struct circ_data {
-	const struct circuit_data *rd;
-	_Complex double		   prod;
-	int			   scratch[64];
-
-	struct code_cache cache;
-};
-
-
 struct circ {
-	struct circ_data *data;
-	size_t		  num_qb;
-
-	/* Qubit register */
+	size_t	    num_qb;
 	struct qreg reg;
+
+	const struct circ_data *data;
+	_Complex double		prod;
+	int			scratch[64];
+
+	struct code_cache {
+		struct paulis code_hi;
+		struct paulis codes_lo[MAX_CODES];
+		fl	      angles[MAX_CODES];
+		size_t	      num_codes;
+	} cache;
 };
 
-static int circuit_effect(struct circ *c);
-static int circuit_measure(struct circ *c);
-
-/*
- * Run circuit simulation.
- *
- * This will reset the circuit with circ_reset() and call functions specified by
- * the circuit template in the following order:
- *	prepst(),
- *	effect(),
- *	measure()
- *
- * Return value:	 0	if successful
- *			-1	in case of failure
- */
-int circ_run(struct circ *c);
-
-void circ_ops_blank(struct circ *c);
-
-void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp);
-
-void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp);
-
-void circ_ops_paulirot(struct circ *c, struct paulis code_hi,
-	const struct paulis *codes_lo, const fl *angles, size_t num_codes);
-
-/*
- * Hamiltonian module.
- */
-
-/*
- * Initialize Hamiltonian.
- *
- * This function must be called first before any other operation on the
- * structure is performed.
- */
-void circ_hamil_init(struct circ_hamil *h);
-
-/*
- * Destroy Hamiltonian.
- *
- * Free allocated memory.
- */
-void circ_hamil_destroy(struct circ_hamil *h);
-
-/*
- * Parse data from the open file represented by `fid` descriptor.
- *
- * Return value:  	 0	Data was parsed successfully
- *			-1	Error while reading data
- */
-int circ_hamil_from_data2(struct circ_hamil *h, data2_id fid);
-
-/*
- * Retrieve a single Pauli string corresponding to the index `n` in the sum of
- * terms.
- *
- * The value of `n` must be smaller than `h->num_qubits`.  The array `paulis`
- * must be of size at least `n`.
- *
- * After the call to this function, the value of `paulis` will be overwritten
- * with numbers specifying operators in the Pauli string:
- *	0	- I
- *	1	- X
- *	2	- Y
- *	3	- Z
- */
-void circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis);
-
-/*
- * Create instance of a circuit.
- *
- * Using the circuit description `ct`, allocate memory for a new circuit
- * instance.  The pointer `data` will be stored and will be available during
- * call to `circ_simulate()`.
- */
-int circ_create(struct circ *c, void *data, size_t num_qubits)
+int circ_create(
+	struct circ *c, const struct circ_data *data, const size_t num_qubits)
 {
 	struct qreg reg;
 	if (qreg_init(&reg, num_qubits) < 0)
@@ -125,14 +42,6 @@ int circ_create(struct circ *c, void *data, size_t num_qubits)
 void circ_destroy(struct circ *c)
 {
 	qreg_destroy(&c->reg);
-}
-
-int circ_run(struct circ *c)
-{
-	if (circuit_effect(c) < 0)
-		return -1;
-	circuit_measure(c);
-	return 0;
 }
 
 static const size_t PAULI_MASK	   = 3;
@@ -169,22 +78,24 @@ struct hamil_iter_data {
 	u64    *pak;
 };
 
-static int hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
+static int hamil_iter(
+	const double coeff, const unsigned char *paulis, void *iter_data)
 {
-	struct hamil_iter_data *idat = iter_data;
-	size_t			i = idat->idx++, num_qubits = idat->num_qubits;
+	struct hamil_iter_data *idat	   = iter_data;
+	const size_t		i	   = idat->idx++;
+	const size_t		num_qubits = idat->num_qubits;
 
 	idat->coeffs[i] = coeff * idat->norm;
 	for (size_t j = 0; j < num_qubits; j++) {
-		ldiv_t	  dv	= ldiv(i * num_qubits + j, PAULI_PAK_SIZE);
-		const u64 pauli = paulis[j];
+		const ldiv_t dv	   = ldiv(i * num_qubits + j, PAULI_PAK_SIZE);
+		const u64    pauli = paulis[j];
 		idat->pak[dv.quot] += pauli << (dv.rem * PAULI_WIDTH);
 	}
 
 	return 0;
 }
 
-int circ_hamil_from_data2(struct circ_hamil *h, data2_id fid)
+int circ_hamil_from_data2(struct circ_hamil *h, const data2_id fid)
 {
 	size_t num_qubits, num_terms;
 	double norm;
@@ -220,28 +131,30 @@ err:
 	return -1;
 }
 
-void circ_hamil_paulistr(const struct circ_hamil *h, size_t n, int *paulis)
+void circ_hamil_paulistr(
+	const struct circ_hamil *h, const size_t n, int *paulis)
 {
 	for (size_t j = 0; j < h->num_qubits; j++) {
 		const size_t pauli_idx = n * h->num_qubits + j;
-		ldiv_t	     dv	       = ldiv(pauli_idx, PAULI_PAK_SIZE);
+		const ldiv_t dv	       = ldiv(pauli_idx, PAULI_PAK_SIZE);
 		paulis[j] = (h->pak[dv.quot] >> (dv.rem * PAULI_WIDTH)) &
 			    PAULI_MASK;
 	}
 }
 
-void circ_ops_blank(struct circ *c)
+void circ_reg_blank(struct circ *c)
 {
 	qreg_zero(&c->reg);
 }
 
-void circ_ops_setsysamp(struct circ *c, size_t idx, _Complex double amp)
+void circ_reg_setamp(
+	struct circ *c, const size_t idx, const _Complex double amp)
 {
-	double amps[2] = { creal(amp), cimag(amp) };
+	const double amps[2] = { creal(amp), cimag(amp) };
 	qreg_setamp(&c->reg, idx, amps);
 }
 
-void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp)
+void circ_reg_getamp(struct circ *c, const size_t idx, _Complex double *amp)
 {
 	double amps[2];
 	qreg_getamp(&c->reg, idx, &amps);
@@ -249,20 +162,19 @@ void circ_ops_getsysamp(struct circ *c, size_t idx, _Complex double *amp)
 	*amp = amps[0] + _Complex_I * amps[1];
 }
 
-void circ_ops_paulirot(struct circ *c, const struct paulis code_hi,
+void circ_reg_paulirot(struct circ *c, const struct paulis code_hi,
 	const struct paulis *codes_lo, const fl *angles, const size_t num_codes)
 {
 	qreg_paulirot(&c->reg, code_hi, codes_lo, angles, num_codes);
 }
 
-
-void silk_multidet_init(struct circuit_multidet *md)
+void silk_multidet_init(struct circ_multidet *md)
 {
 	md->num_dets = 0;
 	md->dets     = NULL;
 }
 
-void silk_multidet_destroy(struct circuit_multidet *md)
+void silk_multidet_destroy(struct circ_multidet *md)
 {
 	if (md->dets) {
 		free(md->dets);
@@ -272,11 +184,12 @@ void silk_multidet_destroy(struct circuit_multidet *md)
 }
 
 struct iter_multidet_data {
-	size_t			 idx;
-	struct circuit_multidet *md;
+	size_t		      idx;
+	struct circ_multidet *md;
 };
 
-static int iter_multidet(_Complex double coeff, size_t idx, void *op_data)
+static int iter_multidet(
+	const _Complex double coeff, const size_t idx, void *op_data)
 {
 	struct iter_multidet_data *imd = op_data;
 
@@ -287,13 +200,13 @@ static int iter_multidet(_Complex double coeff, size_t idx, void *op_data)
 	return 0;
 }
 
-int circuit_multidet_from_data(struct circuit_multidet *md, const data2_id fid)
+int circuit_multidet_from_data(struct circ_multidet *md, const data2_id fid)
 {
 	size_t num_qubits, num_dets;
 	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
 		return -1;
 	md->dets = malloc(sizeof *md->dets * num_dets);
-	if (!md->dets)
+	if (md->dets == NULL)
 		return -1;
 
 	struct iter_multidet_data imd;
@@ -310,56 +223,54 @@ error:
 	return -1;
 }
 
-int circuit_data_init(struct circuit_data *rd, size_t num_steps)
+int circ_data_init(struct circ_data *cd, const size_t num_steps)
 {
-	circ_hamil_init(&rd->hamil);
-	silk_multidet_init(&rd->multidet);
-	rd->num_steps = num_steps;
+	circ_hamil_init(&cd->hamil);
+	silk_multidet_init(&cd->multidet);
+	cd->num_steps = num_steps;
 
-	rd->trotter_steps = malloc(sizeof *rd->trotter_steps * num_steps);
-	if (!rd->trotter_steps)
+	cd->trotter_steps = malloc(sizeof *cd->trotter_steps * num_steps);
+	if (cd->trotter_steps == NULL)
 		return -1;
 
 	return 0;
 }
 
-void circuit_data_destroy(struct circuit_data *rd)
+void circ_data_destroy(struct circ_data *cd)
 {
-	silk_multidet_destroy(&rd->multidet);
-	circ_hamil_destroy(&rd->hamil);
+	silk_multidet_destroy(&cd->multidet);
+	circ_hamil_destroy(&cd->hamil);
 
-	free(rd->trotter_steps);
+	free(cd->trotter_steps);
 }
 
-int circuit_data_from_file(struct circuit_data *rd, data2_id fid)
+int circ_data_from_file(struct circ_data *cd, const data2_id fid)
 {
-	int rc;
-
-	rc = circ_hamil_from_data2(&rd->hamil, fid);
-	rc |= circuit_multidet_from_data(&rd->multidet, fid);
-	data2_trotter_get_factor(fid, &rd->time_factor);
+	int rc = circ_hamil_from_data2(&cd->hamil, fid);
+	rc |= circuit_multidet_from_data(&cd->multidet, fid);
+	data2_trotter_get_factor(fid, &cd->time_factor);
 
 	return rc;
 }
 
 int circuit_prepst(struct circ *c)
 {
-	const struct circuit_multidet *md = &c->data->rd->multidet;
+	const struct circ_multidet *md = &c->data->multidet;
 
-	circ_ops_blank(c);
+	circ_reg_blank(c);
 	for (size_t i = 0; i < md->num_dets; i++) {
-		circ_ops_setsysamp(c, md->dets[i].index, md->dets[i].coeff);
+		circ_reg_setamp(c, md->dets[i].index, md->dets[i].coeff);
 	}
 
 	return 0;
 }
 
-static void trotter_step(struct circ *c, double omega)
+static void trotter_step(struct circ *c, const double omega)
 {
-	const struct circ_hamil *hamil	= &c->data->rd->hamil;
-	int			*paulis = c->data->scratch;
+	const struct circ_hamil *hamil	= &c->data->hamil;
+	int			*paulis = c->scratch;
 
-	struct code_cache cache = c->data->cache;
+	struct code_cache cache = c->cache;
 	cache.num_codes		= 0;
 
 	for (size_t i = 0; i < hamil->num_terms; i++) {
@@ -390,7 +301,7 @@ static void trotter_step(struct circ *c, double omega)
 			continue;
 		}
 
-		circ_ops_paulirot(c, cache.code_hi, cache.codes_lo,
+		circ_reg_paulirot(c, cache.code_hi, cache.codes_lo,
 			cache.angles, cache.num_codes);
 
 		cache.num_codes	  = 1;
@@ -400,13 +311,13 @@ static void trotter_step(struct circ *c, double omega)
 	}
 
 	if (cache.num_codes > 0)
-		circ_ops_paulirot(c, cache.code_hi, cache.codes_lo,
+		circ_reg_paulirot(c, cache.code_hi, cache.codes_lo,
 			cache.angles, cache.num_codes);
 }
 
-static int circuit_effect(struct circ *c)
+static int circ_effect(struct circ *c)
 {
-	const double t = c->data->rd->time_factor;
+	const double t = c->data->time_factor;
 	if (isnan(t))
 		return -1;
 	if (fabs(t) < DBL_EPSILON)
@@ -417,39 +328,37 @@ static int circuit_effect(struct circ *c)
 	return 0;
 }
 
-static int circuit_measure(struct circ *c)
+static int circ_measure(struct circ *c)
 {
-	const struct circuit_multidet *md = &c->data->rd->multidet;
+	const struct circ_multidet *md = &c->data->multidet;
 
 	_Complex double prod = 0;
 	for (size_t i = 0; i < md->num_dets; i++) {
 		_Complex double amp;
-		circ_ops_getsysamp(c, md->dets[i].index, &amp);
+		circ_reg_getamp(c, md->dets[i].index, &amp);
 		prod += amp * conj(md->dets[i].coeff);
 	}
 
-	c->data->prod = prod;
+	c->prod = prod;
 	return 0;
 }
 
-int circuit_simulate(const struct circuit_data *rd)
+int circ_simulate(const struct circ_data *cd)
 {
 	int ret = 0;
 
-	size_t num_qb = rd->hamil.num_qubits;
-
-	struct circ_data cdat;
-	cdat.rd = rd;
+	const size_t num_qb = cd->hamil.num_qubits;
 
 	struct circ c;
-	if (circ_create(&c, &cdat, num_qb) < 0)
+	if (circ_create(&c, cd, num_qb) < 0)
 		goto error;
 	circuit_prepst(&c);
 
-	for (size_t i = 0; i < rd->num_steps; i++) {
-		if (circ_run(&c) < 0)
+	for (size_t i = 0; i < cd->num_steps; i++) {
+		if (circ_effect(&c) < 0)
 			goto error;
-		rd->trotter_steps[i] = cdat.prod;
+		circ_measure(&c);
+		cd->trotter_steps[i] = c.prod;
 	}
 
 	goto exit;

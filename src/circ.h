@@ -7,9 +7,7 @@
 #include "common.h"
 #include "data2.h"
 
-#include "qreg.h"
-
-struct circuit_multidet {
+struct circ_multidet {
 	size_t num_dets;
 	struct {
 		long long	index;
@@ -24,20 +22,20 @@ struct circ_hamil {
 	u64    *pak;
 };
 
-struct circuit_data {
-	struct circ_hamil	hamil;
-	struct circuit_multidet multidet;
-	double			time_factor;
-	size_t			num_steps;
-	_Complex double	       *trotter_steps;
+struct circ_data {
+	struct circ_hamil    hamil;
+	struct circ_multidet multidet;
+	double		     time_factor;
+	size_t		     num_steps;
+	_Complex double	    *trotter_steps;
 };
 
-int circuit_data_init(struct circuit_data *rd, size_t num_steps);
+int circ_data_init(struct circ_data *cd, size_t num_steps);
 
-void circuit_data_destroy(struct circuit_data *rd);
+void circ_data_destroy(struct circ_data *cd);
 
-int circuit_data_from_file(struct circuit_data *rd, data2_id fid);
+int circ_data_from_file(struct circ_data *cd, data2_id fid);
 
-int circuit_simulate(const struct circuit_data *rd);
+int circ_simulate(const struct circ_data *cd);
 
 #endif // PHASE2_CIRC_H
