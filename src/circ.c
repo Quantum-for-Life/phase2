@@ -7,9 +7,27 @@
 #include "common.h"
 #include "qreg.h"
 
+#define MAX_CODES (1024)
+
+struct code_cache {
+	struct paulis code_hi;
+	struct paulis codes_lo[MAX_CODES];
+	fl	      angles[MAX_CODES];
+	size_t	      num_codes;
+};
+
+struct circ_data {
+	const struct circuit_data *rd;
+	_Complex double		   prod;
+	int			   scratch[64];
+
+	struct code_cache cache;
+};
+
+
 struct circ {
-	void  *data;
-	size_t num_qb;
+	struct circ_data *data;
+	size_t		  num_qb;
 
 	/* Qubit register */
 	struct qreg reg;
@@ -107,11 +125,6 @@ int circ_create(struct circ *c, void *data, size_t num_qubits)
 void circ_destroy(struct circ *c)
 {
 	qreg_destroy(&c->reg);
-}
-
-void *circ_data(const struct circ *c)
-{
-	return c->data;
 }
 
 int circ_run(struct circ *c)
@@ -242,22 +255,6 @@ void circ_ops_paulirot(struct circ *c, const struct paulis code_hi,
 	qreg_paulirot(&c->reg, code_hi, codes_lo, angles, num_codes);
 }
 
-#define MAX_CODES (1024)
-
-struct code_cache {
-	struct paulis code_hi;
-	struct paulis codes_lo[MAX_CODES];
-	fl	      angles[MAX_CODES];
-	size_t	      num_codes;
-};
-
-struct circ_data {
-	const struct circuit_data *rd;
-	_Complex double		   prod;
-	int			   scratch[64];
-
-	struct code_cache cache;
-};
 
 void silk_multidet_init(struct circuit_multidet *md)
 {
@@ -347,9 +344,7 @@ int circuit_data_from_file(struct circuit_data *rd, data2_id fid)
 
 int circuit_prepst(struct circ *c)
 {
-	const struct circ_data *cdat = circ_data(c);
-
-	const struct circuit_multidet *md = &cdat->rd->multidet;
+	const struct circuit_multidet *md = &c->data->rd->multidet;
 
 	circ_ops_blank(c);
 	for (size_t i = 0; i < md->num_dets; i++) {
@@ -361,11 +356,10 @@ int circuit_prepst(struct circ *c)
 
 static void trotter_step(struct circ *c, double omega)
 {
-	struct circ_data	*cdat	= circ_data(c);
-	const struct circ_hamil *hamil	= &cdat->rd->hamil;
-	int			*paulis = cdat->scratch;
+	const struct circ_hamil *hamil	= &c->data->rd->hamil;
+	int			*paulis = c->data->scratch;
 
-	struct code_cache cache = cdat->cache;
+	struct code_cache cache = c->data->cache;
 	cache.num_codes		= 0;
 
 	for (size_t i = 0; i < hamil->num_terms; i++) {
@@ -412,8 +406,7 @@ static void trotter_step(struct circ *c, double omega)
 
 static int circuit_effect(struct circ *c)
 {
-	const struct circ_data *cdat = circ_data(c);
-	const double		t    = cdat->rd->time_factor;
+	const double t = c->data->rd->time_factor;
 	if (isnan(t))
 		return -1;
 	if (fabs(t) < DBL_EPSILON)
@@ -426,9 +419,7 @@ static int circuit_effect(struct circ *c)
 
 static int circuit_measure(struct circ *c)
 {
-	struct circ_data *cdat = circ_data(c);
-
-	const struct circuit_multidet *md = &cdat->rd->multidet;
+	const struct circuit_multidet *md = &c->data->rd->multidet;
 
 	_Complex double prod = 0;
 	for (size_t i = 0; i < md->num_dets; i++) {
@@ -437,7 +428,7 @@ static int circuit_measure(struct circ *c)
 		prod += amp * conj(md->dets[i].coeff);
 	}
 
-	cdat->prod = prod;
+	c->data->prod = prod;
 	return 0;
 }
 
