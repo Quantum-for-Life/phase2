@@ -1,4 +1,3 @@
-#include <complex.h>
 #include <math.h>
 #include <stdio.h>
 
@@ -61,26 +60,29 @@ static int caserand(const char *prefix)
 		goto err_data_open_ref;
 	}
 
-	_Complex double ref_values[NUM_STEPS];
-	if (data2_trotter_read_values_test(fid_ref, ref_values) != 0) {
+	double ref_values_re[NUM_STEPS], ref_values_im[NUM_STEPS];
+	if (data2_trotter_read_values_test(fid_ref,
+		    (double *[]){ ref_values_re, ref_values_im },
+		    NUM_STEPS) != 0) {
 		TEST_FAIL("Cannot parse reference data");
 		goto err_rd_ref_read;
 	}
 
-	for (size_t i = 0; i < rd.num_steps; i++) {
-		const _Complex double val = rd.trotter_steps[i];
-		const _Complex double ref = ref_values[i];
+	for (size_t i = 0; i < rd.num_trott_steps; i++) {
+		const double val[2] = { rd.trott_steps[0][i],
+			rd.trott_steps[1][i] };
+		const double ref[2] = { ref_values_re[i], ref_values_im[i] };
 
-		if (fabs(creal(val) - creal(ref)) > MARGIN) {
+		if (fabs(val[0] - ref[0]) > MARGIN) {
 			TEST_FAIL("Real diff exceeded margin (%.16f): "
 				  "val_re=%.16f, ref_re=%.16f",
-				MARGIN, creal(val), creal(ref));
+				MARGIN, val[0], ref[0]);
 			goto error;
 		}
-		if (fabs(cimag(val) - cimag(ref)) > MARGIN) {
+		if (fabs(val[1] - ref[1]) > MARGIN) {
 			TEST_FAIL("Imag diff exceeded margin (%.16f): "
 				  "val_re=%.16f, ref_re=%.16f",
-				MARGIN, cimag(val), cimag(ref));
+				MARGIN, val[1], ref[1]);
 			goto error;
 		}
 	}

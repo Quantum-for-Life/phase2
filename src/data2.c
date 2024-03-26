@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #include "hdf5.h"
 
 #include "data2.h"
@@ -128,8 +130,7 @@ err_open:
 	return -1;
 }
 
-static int multidet_read_data(
-	data2_id fid, _Complex double *coeffs, unsigned char *dets)
+static int multidet_read_data(data2_id fid, double *coeffs, unsigned char *dets)
 {
 	struct multidet_handle md;
 	if (multidet_open(fid, &md) < 0)
@@ -139,7 +140,6 @@ static int multidet_read_data(
 		DATA2_STATE_PREP_MULTIDET_COEFFS, H5P_DEFAULT);
 	if (dset_coeffs_id == H5I_INVALID_HID)
 		goto err_coeffs_open;
-	/* _Complex double has the same representation as double[2] */
 	if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
 		    H5P_DEFAULT, coeffs) < 0)
 		goto err_coeffs_read;
@@ -168,8 +168,8 @@ err_multidet_open:
 	return -1;
 }
 
-int data2_multidet_foreach(
-	data2_id fid, int (*op)(_Complex double, size_t, void *), void *op_data)
+int data2_multidet_foreach(data2_id fid,
+	int (*op)(double coeff[2], uint64_t idx, void *), void *op_data)
 {
 	int    rc = 0;
 	size_t num_qubits, num_dets;
@@ -177,7 +177,7 @@ int data2_multidet_foreach(
 	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
 		goto err_getnums;
 
-	_Complex double *coeffs_buf = malloc(sizeof *coeffs_buf * num_dets);
+	double *coeffs_buf = malloc(sizeof *coeffs_buf * 2 * num_dets);
 	if (!coeffs_buf)
 		goto err_alloc_coeffs;
 	unsigned char *dets_buf =
@@ -190,11 +190,15 @@ int data2_multidet_foreach(
 		goto err_data_read;
 
 	for (size_t i = 0; i < num_dets; i++) {
-		size_t idx = 0;
+		uint64_t it_idx = 0;
 		for (size_t j = 0; j < num_qubits; j++) {
-			idx += dets_buf[i * num_qubits + j] << j;
+			it_idx += dets_buf[i * num_qubits + j] << j;
 		}
-		rc = op(coeffs_buf[i], idx, op_data);
+		double it_coeff[2] = {
+
+			coeffs_buf[2 * i], coeffs_buf[2 * i + 1]
+		};
+		rc = op(it_coeff, it_idx, op_data);
 		/* This isn't an error, but rather the user telling us to
 		   short-circuit the iteration. */
 		if (rc != 0)
@@ -416,9 +420,17 @@ err_open:
 }
 
 int data2_trotter_write_values(
-	data2_id fid, _Complex double *values, size_t num_values)
+	data2_id fid, double *values[2], size_t num_values)
 {
 	hid_t grpid, dspace, dset;
+
+	double *val_cont = malloc(sizeof(double) * 2 * num_values);
+	if (val_cont == NULL)
+		return -1;
+	for (size_t i = 0; i < num_values; i++) {
+		val_cont[2 * i]	    = values[0][i];
+		val_cont[2 * i + 1] = values[1][i];
+	}
 
 	if (trotter_open(fid, &grpid) < 0)
 		goto err_open;
@@ -433,12 +445,13 @@ int data2_trotter_write_values(
 		goto err_dset;
 	}
 	if (H5Dwrite(dset, H5T_NATIVE_DOUBLE, H5S_ALL, dspace, H5P_DEFAULT,
-		    values) < 0)
+		    val_cont) < 0)
 		goto err_dset_write;
 
 	H5Dclose(dset);
 	H5Sclose(dspace);
 	trotter_close(grpid);
+	free(val_cont);
 	return 0;
 
 err_dset_write:
@@ -448,12 +461,19 @@ err_dset:
 err_fspace:
 	trotter_close(grpid);
 err_open:
+	free(val_cont);
 	return -1;
 }
 
-int data2_trotter_read_values_test(data2_id fid, _Complex double *values)
+int data2_trotter_read_values_test(
+	data2_id fid, double *values[2], size_t num_values)
 {
 	hid_t grpid;
+
+	double *val_cont = malloc(sizeof(double) * 2 * num_values);
+	if (val_cont == NULL)
+		return -1;
+
 
 	if (trotter_open(fid, &grpid) < 0)
 		goto err_open;
@@ -463,11 +483,17 @@ int data2_trotter_read_values_test(data2_id fid, _Complex double *values)
 		goto err_dset;
 
 	if (H5Dread(dset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-		    values) < 0)
+		    val_cont) < 0)
 		goto err_read;
+
+	for (size_t i = 0; i < num_values; i++) {
+		values[0][i] = val_cont[2 * i];
+		values[1][i] = val_cont[2 * i + 1];
+	}
 
 	H5Dclose(dset);
 	trotter_close(grpid);
+	free(val_cont);
 	return 0;
 
 err_read:
@@ -475,5 +501,6 @@ err_read:
 err_dset:
 	trotter_close(grpid);
 err_open:
+	free(val_cont);
 	return -1;
 }

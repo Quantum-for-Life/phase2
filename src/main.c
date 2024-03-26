@@ -110,7 +110,7 @@ int run_circuit(data2_id fid, size_t num_steps)
 		goto error;
 	if (circ_simulate(&rd) < 0)
 		goto error;
-	data2_trotter_write_values(fid, rd.trotter_steps, num_steps);
+	data2_trotter_write_values(fid, rd.trott_steps, num_steps);
 	goto cleanup;
 error:
 	rc = -1;

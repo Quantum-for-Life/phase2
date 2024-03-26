@@ -13,7 +13,7 @@
 #include "test.h"
 
 #define SIZE (5)
-#define MARGIN (10e-6)
+#define MARGIN (1e-6)
 
 #define H5_GRP_NAME "trotter_steps"
 #define H5_GRP_TIME_FACTOR "time_factor"
@@ -126,7 +126,13 @@ int test_data_trotter_steps(void)
 		goto ex;
 	}
 
-	data2_trotter_write_values(fid, tst_vals, SIZE);
+	double tst_vals_re[SIZE], tst_vals_im[SIZE];
+	for (size_t i = 0; i < SIZE; i++) {
+		tst_vals_re[i] = creal(tst_vals[i]);
+		tst_vals_im[i] = cimag(tst_vals[i]);
+	}
+	data2_trotter_write_values(
+		fid, (double *[]){ tst_vals_re, tst_vals_im }, SIZE);
 	data2_close(fid);
 
 	file_id = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
