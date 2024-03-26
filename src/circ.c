@@ -25,7 +25,7 @@ struct circ {
 	} cache;
 };
 
-int circ_create(
+static int circ_create(
 	struct circ *c, const struct circ_data *data, const size_t num_qubits)
 {
 	struct qreg reg;
@@ -39,12 +39,12 @@ int circ_create(
 	return 0;
 }
 
-void circ_destroy(struct circ *c)
+static void circ_destroy(struct circ *c)
 {
 	qreg_destroy(&c->reg);
 }
 
-void circ_hamil_init(struct circ_hamil *h)
+static void circ_hamil_init(struct circ_hamil *h)
 {
 	h->num_qubits = 0;
 	h->num_terms  = 0;
@@ -52,7 +52,7 @@ void circ_hamil_init(struct circ_hamil *h)
 	h->paulis     = NULL;
 }
 
-void circ_hamil_destroy(struct circ_hamil *h)
+static void circ_hamil_destroy(struct circ_hamil *h)
 {
 	if (h->paulis) {
 		free(h->paulis);
@@ -90,7 +90,7 @@ static int hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 	return 0;
 }
 
-int circ_hamil_from_file(struct circ_hamil *h, const data2_id fid)
+static int circ_hamil_from_file(struct circ_hamil *h, const data2_id fid)
 {
 	size_t num_qubits, num_terms;
 	double norm;
@@ -125,13 +125,13 @@ err:
 	return -1;
 }
 
-void circ_multidet_init(struct circ_multidet *md)
+static void circ_multidet_init(struct circ_multidet *md)
 {
 	md->num_dets = 0;
 	md->dets     = NULL;
 }
 
-void circ_multidet_destroy(struct circ_multidet *md)
+static void circ_multidet_destroy(struct circ_multidet *md)
 {
 	if (md->dets) {
 		free(md->dets);
@@ -157,7 +157,8 @@ static int iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
 	return 0;
 }
 
-int circuit_multidet_from_data(struct circ_multidet *md, const data2_id fid)
+static int circuit_multidet_from_data(
+	struct circ_multidet *md, const data2_id fid)
 {
 	size_t num_qubits, num_dets;
 	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
@@ -186,12 +187,10 @@ int circ_data_init(struct circ_data *cd, const size_t num_steps)
 	circ_multidet_init(&cd->multidet);
 	cd->num_trott_steps = num_steps;
 
-	double *trott_steps = malloc(sizeof(double) * 2 * num_steps);
-	if (trott_steps == NULL)
+	cd->trott_steps[0] = malloc(sizeof(double) * 2 * num_steps);
+	if (cd->trott_steps[0] == NULL)
 		return -1;
-
-	cd->trott_steps[0] = trott_steps;
-	cd->trott_steps[1] = trott_steps + num_steps;
+	cd->trott_steps[1] = cd->trott_steps[0] + num_steps;
 
 	return 0;
 }
@@ -213,7 +212,7 @@ int circ_data_from_file(struct circ_data *cd, const data2_id fid)
 	return rc;
 }
 
-int circuit_prepst(struct circ *c)
+static int circuit_prepst(struct circ *c)
 {
 	const struct circ_multidet *md = &c->data->multidet;
 
@@ -288,19 +287,19 @@ static int circ_measure(struct circ *c)
 {
 	const struct circ_multidet *md = &c->data->multidet;
 
-	double prod[2] = { 0.0, 0.0 };
+	double pr[2] = { 0.0, 0.0 };
 	for (size_t i = 0; i < md->num_dets; i++) {
 		double amp[2];
 		qreg_getamp(&c->reg, md->dets[i].idx, &amp);
+
 		const double damp_re = md->dets[i].coeff[0];
 		const double damp_im = md->dets[i].coeff[1];
-
 		/* inner product with damp complex-conjugated */
-		prod[0] += damp_re * amp[0] + damp_im * amp[1];
-		prod[1] += damp_re * amp[1] - damp_im * amp[0];
+		pr[0] += damp_re * amp[0] + damp_im * amp[1];
+		pr[1] += damp_re * amp[1] - damp_im * amp[0];
 	}
-	c->prod[0] = prod[0];
-	c->prod[1] = prod[1];
+	c->prod[0] = pr[0];
+	c->prod[1] = pr[1];
 
 	return 0;
 }
