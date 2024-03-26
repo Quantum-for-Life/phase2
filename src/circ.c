@@ -14,7 +14,8 @@ struct circ {
 	struct qreg reg;
 
 	const struct circ_data *data;
-	_Complex double		prod;
+
+	double prod[2];
 
 	struct code_cache {
 		struct paulis code_hi;
@@ -73,8 +74,7 @@ struct hamil_iter_data {
 	struct paulis *paulis;
 };
 
-static int hamil_iter(
-	const double coeff, const unsigned char *paulis, void *iter_data)
+static int hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 {
 	struct hamil_iter_data *idat	   = iter_data;
 	const size_t		i	   = idat->idx++;
@@ -123,21 +123,6 @@ err:
 	free(coeffs);
 	free(paulis);
 	return -1;
-}
-
-void circ_reg_setamp(
-	struct circ *c, const size_t idx, const _Complex double amp)
-{
-	const double amps[2] = { creal(amp), cimag(amp) };
-	qreg_setamp(&c->reg, idx, amps);
-}
-
-void circ_reg_getamp(struct circ *c, const size_t idx, _Complex double *amp)
-{
-	double amps[2];
-	qreg_getamp(&c->reg, idx, &amps);
-
-	*amp = amps[0] + _Complex_I * amps[1];
 }
 
 void circ_multidet_init(struct circ_multidet *md)
@@ -201,9 +186,10 @@ int circ_data_init(struct circ_data *cd, const size_t num_steps)
 	circ_multidet_init(&cd->multidet);
 	cd->num_trott_steps = num_steps;
 
-	double *trott_steps = malloc(sizeof *cd->trott_steps * 2 * num_steps);
+	double *trott_steps = malloc(sizeof(double) * 2 * num_steps);
 	if (trott_steps == NULL)
 		return -1;
+
 	cd->trott_steps[0] = trott_steps;
 	cd->trott_steps[1] = trott_steps + num_steps;
 
@@ -302,15 +288,20 @@ static int circ_measure(struct circ *c)
 {
 	const struct circ_multidet *md = &c->data->multidet;
 
-	_Complex double prod = 0, damp;
+	double prod[2] = { 0.0, 0.0 };
 	for (size_t i = 0; i < md->num_dets; i++) {
-		_Complex double amp;
-		circ_reg_getamp(c, md->dets[i].idx, &amp);
-		damp = md->dets[i].coeff[0] - _Complex_I * md->dets[i].coeff[1];
-		prod += damp * amp;
-	}
+		double amp[2];
+		qreg_getamp(&c->reg, md->dets[i].idx, &amp);
+		const double damp_re = md->dets[i].coeff[0];
+		const double damp_im = md->dets[i].coeff[1];
 
-	c->prod = prod;
+		/* inner product with damp complex-conjugated */
+		prod[0] += damp_re * amp[0] + damp_im * amp[1];
+		prod[1] += damp_re * amp[1] - damp_im * amp[0];
+	}
+	c->prod[0] = prod[0];
+	c->prod[1] = prod[1];
+
 	return 0;
 }
 
@@ -329,8 +320,8 @@ int circ_simulate(const struct circ_data *cd)
 		if (circ_effect(&c) < 0)
 			goto error;
 		circ_measure(&c);
-		cd->trott_steps[0][i] = creal(c.prod);
-		cd->trott_steps[1][i] = cimag(c.prod);
+		cd->trott_steps[0][i] = c.prod[0];
+		cd->trott_steps[1][i] = c.prod[1];
 	}
 
 	goto exit;
