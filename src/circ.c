@@ -1,13 +1,17 @@
 #include <complex.h>
 #include <float.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "circ.h"
-#include "common.h"
 #include "qreg.h"
 
-#define MAX_CODES (1024)
+#define MAX_CACHE_CODES (1024)
+
+#define HAMIL_PAULI_MASK (3)
+#define HAMIL_PAULI_WIDTH (2)
+#define HAMIL_PAULI_PAK_SIZE (32)
 
 struct circ {
 	size_t	    num_qb;
@@ -19,8 +23,8 @@ struct circ {
 
 	struct code_cache {
 		struct paulis code_hi;
-		struct paulis codes_lo[MAX_CODES];
-		fl	      angles[MAX_CODES];
+		struct paulis codes_lo[MAX_CACHE_CODES];
+		fl	      angles[MAX_CACHE_CODES];
 		size_t	      num_codes;
 	} cache;
 };
@@ -43,10 +47,6 @@ void circ_destroy(struct circ *c)
 {
 	qreg_destroy(&c->reg);
 }
-
-static const size_t PAULI_MASK	   = 3;
-static const size_t PAULI_WIDTH	   = 2;
-static const size_t PAULI_PAK_SIZE = sizeof(u64) * 8 / PAULI_WIDTH;
 
 void circ_hamil_init(struct circ_hamil *h)
 {
@@ -87,9 +87,10 @@ static int hamil_iter(
 
 	idat->coeffs[i] = coeff * idat->norm;
 	for (size_t j = 0; j < num_qubits; j++) {
-		const ldiv_t dv	   = ldiv(i * num_qubits + j, PAULI_PAK_SIZE);
-		const u64    pauli = paulis[j];
-		idat->pak[dv.quot] += pauli << (dv.rem * PAULI_WIDTH);
+		const ldiv_t dv =
+			ldiv(i * num_qubits + j, HAMIL_PAULI_PAK_SIZE);
+		const u64 pauli = paulis[j];
+		idat->pak[dv.quot] += pauli << (dv.rem * HAMIL_PAULI_WIDTH);
 	}
 
 	return 0;
@@ -107,7 +108,7 @@ int circ_hamil_from_data2(struct circ_hamil *h, const data2_id fid)
 
 	double *coeffs = malloc(sizeof *coeffs * num_terms);
 	u64    *pak    = calloc(
-		      num_terms * num_qubits / PAULI_PAK_SIZE + 1, sizeof(u64));
+		      num_terms * num_qubits / HAMIL_PAULI_PAK_SIZE + 1, sizeof(u64));
 	if (!(coeffs && pak))
 		goto err;
 
@@ -136,9 +137,9 @@ void circ_hamil_paulistr(
 {
 	for (size_t j = 0; j < h->num_qubits; j++) {
 		const size_t pauli_idx = n * h->num_qubits + j;
-		const ldiv_t dv	       = ldiv(pauli_idx, PAULI_PAK_SIZE);
-		paulis[j] = (h->pak[dv.quot] >> (dv.rem * PAULI_WIDTH)) &
-			    PAULI_MASK;
+		const ldiv_t dv	       = ldiv(pauli_idx, HAMIL_PAULI_PAK_SIZE);
+		paulis[j] = (h->pak[dv.quot] >> (dv.rem * HAMIL_PAULI_WIDTH)) &
+			    HAMIL_PAULI_MASK;
 	}
 }
 
@@ -294,7 +295,7 @@ static void trotter_step(struct circ *c, const double omega)
 		}
 
 		if (paulis_eq(cache.code_hi, code_hi) &&
-			cache.num_codes < MAX_CODES) {
+			cache.num_codes < MAX_CACHE_CODES) {
 			const size_t k	  = cache.num_codes++;
 			cache.codes_lo[k] = code_lo;
 			cache.angles[k]	  = angle;

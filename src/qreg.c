@@ -8,7 +8,7 @@
 
 #define MAX_COUNT (1 << 30)
 
-int ev_init(struct ev *ev)
+int ev_init(struct qreg_ev *ev)
 {
 	int initialized, num_ranks, rank;
 
@@ -414,6 +414,4 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 		kernel_add(reg->amp[0], reg->buf[0], i);
 		kernel_add(reg->amp[1], reg->buf[1], i);
 	}
-
-	// MPI_Barrier(MPI_COMM_WORLD);
 }

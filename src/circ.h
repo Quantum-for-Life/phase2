@@ -1,10 +1,8 @@
-/**
- * Circuit interface.
- */
 #ifndef PHASE2_CIRC_H
 #define PHASE2_CIRC_H
 
-#include "common.h"
+#include <stdint.h>
+
 #include "data2.h"
 
 struct circ_multidet {
@@ -16,10 +14,10 @@ struct circ_multidet {
 };
 
 struct circ_hamil {
-	size_t	num_qubits;
-	size_t	num_terms;
-	double *coeffs;
-	u64    *pak;
+	size_t	  num_qubits;
+	size_t	  num_terms;
+	double	 *coeffs;
+	uint64_t *pak;
 };
 
 struct circ_data {
