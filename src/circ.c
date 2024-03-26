@@ -201,9 +201,11 @@ int circ_data_init(struct circ_data *cd, const size_t num_steps)
 	circ_multidet_init(&cd->multidet);
 	cd->num_trott_steps = num_steps;
 
-	cd->trott_steps = malloc(sizeof *cd->trott_steps * num_steps);
-	if (cd->trott_steps == NULL)
+	double *trott_steps = malloc(sizeof *cd->trott_steps * 2 * num_steps);
+	if (trott_steps == NULL)
 		return -1;
+	cd->trott_steps[0] = trott_steps;
+	cd->trott_steps[1] = trott_steps + num_steps;
 
 	return 0;
 }
@@ -213,7 +215,7 @@ void circ_data_destroy(struct circ_data *cd)
 	circ_multidet_destroy(&cd->multidet);
 	circ_hamil_destroy(&cd->hamil);
 
-	free(cd->trott_steps);
+	free(cd->trott_steps[0]);
 }
 
 int circ_data_from_file(struct circ_data *cd, const data2_id fid)
@@ -327,7 +329,8 @@ int circ_simulate(const struct circ_data *cd)
 		if (circ_effect(&c) < 0)
 			goto error;
 		circ_measure(&c);
-		cd->trott_steps[i] = c.prod;
+		cd->trott_steps[0][i] = creal(c.prod);
+		cd->trott_steps[1][i] = cimag(c.prod);
 	}
 
 	goto exit;

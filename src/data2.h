@@ -158,8 +158,9 @@ int data2_hamil_foreach(data2_id fid,
 int data2_trotter_get_factor(data2_id fid, double *factor);
 
 int data2_trotter_write_values(
-	data2_id fid, _Complex double *values, size_t num_values);
+	data2_id fid, double *values[2], size_t num_values);
 
-int data2_trotter_read_values_test(data2_id fid, _Complex double *values);
+int data2_trotter_read_values_test(
+	data2_id fid, double *values[2], size_t num_values);
 
 #endif // PHASE2_DATA2_H

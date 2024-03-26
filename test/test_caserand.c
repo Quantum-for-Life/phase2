@@ -61,15 +61,19 @@ static int caserand(const char *prefix)
 		goto err_data_open_ref;
 	}
 
-	_Complex double ref_values[NUM_STEPS];
-	if (data2_trotter_read_values_test(fid_ref, ref_values) != 0) {
+	double ref_values_re[NUM_STEPS], ref_values_im[NUM_STEPS];
+	if (data2_trotter_read_values_test(fid_ref,
+		    (double *[]){ ref_values_re, ref_values_im },
+		    NUM_STEPS) != 0) {
 		TEST_FAIL("Cannot parse reference data");
 		goto err_rd_ref_read;
 	}
 
 	for (size_t i = 0; i < rd.num_trott_steps; i++) {
-		const _Complex double val = rd.trott_steps[i];
-		const _Complex double ref = ref_values[i];
+		const _Complex double val = rd.trott_steps[0][i] +
+					    _Complex_I * rd.trott_steps[1][i];
+		const _Complex double ref =
+			ref_values_re[i] + _Complex_I * ref_values_im[i];
 
 		if (fabs(creal(val) - creal(ref)) > MARGIN) {
 			TEST_FAIL("Real diff exceeded margin (%.16f): "

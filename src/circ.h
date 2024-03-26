@@ -26,8 +26,8 @@ struct circ_data {
 
 	double time_factor;
 
-	_Complex double *trott_steps;
-	size_t		 num_trott_steps;
+	double *trott_steps[2];
+	size_t	num_trott_steps;
 };
 
 int circ_data_init(struct circ_data *cd, size_t num_steps);
