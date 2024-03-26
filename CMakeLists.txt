@@ -3,7 +3,7 @@ project(phase2 VERSION 0.1.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 11)
 
-message(STATUS "Parallel MPI is required")
+message(STATUS "MPI is required")
 find_package(MPI REQUIRED)
 link_libraries(${MPI_C_LIBRARIES})
 include_directories(${MPI_C_INCLUDE_DIRS})
@@ -15,7 +15,7 @@ find_package(HDF5 REQUIRED)
 if (HDF5_IS_PARALLEL)
     message(STATUS "Parallel HDF5 found")
 else ()
-    message(STATUS "Parallel HDF5 not found")
+    message(STATUS "Parallel HDF5 not found!")
     return()
 endif ()
 
@@ -23,7 +23,7 @@ endif ()
 link_libraries(m)
 
 add_compile_options(-Wall -Wextra -march=native)
-set(CMAKE_C_FLAGS_RELEASE "-O2")
+set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 link_libraries(${HDF5_LIBRARIES})
 include_directories(${HDF5_INCLUDE_DIRS})
