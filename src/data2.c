@@ -329,8 +329,8 @@ err_hamil_open:
 	return -1;
 }
 
-int data2_hamil_foreach(
-	data2_id fid, int (*op)(double, unsigned char *, void *), void *op_data)
+int data2_hamil_foreach(data2_id fid,
+	int (*op)(const double, const unsigned char *, void *), void *op_data)
 {
 	int	       rc = 0;
 	unsigned char *paulis, *paustr;

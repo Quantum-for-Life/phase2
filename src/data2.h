@@ -153,7 +153,7 @@ int data2_hamil_getnorm(data2_id fid, double *norm);
  *  or a user-defined value, if the iteration was terminated early
  */
 int data2_hamil_foreach(data2_id fid,
-	int (*op)(double, unsigned char *, void *), void *op_data);
+	int (*op)(const double, const unsigned char *, void *), void *op_data);
 
 int data2_trotter_get_factor(data2_id fid, double *factor);
 

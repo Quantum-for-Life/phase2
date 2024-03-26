@@ -125,11 +125,6 @@ err:
 	return -1;
 }
 
-void circ_reg_blank(struct circ *c)
-{
-	qreg_zero(&c->reg);
-}
-
 void circ_reg_setamp(
 	struct circ *c, const size_t idx, const _Complex double amp)
 {
@@ -143,12 +138,6 @@ void circ_reg_getamp(struct circ *c, const size_t idx, _Complex double *amp)
 	qreg_getamp(&c->reg, idx, &amps);
 
 	*amp = amps[0] + _Complex_I * amps[1];
-}
-
-void circ_reg_paulirot(struct circ *c, const struct paulis code_hi,
-	const struct paulis *codes_lo, const fl *angles, const size_t num_codes)
-{
-	qreg_paulirot(&c->reg, code_hi, codes_lo, angles, num_codes);
 }
 
 void circ_multidet_init(struct circ_multidet *md)
@@ -240,7 +229,7 @@ int circuit_prepst(struct circ *c)
 {
 	const struct circ_multidet *md = &c->data->multidet;
 
-	circ_reg_blank(c);
+	qreg_zero(&c->reg);
 	for (size_t i = 0; i < md->num_dets; i++) {
 		circ_reg_setamp(c, md->dets[i].idx, md->dets[i].coeff);
 	}
@@ -280,7 +269,7 @@ static void trotter_step(struct circ *c, const double omega)
 			continue;
 		}
 
-		circ_reg_paulirot(c, cache.code_hi, cache.codes_lo,
+		qreg_paulirot(&c->reg, cache.code_hi, cache.codes_lo,
 			cache.angles, cache.num_codes);
 
 		cache.num_codes	  = 1;
@@ -290,7 +279,7 @@ static void trotter_step(struct circ *c, const double omega)
 	}
 
 	if (cache.num_codes > 0)
-		circ_reg_paulirot(c, cache.code_hi, cache.codes_lo,
+		qreg_paulirot(&c->reg, cache.code_hi, cache.codes_lo,
 			cache.angles, cache.num_codes);
 }
 
