@@ -6,10 +6,10 @@
 #include "data2.h"
 
 struct circ_hamil {
-	size_t	  num_qubits;
-	size_t	  num_terms;
-	double	 *coeffs;
-	uint64_t *pak;
+	size_t	       num_qubits;
+	size_t	       num_terms;
+	double	      *coeffs;
+	struct paulis *paulis;
 };
 
 struct circ_multidet {

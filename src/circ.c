@@ -9,10 +9,6 @@
 
 #define MAX_CACHE_CODES (1024)
 
-#define HAMIL_PAULI_MASK (3)
-#define HAMIL_PAULI_WIDTH (2)
-#define HAMIL_PAULI_PAK_SIZE (32)
-
 struct circ {
 	size_t	    num_qb;
 	struct qreg reg;
@@ -52,14 +48,14 @@ void circ_hamil_init(struct circ_hamil *h)
 	h->num_qubits = 0;
 	h->num_terms  = 0;
 	h->coeffs     = NULL;
-	h->pak	      = NULL;
+	h->paulis     = NULL;
 }
 
 void circ_hamil_destroy(struct circ_hamil *h)
 {
-	if (h->pak) {
-		free(h->pak);
-		h->pak = NULL;
+	if (h->paulis) {
+		free(h->paulis);
+		h->paulis = NULL;
 	}
 	if (h->coeffs) {
 		free(h->coeffs);
@@ -70,11 +66,11 @@ void circ_hamil_destroy(struct circ_hamil *h)
 }
 
 struct hamil_iter_data {
-	size_t	idx;
-	size_t	num_qubits;
-	double	norm;
-	double *coeffs;
-	u64    *pak;
+	size_t	       idx;
+	size_t	       num_qubits;
+	double	       norm;
+	double	      *coeffs;
+	struct paulis *paulis;
 };
 
 static int hamil_iter(
@@ -85,12 +81,11 @@ static int hamil_iter(
 	const size_t		num_qubits = idat->num_qubits;
 
 	idat->coeffs[i] = coeff * idat->norm;
+	struct paulis p = paulis_new();
 	for (size_t j = 0; j < num_qubits; j++) {
-		const ldiv_t dv =
-			ldiv(i * num_qubits + j, HAMIL_PAULI_PAK_SIZE);
-		const u64 pauli = paulis[j];
-		idat->pak[dv.quot] += pauli << (dv.rem * HAMIL_PAULI_WIDTH);
+		paulis_set(&p, paulis[j], j);
 	}
+	idat->paulis[i] = p;
 
 	return 0;
 }
@@ -105,45 +100,35 @@ int circ_hamil_from_file(struct circ_hamil *h, const data2_id fid)
 	if (data2_hamil_getnorm(fid, &norm) < 0)
 		return -1;
 
-	double *coeffs = malloc(sizeof *coeffs * num_terms);
-	u64    *pak    = calloc(
-		      num_terms * num_qubits / HAMIL_PAULI_PAK_SIZE + 1, sizeof(u64));
-	if (!(coeffs && pak))
+	double	      *coeffs = malloc(sizeof *coeffs * num_terms);
+	struct paulis *paulis = malloc(sizeof(struct paulis) * num_terms);
+	if (!(coeffs && paulis))
 		goto err;
 
 	struct hamil_iter_data idat = { .idx = 0,
 		.num_qubits		     = num_qubits,
 		.norm			     = norm,
 		.coeffs			     = coeffs,
-		.pak			     = pak };
+		.paulis			     = paulis };
 	if (data2_hamil_foreach(fid, hamil_iter, &idat) != 0)
 		goto err;
 
 	h->num_qubits = num_qubits;
 	h->num_terms  = num_terms;
 	h->coeffs     = coeffs;
-	h->pak	      = pak;
+	h->paulis     = paulis;
 
 	return 0;
 err:
 	free(coeffs);
-	free(pak);
+	free(paulis);
 	return -1;
 }
 
 static struct paulis circ_hamil_getpaulis(
 	const struct circ_hamil *h, const size_t n)
 {
-	struct paulis paulis = paulis_new();
-	for (u32 j = 0; j < h->num_qubits; j++) {
-		const size_t pauli_idx = n * h->num_qubits + j;
-		const ldiv_t dv	       = ldiv(pauli_idx, HAMIL_PAULI_PAK_SIZE);
-		uint64_t p = (h->pak[dv.quot] >> (dv.rem * HAMIL_PAULI_WIDTH)) &
-			     HAMIL_PAULI_MASK;
-		paulis_set(&paulis, p, j);
-	}
-
-	return paulis;
+	return h->paulis[n];
 }
 
 void circ_reg_blank(struct circ *c)
