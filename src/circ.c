@@ -96,7 +96,7 @@ static int hamil_iter(
 	return 0;
 }
 
-int circ_hamil_from_data2(struct circ_hamil *h, const data2_id fid)
+int circ_hamil_from_file(struct circ_hamil *h, const data2_id fid)
 {
 	size_t num_qubits, num_terms;
 	double norm;
@@ -169,13 +169,13 @@ void circ_reg_paulirot(struct circ *c, const struct paulis code_hi,
 	qreg_paulirot(&c->reg, code_hi, codes_lo, angles, num_codes);
 }
 
-void silk_multidet_init(struct circ_multidet *md)
+void circ_multidet_init(struct circ_multidet *md)
 {
 	md->num_dets = 0;
 	md->dets     = NULL;
 }
 
-void silk_multidet_destroy(struct circ_multidet *md)
+void circ_multidet_destroy(struct circ_multidet *md)
 {
 	if (md->dets) {
 		free(md->dets);
@@ -227,11 +227,11 @@ error:
 int circ_data_init(struct circ_data *cd, const size_t num_steps)
 {
 	circ_hamil_init(&cd->hamil);
-	silk_multidet_init(&cd->multidet);
-	cd->num_steps = num_steps;
+	circ_multidet_init(&cd->multidet);
+	cd->num_trott_steps = num_steps;
 
-	cd->trotter_steps = malloc(sizeof *cd->trotter_steps * num_steps);
-	if (cd->trotter_steps == NULL)
+	cd->trott_steps = malloc(sizeof *cd->trott_steps * num_steps);
+	if (cd->trott_steps == NULL)
 		return -1;
 
 	return 0;
@@ -239,15 +239,15 @@ int circ_data_init(struct circ_data *cd, const size_t num_steps)
 
 void circ_data_destroy(struct circ_data *cd)
 {
-	silk_multidet_destroy(&cd->multidet);
+	circ_multidet_destroy(&cd->multidet);
 	circ_hamil_destroy(&cd->hamil);
 
-	free(cd->trotter_steps);
+	free(cd->trott_steps);
 }
 
 int circ_data_from_file(struct circ_data *cd, const data2_id fid)
 {
-	int rc = circ_hamil_from_data2(&cd->hamil, fid);
+	int rc = circ_hamil_from_file(&cd->hamil, fid);
 	rc |= circuit_multidet_from_data(&cd->multidet, fid);
 	data2_trotter_get_factor(fid, &cd->time_factor);
 
@@ -355,11 +355,11 @@ int circ_simulate(const struct circ_data *cd)
 		goto error;
 	circuit_prepst(&c);
 
-	for (size_t i = 0; i < cd->num_steps; i++) {
+	for (size_t i = 0; i < cd->num_trott_steps; i++) {
 		if (circ_effect(&c) < 0)
 			goto error;
 		circ_measure(&c);
-		cd->trotter_steps[i] = c.prod;
+		cd->trott_steps[i] = c.prod;
 	}
 
 	goto exit;

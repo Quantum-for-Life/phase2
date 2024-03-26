@@ -67,8 +67,8 @@ static int caserand(const char *prefix)
 		goto err_rd_ref_read;
 	}
 
-	for (size_t i = 0; i < rd.num_steps; i++) {
-		const _Complex double val = rd.trotter_steps[i];
+	for (size_t i = 0; i < rd.num_trott_steps; i++) {
+		const _Complex double val = rd.trott_steps[i];
 		const _Complex double ref = ref_values[i];
 
 		if (fabs(creal(val) - creal(ref)) > MARGIN) {
