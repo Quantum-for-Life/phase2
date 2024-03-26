@@ -156,7 +156,7 @@ void circ_multidet_destroy(struct circ_multidet *md)
 }
 
 struct iter_multidet_data {
-	uint64_t	      idx;
+	size_t		      i;
 	struct circ_multidet *md;
 };
 
@@ -164,9 +164,10 @@ static int iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
 {
 	struct iter_multidet_data *imd = op_data;
 
-	imd->md->dets[imd->idx].coeff = coeff[0] + _Complex_I * coeff[1];
-	imd->md->dets[imd->idx].idx   = idx;
-	imd->idx++;
+	imd->md->dets[imd->i].coeff[0] = coeff[0];
+	imd->md->dets[imd->i].coeff[1] = coeff[1];
+	imd->md->dets[imd->i].idx      = idx;
+	imd->i++;
 
 	return 0;
 }
@@ -181,8 +182,8 @@ int circuit_multidet_from_data(struct circ_multidet *md, const data2_id fid)
 		return -1;
 
 	struct iter_multidet_data imd;
-	imd.idx = 0;
-	imd.md	= md;
+	imd.i  = 0;
+	imd.md = md;
 	if (data2_multidet_foreach(fid, iter_multidet, &imd) < 0)
 		goto error;
 
@@ -230,7 +231,7 @@ int circuit_prepst(struct circ *c)
 
 	qreg_zero(&c->reg);
 	for (size_t i = 0; i < md->num_dets; i++) {
-		circ_reg_setamp(c, md->dets[i].idx, md->dets[i].coeff);
+		qreg_setamp(&c->reg, md->dets[i].idx, md->dets[i].coeff);
 	}
 
 	return 0;
@@ -299,11 +300,12 @@ static int circ_measure(struct circ *c)
 {
 	const struct circ_multidet *md = &c->data->multidet;
 
-	_Complex double prod = 0;
+	_Complex double prod = 0, damp;
 	for (size_t i = 0; i < md->num_dets; i++) {
 		_Complex double amp;
 		circ_reg_getamp(c, md->dets[i].idx, &amp);
-		prod += conj(md->dets[i].coeff) * amp;
+		damp = md->dets[i].coeff[0] - _Complex_I * md->dets[i].coeff[1];
+		prod += damp * amp;
 	}
 
 	c->prod = prod;

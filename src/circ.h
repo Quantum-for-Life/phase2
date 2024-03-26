@@ -14,8 +14,8 @@ struct circ_hamil {
 
 struct circ_multidet {
 	struct {
-		uint64_t	idx;
-		_Complex double coeff;
+		uint64_t idx;
+		double	 coeff[2];
 	}     *dets;
 	size_t num_dets;
 };

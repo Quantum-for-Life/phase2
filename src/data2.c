@@ -180,7 +180,7 @@ int data2_multidet_foreach(data2_id fid,
 	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
 		goto err_getnums;
 
-	_Complex double *coeffs_buf = malloc(sizeof *coeffs_buf * num_dets);
+	double *coeffs_buf = malloc(sizeof *coeffs_buf * 2 * num_dets);
 	if (!coeffs_buf)
 		goto err_alloc_coeffs;
 	unsigned char *dets_buf =
@@ -197,9 +197,11 @@ int data2_multidet_foreach(data2_id fid,
 		for (size_t j = 0; j < num_qubits; j++) {
 			it_idx += dets_buf[i * num_qubits + j] << j;
 		}
-		double it_coeff[2] = { creal(coeffs_buf[i]),
-			cimag(coeffs_buf[i]) };
-		rc		   = op(it_coeff, it_idx, op_data);
+		double it_coeff[2] = {
+
+			coeffs_buf[2 * i], coeffs_buf[2 * i + 1]
+		};
+		rc = op(it_coeff, it_idx, op_data);
 		/* This isn't an error, but rather the user telling us to
 		   short-circuit the iteration. */
 		if (rc != 0)
