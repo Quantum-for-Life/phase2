@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #include "hdf5.h"
 
 #include "data2.h"
@@ -168,8 +170,8 @@ err_multidet_open:
 	return -1;
 }
 
-int data2_multidet_foreach(
-	data2_id fid, int (*op)(_Complex double, size_t, void *), void *op_data)
+int data2_multidet_foreach(data2_id fid,
+	int (*op)(_Complex double, uint64_t, void *), void *op_data)
 {
 	int    rc = 0;
 	size_t num_qubits, num_dets;
@@ -190,7 +192,7 @@ int data2_multidet_foreach(
 		goto err_data_read;
 
 	for (size_t i = 0; i < num_dets; i++) {
-		size_t idx = 0;
+		uint64_t idx = 0;
 		for (size_t j = 0; j < num_qubits; j++) {
 			idx += dets_buf[i * num_qubits + j] << j;
 		}

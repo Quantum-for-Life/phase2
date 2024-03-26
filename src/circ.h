@@ -5,14 +5,6 @@
 
 #include "data2.h"
 
-struct circ_multidet {
-	size_t num_dets;
-	struct {
-		long long	index;
-		_Complex double coeff;
-	} *dets;
-};
-
 struct circ_hamil {
 	size_t	  num_qubits;
 	size_t	  num_terms;
@@ -20,12 +12,22 @@ struct circ_hamil {
 	uint64_t *pak;
 };
 
+struct circ_multidet {
+	struct {
+		uint64_t	idx;
+		_Complex double coeff;
+	}     *dets;
+	size_t num_dets;
+};
+
 struct circ_data {
 	struct circ_hamil    hamil;
 	struct circ_multidet multidet;
-	double		     time_factor;
-	size_t		     num_steps;
-	_Complex double	    *trotter_steps;
+
+	double time_factor;
+
+	_Complex double *trotter_steps;
+	size_t		 num_steps;
 };
 
 int circ_data_init(struct circ_data *cd, size_t num_steps);

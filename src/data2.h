@@ -1,6 +1,7 @@
 #ifndef PHASE2_DATA2_H
 #define PHASE2_DATA2_H
 
+#include <stdint.h>
 #include <stdlib.h>
 
 #define DATA2_INVALID_FID (-1)
@@ -76,7 +77,7 @@ int data2_multidet_getnums(data2_id fid, size_t *num_qubits, size_t *num_dets);
  *  or a user-defined value, if the iteration was terminated early
  */
 int data2_multidet_foreach(data2_id fid,
-	int (*op)(_Complex double, size_t, void *), void *op_data);
+	int (*op)(_Complex double, uint64_t, void *), void *op_data);
 
 /**
  * Get the number of qubits and terms for the "hamil" group.

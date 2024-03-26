@@ -185,17 +185,17 @@ void silk_multidet_destroy(struct circ_multidet *md)
 }
 
 struct iter_multidet_data {
-	size_t		      idx;
+	uint64_t	      idx;
 	struct circ_multidet *md;
 };
 
 static int iter_multidet(
-	const _Complex double coeff, const size_t idx, void *op_data)
+	const _Complex double coeff, const uint64_t idx, void *op_data)
 {
 	struct iter_multidet_data *imd = op_data;
 
 	imd->md->dets[imd->idx].coeff = coeff;
-	imd->md->dets[imd->idx].index = idx;
+	imd->md->dets[imd->idx].idx = idx;
 	imd->idx++;
 
 	return 0;
@@ -260,7 +260,7 @@ int circuit_prepst(struct circ *c)
 
 	circ_reg_blank(c);
 	for (size_t i = 0; i < md->num_dets; i++) {
-		circ_reg_setamp(c, md->dets[i].index, md->dets[i].coeff);
+		circ_reg_setamp(c, md->dets[i].idx, md->dets[i].coeff);
 	}
 
 	return 0;
@@ -336,7 +336,7 @@ static int circ_measure(struct circ *c)
 	_Complex double prod = 0;
 	for (size_t i = 0; i < md->num_dets; i++) {
 		_Complex double amp;
-		circ_reg_getamp(c, md->dets[i].index, &amp);
+		circ_reg_getamp(c, md->dets[i].idx, &amp);
 		prod += amp * conj(md->dets[i].coeff);
 	}
 
