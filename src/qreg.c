@@ -3,7 +3,6 @@
 
 #include "mpi.h"
 
-#include "common.h"
 #include "qreg.h"
 
 #define MAX_COUNT (1 << 30)
@@ -15,19 +14,19 @@ ev_init(struct qreg_ev *ev)
 
 	MPI_Initialized(&initialized);
 	if (!initialized && MPI_Init(NULL, NULL) != MPI_SUCCESS)
-		return -EMPI;
+		return -QREG_EMPI;
 
 	if (MPI_Comm_size(MPI_COMM_WORLD, &num_ranks) != MPI_SUCCESS)
-		return -EMPI;
+		return -QREG_EMPI;
 	if (num_ranks == 0)
-		return -ESIZE;
+		return -QREG_ESIZE;
 	if (MPI_Comm_rank(MPI_COMM_WORLD, &rank) != MPI_SUCCESS)
-		return -EMPI;
+		return -QREG_EMPI;
 
 	ev->num_ranks = num_ranks;
 	ev->rank      = rank;
 
-	return OK;
+	return QREG_OK;
 }
 
 struct paulis
@@ -160,13 +159,13 @@ qreg_init(struct qreg *reg, const u32 num_qubits)
 	int ret;
 
 	if (ev_init(&reg->ev) < 0) {
-		ret = -EMPI;
+		ret = -QREG_EMPI;
 		goto err_ev;
 	}
 
 	const u32 qb_hi = ulog2(reg->ev.num_ranks);
 	if (qb_hi >= num_qubits)
-		return -ESIZE;
+		return -QREG_ESIZE;
 	const u32 qb_lo	   = num_qubits - qb_hi;
 	const u64 num_amps = (u64)1 << qb_lo;
 
@@ -175,12 +174,12 @@ qreg_init(struct qreg *reg, const u32 num_qubits)
 
 	MPI_Request *const reqs = malloc(sizeof(MPI_Request) * num_reqs * 4);
 	if (reqs == NULL) {
-		ret = -EMEM;
+		ret = -QREG_ENOMEM;
 		goto err_reqs_alloc;
 	}
 	fl *const amp = malloc(sizeof(fl) * num_amps * 4);
 	if (amp == NULL) {
-		ret = -EMEM;
+		ret = -QREG_ENOMEM;
 		goto err_amp_alloc;
 	}
 
@@ -196,7 +195,7 @@ qreg_init(struct qreg *reg, const u32 num_qubits)
 	reg->reqs_rcv  = reqs + 2 * num_reqs;
 	reg->num_reqs  = num_reqs;
 
-	return OK;
+	return QREG_OK;
 
 	// free(amp);
 err_amp_alloc:

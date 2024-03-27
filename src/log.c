@@ -28,7 +28,6 @@
 
 #include "mpi.h"
 
-#include "common.h"
 #include "log.h"
 
 #define MAX_CALLBACKS (32)

@@ -3,9 +3,16 @@
 
 #include <stdint.h>
 
-#include <mpi.h>
+#include "mpi.h"
 
-#define PAULI_MAX_WIDTH (64)
+#define QREG_MAX_WIDTH (64)
+
+enum {
+	QREG_OK = 0,
+	QREG_EMPI,
+	QREG_ENOMEM,
+	QREG_ESIZE,
+};
 
 typedef int8_t	i8;
 typedef int16_t i16;

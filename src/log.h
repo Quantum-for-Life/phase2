@@ -1,6 +1,8 @@
 #ifndef LOG_H
 #define LOG_H
 
+#define PHASE2_LOG_ENVVAR "PHASE2_LOG"
+
 enum log_level {
 	LOG_TRACE,
 	LOG_DEBUG,
