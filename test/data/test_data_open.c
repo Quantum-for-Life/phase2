@@ -3,7 +3,8 @@
 #include "test.h"
 #include "test_data.h"
 
-static int open_nonexist(void)
+static int
+open_nonexist(void)
 {
 	if (data2_open("") != DATA2_INVALID_FID)
 		goto err;
@@ -16,7 +17,8 @@ err:
 	return -1;
 }
 
-static int open_exist(const char *filename)
+static int
+open_exist(const char *filename)
 {
 	data2_id fid;
 	if ((fid = data2_open(filename) == DATA2_INVALID_FID))
@@ -29,7 +31,8 @@ err:
 	return -1;
 }
 
-int test_data_open(void)
+int
+test_data_open(void)
 {
 	if (open_nonexist() < 0) {
 		TEST_FAIL("data open nonexits");

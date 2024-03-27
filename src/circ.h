@@ -30,12 +30,16 @@ struct circ_data {
 	size_t	num_trott_steps;
 };
 
-int circ_data_init(struct circ_data *cd, size_t num_steps);
+int
+circ_data_init(struct circ_data *cd, size_t num_steps);
 
-void circ_data_destroy(struct circ_data *cd);
+void
+circ_data_destroy(struct circ_data *cd);
 
-int circ_data_from_file(struct circ_data *cd, data2_id fid);
+int
+circ_data_from_file(struct circ_data *cd, data2_id fid);
 
-int circ_simulate(const struct circ_data *cd);
+int
+circ_simulate(const struct circ_data *cd);
 
 #endif // PHASE2_CIRC_H

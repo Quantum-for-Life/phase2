@@ -75,10 +75,7 @@ def parse_arguments():
         "-t", "--num-terms", required=True, type=int,
         help="Number of hamiltonian terms"
     )
-    parser.add_argument(
-        "--many", type=int,
-        help="Generate many files (parameters as max " "values)"
-    )
+    parser.add_argument("--sort-terms", action="store_true")
     parser.add_argument("--compute", action="store_true")
 
     return parser.parse_args()
@@ -93,7 +90,7 @@ class Case:
         self.multidet = {}
         self.trotter_steps = {}
 
-    def generate_pauli_hamil(self, num_terms: int):
+    def generate_pauli_hamil(self, num_terms: int, sort_terms=False):
         self.pauli_hamil["num_terms"] = num_terms
         terms = set()
         while len(terms) < num_terms:
@@ -101,7 +98,8 @@ class Case:
                 random.randrange(0, 4) for _ in range(0, self.num_qubits))
             if term != tuple(0 for _ in range(0, self.num_qubits)):
                 terms.add(term)
-
+        if sort_terms:
+            terms = [x[::-1] for x in sorted(list(terms))]
         self.pauli_hamil["paulis"] = np.ndarray(
             shape=(num_terms, self.num_qubits), dtype="u1"
         )
@@ -142,11 +140,11 @@ class Case:
         state = multidet_to_vector(self.multidet["coeffs"],
                                    self.multidet["indices"],
                                    self.num_qubits)
-        #print(state)
+        # print(state)
         state_work = state
         for step in range(NUM_STEPS):
             for k, pauli_str in enumerate(self.pauli_hamil["paulis"]):
-                #print(f'step: {step}, Pauli {k}: {pauli_str}, state_work[0]:'
+                # print(f'step: {step}, Pauli {k}: {pauli_str}, state_work[0]:'
                 #      f' {state_work[0]}')
                 matrix = pauli_string_to_matrix(pauli_str)
                 coeff = self.pauli_hamil["coeffs"][k]
@@ -164,12 +162,12 @@ class Case:
             f.attrs["uuid"] = self.id_str
             ph = self.pauli_hamil
             h5_ph = f.create_group("pauli_hamil")
-            h5_ph.create_dataset("coeffs", shape=(ph["num_terms"],), dtype="d")[
-                ...
-            ] = ph["coeffs"]
             h5_ph.create_dataset(
                 "paulis", shape=(ph["num_terms"], self.num_qubits), dtype="u1"
             )[...] = ph["paulis"]
+            h5_ph.create_dataset("coeffs", shape=(ph["num_terms"],), dtype="d")[
+                ...
+            ] = ph["coeffs"]
             h5_ph.attrs["normalization"] = ph["normalization"]
             h5_ph.attrs["offset"] = ph["offset"]
 
@@ -201,7 +199,7 @@ if __name__ == "__main__":
     args = parse_arguments()
 
     case = Case(FILENAME_STUB, args.num_qubits)
-    case.generate_pauli_hamil(args.num_terms)
+    case.generate_pauli_hamil(args.num_terms, sort_terms=args.sort_terms)
     case.generate_multidet(args.num_dets)
     case.write_h5file()
     if args.compute:

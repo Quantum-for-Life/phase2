@@ -25,7 +25,8 @@ struct circ {
 	} cache;
 };
 
-static int circ_create(
+static int
+circ_create(
 	struct circ *c, const struct circ_data *data, const size_t num_qubits)
 {
 	struct qreg reg;
@@ -39,12 +40,14 @@ static int circ_create(
 	return 0;
 }
 
-static void circ_destroy(struct circ *c)
+static void
+circ_destroy(struct circ *c)
 {
 	qreg_destroy(&c->reg);
 }
 
-static void circ_hamil_init(struct circ_hamil *h)
+static void
+circ_hamil_init(struct circ_hamil *h)
 {
 	h->num_qubits = 0;
 	h->num_terms  = 0;
@@ -52,7 +55,8 @@ static void circ_hamil_init(struct circ_hamil *h)
 	h->paulis     = NULL;
 }
 
-static void circ_hamil_destroy(struct circ_hamil *h)
+static void
+circ_hamil_destroy(struct circ_hamil *h)
 {
 	if (h->paulis) {
 		free(h->paulis);
@@ -74,7 +78,8 @@ struct hamil_iter_data {
 	struct paulis *paulis;
 };
 
-static int hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
+static int
+hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 {
 	struct hamil_iter_data *idat	   = iter_data;
 	const size_t		i	   = idat->idx++;
@@ -90,7 +95,8 @@ static int hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 	return 0;
 }
 
-static int circ_hamil_from_file(struct circ_hamil *h, const data2_id fid)
+static int
+circ_hamil_from_file(struct circ_hamil *h, const data2_id fid)
 {
 	size_t num_qubits, num_terms;
 	double norm;
@@ -125,13 +131,15 @@ err:
 	return -1;
 }
 
-static void circ_multidet_init(struct circ_multidet *md)
+static void
+circ_multidet_init(struct circ_multidet *md)
 {
 	md->num_dets = 0;
 	md->dets     = NULL;
 }
 
-static void circ_multidet_destroy(struct circ_multidet *md)
+static void
+circ_multidet_destroy(struct circ_multidet *md)
 {
 	if (md->dets) {
 		free(md->dets);
@@ -145,7 +153,8 @@ struct iter_multidet_data {
 	struct circ_multidet *md;
 };
 
-static int iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
+static int
+iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
 {
 	struct iter_multidet_data *imd = op_data;
 
@@ -157,8 +166,8 @@ static int iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
 	return 0;
 }
 
-static int circuit_multidet_from_data(
-	struct circ_multidet *md, const data2_id fid)
+static int
+circuit_multidet_from_data(struct circ_multidet *md, const data2_id fid)
 {
 	size_t num_qubits, num_dets;
 	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
@@ -181,7 +190,8 @@ error:
 	return -1;
 }
 
-int circ_data_init(struct circ_data *cd, const size_t num_steps)
+int
+circ_data_init(struct circ_data *cd, const size_t num_steps)
 {
 	circ_hamil_init(&cd->hamil);
 	circ_multidet_init(&cd->multidet);
@@ -195,7 +205,8 @@ int circ_data_init(struct circ_data *cd, const size_t num_steps)
 	return 0;
 }
 
-void circ_data_destroy(struct circ_data *cd)
+void
+circ_data_destroy(struct circ_data *cd)
 {
 	circ_multidet_destroy(&cd->multidet);
 	circ_hamil_destroy(&cd->hamil);
@@ -203,7 +214,8 @@ void circ_data_destroy(struct circ_data *cd)
 	free(cd->trott_steps[0]);
 }
 
-int circ_data_from_file(struct circ_data *cd, const data2_id fid)
+int
+circ_data_from_file(struct circ_data *cd, const data2_id fid)
 {
 	int rc = circ_hamil_from_file(&cd->hamil, fid);
 	rc |= circuit_multidet_from_data(&cd->multidet, fid);
@@ -212,7 +224,8 @@ int circ_data_from_file(struct circ_data *cd, const data2_id fid)
 	return rc;
 }
 
-static int circuit_prepst(struct circ *c)
+static int
+circuit_prepst(struct circ *c)
 {
 	const struct circ_multidet *md = &c->data->multidet;
 
@@ -224,7 +237,8 @@ static int circuit_prepst(struct circ *c)
 	return 0;
 }
 
-static void trotter_step(struct circ *c, const double omega)
+static void
+trotter_step(struct circ *c, const double omega)
 {
 	const struct circ_hamil *hamil = &c->data->hamil;
 
@@ -270,7 +284,8 @@ static void trotter_step(struct circ *c, const double omega)
 			cache.angles, cache.num_codes);
 }
 
-static int circ_effect(struct circ *c)
+static int
+circ_effect(struct circ *c)
 {
 	const double t = c->data->time_factor;
 	if (isnan(t))
@@ -283,7 +298,8 @@ static int circ_effect(struct circ *c)
 	return 0;
 }
 
-static int circ_measure(struct circ *c)
+static int
+circ_measure(struct circ *c)
 {
 	const struct circ_multidet *md = &c->data->multidet;
 
@@ -304,7 +320,8 @@ static int circ_measure(struct circ *c)
 	return 0;
 }
 
-int circ_simulate(const struct circ_data *cd)
+int
+circ_simulate(const struct circ_data *cd)
 {
 	int ret = 0;
 

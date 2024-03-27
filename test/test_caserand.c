@@ -30,7 +30,8 @@ const char *CASEIDS[NUM_CASES] = {
 #define MARGIN (1e-14)
 static const char *CASE_DIR = PH2_SIMUL_DATA "/case-rand";
 
-static int caserand(const char *prefix)
+static int
+caserand(const char *prefix)
 {
 	char filename[1024] = { 0 };
 
@@ -104,7 +105,8 @@ err_data_open:
 	return -1;
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
 	int initialized;
 	MPI_Initialized(&initialized);

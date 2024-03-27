@@ -43,7 +43,8 @@ enum ret_code {
 	ERR_OK = 0
 };
 
-static int prepare_test_file(hid_t file_id)
+static int
+prepare_test_file(hid_t file_id)
 {
 	enum ret_code rc = ERR_OK;
 
@@ -82,7 +83,8 @@ ex_create:
 	return rc;
 }
 
-int test_data_trotter_steps(void)
+int
+test_data_trotter_steps(void)
 {
 	enum ret_code rc;
 
