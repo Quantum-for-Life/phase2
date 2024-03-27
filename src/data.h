@@ -1,15 +1,15 @@
-#ifndef PHASE2_DATA2_H
-#define PHASE2_DATA2_H
+#ifndef PHASE2_DATA_H
+#define PHASE2_DATA_H
 
 #include <stdint.h>
 #include <stdlib.h>
 
-#define DATA2_INVALID_FID (-1)
+#define DATA_INVALID_FID (-1)
 
 /**
  * Handle to a data file
  */
-typedef int64_t data2_id;
+typedef int64_t data_id;
 
 /**
  * Open data file.
@@ -22,16 +22,16 @@ typedef int64_t data2_id;
  *
  *	A valid data_id value or DATA_INVALID_FID in case of error
  */
-data2_id
-data2_open(const char *filename);
+data_id
+data_open(const char *filename);
 
 /**
  * Close data file.
  *
- * Close the file that has been open with the call to data2_open().  Free the
+ * Close the file that has been open with the call to data_open().  Free the
  * resources.
  */
-void data2_close(data2_id);
+void data_close(data_id);
 
 /**
  * Get the number of qubits and terms for the "multidet" group.
@@ -44,7 +44,7 @@ void data2_close(data2_id);
  *
  * Arguments:
  *
- *  fid			Open file id obtained from data2_open()
+ *  fid			Open file id obtained from data_open()
  *  num_qubits
  *  num_dets	Pointer to a variable where the result will be stored.
  *
@@ -54,7 +54,7 @@ void data2_close(data2_id);
  *  -1			in case of error
  */
 int
-data2_multidet_getnums(data2_id fid, size_t *num_qubits, size_t *num_dets);
+data_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets);
 
 /**
  * Perform action "op" on each determinant in "multidet" group.
@@ -79,7 +79,7 @@ data2_multidet_getnums(data2_id fid, size_t *num_qubits, size_t *num_dets);
  *  or a user-defined value, if the iteration was terminated early
  */
 int
-data2_multidet_foreach(data2_id fid,
+data_multidet_foreach(data_id fid,
 	int (*op)(double coeff[2], uint64_t idx, void *), void *op_data);
 
 /**
@@ -93,7 +93,7 @@ data2_multidet_foreach(data2_id fid,
  *
  * Arguments:
  *
- *  fid			Open file id obtained from data2_open()
+ *  fid			Open file id obtained from data_open()
  *  num_qubits
  *  num_terms	Pointer to a variable where the result will be stored.
  *
@@ -103,7 +103,7 @@ data2_multidet_foreach(data2_id fid,
  *  -1			in case of error
  */
 int
-data2_hamil_getnums(data2_id fid, size_t *num_qubits, size_t *num_terms);
+data_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms);
 
 /**
  * Get the normalization factor for the "hamil" group.
@@ -115,7 +115,7 @@ data2_hamil_getnums(data2_id fid, size_t *num_qubits, size_t *num_terms);
  *
  * Arguments:
  *
- *  fid			Open file id obtained from data2_open()
+ *  fid			Open file id obtained from data_open()
  *  norm		Pointer to a variable where the result will be stored.
  *
  * Return value:
@@ -124,14 +124,14 @@ data2_hamil_getnums(data2_id fid, size_t *num_qubits, size_t *num_terms);
  *  -1			in case of error
  */
 int
-data2_hamil_getnorm(data2_id fid, double *norm);
+data_hamil_getnorm(data_id fid, double *norm);
 
 /**
  * Perform action "op" on each term of the Hamiltonian in "pauli_hamil" group.
  *
  * Call user-supplied "op" function on each term of the Hamiltonian. The
  * operator "op" takes as arguments a real coeffitient and the array of length
- * num_qubits (see function data2_hamil_getnums()) filled with values
+ * num_qubits (see function data_hamil_getnums()) filled with values
  * representing Pauli operators:
  *
  *	0 - I (identity)
@@ -158,17 +158,17 @@ data2_hamil_getnorm(data2_id fid, double *norm);
  *  or a user-defined value, if the iteration was terminated early
  */
 int
-data2_hamil_foreach(data2_id fid, int (*op)(double, unsigned char *, void *),
-	void *op_data);
+data_hamil_foreach(
+	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
 
 int
-data2_trotter_get_factor(data2_id fid, double *factor);
+data_trotter_get_factor(data_id fid, double *factor);
 
 int
-data2_trotter_write_values(data2_id fid, double *values[2], size_t num_values);
+data_trotter_write_values(data_id fid, double *values[2], size_t num_values);
 
 int
-data2_trotter_read_values_test(
-	data2_id fid, double *values[2], size_t num_values);
+data_trotter_read_values_test(
+	data_id fid, double *values[2], size_t num_values);
 
-#endif // PHASE2_DATA2_H
+#endif // PHASE2_DATA_H

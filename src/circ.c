@@ -96,14 +96,14 @@ hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 }
 
 static int
-circ_hamil_from_file(struct circ_hamil *h, const data2_id fid)
+circ_hamil_from_file(struct circ_hamil *h, const data_id fid)
 {
 	size_t num_qubits, num_terms;
 	double norm;
 
-	if (data2_hamil_getnums(fid, &num_qubits, &num_terms) < 0)
+	if (data_hamil_getnums(fid, &num_qubits, &num_terms) < 0)
 		return -1;
-	if (data2_hamil_getnorm(fid, &norm) < 0)
+	if (data_hamil_getnorm(fid, &norm) < 0)
 		return -1;
 
 	double	      *coeffs = malloc(sizeof *coeffs * num_terms);
@@ -116,7 +116,7 @@ circ_hamil_from_file(struct circ_hamil *h, const data2_id fid)
 		.norm			     = norm,
 		.coeffs			     = coeffs,
 		.paulis			     = paulis };
-	if (data2_hamil_foreach(fid, hamil_iter, &idat) != 0)
+	if (data_hamil_foreach(fid, hamil_iter, &idat) != 0)
 		goto err;
 
 	h->num_qubits = num_qubits;
@@ -167,10 +167,10 @@ iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
 }
 
 static int
-circuit_multidet_from_data(struct circ_multidet *md, const data2_id fid)
+circuit_multidet_from_data(struct circ_multidet *md, const data_id fid)
 {
 	size_t num_qubits, num_dets;
-	if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
+	if (data_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
 		return -1;
 	md->dets = malloc(sizeof *md->dets * num_dets);
 	if (md->dets == NULL)
@@ -179,7 +179,7 @@ circuit_multidet_from_data(struct circ_multidet *md, const data2_id fid)
 	struct iter_multidet_data imd;
 	imd.i  = 0;
 	imd.md = md;
-	if (data2_multidet_foreach(fid, iter_multidet, &imd) < 0)
+	if (data_multidet_foreach(fid, iter_multidet, &imd) < 0)
 		goto error;
 
 	md->num_dets = num_dets;
@@ -215,11 +215,11 @@ circ_data_destroy(struct circ_data *cd)
 }
 
 int
-circ_data_from_file(struct circ_data *cd, const data2_id fid)
+circ_data_from_file(struct circ_data *cd, const data_id fid)
 {
 	int rc = circ_hamil_from_file(&cd->hamil, fid);
 	rc |= circuit_multidet_from_data(&cd->multidet, fid);
-	data2_trotter_get_factor(fid, &cd->time_factor);
+	data_trotter_get_factor(fid, &cd->time_factor);
 
 	return rc;
 }

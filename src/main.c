@@ -4,7 +4,7 @@
 #include "mpi.h"
 
 #include "circ.h"
-#include "data2.h"
+#include "data.h"
 #include "log.h"
 
 static struct opt {
@@ -27,7 +27,7 @@ static int MAIN_RET = 0;
 	}
 
 int
-run_circuit(data2_id fid, size_t num_steps);
+run_circuit(data_id fid, size_t num_steps);
 
 int
 main(int argc, char **argv)
@@ -52,8 +52,8 @@ main(int argc, char **argv)
 	if (opt_parse(argc, argv) < 0)
 		exit(EXIT_FAILURE);
 
-	data2_id fid = data2_open(OPT.filename);
-	if (fid == DATA2_INVALID_FID)
+	data_id fid = data_open(OPT.filename);
+	if (fid == DATA_INVALID_FID)
 		ABORT_ON_ERROR("cannot process input data")
 
 	log_info("*** Circuit ***");
@@ -63,7 +63,7 @@ main(int argc, char **argv)
 		goto error;
 	}
 
-	data2_close(fid);
+	data_close(fid);
 	goto cleanup;
 
 error:
@@ -107,7 +107,7 @@ opt_parse(int argc, char **argv)
 }
 
 int
-run_circuit(data2_id fid, size_t num_steps)
+run_circuit(data_id fid, size_t num_steps)
 {
 	int rc = 0;
 
@@ -117,7 +117,7 @@ run_circuit(data2_id fid, size_t num_steps)
 		goto error;
 	if (circ_simulate(&rd) < 0)
 		goto error;
-	data2_trotter_write_values(fid, rd.trott_steps, num_steps);
+	data_trotter_write_values(fid, rd.trott_steps, num_steps);
 	goto cleanup;
 error:
 	rc = -1;

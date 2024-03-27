@@ -2,7 +2,7 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "data2.h"
+#include "data.h"
 
 #include "test.h"
 #include "test_data.h"
@@ -17,15 +17,15 @@ test_getnums(void)
 		struct test_data td	  = TEST_DATA[i];
 		const char	*filename = td.filename;
 
-		data2_id fid = data2_open(filename);
-		if (fid == DATA2_INVALID_FID) {
+		data_id fid = data_open(filename);
+		if (fid == DATA_INVALID_FID) {
 			TEST_FAIL("open file: %s", filename);
 			rc = -1;
 			break;
 		}
 
 		size_t num_qubits = 0, num_terms = 0;
-		if (data2_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
+		if (data_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
 			TEST_FAIL("read hamil getnums()");
 			rc = -1;
 			break;
@@ -40,7 +40,7 @@ test_getnums(void)
 				"wrong number of hamil terms: %zu", num_terms);
 			rc = -1;
 		}
-		data2_close(fid);
+		data_close(fid);
 	}
 
 	return rc;
@@ -54,15 +54,15 @@ test_getnorm(void)
 		struct test_data td	  = TEST_DATA[i];
 		const char	*filename = td.filename;
 
-		data2_id fid = data2_open(filename);
-		if (fid == DATA2_INVALID_FID) {
+		data_id fid = data_open(filename);
+		if (fid == DATA_INVALID_FID) {
 			TEST_FAIL("open file: %s", filename);
 			rc = -1;
 			break;
 		}
 
 		double norm;
-		if (data2_hamil_getnorm(fid, &norm) < 0) {
+		if (data_hamil_getnorm(fid, &norm) < 0) {
 			TEST_FAIL("read multidet getnums()");
 			rc = -1;
 			break;
@@ -73,7 +73,7 @@ test_getnorm(void)
 			rc = -1;
 		}
 
-		data2_close(fid);
+		data_close(fid);
 	}
 
 	return rc;
@@ -132,21 +132,21 @@ static int
 test_iter0(void)
 {
 	const struct test_data td  = TEST_DATA[0];
-	data2_id	       fid = data2_open(td.filename);
-	if (fid == DATA2_INVALID_FID) {
+	data_id	       fid = data_open(td.filename);
+	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;
 	}
 
 	size_t num_qubits, num_terms;
-	if (data2_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
+	if (data_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
 		TEST_FAIL("wron number of qubits and terms: %zu, %zu",
 			num_qubits, num_terms);
 		goto err;
 	}
 
 	size_t count = 0;
-	if (data2_hamil_foreach(fid, iter_count, &count) != 0) {
+	if (data_hamil_foreach(fid, iter_count, &count) != 0) {
 		TEST_FAIL("iteration terminated early");
 		goto err;
 	}
@@ -156,7 +156,7 @@ test_iter0(void)
 	}
 
 	count = 0;
-	if (data2_hamil_foreach(fid, iter_count_onlytwo, &count) == 0) {
+	if (data_hamil_foreach(fid, iter_count_onlytwo, &count) == 0) {
 		TEST_FAIL("iteration didn't terminate early");
 		goto err;
 	}
@@ -164,10 +164,10 @@ test_iter0(void)
 		TEST_FAIL("number of iterations: %zu", count);
 		goto err;
 	}
-	data2_close(fid);
+	data_close(fid);
 	return 0;
 err:
-	data2_close(fid);
+	data_close(fid);
 	return -1;
 }
 
@@ -175,21 +175,21 @@ static int
 test_iter1(void)
 {
 	const struct test_data td  = TEST_DATA[1];
-	data2_id	       fid = data2_open(td.filename);
-	if (fid == DATA2_INVALID_FID) {
+	data_id	       fid = data_open(td.filename);
+	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;
 	}
 
 	size_t num_qubits, num_terms;
-	if (data2_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
+	if (data_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
 		TEST_FAIL("wron number of qubits and terms: %zu, %zu",
 			num_qubits, num_terms);
 		goto err;
 	}
 
 	size_t count = 0;
-	if (data2_hamil_foreach(fid, iter_count, &count) != 0) {
+	if (data_hamil_foreach(fid, iter_count, &count) != 0) {
 		TEST_FAIL("iteration terminated early");
 		goto err;
 	}
@@ -199,7 +199,7 @@ test_iter1(void)
 	}
 
 	count = 0;
-	if (data2_hamil_foreach(fid, iter_count_onlytwo, &count) == 0) {
+	if (data_hamil_foreach(fid, iter_count_onlytwo, &count) == 0) {
 		TEST_FAIL("iteration didn't terminate early");
 		goto err;
 	}
@@ -211,7 +211,7 @@ test_iter1(void)
 	struct iter_store is;
 	is.idx	      = 0;
 	is.num_qubits = num_qubits;
-	if (data2_hamil_foreach(fid, iter_store, &is) != 0) {
+	if (data_hamil_foreach(fid, iter_store, &is) != 0) {
 		TEST_FAIL("iteration terminated early");
 		goto err;
 	}
@@ -235,10 +235,10 @@ test_iter1(void)
 		}
 	}
 
-	data2_close(fid);
+	data_close(fid);
 	return 0;
 err:
-	data2_close(fid);
+	data_close(fid);
 	return -1;
 }
 

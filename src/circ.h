@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "data2.h"
+#include "data.h"
 
 struct circ_hamil {
 	size_t	       num_qubits;
@@ -37,7 +37,7 @@ void
 circ_data_destroy(struct circ_data *cd);
 
 int
-circ_data_from_file(struct circ_data *cd, data2_id fid);
+circ_data_from_file(struct circ_data *cd, data_id fid);
 
 int
 circ_simulate(const struct circ_data *cd);

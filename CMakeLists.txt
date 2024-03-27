@@ -32,7 +32,7 @@ set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
 include_directories(${SRC_DIR})
 
 set(PHASE2_SOURCES
-        ${SRC_DIR}/data2.c
+        ${SRC_DIR}/data.c
         ${SRC_DIR}/qreg.c
         ${SRC_DIR}/circ.c
         ${SRC_DIR}/log.c

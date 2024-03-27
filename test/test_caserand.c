@@ -4,7 +4,7 @@
 #include "mpi.h"
 
 #include "circ.h"
-#include "data2.h"
+#include "data.h"
 
 #include "test.h"
 
@@ -36,8 +36,8 @@ caserand(const char *prefix)
 	char filename[1024] = { 0 };
 
 	snprintf(filename, 1024, "%s/%s.h5", CASE_DIR, prefix);
-	data2_id fid = data2_open(filename);
-	if (fid == DATA2_INVALID_FID) {
+	data_id fid = data_open(filename);
+	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("Cannot read data file: %s", filename);
 		goto err_data_open;
 	}
@@ -55,14 +55,14 @@ caserand(const char *prefix)
 	}
 
 	snprintf(filename, 1024, "%s/%s.h5_solved", CASE_DIR, prefix);
-	data2_id fid_ref = data2_open(filename);
-	if (fid_ref == DATA2_INVALID_FID) {
+	data_id fid_ref = data_open(filename);
+	if (fid_ref == DATA_INVALID_FID) {
 		TEST_FAIL("Cannot read data file: %s", filename);
 		goto err_data_open_ref;
 	}
 
 	double ref_values_re[NUM_STEPS], ref_values_im[NUM_STEPS];
-	if (data2_trotter_read_values_test(fid_ref,
+	if (data_trotter_read_values_test(fid_ref,
 		    (double *[]){ ref_values_re, ref_values_im },
 		    NUM_STEPS) != 0) {
 		TEST_FAIL("Cannot parse reference data");
@@ -88,19 +88,19 @@ caserand(const char *prefix)
 		}
 	}
 
-	data2_close(fid_ref);
+	data_close(fid_ref);
 	circ_data_destroy(&rd);
-	data2_close(fid);
+	data_close(fid);
 	return 0;
 
 error:
 err_rd_ref_read:
-	data2_close(fid_ref);
+	data_close(fid_ref);
 err_data_open_ref:
 err_simul:
 	circ_data_destroy(&rd);
 err_rd_read:
-	data2_close(fid);
+	data_close(fid);
 err_data_open:
 	return -1;
 }

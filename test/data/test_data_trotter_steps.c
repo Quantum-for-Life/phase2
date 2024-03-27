@@ -1,5 +1,5 @@
 /*
- * Test routine: data2_trotter_write() from data2.h by creating a fresh H5 file
+ * Test routine: data_trotter_write() from data.h by creating a fresh H5 file
  * Check if the values are written correctly.  Remove temporary file.
  */
 
@@ -9,7 +9,7 @@
 
 #include <hdf5.h>
 
-#include "data2.h"
+#include "data.h"
 #include "test.h"
 
 #define SIZE (5)
@@ -109,21 +109,21 @@ test_data_trotter_steps(void)
 		goto ex_prepare;
 	}
 
-	data2_id fid = data2_open(filename);
-	if (fid == DATA2_INVALID_FID) {
-		TEST_FAIL("data2: reopen file");
+	data_id fid = data_open(filename);
+	if (fid == DATA_INVALID_FID) {
+		TEST_FAIL("data: reopen file");
 		rc = ERR_DAT2;
 		goto ex_dat2_open;
 	}
 
 	double tf;
-	if (data2_trotter_get_factor(fid, &tf) < 0) {
-		TEST_FAIL("data2: read time_factor attribute");
+	if (data_trotter_get_factor(fid, &tf) < 0) {
+		TEST_FAIL("data: read time_factor attribute");
 		rc = ERR_DAT2;
 		goto ex;
 	}
 	if (fabs(tf - time_factor) > MARGIN) {
-		TEST_FAIL("data2: wrong value of the attribute read");
+		TEST_FAIL("data: wrong value of the attribute read");
 		rc = ERR_DAT2;
 		goto ex;
 	}
@@ -133,9 +133,9 @@ test_data_trotter_steps(void)
 		tst_vals_re[i] = creal(tst_vals[i]);
 		tst_vals_im[i] = cimag(tst_vals[i]);
 	}
-	data2_trotter_write_values(
+	data_trotter_write_values(
 		fid, (double *[]){ tst_vals_re, tst_vals_im }, SIZE);
-	data2_close(fid);
+	data_close(fid);
 
 	file_id = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file_id == H5I_INVALID_HID) {
@@ -167,9 +167,9 @@ ex_readh5:
 	H5Dclose(dset);
 	H5Gclose(grp_id);
 	H5Fclose(file_id);
-	fid = data2_open(filename);
+	fid = data_open(filename);
 ex:
-	data2_close(fid);
+	data_close(fid);
 ex_dat2_open:
 ex_prepare:
 	/* Delete temporary file */

@@ -1,7 +1,7 @@
 #include <complex.h>
 #include <stdio.h>
 
-#include "data2.h"
+#include "data.h"
 
 #include "test.h"
 #include "test_data.h"
@@ -16,15 +16,15 @@ test_get_nums(void)
 		struct test_data td	  = TEST_DATA[i];
 		const char	*filename = td.filename;
 
-		data2_id fid = data2_open(filename);
-		if (fid == DATA2_INVALID_FID) {
+		data_id fid = data_open(filename);
+		if (fid == DATA_INVALID_FID) {
 			TEST_FAIL("open file: %s", filename);
 			rc = -1;
 			break;
 		}
 
 		size_t num_qubits = 0, num_dets = 0;
-		if (data2_multidet_getnums(fid, &num_qubits, &num_dets) < 0) {
+		if (data_multidet_getnums(fid, &num_qubits, &num_dets) < 0) {
 			TEST_FAIL("read multidet getnums()");
 			rc = -1;
 			break;
@@ -37,7 +37,7 @@ test_get_nums(void)
 			TEST_FAIL("wrong number of dets: %zu", num_dets);
 			rc = -1;
 		}
-		data2_close(fid);
+		data_close(fid);
 	}
 
 	return rc;
@@ -92,17 +92,17 @@ static int
 test_iter0(void)
 {
 	const struct test_data td  = TEST_DATA[0];
-	data2_id	       fid = data2_open(td.filename);
-	if (fid == DATA2_INVALID_FID) {
+	data_id	       fid = data_open(td.filename);
+	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;
 	}
 
 	size_t num_qubits, num_dets;
-	data2_multidet_getnums(fid, &num_qubits, &num_dets);
+	data_multidet_getnums(fid, &num_qubits, &num_dets);
 
 	int count = 0;
-	if (data2_multidet_foreach(fid, iter_count_dets, &count) != 0) {
+	if (data_multidet_foreach(fid, iter_count_dets, &count) != 0) {
 		TEST_FAIL("iteration terminated early");
 		goto err;
 	}
@@ -111,7 +111,7 @@ test_iter0(void)
 		goto err;
 	}
 	count = 0;
-	if (data2_multidet_foreach(fid, iter_count_dets_onlytwo, &count) != 0) {
+	if (data_multidet_foreach(fid, iter_count_dets_onlytwo, &count) != 0) {
 		TEST_FAIL("iteration return wrong code");
 		goto err;
 	}
@@ -120,10 +120,10 @@ test_iter0(void)
 		goto err;
 	}
 
-	data2_close(fid);
+	data_close(fid);
 	return 0;
 err:
-	data2_close(fid);
+	data_close(fid);
 	return -1;
 }
 
@@ -131,17 +131,17 @@ static int
 test_iter1(void)
 {
 	const struct test_data td  = TEST_DATA[1];
-	data2_id	       fid = data2_open(td.filename);
-	if (fid == DATA2_INVALID_FID) {
+	data_id	       fid = data_open(td.filename);
+	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;
 	}
 
 	size_t num_qubits, num_dets;
-	data2_multidet_getnums(fid, &num_qubits, &num_dets);
+	data_multidet_getnums(fid, &num_qubits, &num_dets);
 
 	int count = 0;
-	if (data2_multidet_foreach(fid, iter_count_dets, &count) != 0) {
+	if (data_multidet_foreach(fid, iter_count_dets, &count) != 0) {
 		TEST_FAIL("iteration terminated early");
 		goto err;
 	}
@@ -150,7 +150,7 @@ test_iter1(void)
 		goto err;
 	}
 	count = 0;
-	if (data2_multidet_foreach(fid, iter_count_dets_onlytwo, &count) !=
+	if (data_multidet_foreach(fid, iter_count_dets_onlytwo, &count) !=
 		91) {
 		TEST_FAIL("iteration returned wrong code");
 		goto err;
@@ -166,7 +166,7 @@ test_iter1(void)
 		  0.0491404 + I * 0.613936, 0.565802 + I * 0.421163 };
 
 	is.index = 0;
-	if (data2_multidet_foreach(fid, iter_store_dets, &is) != 0) {
+	if (data_multidet_foreach(fid, iter_store_dets, &is) != 0) {
 		TEST_FAIL("iteration terminated early");
 		goto err;
 	}
@@ -189,10 +189,10 @@ test_iter1(void)
 		}
 	}
 
-	data2_close(fid);
+	data_close(fid);
 	return 0;
 err:
-	data2_close(fid);
+	data_close(fid);
 	return -1;
 }
 

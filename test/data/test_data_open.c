@@ -1,4 +1,4 @@
-#include "data2.h"
+#include "data.h"
 
 #include "test.h"
 #include "test_data.h"
@@ -6,10 +6,10 @@
 static int
 open_nonexist(void)
 {
-	if (data2_open("") != DATA2_INVALID_FID)
+	if (data_open("") != DATA_INVALID_FID)
 		goto err;
 
-	if (data2_open(NULL) != DATA2_INVALID_FID)
+	if (data_open(NULL) != DATA_INVALID_FID)
 		goto err;
 
 	return 0;
@@ -20,11 +20,11 @@ err:
 static int
 open_exist(const char *filename)
 {
-	data2_id fid;
-	if ((fid = data2_open(filename) == DATA2_INVALID_FID))
+	data_id fid;
+	if ((fid = data_open(filename) == DATA_INVALID_FID))
 		goto err;
 
-	data2_close(fid);
+	data_close(fid);
 
 	return 0;
 err:
