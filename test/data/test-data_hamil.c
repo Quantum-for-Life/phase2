@@ -4,8 +4,8 @@
 
 #include "data.h"
 
+#include "test-data.h"
 #include "test.h"
-#include "test_data.h"
 
 #define MARGIN (10e-8)
 
@@ -132,7 +132,7 @@ static int
 test_iter0(void)
 {
 	const struct test_data td  = TEST_DATA[0];
-	data_id	       fid = data_open(td.filename);
+	data_id		       fid = data_open(td.filename);
 	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;
@@ -175,7 +175,7 @@ static int
 test_iter1(void)
 {
 	const struct test_data td  = TEST_DATA[1];
-	data_id	       fid = data_open(td.filename);
+	data_id		       fid = data_open(td.filename);
 	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;

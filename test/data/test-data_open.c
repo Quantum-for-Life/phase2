@@ -1,7 +1,7 @@
 #include "data.h"
 
+#include "test-data.h"
 #include "test.h"
-#include "test_data.h"
 
 static int
 open_nonexist(void)
