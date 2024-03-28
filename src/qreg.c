@@ -316,6 +316,30 @@ qreg_exchbuf_waitall(struct qreg *reg)
 }
 
 static void
+kernel_mul(fl *amp[2], const u64 i, const root4 z)
+{
+	const fl x = amp[0][i];
+	const fl y = amp[1][i];
+
+	switch (z) {
+	case R0:
+		break;
+	case R1:
+		amp[0][i] = -y;
+		amp[1][i] = x;
+		break;
+	case R2:
+		amp[0][i] = -x;
+		amp[1][i] = -y;
+		break;
+	case R3:
+		amp[0][i] = y;
+		amp[1][i] = -x;
+		break;
+	}
+}
+
+static void
 kernel_sep(fl *amp, fl *buf, const u64 i)
 {
 	const fl a = amp[i];
@@ -371,36 +395,6 @@ kernel_rot(fl *amp[2], const u64 i, const root4 zi, const u64 j, const root4 zj,
 	}
 }
 
-static void
-kernel_add(fl *amp, const fl *buf, const u64 i)
-{
-	amp[i] += buf[i];
-}
-
-static void
-kernel_mul_cpx_scalar(fl *amp[2], const u64 i, const root4 z)
-{
-	const fl x = amp[0][i];
-	const fl y = amp[1][i];
-
-	switch (z) {
-	case R0:
-		break;
-	case R1:
-		amp[0][i] = -y;
-		amp[1][i] = x;
-		break;
-	case R2:
-		amp[0][i] = -x;
-		amp[1][i] = -y;
-		break;
-	case R3:
-		amp[0][i] = y;
-		amp[1][i] = -x;
-		break;
-	}
-}
-
 /* All codes are assumed to share the same hi code */
 void
 qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
@@ -421,7 +415,7 @@ qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 
 	/* Compute permutation from inner qubits */
 	for (u64 i = 0; i < reg->num_amps; i++) {
-		kernel_mul_cpx_scalar(reg->buf, i, buf_mul);
+		kernel_mul(reg->buf, i, buf_mul);
 		kernel_sep(reg->amp[0], reg->buf[0], i);
 		kernel_sep(reg->amp[1], reg->buf[1], i);
 	}
@@ -441,7 +435,7 @@ qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 		}
 	}
 	for (u64 i = 0; i < reg->num_amps; i++) {
-		kernel_add(reg->amp[0], reg->buf[0], i);
-		kernel_add(reg->amp[1], reg->buf[1], i);
+		reg->amp[0][i] += reg->buf[0][i];
+		reg->amp[1][i] += reg->buf[1][i];
 	}
 }
