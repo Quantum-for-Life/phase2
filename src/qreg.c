@@ -326,12 +326,9 @@ kernel_sep(fl *amp, fl *buf, const u64 i)
 }
 
 static void
-kernel_rot(fl *amp[2], const struct paulis code, const u64 i, const fl eip[2])
+kernel_rot(fl *amp[2], const u64 i, const root4 zi, const u64 j, const root4 zj,
+	const fl eip[2])
 {
-	u64   j;
-	root4 zi, zj;
-	paulis_compute_perm(code, i, &zi, &j, &zj);
-
 	const fl xi_re = amp[0][i], xi_im = amp[1][i];
 	const fl xj_re = amp[0][j], xj_im = amp[1][j];
 
@@ -433,11 +430,14 @@ qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 		const fl eip_buf[2] = { eip_amp[0], -eip_amp[1] };
 
 		for (u64 i = 0; i < reg->num_amps; i++) {
-			if (paulis_effect(codes_lo[k], i, NULL) < i)
+			u64   j;
+			root4 zi, zj;
+			paulis_compute_perm(codes_lo[k], i, &zi, &j, &zj);
+			if (j < i)
 				continue;
 
-			kernel_rot(reg->amp, codes_lo[k], i, eip_amp);
-			kernel_rot(reg->buf, codes_lo[k], i, eip_buf);
+			kernel_rot(reg->amp, i, zi, j, zj, eip_amp);
+			kernel_rot(reg->buf, i, zi, j, zj, eip_buf);
 		}
 	}
 	for (u64 i = 0; i < reg->num_amps; i++) {
