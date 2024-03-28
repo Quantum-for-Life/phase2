@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "mpi.h"
@@ -105,26 +106,37 @@ paulis_shr(struct paulis *code, const u32 n)
 	code->pak[1] >>= n;
 }
 
-u64
-paulis_effect(struct paulis code, u64 i, root4 *z)
+void
+paulis_compute_perm(
+	const struct paulis code, const u64 i, root4 *zi, u64 *j, root4 *zj)
 {
-	const u64 *p = code.pak;
-	const u64  j = i ^ p[0];
+	const u64 *p  = code.pak;
+	const u64  pi = i ^ p[0];
+	const u64  ys = p[0] & p[1];
+	const u64  zs = ~p[0] & p[1];
 
-	if (z == NULL)
-		return j;
+	int r4i = __builtin_popcountll(~pi & ys);
+	r4i += 2 * __builtin_popcountll(pi & zs);
+	r4i += 3 * __builtin_popcountll(pi & ys);
+	*zi = r4i & 3;
 
-	int root4 = 0;
-	for (u64 yp = ~i & p[0] & p[1]; yp > 0; yp >>= 1)
-		if (yp & 1)
-			root4 += 1;
-	for (u64 zm = i & ~p[0] & p[1]; zm > 0; zm >>= 1)
-		if (zm & 1)
-			root4 += 2;
-	for (u64 ym = i & p[0] & p[1]; ym > 0; ym >>= 1)
-		if (ym & 1)
-			root4 += 3;
-	*z = root4 & 3;
+	int r4j = __builtin_popcountll(~i & ys);
+	r4j += 2 * __builtin_popcountll(i & zs);
+	r4j += 3 * __builtin_popcountll(i & ys);
+	*zj = r4j & 3;
+
+	*j = pi;
+}
+
+u64
+paulis_effect(const struct paulis code, const u64 i, root4 *z)
+{
+	u64   j;
+	root4 r4i, r4j;
+
+	paulis_compute_perm(code, i, &r4i, &j, &r4j);
+	if (z != NULL)
+		*z = r4i;
 
 	return j;
 }
@@ -314,12 +326,11 @@ kernel_sep(fl *amp, fl *buf, const u64 i)
 }
 
 static void
-kernel_rot(fl *amp[2], const struct paulis code, const u64 i, const u64 j,
-	const fl eip[2])
+kernel_rot(fl *amp[2], const struct paulis code, const u64 i, const fl eip[2])
 {
+	u64   j;
 	root4 zi, zj;
-	paulis_effect(code, i, &zj);
-	paulis_effect(code, j, &zi);
+	paulis_compute_perm(code, i, &zi, &j, &zj);
 
 	const fl xi_re = amp[0][i], xi_im = amp[1][i];
 	const fl xj_re = amp[0][j], xj_im = amp[1][j];
@@ -422,12 +433,11 @@ qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 		const fl eip_buf[2] = { eip_amp[0], -eip_amp[1] };
 
 		for (u64 i = 0; i < reg->num_amps; i++) {
-			const u64 j = paulis_effect(codes_lo[k], i, NULL);
-			if (j < i)
+			if (paulis_effect(codes_lo[k], i, NULL) < i)
 				continue;
 
-			kernel_rot(reg->amp, codes_lo[k], i, j, eip_amp);
-			kernel_rot(reg->buf, codes_lo[k], i, j, eip_buf);
+			kernel_rot(reg->amp, codes_lo[k], i, eip_amp);
+			kernel_rot(reg->buf, codes_lo[k], i, eip_buf);
 		}
 	}
 	for (u64 i = 0; i < reg->num_amps; i++) {

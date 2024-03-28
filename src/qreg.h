@@ -67,6 +67,9 @@ paulis_mask(struct paulis *code, u64 mask);
 void
 paulis_shr(struct paulis *code, u32 n);
 
+void
+paulis_compute_perm(struct paulis code, u64 i, root4 *zi, u64 *j, root4 *zj);
+
 u64
 paulis_effect(struct paulis code, u64 i, root4 *z);
 
