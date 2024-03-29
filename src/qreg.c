@@ -113,17 +113,11 @@ paulis_compute_perm(
 	const u64 *p  = code.pak;
 	const u64  pi = i ^ p[0];
 	const u64  ys = p[0] & p[1];
-	const u64  zs = ~p[0] & p[1];
 
-	int r4i = __builtin_popcountll(~pi & ys);
-	r4i += 2 * __builtin_popcountll(pi & zs);
-	r4i += 3 * __builtin_popcountll(pi & ys);
-	*zi = r4i & 3;
+	const int cmplx_i = __builtin_popcountll(ys);
 
-	int r4j = __builtin_popcountll(~i & ys);
-	r4j += 2 * __builtin_popcountll(i & zs);
-	r4j += 3 * __builtin_popcountll(i & ys);
-	*zj = r4j & 3;
+	*zi = (cmplx_i + 2 * __builtin_popcountll(pi & p[1])) & 0x3;
+	*zj = (cmplx_i + 2 * __builtin_popcountll(i & p[1])) & 0x3;
 
 	*j = pi;
 }
