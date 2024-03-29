@@ -46,7 +46,8 @@ enum pauli_op {
 static const char PAULI_LABEL[4] = { 'I', 'X', 'Y', 'Z' };
 
 struct paulis {
-	u64 pak[2];
+	u64   pak[2];
+	root4 is;
 };
 
 struct paulis
@@ -66,9 +67,6 @@ paulis_mask(struct paulis *code, u64 mask);
 
 void
 paulis_shr(struct paulis *code, u32 n);
-
-void
-paulis_compute_perm(struct paulis code, u64 i, root4 *zi, u64 *j, root4 *zj);
 
 u64
 paulis_effect(struct paulis code, u64 i, root4 *z);
