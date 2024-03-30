@@ -5,6 +5,10 @@
 
 #include "mpi.h"
 
+#ifndef QREG_PREC
+#define QREG_PREC (2)
+#endif
+
 #define QREG_MAX_WIDTH (64)
 
 enum {
@@ -27,7 +31,13 @@ typedef uint64_t u64;
 typedef float  f32;
 typedef double f64;
 
+#if QREG_PREC == 1
+typedef f32 fl;
+#define QREG_MPI_FL MPI_FLOAT
+#elif QREG_PREC == 2
 typedef f64 fl;
+#define QREG_MPI_FL MPI_DOUBLE
+#endif
 
 typedef enum root4 {
 	R0, // +1

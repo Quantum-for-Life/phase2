@@ -249,7 +249,7 @@ qreg_getamp(const struct qreg *reg, const u64 i, fl (*z)[2])
 		(*z)[0] = reg->amp[0][di.i];
 		(*z)[1] = reg->amp[1][di.i];
 	};
-	MPI_Bcast(z, 2, MPI_DOUBLE, di.rank, MPI_COMM_WORLD);
+	MPI_Bcast(z, 2, QREG_MPI_FL, di.rank, MPI_COMM_WORLD);
 }
 
 void
@@ -281,15 +281,15 @@ qreg_exchbuf_init(struct qreg *reg, const int rnk_rem)
 	for (int i = 0; i < nr; i++) {
 		const size_t offset = i * reg->msg_count;
 
-		MPI_Isend(reg->amp[0] + offset, reg->msg_count, MPI_DOUBLE,
+		MPI_Isend(reg->amp[0] + offset, reg->msg_count, QREG_MPI_FL,
 			rnk_rem, 2 * i, MPI_COMM_WORLD, reg->reqs_snd + 2 * i);
-		MPI_Isend(reg->amp[1] + offset, reg->msg_count, MPI_DOUBLE,
+		MPI_Isend(reg->amp[1] + offset, reg->msg_count, QREG_MPI_FL,
 			rnk_rem, 2 * i + 1, MPI_COMM_WORLD,
 			reg->reqs_snd + 2 * i + 1);
 
-		MPI_Irecv(reg->buf[0] + offset, reg->msg_count, MPI_DOUBLE,
+		MPI_Irecv(reg->buf[0] + offset, reg->msg_count, QREG_MPI_FL,
 			rnk_rem, 2 * i, MPI_COMM_WORLD, reg->reqs_rcv + 2 * i);
-		MPI_Irecv(reg->buf[1] + offset, reg->msg_count, MPI_DOUBLE,
+		MPI_Irecv(reg->buf[1] + offset, reg->msg_count, QREG_MPI_FL,
 			rnk_rem, 2 * i + 1, MPI_COMM_WORLD,
 			reg->reqs_rcv + 2 * i + 1);
 	}
@@ -409,6 +409,7 @@ qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 		kernel_sep(reg->amp[1], reg->buf[1], i);
 	}
 	for (size_t k = 0; k < num_codes; k++) {
+		/* Here, an imlicit cast from fl to double and back */
 		const fl eip_amp[2] = { cos(angles[k]), sin(angles[k]) };
 		const fl eip_buf[2] = { eip_amp[0], -eip_amp[1] };
 
