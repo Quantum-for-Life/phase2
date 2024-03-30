@@ -15,8 +15,7 @@ find_package(HDF5 REQUIRED)
 if (HDF5_IS_PARALLEL)
     message(STATUS "Parallel HDF5 found")
 else ()
-    message(STATUS "Parallel HDF5 not found!")
-    return()
+    message(FATAL_ERROR "Parallel HDF5 not found")
 endif ()
 
 
@@ -27,6 +26,16 @@ set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 link_libraries(${HDF5_LIBRARIES})
 include_directories(${HDF5_INCLUDE_DIRS})
+
+
+set(PRECISION 2 CACHE STRING
+        "Use single or double floating point precision in qreg. {1,2}")
+if (NOT (${PRECISION} EQUAL 1) AND
+        NOT (${PRECISION} EQUAL 2))
+    message(FATAL_ERROR "valid options for PRECISION(=${PRECISION}) \
+     are 1 for single precision, 2 for double precision")
+endif ()
+add_compile_definitions(QREG_PREC=${PRECISION})
 
 set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
 include_directories(${SRC_DIR})

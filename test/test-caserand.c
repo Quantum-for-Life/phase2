@@ -28,6 +28,11 @@ const char *CASEIDS[NUM_CASES] = {
 };
 
 #define MARGIN (1e-14)
+
+#ifdef QREG_PREC == 1
+#define MARGIN (1e-5)
+#endif
+
 static const char *CASE_DIR = PH2_SIMUL_DATA "/case-rand";
 
 static int
@@ -36,7 +41,7 @@ caserand(const char *prefix)
 	char filename[1024] = { 0 };
 
 	snprintf(filename, 1024, "%s/%s.h5", CASE_DIR, prefix);
-	data_id fid = data_open(filename);
+	const data_id fid = data_open(filename);
 	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("Cannot read data file: %s", filename);
 		goto err_data_open;
@@ -55,7 +60,7 @@ caserand(const char *prefix)
 	}
 
 	snprintf(filename, 1024, "%s/%s.h5_solved", CASE_DIR, prefix);
-	data_id fid_ref = data_open(filename);
+	const data_id fid_ref = data_open(filename);
 	if (fid_ref == DATA_INVALID_FID) {
 		TEST_FAIL("Cannot read data file: %s", filename);
 		goto err_data_open_ref;

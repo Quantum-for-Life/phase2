@@ -6,6 +6,7 @@
 #include "circ.h"
 #include "data.h"
 #include "log.h"
+#include "qreg.h"
 
 static struct opt {
 	const char *filename;
@@ -57,6 +58,7 @@ main(int argc, char **argv)
 		ABORT_ON_ERROR("cannot process input data")
 
 	log_info("*** Circuit ***");
+	log_info("Floating point precision: %d", QREG_PREC);
 	log_info("Num_steps: %zu", OPT.num_steps);
 	if (run_circuit(fid, OPT.num_steps) < 0) {
 		log_error("Failure: simulation error");

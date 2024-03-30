@@ -231,7 +231,12 @@ circuit_prepst(struct circ *c)
 
 	qreg_zero(&c->reg);
 	for (size_t i = 0; i < md->num_dets; i++) {
-		qreg_setamp(&c->reg, md->dets[i].idx, md->dets[i].coeff);
+		const fl coeff[2] = {
+			/* We cast each element to a (possibly) lower precision
+			 * floating point number: fl */
+			md->dets[i].coeff[0], md->dets[i].coeff[1]
+		};
+		qreg_setamp(&c->reg, md->dets[i].idx, coeff);
 	}
 
 	return 0;
@@ -246,7 +251,7 @@ trotter_step(struct circ *c, const double omega)
 	cache.num_codes		= 0;
 
 	for (size_t i = 0; i < hamil->num_terms; i++) {
-		const double	    angle = omega * hamil->coeffs[i];
+		const fl	    angle = omega * hamil->coeffs[i];
 		const struct paulis code  = hamil->paulis[i];
 
 		struct paulis code_hi, code_lo;
@@ -305,7 +310,7 @@ circ_measure(struct circ *c)
 
 	double pr[2] = { 0.0, 0.0 };
 	for (size_t i = 0; i < md->num_dets; i++) {
-		double amp[2];
+		fl amp[2];
 		qreg_getamp(&c->reg, md->dets[i].idx, &amp);
 
 		const double damp_re = md->dets[i].coeff[0];
