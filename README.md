@@ -2,39 +2,26 @@
 
 [![CI](https://github.com/Quantum-for-Life/phase2/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/Quantum-for-Life/phase2/actions/workflows/CI.yml)
 
-Quantum phase estimation (QPE) with parallel computing. 🏭
+Simulate generic Hamiltonians using Trotter product formula. 🏭
 
 # Dependencies
 
 To run the simulation, you will need:
 
-- Linux platform, with a C/C++ compiler toolchain
-- CMake>=3.9
-- [HDF5][hdf5-website]
-- optional: [OpenMPI][openmpi-website]
+- Linux platform, with a C/C++ compiler toolchain and CMake>=3.19
+- [OpenMPI][openmpi-website]
+- Parallel [HDF5][hdf5-website]
 
-To prepare input for the simulation and to run the test suite:
-
-- Python >= 3.10 and a virtual environment with several packages installed
-  locally (see [README.md](./python/README.md) in the `python/` subsystem for
-  more details.
-
-Assuming we're on Ubuntu, you can install the dependencies in one go:
+Assuming we're on Ubuntu, you can install the dependencies with:
 
 ```bash
 sudo apt install gcc g++ cmake 
-sudo apt install libhdf5-dev hdf5-tools
-```
-
-and optionally:
-
-```bash
 sudo apt install libopenmpi-dev openmpi-common
-sudo apt install libhdf5-mpi-dev libhdf5-openmpi-dev 
+sudo apt install libhdf5-dev hdf5-tools libhdf5-mpi-dev libhdf5-openmpi-dev 
 ```
 
-If you want to run the simulation on Euler cluster (ETHZ), you only need to load
-necessary modules:
+If you want to run the simulation on Euler cluster (ETHZ), you only need to
+load the necessary modules:
 
 ```bash
 env2lmod
@@ -48,43 +35,53 @@ module load openmpi
 
 [openmpi-website]: https://www.open-mpi.org/
 
-## Getting the sources
-
-You can clone the repo and its dependencies:
-
-```bash
-git clone --recurse-submodules https://github.com/Quantum-for-Life/phase2.git
-```
-
-If you prefer to access GitHub via SSH instead, be aware the repositories
-this package depends on as submodules have their URLs hard-coded as HTTPS.
-And some of them are still private to _Quantum-for-Life_.
-
 # Compiling the source code
 
+Download and compile the source code with:
+
 ```bash
+git clone https://github.com/Quantum-for-Life/phase2.git
 cd phase2
 mkdir build && cd build
-cmake ..
-make
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j6
 ```
 
-If you want to enable MPI support, set `DISTRIBUTED` flag:
+To run the test suite:
 
 ```bash
-cmake -DDISTRIBUTED=ON ..
-make
-```
-
-# Testing
-
-Run the test suite by typing:
-
-```bash
-cmake -DBUILD_TESTING=ON ..
-make && ctest -V
+ctest -V
 ```
 
 # How to use it
 
-[TBA]
+Prepare an input file for the simulation according to the
+[specification](./doc/simul-h5-specs.md). Then run:
+
+```bash
+mpirun -n [NUM_CPUS] ./ph2run [SIMUL_FILE] [NUM_STEPS]
+```
+
+where
+
+- `NUM_CPUS` is the `mpirun` option specifying the number of processes to
+  run. This must be a power of 2.
+- `SIMUL_FILE` is the path to the simulation file in the HDF5 format
+- `NUM_STEPS` is a integer number of Trotter steps the program is going to
+  compute.
+
+Optionally, you can specify the level of log messages for the program to report,
+by setting `PHASE2_LOG` environment variable to be one of: `trace`,
+`debug`, `info`, `warn`, `error`, `fatal`. E.g.,
+
+```bash
+PHASE2_LOG=info mpirun -n 8 ./ph2run simul.h5 100 
+```
+
+will compute 100 Trotter steps for a Hamiltonian specified in the file
+`simul.h5` using 8 MPI processes, and write the result to the same file.
+
+*TODO*:
+
+- Memory requirements
+- Single precision floating point calculation is a CMake switch: `-DPRECISION=1`
