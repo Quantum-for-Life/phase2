@@ -85,8 +85,7 @@ void
 opt_help_page(int argc, char **argv)
 {
 	(void)argc;
-	fprintf(stderr, "usage: %s CIRCUIT [SIMUL_FILE_H5] [NUM_STEPS]\n\n",
-		argv[0]);
+	fprintf(stderr, "usage: %s [SIMUL_FILE] [NUM_STEPS]\n\n", argv[0]);
 }
 
 int
