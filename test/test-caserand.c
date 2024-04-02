@@ -29,7 +29,7 @@ const char *CASEIDS[NUM_CASES] = {
 
 #define MARGIN (1e-14)
 
-#ifdef QREG_PREC == 1
+#if QREG_PREC == 1
 #define MARGIN (1e-5)
 #endif
 
