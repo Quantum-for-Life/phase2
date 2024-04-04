@@ -4,14 +4,12 @@ import argparse
 import uuid
 
 import h5py
+
 import qiskit_nature
 from qiskit_nature.second_q.formats.fcidump import FCIDump
-from qiskit_nature.second_q.formats.fcidump_translator import (
-    fcidump_to_problem,
-)
-from qiskit_nature.second_q.mappers.jordan_wigner_mapper import (
-    JordanWignerMapper,
-)
+from qiskit_nature.second_q.formats.fcidump_translator import fcidump_to_problem
+from qiskit_nature.second_q.mappers.jordan_wigner_mapper import \
+    JordanWignerMapper
 from qiskit_nature.second_q.problems import ElectronicStructureProblem
 
 # Suppress deprecation warnings in fcidump_parse_fermionic_op() below
@@ -35,7 +33,7 @@ def parse_arguments():
 
 
 def fcidump_parse_fermionic_op(
-    filename: str, verbose: bool
+        filename: str, verbose: bool
 ) -> ElectronicStructureProblem:
     fcidump = FCIDump.from_file(filename)
     if verbose:
@@ -51,10 +49,6 @@ def h5_output(problem: ElectronicStructureProblem, outfile: str):
     mapper = JordanWignerMapper()
     qubit_jw_op = mapper.map(fermionic_op)
     import numpy as np
-
-    # eigs = [x.real for x in np.linalg.eig(qubit_jw_op.to_matrix())[0]]
-    # eigs.sort()
-    # print(eigs)
 
     num_qubits = qubit_jw_op.num_qubits
     num_sum_terms = len(qubit_jw_op.coeffs)
@@ -97,10 +91,10 @@ def h5_output(problem: ElectronicStructureProblem, outfile: str):
         grp.attrs["time_factor"] = 0.1
 
 
-
 if __name__ == "__main__":
     args = parse_arguments()
-    fermionic_op = fcidump_parse_fermionic_op(args.filename, verbose=args.verbose)
+    fermionic_op = fcidump_parse_fermionic_op(args.filename,
+                                              verbose=args.verbose)
 
     if args.output:
         h5_output(fermionic_op, args.output)

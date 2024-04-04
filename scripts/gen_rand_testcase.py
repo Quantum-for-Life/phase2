@@ -1,7 +1,6 @@
 #!/bin/env python
 
 import argparse
-import json
 import math
 import random
 import uuid
@@ -9,7 +8,6 @@ from math import sqrt
 
 import h5py
 import numpy as np
-import scipy as sp
 
 FILENAME_STUB = "case"
 
@@ -35,17 +33,6 @@ def pauli_string_to_matrix(paulis: list):
                 tj = j >> k & 1
                 elem *= PAULI_TABLE.get(paulis[k])[ti][tj]
             matrix[i][j] = elem
-
-    return matrix
-
-
-def pauli_hamil_to_matrix(coeffs, paulis):
-    num_qubits = len(paulis[0])
-    num_terms = len(coeffs)
-    size = 2 ** num_qubits
-    matrix = np.zeros(shape=(size, size), dtype=np.cdouble)
-    for i in range(0, num_terms):
-        matrix += coeffs[i] * pauli_string_to_matrix(paulis[i])
 
     return matrix
 
@@ -140,12 +127,9 @@ class Case:
         state = multidet_to_vector(self.multidet["coeffs"],
                                    self.multidet["indices"],
                                    self.num_qubits)
-        # print(state)
         state_work = state
         for step in range(NUM_STEPS):
             for k, pauli_str in enumerate(self.pauli_hamil["paulis"]):
-                # print(f'step: {step}, Pauli {k}: {pauli_str}, state_work[0]:'
-                #      f' {state_work[0]}')
                 matrix = pauli_string_to_matrix(pauli_str)
                 coeff = self.pauli_hamil["coeffs"][k]
                 state_work = math.cos(coeff) * state_work + 1j * math.sin(
