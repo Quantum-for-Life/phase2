@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "circ.h"
+#include "log.h"
 #include "qreg.h"
 
 #define MAX_CACHE_CODES (1024)
@@ -275,6 +276,8 @@ trotter_step(struct circ *c, const double omega)
 			continue;
 		}
 
+		log_trace("paulirot, term: %zu, num_codes: %zu", i,
+			cache.num_codes);
 		qreg_paulirot(&c->reg, cache.code_hi, cache.codes_lo,
 			cache.angles, cache.num_codes);
 
@@ -283,6 +286,8 @@ trotter_step(struct circ *c, const double omega)
 		cache.codes_lo[0] = code_lo;
 		cache.angles[0]	  = angle;
 	}
+
+	log_trace("paulirot, last term group, num_codes: %zu", cache.num_codes);
 
 	if (cache.num_codes > 0)
 		qreg_paulirot(&c->reg, cache.code_hi, cache.codes_lo,
