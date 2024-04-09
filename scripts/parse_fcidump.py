@@ -96,6 +96,20 @@ def h5_output(problem: ElectronicStructureProblem, outfile: str,
         grp.attrs["normalization"] = norm[0]
         grp.attrs["offset"] = offset
 
+        h5_md = f.create_group("state_prep/multidet")
+        h5_coeffs = h5_md.create_dataset(
+            "coeffs", shape=(1, 2), dtype="d"
+        )
+        coeffs = [1 + 0j]
+        det0 = []
+        for i in range(int(num_qubits / 2)):
+            det0.append(1)
+            det0.append(0)
+        h5_coeffs[...] = [[z.real, z.imag] for z in coeffs]
+        h5_md.create_dataset(
+            "dets", shape=(1, num_qubits), dtype="u1"
+        )[...] = [det0]
+
         grp = f.create_group("trotter_steps")
         grp.attrs["time_factor"] = 1.0
 
@@ -106,4 +120,4 @@ if __name__ == "__main__":
                                               verbose=args.verbose)
 
     if args.output:
-        h5_output(fermionic_op, args.output, sort_terms=args.sort)
+        h5_output(fermionic_op, args.output, sort_terms=args.sort_terms)
