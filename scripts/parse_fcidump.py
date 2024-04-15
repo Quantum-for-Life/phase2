@@ -15,12 +15,9 @@ from qiskit_nature.second_q.problems import ElectronicStructureProblem
 qiskit_nature.settings.use_symmetry_reduced_integrals = True
 qiskit_nature.settings.use_pauli_sum_op = False
 
-MARGIN: float = 10e-10
-
-
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        prog="jw_map",
+        prog="parse_fcidump",
         description="Parse FCIDUMP to JW mapping",
         epilog="Quantum-for-Life",
     )
@@ -100,11 +97,14 @@ def h5_output(problem: ElectronicStructureProblem, outfile: str,
         h5_coeffs = h5_md.create_dataset(
             "coeffs", shape=(1, 2), dtype="d"
         )
+
         coeffs = [1 + 0j]
-        det0 = []
-        for i in range(int(num_qubits / 2)):
-            det0.append(1)
-            det0.append(0)
+        det0 = [int(0) for _ in range(num_qubits)]
+        sup_offst = int(num_qubits / 2)
+        part_a, part_b = problem.num_particles
+        for i in (*range(0, part_a), *range(sup_offst, sup_offst + part_b)):
+            det0[i] = 1
+
         h5_coeffs[...] = [[z.real, z.imag] for z in coeffs]
         h5_md.create_dataset(
             "dets", shape=(1, num_qubits), dtype="u1"
