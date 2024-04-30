@@ -15,6 +15,9 @@ from qiskit_nature.second_q.problems import ElectronicStructureProblem
 qiskit_nature.settings.use_symmetry_reduced_integrals = True
 qiskit_nature.settings.use_pauli_sum_op = False
 
+PAULI_TABLE = {"I": 0, "X": 1, "Y": 2, "Z": 3}
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
         prog="parse_fcidump",
@@ -24,7 +27,10 @@ def parse_arguments():
 
     parser.add_argument("filename", type=str, help="FCIDUMP input file")
     parser.add_argument("-o", "--output", type=str, help="Output file: .h5")
-    parser.add_argument("--sort-terms", action="store_true")
+    parser.add_argument("--sort-terms", action="store_true",
+                        help="Sort Hamiltonian terms for faster computation")
+    parser.add_argument("-t", "--time-factor", type=float,
+                        help="Multiply phases by a real factor")
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args()
 
@@ -40,9 +46,8 @@ def fcidump_parse_fermionic_op(
 
 
 def h5_output(problem: ElectronicStructureProblem, outfile: str,
+              time_factor: float = 1.0,
               sort_terms=False):
-    pauli_table = {"I": 0, "X": 1, "Y": 2, "Z": 3}
-
     fermionic_op = problem.hamiltonian.second_q_op()
     mapper = JordanWignerMapper()
     qubit_jw_op = mapper.map(fermionic_op)
@@ -57,10 +62,9 @@ def h5_output(problem: ElectronicStructureProblem, outfile: str,
     for i in range(0, num_sum_terms):
         coeffs[i] = qubit_jw_op.coeffs[i].real
         labels.append(qubit_jw_op.paulis[i].to_label())
-        # NOTE: Qiskit uses LE convention for numbering qubits. We reverse
-        # the string
+        # Qiskit uses LE convention for numbering qubits. We reverse the string.
         for j, p in enumerate(qubit_jw_op.paulis[i].to_label()[::-1]):
-            paulis[i][j] = pauli_table[p]
+            paulis[i][j] = PAULI_TABLE[p]
 
     if sort_terms:
         idx = np.argsort(labels)
@@ -98,20 +102,20 @@ def h5_output(problem: ElectronicStructureProblem, outfile: str,
             "coeffs", shape=(1, 2), dtype="d"
         )
 
+        # TODO: parse input state from another FCIDUMP file
         coeffs = [1 + 0j]
         det0 = [int(0) for _ in range(num_qubits)]
         sup_offst = int(num_qubits / 2)
         part_a, part_b = problem.num_particles
         for i in (*range(0, part_a), *range(sup_offst, sup_offst + part_b)):
             det0[i] = 1
-
         h5_coeffs[...] = [[z.real, z.imag] for z in coeffs]
         h5_md.create_dataset(
             "dets", shape=(1, num_qubits), dtype="u1"
         )[...] = [det0]
 
         grp = f.create_group("trotter_steps")
-        grp.attrs["time_factor"] = 1.0
+        grp.attrs["time_factor"] = time_factor
 
 
 if __name__ == "__main__":
@@ -120,4 +124,6 @@ if __name__ == "__main__":
                                               verbose=args.verbose)
 
     if args.output:
-        h5_output(fermionic_op, args.output, sort_terms=args.sort_terms)
+        h5_output(fermionic_op, args.output,
+                  time_factor=args.time_factor,
+                  sort_terms=args.sort_terms)
