@@ -2,6 +2,7 @@
 # Simulation parameters:
 TIME_FACT	= 1.0
 TROTT_STEPS	= 128
+MPI_RANKS	= 4
 # #############################################################################
 
 # System
@@ -15,7 +16,7 @@ SIMUL_ORIG	= $(SIMUL_H5).orig
 SIMUL_PROC	= $(SIMUL_H5).proc
 
 PYTHON		= python3
-PARSE_FCID	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
+PARSE_FCIDP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
 TROTT_VALID	= $(PYTHON) $(SCRIPTS)/trotter_validate.py
 MPIRUN		= mpirun
 PH2RUN		= $(BUILD)/ph2run
@@ -23,10 +24,10 @@ CP		= cp -f
 RM		= rm -fv
 
 # Application flags
-PARSE_FCID_FLAGS	= --sort-terms --time-factor=$(TIME_FACT)
+PARSE_FCIDP_FLAGS	= --sort-terms --time-factor=$(TIME_FACT)
 TROTT_VALID_FLAGS	=
-MPIRUN_FLAGS		= -n 4
-PH2RUN_FLAGS		= $(TROTT_STEPS) # number of Trotter steps
+MPIRUN_FLAGS		= -n $(MPI_RANKS)
+PH2RUN_FLAGS		= $(TROTT_STEPS)
 PR2RUN_LOGLVL		= info
 
 
@@ -36,7 +37,7 @@ PR2RUN_LOGLVL		= info
 all: $(SIMUL_PROC)
 
 $(SIMUL_ORIG): FCIDUMP
-	$(PARSE_FCID) $(PARSE_FCID_FLAGS) -o $@ $<
+	$(PARSE_FCIDP) $(PARSE_FCIDP_FLAGS) -o $@ $<
 
 $(SIMUL_H5): $(SIMUL_ORIG)
 	$(CP) $< $@
