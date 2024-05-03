@@ -3,6 +3,14 @@
 This directory provides a basic automated system to perform the simulation 
 with `ph2run`.
 
+# Dependencies
+
+To run the scripts, you'll need these python packages:
+
+```bash
+pip install h5py qiskit-nature matplotlib
+```
+
 # How to use it
 
 1. Make sure `ph2run` compiled in `../build` 
