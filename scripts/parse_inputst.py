@@ -37,7 +37,7 @@ if __name__ == "__main__":
         dets.append(det_rearr)
         coeffs.append(x + 1j * y)
 
-    with h5py.File(args.output, "w") as f:
+    with h5py.File(args.output, "a") as f:
 
         h5_md = f.create_group("state_prep/multidet")
         h5_coeffs = h5_md.create_dataset("coeffs", shape=(len(dets), 2),
