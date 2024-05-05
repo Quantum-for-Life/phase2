@@ -97,23 +97,6 @@ def h5_output(problem: ElectronicStructureProblem, outfile: str,
         grp.attrs["normalization"] = norm[0]
         grp.attrs["offset"] = offset
 
-        h5_md = f.create_group("state_prep/multidet")
-        h5_coeffs = h5_md.create_dataset(
-            "coeffs", shape=(1, 2), dtype="d"
-        )
-
-        # TODO: parse input state from another FCIDUMP file
-        coeffs = [1 + 0j]
-        det0 = [int(0) for _ in range(num_qubits)]
-        sup_offst = int(num_qubits / 2)
-        part_a, part_b = problem.num_particles
-        for i in (*range(0, part_a), *range(sup_offst, sup_offst + part_b)):
-            det0[i] = 1
-        h5_coeffs[...] = [[z.real, z.imag] for z in coeffs]
-        h5_md.create_dataset(
-            "dets", shape=(1, num_qubits), dtype="u1"
-        )[...] = [det0]
-
         grp = f.create_group("trotter_steps")
         grp.attrs["time_factor"] = time_factor
 

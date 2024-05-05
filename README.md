@@ -81,6 +81,8 @@ PHASE2_LOG=info mpirun -n 8 ./ph2run simul.h5 100
 will compute 100 Trotter steps for a Hamiltonian specified in the file
 `simul.h5` using 8 MPI processes, and write the result to the same file.
 
+See also the directory: `./simul` for a simple automated system with `Makefile`.
+
 *TODO*:
 
 - Memory requirements
