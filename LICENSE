@@ -19,3 +19,11 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+***
+
+Xoshiro256** pseudo random number generator was written by David Blackman
+and Sebastiano Vigna (see source file). Their original work is part of
+Public Domain.
+
+See <http://creativecommons.org/publicdomain/zero/1.0/>.

@@ -13,8 +13,8 @@
  * implementation is thread-safe.
  */
 
-#ifndef XOSHIRO256STARSTAR_ORIG_H
-#define XOSHIRO256STARSTAR_ORIG_H
+#ifndef XOSHIRO256STARSTAR_H
+#define XOSHIRO256STARSTAR_H
 
 #include <stdint.h>
 
@@ -34,4 +34,4 @@ xoshiro256starstar_jump(struct xoshiro256starstar *state);
 void
 xoshiro256starstar_long_jump(struct xoshiro256starstar *state);
 
-#endif // XOSHIRO256STARSTAR_ORIG_H
+#endif /* XOSHIRO256STARSTAR_H */
