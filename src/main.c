@@ -1,5 +1,7 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "mpi.h"
 
@@ -11,6 +13,8 @@
 static struct opt {
 	const char *filename;
 	size_t	    num_steps;
+	bool	    qdrift;
+	size_t	    qdrift_num_smpl;
 } OPT;
 
 void
@@ -59,7 +63,11 @@ main(int argc, char **argv)
 
 	log_info("*** Circuit ***");
 	log_info("Floating point precision: %d", QREG_PREC);
-	log_info("Num_steps: %zu", OPT.num_steps);
+	log_info("num_steps: %zu", OPT.num_steps);
+	if (OPT.qdrift == true) {
+		log_info("QDRIFT mode ___~~~>>>");
+		log_info("num_samples: %zu", OPT.qdrift_num_smpl);
+	}
 	if (run_circuit(fid, OPT.num_steps) < 0) {
 		log_error("Failure: simulation error");
 		goto error;
@@ -85,7 +93,10 @@ void
 opt_help_page(int argc, char **argv)
 {
 	(void)argc;
-	fprintf(stderr, "usage: %s [SIMUL_FILE] [NUM_STEPS]\n\n", argv[0]);
+	fprintf(stderr,
+		"usage: %s SIMUL_FILE NUM_STEPS "
+		"[-qdrift NUM_SAMPLES]\n\n",
+		argv[0]);
 }
 
 int
@@ -103,6 +114,12 @@ opt_parse(int argc, char **argv)
 		return -1;
 	}
 	OPT.num_steps = num_steps;
+
+	OPT.qdrift = false;
+	if (argc >= 5 && memcmp("-qdrift", argv[3], 7) == 0) {
+		OPT.qdrift	    = true;
+		OPT.qdrift_num_smpl = strtoull(argv[4], NULL, 10);
+	}
 
 	return 0;
 }
