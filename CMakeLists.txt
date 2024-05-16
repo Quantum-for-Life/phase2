@@ -40,7 +40,9 @@ set(PHASE2_SOURCES
         ${SRC_DIR}/qreg.c
         ${SRC_DIR}/circ.c
         ${SRC_DIR}/log.c
+        ${SRC_DIR}/xoshiro256starstar.c
 )
+
 add_executable(ph2run
         ${SRC_DIR}/main.c
         ${PHASE2_SOURCES}
