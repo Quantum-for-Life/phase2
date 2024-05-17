@@ -19,7 +19,7 @@
 #include <stdint.h>
 
 struct xoshiro256starstar {
-	uint16_t s[4];
+	uint64_t s[4];
 };
 
 void
