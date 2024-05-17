@@ -4,7 +4,7 @@ project(phase2 VERSION 0.1.0 LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 
 add_compile_options(-Wall -Wextra -march=native)
-set(CMAKE_C_FLAGS_DEBUG "-Og")
+set(CMAKE_C_FLAGS_DEBUG "-Og -g")
 set(CMAKE_C_FLAGS_RELEASE "-O2")
 link_libraries(m)
 
