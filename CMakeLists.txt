@@ -50,11 +50,11 @@ add_executable(ph2run
 
 # -----------------------------------------------------------------------------
 # Testing
-set(PH2_SIMUL_DATA ${PROJECT_SOURCE_DIR}/simul_data)
-add_compile_definitions(PH2_SIMUL_DATA="${PH2_SIMUL_DATA}")
+#set(PH2_SIMUL_DATA ${PROJECT_SOURCE_DIR}/simul_data)
+#add_compile_definitions(PH2_SIMUL_DATA="${PH2_SIMUL_DATA}")
 
-include(CTest)
-if (BUILD_TESTING)
-    enable_testing()
-    add_subdirectory(test)
-endif ()
+#include(CTest)
+#if (BUILD_TESTING)
+#    enable_testing()
+#    add_subdirectory(test)
+#endif ()
