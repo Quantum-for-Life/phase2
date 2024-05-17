@@ -31,11 +31,9 @@ def parse_arguments():
     parser.add_argument("-o", "--output", type=str, help="Output file: .h5")
     parser.add_argument("--sort-terms", action="store_true",
                         help="Sort Hamiltonian terms for faster computation")
-    parser.add_argument("qdrift", action="store_true",
-                        help="Gnererate multiple randomly sampled output files for QDRIFT")
-    parser.add_argument("--qdrift-samples", type=int, default=128, help="number of QDIRFT samples")
-    parser.add_argument("-t", "--time-factor", type=float,
-                        help="Multiply phases by a real factor")
+    parser.add_argument("--num-samples", type=int, default=128, help="number of QDIRFT samples")
+    parser.add_argument("--step-size", type=float)
+    parser.add_argument("--depth", type=int)
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args()
 
@@ -52,7 +50,9 @@ def fcidump_parse_fermionic_op(
 
 class H5Output:
     def __init__(self, problem: ElectronicStructureProblem,
-                 time_factor: float = 1.0,
+                 step_size: float = 1.0,
+                 num_samples: int = 128,
+                 depth: int = 64,
                  sort_terms=False):
         fermionic_op = problem.hamiltonian.second_q_op()
         mapper = JordanWignerMapper()
@@ -88,7 +88,9 @@ class H5Output:
             self.paulis = np.delete(self.paulis, 0, offset_idx)
             self.num_sum_terms -= 1
 
-        self.time_factor = time_factor
+        self.step_size = step_size
+        self.num_samples = num_samples
+        self.depth = depth
 
     def write_h5file(self, outfile: str):
         with h5py.File(outfile, "w") as f:
@@ -106,7 +108,9 @@ class H5Output:
             grp.attrs["offset"] = self.offset
 
             grp = f.create_group("trotter_steps")
-            grp.attrs["time_factor"] = self.time_factor
+            grp.attrs["step_size"] = self.step_size
+            grp.attrs["num_samples"] = self.num_samples
+            grp.attrs["depth"] = self.depth
 
 
 if __name__ == "__main__":
@@ -114,7 +118,9 @@ if __name__ == "__main__":
     fermionic_op = fcidump_parse_fermionic_op(args.filename,
                                               verbose=args.verbose)
     h5out = H5Output(fermionic_op,
-                     time_factor=args.time_factor,
+                     step_size=args.step_size,
+                     num_samples=args.num_samples,
+                     depth=args.depth,
                      sort_terms=args.sort_terms)
 
     if args.output:

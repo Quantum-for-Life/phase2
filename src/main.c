@@ -61,9 +61,6 @@ main(int argc, char **argv)
 	log_info("*** Circuit ***");
 	log_info("Floating point precision: %d", QREG_PREC);
 	log_info("QDRIFT >>>");
-	//log_info("num_steps: %zu", OPT.num_samples);
-	//log_info("step_size: %f", OPT.step_size);
-	//log_info("depth: %zu", OPT.depth);
 	if (run_circuit(fid) < 0) {
 		log_error("Failure: simulation error");
 		goto error;
@@ -98,11 +95,10 @@ opt_help_page(int argc, char **argv)
 int
 opt_parse(int argc, char **argv)
 {
-	if (argc < 5) {
+	if (argc < 2) {
 		opt_help_page(argc, argv);
 		return -1;
 	}
-
 	OPT.filename = argv[1];
 
 	return 0;
@@ -116,6 +112,9 @@ run_circuit(data_id fid)
 	struct circ_data rd;
 	if (circ_data_init(&rd, fid) < 0)
 		goto error;
+	log_info("num_samples: %zu", rd.num_samples);
+	log_info("step_size: %f", rd.step_size);
+	log_info("depth: %zu", rd.depth);
 	if (circ_simulate(&rd) < 0)
 		goto error;
 	data_trotter_write_values(fid, rd.samples, rd.num_samples);

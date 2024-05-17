@@ -162,7 +162,7 @@ data_hamil_foreach(
 	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
 
 int
-data_trotter_get_factor(data_id fid, double *factor);
+data_trotter_get_factor(data_id fid, double *step_size);
 
 int
 data_trotter_get_num_samples(data_id fid, size_t *num_samples);

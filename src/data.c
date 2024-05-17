@@ -456,7 +456,7 @@ trotter_close(hid_t grpid)
 }
 
 int
-data_trotter_get_factor(data_id fid, double *factor)
+data_trotter_get_factor(data_id fid, double *step_size)
 {
 	int ret = DATA_OK;
 
@@ -477,7 +477,7 @@ data_trotter_get_factor(data_id fid, double *factor)
 		ret = -DATA_ETROTT;
 		goto err_attr_read;
 	}
-	*factor = n;
+	*step_size = n;
 
 err_attr_read:
 	H5Aclose(attr_norm_id);

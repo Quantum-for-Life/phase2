@@ -210,7 +210,7 @@ circ_data_from_file(struct circ_data *cd, const data_id fid)
 {
 	int rc = circ_hamil_from_file(&cd->hamil, fid);
 	rc |= circuit_multidet_from_data(&cd->multidet, fid);
-	data_trotter_get_factor(fid, &cd->time_factor);
+	data_trotter_get_factor(fid, &cd->step_size);
 	data_trotter_get_num_samples(fid, &cd->num_samples);
 	data_trotter_get_depth(fid, &cd->depth);
 
@@ -315,14 +315,14 @@ trotter_step(struct circ *c, const double omega)
 static int
 circ_effect(struct circ *c)
 {
-	const double t = c->data->time_factor;
+	const double t = c->data->step_size;
 	if (isnan(t))
 		return -1;
 	if (fabs(t) < DBL_EPSILON)
 		return 0;
 
-	const double theta = acos(c->data->step_size);
-	trotter_step(c, t * theta);
+	const double theta = acos(t);
+	trotter_step(c, theta);
 
 	return 0;
 }

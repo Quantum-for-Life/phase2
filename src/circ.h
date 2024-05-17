@@ -24,13 +24,10 @@ struct circ_data {
 	struct circ_hamil    hamil;
 	struct circ_multidet multidet;
 
-	double time_factor;
-
 	double *samples[2];
 	size_t	num_samples;
-
-	double step_size;
-	size_t depth;
+	double	step_size;
+	size_t	depth;
 };
 
 int
