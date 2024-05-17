@@ -165,6 +165,12 @@ int
 data_trotter_get_factor(data_id fid, double *factor);
 
 int
+data_trotter_get_num_samples(data_id fid, size_t *num_samples);
+
+int
+data_trotter_get_depth(data_id fid, size_t *depth);
+
+int
 data_trotter_write_values(data_id fid, double *values[2], size_t num_values);
 
 int

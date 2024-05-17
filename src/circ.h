@@ -34,14 +34,10 @@ struct circ_data {
 };
 
 int
-circ_data_init(
-	struct circ_data *cd, size_t num_steps, double step_size, size_t depth);
+circ_data_init(struct circ_data *cd, data_id fid);
 
 void
 circ_data_destroy(struct circ_data *cd);
-
-int
-circ_data_from_file(struct circ_data *cd, data_id fid);
 
 int
 circ_simulate(const struct circ_data *cd);

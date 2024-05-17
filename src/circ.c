@@ -206,19 +206,29 @@ error:
 }
 
 int
-circ_data_init(struct circ_data *cd, const size_t num_steps, double step_size,
-	size_t depth)
+circ_data_from_file(struct circ_data *cd, const data_id fid)
+{
+	int rc = circ_hamil_from_file(&cd->hamil, fid);
+	rc |= circuit_multidet_from_data(&cd->multidet, fid);
+	data_trotter_get_factor(fid, &cd->time_factor);
+	data_trotter_get_num_samples(fid, &cd->num_samples);
+	data_trotter_get_depth(fid, &cd->depth);
+
+	return rc;
+}
+
+int
+circ_data_init(struct circ_data *cd, const data_id fid)
 {
 	circ_hamil_init(&cd->hamil);
 	circ_multidet_init(&cd->multidet);
-	cd->num_samples = num_steps;
-	cd->step_size	= step_size;
-	cd->depth	= depth;
 
-	cd->samples[0] = malloc(sizeof(double) * 2 * num_steps);
+	if (circ_data_from_file(cd, fid) < 0)
+		return -1;
+	cd->samples[0] = malloc(sizeof(double) * 2 * cd->num_samples);
 	if (cd->samples[0] == NULL)
 		return -1;
-	cd->samples[1] = cd->samples[0] + num_steps;
+	cd->samples[1] = cd->samples[0] + cd->num_samples;
 
 	return 0;
 }
@@ -230,16 +240,6 @@ circ_data_destroy(struct circ_data *cd)
 	circ_hamil_destroy(&cd->hamil);
 
 	free(cd->samples[0]);
-}
-
-int
-circ_data_from_file(struct circ_data *cd, const data_id fid)
-{
-	int rc = circ_hamil_from_file(&cd->hamil, fid);
-	rc |= circuit_multidet_from_data(&cd->multidet, fid);
-	data_trotter_get_factor(fid, &cd->time_factor);
-
-	return rc;
 }
 
 static int

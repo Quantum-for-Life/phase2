@@ -27,7 +27,9 @@ enum {
 #define DATA_PAULI_HAMIL_NORM "normalization"
 
 #define DATA_TROTTER_STEPS "trotter_steps"
-#define DATA_TROTTER_STEPS_TIME_FACTOR "time_factor"
+#define DATA_TROTTER_STEPS_STEP_SIZE "step_size"
+#define DATA_TROTTER_STEPS_NUM_SAMPLES "num_samples"
+#define DATA_TROTTER_STEPS_DEPTH "depth"
 #define DATA_TROTTER_STEPS_VALUES "values"
 
 /* Open, close data file */
@@ -465,7 +467,7 @@ data_trotter_get_factor(data_id fid, double *factor)
 	}
 
 	const hid_t attr_norm_id =
-		H5Aopen(grpid, DATA_TROTTER_STEPS_TIME_FACTOR, H5P_DEFAULT);
+		H5Aopen(grpid, DATA_TROTTER_STEPS_STEP_SIZE, H5P_DEFAULT);
 	if (attr_norm_id == H5I_INVALID_HID) {
 		ret = -DATA_ETROTT;
 		goto err_attr_open;
@@ -476,6 +478,73 @@ data_trotter_get_factor(data_id fid, double *factor)
 		goto err_attr_read;
 	}
 	*factor = n;
+
+err_attr_read:
+	H5Aclose(attr_norm_id);
+err_attr_open:
+	trotter_close(grpid);
+err_open:
+
+	return ret;
+}
+
+
+int
+data_trotter_get_num_samples(data_id fid, size_t *num_samples)
+{
+	int ret = DATA_OK;
+
+	hid_t grpid;
+	if (trotter_open(fid, &grpid) < 0) {
+		ret = -DATA_ETROTT;
+		goto err_open;
+	}
+
+	const hid_t attr_norm_id =
+		H5Aopen(grpid, DATA_TROTTER_STEPS_NUM_SAMPLES, H5P_DEFAULT);
+	if (attr_norm_id == H5I_INVALID_HID) {
+		ret = -DATA_ETROTT;
+		goto err_attr_open;
+	}
+	uint64_t n;
+	if (H5Aread(attr_norm_id, H5T_NATIVE_UINT64, &n) < 0) {
+		ret = -DATA_ETROTT;
+		goto err_attr_read;
+	}
+	*num_samples = (size_t)n;
+
+err_attr_read:
+	H5Aclose(attr_norm_id);
+err_attr_open:
+	trotter_close(grpid);
+err_open:
+
+	return ret;
+}
+
+int
+data_trotter_get_depth(data_id fid, size_t *depth)
+{
+	int ret = DATA_OK;
+
+	hid_t grpid;
+	if (trotter_open(fid, &grpid) < 0) {
+		ret = -DATA_ETROTT;
+		goto err_open;
+	}
+
+	const hid_t attr_norm_id =
+		H5Aopen(grpid, DATA_TROTTER_STEPS_DEPTH, H5P_DEFAULT);
+	if (attr_norm_id == H5I_INVALID_HID) {
+		ret = -DATA_ETROTT;
+		goto err_attr_open;
+	}
+	uint64_t n;
+	if (H5Aread(attr_norm_id, H5T_NATIVE_UINT64, &n) < 0) {
+		ret = -DATA_ETROTT;
+		goto err_attr_read;
+	}
+	*depth = (size_t)n;
 
 err_attr_read:
 	H5Aclose(attr_norm_id);

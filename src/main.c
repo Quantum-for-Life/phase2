@@ -12,9 +12,6 @@
 
 static struct opt {
 	const char *filename;
-	size_t	    num_samples;
-	double	    step_size;
-	size_t	    depth;
 } OPT;
 
 void
@@ -32,7 +29,7 @@ static int MAIN_RET = 0;
 	} while (0)
 
 int
-run_circuit(data_id fid, size_t num_steps, double step_size, size_t depth);
+run_circuit(data_id fid);
 
 int
 main(int argc, char **argv)
@@ -64,10 +61,10 @@ main(int argc, char **argv)
 	log_info("*** Circuit ***");
 	log_info("Floating point precision: %d", QREG_PREC);
 	log_info("QDRIFT >>>");
-	log_info("num_steps: %zu", OPT.num_samples);
-	log_info("step_size: %f", OPT.step_size);
-	log_info("depth: %zu", OPT.depth);
-	if (run_circuit(fid, OPT.num_samples, OPT.step_size, OPT.depth) < 0) {
+	//log_info("num_steps: %zu", OPT.num_samples);
+	//log_info("step_size: %f", OPT.step_size);
+	//log_info("depth: %zu", OPT.depth);
+	if (run_circuit(fid) < 0) {
 		log_error("Failure: simulation error");
 		goto error;
 	}
@@ -108,32 +105,20 @@ opt_parse(int argc, char **argv)
 
 	OPT.filename = argv[1];
 
-	size_t num_samples = strtoull(argv[2], NULL, 10);
-	if (num_samples == 0) {
-		fprintf(stderr, "Wrong number of samples\n");
-		return -1;
-	}
-	OPT.num_samples = num_samples;
-
-	/* TODO: check for errors */
-	OPT.step_size = strtod(argv[3], NULL);
-	OPT.depth     = strtoull(argv[4], NULL, 10);
-
 	return 0;
 }
 
 int
-run_circuit(data_id fid, size_t num_steps, double step_size, size_t depth)
+run_circuit(data_id fid)
 {
 	int rc = 0;
 
 	struct circ_data rd;
-	circ_data_init(&rd, num_steps, step_size, depth);
-	if (circ_data_from_file(&rd, fid) < 0)
+	if (circ_data_init(&rd, fid) < 0)
 		goto error;
 	if (circ_simulate(&rd) < 0)
 		goto error;
-	data_trotter_write_values(fid, rd.samples, num_steps);
+	data_trotter_write_values(fid, rd.samples, rd.num_samples);
 	goto cleanup;
 error:
 	rc = -1;
