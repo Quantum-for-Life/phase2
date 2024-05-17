@@ -11,6 +11,8 @@ from qiskit_nature.second_q.mappers.jordan_wigner_mapper import \
     JordanWignerMapper
 from qiskit_nature.second_q.problems import ElectronicStructureProblem
 
+import numpy as np
+
 # Suppress deprecation warnings in fcidump_parse_fermionic_op() below
 qiskit_nature.settings.use_symmetry_reduced_integrals = True
 qiskit_nature.settings.use_pauli_sum_op = False
@@ -29,6 +31,9 @@ def parse_arguments():
     parser.add_argument("-o", "--output", type=str, help="Output file: .h5")
     parser.add_argument("--sort-terms", action="store_true",
                         help="Sort Hamiltonian terms for faster computation")
+    parser.add_argument("qdrift", action="store_true",
+                        help="Gnererate multiple randomly sampled output files for QDRIFT")
+    parser.add_argument("--qdrift-samples", type=int, default=128, help="number of QDIRFT samples")
     parser.add_argument("-t", "--time-factor", type=float,
                         help="Multiply phases by a real factor")
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -45,68 +50,72 @@ def fcidump_parse_fermionic_op(
     return fcidump_to_problem(fcidump)
 
 
-def h5_output(problem: ElectronicStructureProblem, outfile: str,
-              time_factor: float = 1.0,
-              sort_terms=False):
-    fermionic_op = problem.hamiltonian.second_q_op()
-    mapper = JordanWignerMapper()
-    qubit_jw_op = mapper.map(fermionic_op)
-    import numpy as np
+class H5Output:
+    def __init__(self, problem: ElectronicStructureProblem,
+                 time_factor: float = 1.0,
+                 sort_terms=False):
+        fermionic_op = problem.hamiltonian.second_q_op()
+        mapper = JordanWignerMapper()
+        qubit_jw_op = mapper.map(fermionic_op)
 
-    num_qubits = qubit_jw_op.num_qubits
-    num_sum_terms = len(qubit_jw_op.coeffs)
+        self.num_qubits = qubit_jw_op.num_qubits
+        self.num_sum_terms = len(qubit_jw_op.coeffs)
 
-    labels = []
-    coeffs = np.ndarray((num_sum_terms,), dtype="d")
-    paulis = np.ndarray((num_sum_terms, num_qubits), dtype="u1")
-    for i in range(0, num_sum_terms):
-        coeffs[i] = qubit_jw_op.coeffs[i].real
-        labels.append(qubit_jw_op.paulis[i].to_label())
-        # Qiskit uses LE convention for numbering qubits. We reverse the string.
-        for j, p in enumerate(qubit_jw_op.paulis[i].to_label()[::-1]):
-            paulis[i][j] = PAULI_TABLE[p]
+        self.labels = []
+        self.coeffs = np.ndarray((self.num_sum_terms,), dtype="d")
+        self.paulis = np.ndarray((self.num_sum_terms, self.num_qubits), dtype="u1")
+        for i in range(0, self.num_sum_terms):
+            self.coeffs[i] = qubit_jw_op.coeffs[i].real
+            self.labels.append(qubit_jw_op.paulis[i].to_label())
+            # Qiskit uses LE convention for numbering qubits. We reverse the string.
+            for j, p in enumerate(qubit_jw_op.paulis[i].to_label()[::-1]):
+                self.paulis[i][j] = PAULI_TABLE[p]
 
-    if sort_terms:
-        idx = np.argsort(labels)
-        paulis = np.array(paulis)[idx]
-        coeffs = np.array(coeffs)[idx]
+        if sort_terms:
+            idx = np.argsort(self.labels)
+            self.paulis = np.array(self.paulis)[idx]
+            self.coeffs = np.array(self.coeffs)[idx]
 
-    # offset term
-    offset_idx = None
-    for i in range(num_sum_terms):
-        if all(paulis[i][j] == 0 for j in range(num_qubits)):
-            offset_idx = i
-    offset = 0.0
-    if offset_idx is not None:
-        offset = coeffs[offset_idx] + problem.nuclear_repulsion_energy
-        coeffs = np.delete(coeffs, offset_idx)
-        paulis = np.delete(paulis, 0, offset_idx)
-        num_sum_terms -= 1
+        # offset term
+        offset_idx = None
+        for i in range(self.num_sum_terms):
+            if all(self.paulis[i][j] == 0 for j in range(self.num_qubits)):
+                offset_idx = i
+        self.offset = 0.0
+        if offset_idx is not None:
+            self.offset = self.coeffs[offset_idx] + problem.nuclear_repulsion_energy
+            self.coeffs = np.delete(self.coeffs, offset_idx)
+            self.paulis = np.delete(self.paulis, 0, offset_idx)
+            self.num_sum_terms -= 1
 
-    with h5py.File(outfile, "w") as f:
-        f.attrs["uuid"] = str(uuid.uuid4())
-        grp = f.create_group("pauli_hamil")
-        dset_coeffs = grp.create_dataset("coeffs", (num_sum_terms,), dtype="d")
-        dset_coeffs[...] = coeffs
-        dset_paulis = grp.create_dataset(
-            "paulis", (num_sum_terms, num_qubits), dtype=np.dtype("u1")
-        )
-        dset_paulis[...] = paulis
-        norm = np.ndarray((1,), dtype="d")
-        norm[0] = 1.0 / sum(abs(c) for c in coeffs)
-        grp.attrs["normalization"] = norm[0]
-        grp.attrs["offset"] = offset
+        self.time_factor = time_factor
 
-        grp = f.create_group("trotter_steps")
-        grp.attrs["time_factor"] = time_factor
+    def write_h5file(self, outfile: str):
+        with h5py.File(outfile, "w") as f:
+            f.attrs["uuid"] = str(uuid.uuid4())
+            grp = f.create_group("pauli_hamil")
+            dset_coeffs = grp.create_dataset("coeffs", (self.num_sum_terms,), dtype="d")
+            dset_coeffs[...] = self.coeffs
+            dset_paulis = grp.create_dataset(
+                "paulis", (self.num_sum_terms, self.num_qubits), dtype=np.dtype("u1")
+            )
+            dset_paulis[...] = self.paulis
+            norm = np.ndarray((1,), dtype="d")
+            norm[0] = 1.0 / sum(abs(c) for c in self.coeffs)
+            grp.attrs["normalization"] = norm[0]
+            grp.attrs["offset"] = self.offset
+
+            grp = f.create_group("trotter_steps")
+            grp.attrs["time_factor"] = self.time_factor
 
 
 if __name__ == "__main__":
     args = parse_arguments()
     fermionic_op = fcidump_parse_fermionic_op(args.filename,
                                               verbose=args.verbose)
+    h5out = H5Output(fermionic_op,
+                     time_factor=args.time_factor,
+                     sort_terms=args.sort_terms)
 
     if args.output:
-        h5_output(fermionic_op, args.output,
-                  time_factor=args.time_factor,
-                  sort_terms=args.sort_terms)
+        h5out.write_h5file(args.output)
