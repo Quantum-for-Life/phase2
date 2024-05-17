@@ -349,14 +349,24 @@ circ_measure(struct circ *c)
 	return 0;
 }
 
-static void
-circ_compute_sample_cdf(struct circ *c)
+static size_t
+circ_sample_invcdf(struct circ *c, double x)
 {
+	size_t i   = 0;
+	double cdf = 0;
+	while (cdf < x)
+		cdf += fabs(c->data->hamil.coeffs[i++]);
+	return i;
 }
 
 static void
 circ_sample_terms(struct circ *c)
 {
+	for (size_t i = 0; i < c->data->depth; i++) {
+		double x = (double)(xoshiro256starstar_next(&c->rng) >> 11) *
+			   0x1.0p-53;
+		c->sampled_idx[i] = circ_sample_invcdf(c, x);
+	}
 }
 
 int
@@ -370,7 +380,6 @@ circ_simulate(const struct circ_data *cd)
 	if (circ_create(&c, cd, num_qb) < 0)
 		goto error;
 
-	circ_compute_sample_cdf(&c);
 	for (size_t i = 0; i < cd->num_samples; i++) {
 		circ_sample_terms(&c);
 		circuit_prepst(&c);
