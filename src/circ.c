@@ -7,8 +7,11 @@
 #include "circ.h"
 #include "log.h"
 #include "qreg.h"
+#include "xoshiro256starstar.h"
 
 #define MAX_CACHE_CODES (1024)
+
+#define PRNG_SEED (0x235eac32)
 
 struct circ {
 	size_t	    num_qb;
@@ -24,6 +27,9 @@ struct circ {
 		fl	      angles[MAX_CACHE_CODES];
 		size_t	      num_codes;
 	} cache;
+
+	struct xoshiro256starstar rng;
+	size_t			 *sampled_idx;
 };
 
 static int
@@ -38,6 +44,12 @@ circ_create(
 	c->data	  = data;
 	c->reg	  = reg;
 
+	xoshiro256starstar_init(&c->rng, PRNG_SEED);
+	size_t *sampled_idx = malloc(sizeof(size_t) * data->depth);
+	if (sampled_idx == NULL)
+		return -1;
+	c->sampled_idx = sampled_idx;
+
 	return 0;
 }
 
@@ -45,6 +57,8 @@ static void
 circ_destroy(struct circ *c)
 {
 	qreg_destroy(&c->reg);
+	if (c->sampled_idx)
+		free(c->sampled_idx);
 }
 
 static void
@@ -192,16 +206,19 @@ error:
 }
 
 int
-circ_data_init(struct circ_data *cd, const size_t num_steps)
+circ_data_init(struct circ_data *cd, const size_t num_steps, double step_size,
+	size_t depth)
 {
 	circ_hamil_init(&cd->hamil);
 	circ_multidet_init(&cd->multidet);
-	cd->num_trott_steps = num_steps;
+	cd->num_samples = num_steps;
+	cd->step_size	= step_size;
+	cd->depth	= depth;
 
-	cd->trott_steps[0] = malloc(sizeof(double) * 2 * num_steps);
-	if (cd->trott_steps[0] == NULL)
+	cd->samples[0] = malloc(sizeof(double) * 2 * num_steps);
+	if (cd->samples[0] == NULL)
 		return -1;
-	cd->trott_steps[1] = cd->trott_steps[0] + num_steps;
+	cd->samples[1] = cd->samples[0] + num_steps;
 
 	return 0;
 }
@@ -212,7 +229,7 @@ circ_data_destroy(struct circ_data *cd)
 	circ_multidet_destroy(&cd->multidet);
 	circ_hamil_destroy(&cd->hamil);
 
-	free(cd->trott_steps[0]);
+	free(cd->samples[0]);
 }
 
 int
@@ -251,9 +268,10 @@ trotter_step(struct circ *c, const double omega)
 	struct code_cache cache = c->cache;
 	cache.num_codes		= 0;
 
-	for (size_t i = 0; i < hamil->num_terms; i++) {
-		const fl	    angle = omega * hamil->coeffs[i];
-		const struct paulis code  = hamil->paulis[i];
+	for (size_t i = 0; i < c->data->depth; i++) {
+		const fl	    angle     = omega;
+		const size_t	    i_sampled = c->sampled_idx[i];
+		const struct paulis code      = hamil->paulis[i_sampled];
 
 		struct paulis code_hi, code_lo;
 		paulis_split(
@@ -303,7 +321,8 @@ circ_effect(struct circ *c)
 	if (fabs(t) < DBL_EPSILON)
 		return 0;
 
-	trotter_step(c, t);
+	const double theta = acos(c->data->step_size);
+	trotter_step(c, t * theta);
 
 	return 0;
 }
@@ -330,6 +349,16 @@ circ_measure(struct circ *c)
 	return 0;
 }
 
+static void
+circ_compute_sample_cdf(struct circ *c)
+{
+}
+
+static void
+circ_sample_terms(struct circ *c)
+{
+}
+
 int
 circ_simulate(const struct circ_data *cd)
 {
@@ -340,14 +369,16 @@ circ_simulate(const struct circ_data *cd)
 	struct circ c;
 	if (circ_create(&c, cd, num_qb) < 0)
 		goto error;
-	circuit_prepst(&c);
 
-	for (size_t i = 0; i < cd->num_trott_steps; i++) {
+	circ_compute_sample_cdf(&c);
+	for (size_t i = 0; i < cd->num_samples; i++) {
+		circ_sample_terms(&c);
+		circuit_prepst(&c);
 		if (circ_effect(&c) < 0)
 			goto error;
 		circ_measure(&c);
-		cd->trott_steps[0][i] = c.prod[0];
-		cd->trott_steps[1][i] = c.prod[1];
+		cd->samples[0][i] = c.prod[0];
+		cd->samples[1][i] = c.prod[1];
 	}
 
 	goto exit;

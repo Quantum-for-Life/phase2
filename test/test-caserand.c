@@ -74,9 +74,9 @@ caserand(const char *prefix)
 		goto err_rd_ref_read;
 	}
 
-	for (size_t i = 0; i < rd.num_trott_steps; i++) {
-		const double val[2] = { rd.trott_steps[0][i],
-			rd.trott_steps[1][i] };
+	for (size_t i = 0; i < rd.num_samples; i++) {
+		const double val[2] = { rd.samples[0][i],
+			rd.samples[1][i] };
 		const double ref[2] = { ref_values_re[i], ref_values_im[i] };
 
 		if (fabs(val[0] - ref[0]) > MARGIN) {

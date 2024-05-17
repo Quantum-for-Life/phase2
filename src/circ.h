@@ -26,12 +26,16 @@ struct circ_data {
 
 	double time_factor;
 
-	double *trott_steps[2];
-	size_t	num_trott_steps;
+	double *samples[2];
+	size_t	num_samples;
+
+	double step_size;
+	size_t depth;
 };
 
 int
-circ_data_init(struct circ_data *cd, size_t num_steps);
+circ_data_init(
+	struct circ_data *cd, size_t num_steps, double step_size, size_t depth);
 
 void
 circ_data_destroy(struct circ_data *cd);
