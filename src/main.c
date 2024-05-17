@@ -66,7 +66,7 @@ main(int argc, char **argv)
 	log_info("QDRIFT >>>");
 	log_info("num_steps: %zu", OPT.num_samples);
 	log_info("step_size: %f", OPT.step_size);
-	log_info("depth: %f", OPT.depth);
+	log_info("depth: %zu", OPT.depth);
 	if (run_circuit(fid, OPT.num_samples, OPT.step_size, OPT.depth) < 0) {
 		log_error("Failure: simulation error");
 		goto error;
