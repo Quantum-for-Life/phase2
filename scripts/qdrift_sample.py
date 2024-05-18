@@ -29,16 +29,17 @@ if __name__ == "__main__":
 
     delta = args.delta
     epsilon = args.epsilon
-    J = math.ceil(math.log2(delta / (epsilon * norm)))
+    J = math.ceil(math.log2(delta / epsilon))
     x = math.pow(2, -1 * J)
     print(J)
     print(x)
 
     for i in range(0, J + 1):
+        depth = int(math.pow(2, i + J))
         filename = args.filename + f"-{i:04}"
         shutil.copy(args.filename, filename)
         with h5py.File(filename, "a") as f:
             grp = f.create_group("trotter_steps")
             grp.attrs["step_size"] = x
             grp.attrs["num_samples"] = args.num_samples
-            grp.attrs["depth"] = int(math.pow(2, i + J))
+            grp.attrs["depth"] = depth
