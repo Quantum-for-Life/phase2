@@ -321,7 +321,7 @@ circ_effect(struct circ *c)
 	if (fabs(t) < DBL_EPSILON)
 		return 0;
 
-	const double theta = acos(t);
+	const double theta = asin(t);
 	trotter_step(c, theta);
 
 	return 0;
