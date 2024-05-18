@@ -91,7 +91,7 @@ class H5Output:
                 pos_offst = -pos_offst
             else:
                 pos_offst = 0
-            self.coeffs = [x + pos_offst for x in self.coeffs]
+            # self.coeffs = [x + pos_offst for x in self.coeffs]
             dset_coeffs = grp.create_dataset("coeffs", (self.num_sum_terms,), dtype="d")
             dset_coeffs[...] = self.coeffs
             dset_paulis = grp.create_dataset(

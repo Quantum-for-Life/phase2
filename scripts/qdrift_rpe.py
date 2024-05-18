@@ -59,4 +59,4 @@ if __name__ == "__main__":
     E0 = (math.sqrt(1 - x * x)) / (norm * x) * math.tan(x * thetas[J])
     print(E0)
     print(E0 - pos_shift)
-    print(E0 - pos_shift + offset)
+    print(E0 + offset)
