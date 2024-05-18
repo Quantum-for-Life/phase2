@@ -31,9 +31,6 @@ def parse_arguments():
     parser.add_argument("-o", "--output", type=str, help="Output file: .h5")
     parser.add_argument("--sort-terms", action="store_true",
                         help="Sort Hamiltonian terms for faster computation")
-    parser.add_argument("--num-samples", type=int, default=128, help="number of QDIRFT samples")
-    parser.add_argument("--step-size", type=float)
-    parser.add_argument("--depth", type=int)
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args()
 
@@ -50,9 +47,6 @@ def fcidump_parse_fermionic_op(
 
 class H5Output:
     def __init__(self, problem: ElectronicStructureProblem,
-                 step_size: float = 1.0,
-                 num_samples: int = 128,
-                 depth: int = 64,
                  sort_terms=False):
         fermionic_op = problem.hamiltonian.second_q_op()
         mapper = JordanWignerMapper()
@@ -88,10 +82,6 @@ class H5Output:
             self.paulis = np.delete(self.paulis, 0, offset_idx)
             self.num_sum_terms -= 1
 
-        self.step_size = step_size
-        self.num_samples = num_samples
-        self.depth = depth
-
     def write_h5file(self, outfile: str):
         with h5py.File(outfile, "w") as f:
             f.attrs["uuid"] = str(uuid.uuid4())
@@ -114,20 +104,12 @@ class H5Output:
             grp.attrs["offset"] = self.offset
             grp.attrs["positive_shift"] = pos_offst
 
-            grp = f.create_group("trotter_steps")
-            grp.attrs["step_size"] = self.step_size
-            grp.attrs["num_samples"] = self.num_samples
-            grp.attrs["depth"] = self.depth
-
 
 if __name__ == "__main__":
     args = parse_arguments()
     fermionic_op = fcidump_parse_fermionic_op(args.filename,
                                               verbose=args.verbose)
     h5out = H5Output(fermionic_op,
-                     step_size=args.step_size,
-                     num_samples=args.num_samples,
-                     depth=args.depth,
                      sort_terms=args.sort_terms)
 
     if args.output:
