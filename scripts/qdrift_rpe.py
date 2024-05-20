@@ -28,7 +28,6 @@ if __name__ == "__main__":
         grp = f['pauli_hamil']
         norm = grp.attrs['normalization']
         offset = grp.attrs['offset']
-        # pos_shift = grp.attrs['positive_shift']
 
     delta = args.delta
     epsilon = args.epsilon
@@ -45,7 +44,9 @@ if __name__ == "__main__":
             z_re = sum(x[0] for x in grp["values"]) / num_samples
             z_im = sum(x[1] for x in grp["values"]) / num_samples
         z = z_re + 1j * z_im
-        phi = cmath.phase(z)
+        t = depth*x
+        print(f"{depth=}, {x=}, {t=}, {z=}")
+        phi = cmath.phase(z) # phi \in [-\pi, \pi]
         if phi < 0:
             phi = 2 * math.pi + phi
         S = [2 ** (-i) * (2 * math.pi * k + phi) for k in range(0, 2 ** i)]
@@ -61,5 +62,4 @@ if __name__ == "__main__":
         thJ = - (2 * math.pi - thJ)
     E0 = (math.sqrt(1 - x * x)) / (norm * x) * math.tan(x * thJ)
     print(E0)
-    # print(E0 - pos_shift)
     print(E0 + offset)
