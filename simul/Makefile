@@ -2,7 +2,7 @@
 # Simulation parameters:
 DELTA		= 1.0
 EPSILON		= 0.01
-NUM_SAMPLES = 128
+NUM_SAMPLES = 256
 MPI_RANKS	= 4
 # #############################################################################
 

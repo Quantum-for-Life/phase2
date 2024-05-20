@@ -356,7 +356,7 @@ circ_sample_invcdf(struct circ *c, double x)
 	double cdf = 0;
 	while (cdf <= x)
 		cdf += fabs(c->data->hamil.coeffs[i++]);
-	return i-1; /* never again make the same off-by-one error! */
+	return i - 1; /* Never again make the same off-by-one error! */
 }
 
 static void
