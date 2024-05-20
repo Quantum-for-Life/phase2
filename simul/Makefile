@@ -1,8 +1,8 @@
 # ############################################################################
 # Simulation parameters:
 DELTA		= 1.0
-EPSILON		= 0.001
-QDIRFT_NUM_SAMPLES = 1
+EPSILON		= 0.01
+NUM_SAMPLES = 128
 MPI_RANKS	= 4
 # #############################################################################
 
@@ -31,8 +31,8 @@ RM				= rm -fv
 # Application flags
 PARSE_FCIDP_FLAGS	=
 PARSE_INPUTST_FLAGS	=
-QDRIFT_SAMPLE_FLAGS	= --delta=$(DELTA) --epsilon=$(EPSILON) --num-samples=$(QDIRFT_NUM_SAMPLES)
-QDRIFT_RPE_FLAGS	= --delta=$(DELTA) --epsilon=$(EPSILON) --num-samples=$(QDIRFT_NUM_SAMPLES)
+QDRIFT_SAMPLE_FLAGS	= --delta=$(DELTA) --epsilon=$(EPSILON) --num-samples=$(NUM_SAMPLES)
+QDRIFT_RPE_FLAGS	= --delta=$(DELTA) --epsilon=$(EPSILON) --num-samples=$(NUM_SAMPLES)
 TROTT_VALID_FLAGS	=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
 PH2RUN_FLAGS		= 1
