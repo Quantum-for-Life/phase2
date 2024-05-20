@@ -268,10 +268,10 @@ trotter_step(struct circ *c, const double omega)
 	struct code_cache cache = c->cache;
 	cache.num_codes		= 0;
 
-	for (size_t i = 0; i < c->data->hamil.num_terms; i++) {
-		const fl	    angle     = omega * c->data->hamil.coeffs[i];
+	for (size_t i = 0; i < c->data->depth; i++) {
+		const fl	    angle     = omega;
 		const size_t	    i_sampled = c->sampled_idx[i];
-		const struct paulis code      = hamil->paulis[i];
+		const struct paulis code      = hamil->paulis[i_sampled];
 
 		struct paulis code_hi, code_lo;
 		paulis_split(
@@ -315,14 +315,14 @@ trotter_step(struct circ *c, const double omega)
 static int
 circ_effect(struct circ *c)
 {
-	/*const double t = c->data->step_size;
+	const double t = c->data->step_size;
 	if (isnan(t))
 		return -1;
 	if (fabs(t) < DBL_EPSILON)
 		return 0;
 
-	const double theta = asin(t);*/
-	trotter_step(c, 1.0);
+	const double theta = asin(t);
+	trotter_step(c, theta);
 
 	return 0;
 }
@@ -380,10 +380,9 @@ circ_simulate(const struct circ_data *cd)
 	if (circ_create(&c, cd, num_qb) < 0)
 		goto error;
 
-	circuit_prepst(&c);
 	for (size_t i = 0; i < cd->num_samples; i++) {
-		//circ_sample_terms(&c);
-
+		circ_sample_terms(&c);
+		circuit_prepst(&c);
 		if (circ_effect(&c) < 0)
 			goto error;
 		circ_measure(&c);
