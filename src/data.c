@@ -439,7 +439,7 @@ err_getnums:
 }
 
 static int
-trotter_open(data_id fid, hid_t *grpid)
+qdrift_open(data_id fid, hid_t *grpid)
 {
 	const hid_t id = H5Gopen2(fid, DATA_CIRC_QDRIFT, H5P_DEFAULT);
 	if (id == H5I_INVALID_HID)
@@ -450,7 +450,7 @@ trotter_open(data_id fid, hid_t *grpid)
 }
 
 static void
-trotter_close(hid_t grpid)
+qdrift_close(hid_t grpid)
 {
 	H5Gclose(grpid);
 }
@@ -461,7 +461,7 @@ data_circ_qdrift_get_factor(data_id fid, double *step_size)
 	int ret = DATA_OK;
 
 	hid_t grpid;
-	if (trotter_open(fid, &grpid) < 0) {
+	if (qdrift_open(fid, &grpid) < 0) {
 		ret = -DATA_ETROTT;
 		goto err_open;
 	}
@@ -482,7 +482,7 @@ data_circ_qdrift_get_factor(data_id fid, double *step_size)
 err_attr_read:
 	H5Aclose(attr_norm_id);
 err_attr_open:
-	trotter_close(grpid);
+	qdrift_close(grpid);
 err_open:
 
 	return ret;
@@ -495,7 +495,7 @@ data_circ_qdrift_get_num_samples(data_id fid, size_t *num_samples)
 	int ret = DATA_OK;
 
 	hid_t grpid;
-	if (trotter_open(fid, &grpid) < 0) {
+	if (qdrift_open(fid, &grpid) < 0) {
 		ret = -DATA_ETROTT;
 		goto err_open;
 	}
@@ -516,7 +516,7 @@ data_circ_qdrift_get_num_samples(data_id fid, size_t *num_samples)
 err_attr_read:
 	H5Aclose(attr_norm_id);
 err_attr_open:
-	trotter_close(grpid);
+	qdrift_close(grpid);
 err_open:
 
 	return ret;
@@ -528,7 +528,7 @@ data_circ_qdrift_get_depth(data_id fid, size_t *depth)
 	int ret = DATA_OK;
 
 	hid_t grpid;
-	if (trotter_open(fid, &grpid) < 0) {
+	if (qdrift_open(fid, &grpid) < 0) {
 		ret = -DATA_ETROTT;
 		goto err_open;
 	}
@@ -549,7 +549,7 @@ data_circ_qdrift_get_depth(data_id fid, size_t *depth)
 err_attr_read:
 	H5Aclose(attr_norm_id);
 err_attr_open:
-	trotter_close(grpid);
+	qdrift_close(grpid);
 err_open:
 
 	return ret;
@@ -570,7 +570,7 @@ data_circ_qdrift_write_values(data_id fid, double *values[2], size_t num_values)
 		val_cont[2 * i + 1] = values[1][i];
 	}
 
-	if (trotter_open(fid, &grpid) < 0) {
+	if (qdrift_open(fid, &grpid) < 0) {
 		ret = -DATA_ETROTT;
 		goto err_open;
 	}
@@ -595,7 +595,7 @@ err_dset_write:
 err_dset:
 	H5Sclose(dspace);
 err_fspace:
-	trotter_close(grpid);
+	qdrift_close(grpid);
 err_open:
 	free(val_cont);
 
@@ -613,7 +613,7 @@ data_trotter_read_values_test(data_id fid, double *values[2], size_t num_values)
 	if (val_cont == NULL)
 		return -DATA_ENOMEM;
 
-	if (trotter_open(fid, &grpid) < 0) {
+	if (qdrift_open(fid, &grpid) < 0) {
 		ret = -DATA_ETROTT;
 		goto err_open;
 	}
@@ -637,7 +637,7 @@ data_trotter_read_values_test(data_id fid, double *values[2], size_t num_values)
 err_read:
 	H5Dclose(dset);
 err_dset:
-	trotter_close(grpid);
+	qdrift_close(grpid);
 err_open:
 	free(val_cont);
 	return ret;
