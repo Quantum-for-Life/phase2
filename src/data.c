@@ -26,7 +26,7 @@ enum {
 #define DATA_PAULI_HAMIL_PAULIS "paulis"
 #define DATA_PAULI_HAMIL_NORM "normalization"
 
-#define DATA_CIRC_QDRIFT "trotter_steps"
+#define DATA_CIRC_QDRIFT "circ_qdrift"
 #define DATA_CIRC_QDRIFT_STEP_SIZE "step_size"
 #define DATA_CIRC_QDRIFT_NUM_SAMPLES "num_samples"
 #define DATA_CIRC_QDRIFT_DEPTH "depth"

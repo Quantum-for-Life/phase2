@@ -99,12 +99,7 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
       I = 0, X = 1, Y = 2, Z = 3
       ```
 
-## Group: `/trotter_steps`
-
-- Attribute: `time_factor`
-    - *Type*: `double`
-    - *Comment*: Coefficient multiplying the time parameter for Hamiltonian
-      simulation.
+## Group: `/circ_qdrift`
 
 - Dataset: `values`
     - *Type*: `double`

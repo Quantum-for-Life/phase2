@@ -39,7 +39,7 @@ if __name__ == "__main__":
         filename = args.filename + f"-{i:04}"
         shutil.copy(args.filename, filename)
         with h5py.File(filename, "a") as f:
-            grp = f.create_group("trotter_steps")
+            grp = f.create_group("circ_qdrift")
             grp.attrs["step_size"] = x
             grp.attrs["num_samples"] = args.num_samples
             grp.attrs["depth"] = depth

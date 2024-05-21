@@ -38,7 +38,7 @@ if __name__ == "__main__":
     for i in range(0, J + 1):
         filename = args.filename + f"-{i:04}"
         with h5py.File(filename, "a") as f:
-            grp = f["trotter_steps"]
+            grp = f["circ_qdrift"]
             depth = grp.attrs["depth"]
             num_samples = grp.attrs["num_samples"]
             z_re = sum(x[0] for x in grp["values"]) / num_samples
