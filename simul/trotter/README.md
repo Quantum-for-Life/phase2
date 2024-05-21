@@ -13,7 +13,7 @@ pip install h5py qiskit-nature pyscf
 
 # How to use it
 
-1. Make sure `ph2run-trotter` is compiled in `../build`
+1. Make sure `ph2run-trott` is compiled in `../build`
    (see [../README.md](../README.md) on how to compile the sources).
 2. Put `FCIDUMP` file in this directory (with exactly this name).
 3. Put `INPUTST` file in the same directory.

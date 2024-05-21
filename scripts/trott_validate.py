@@ -10,7 +10,7 @@ import scipy
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        prog="trotter_validate",
+        prog="trott_validate",
         description="",
         epilog="Quantum-for-Life",
     )
@@ -23,8 +23,8 @@ if __name__ == "__main__":
 
     with h5py.File(args.filename, "r") as f:
         values = np.array(
-            [complex(z[0], z[1]) for z in f["circ_trotter/values"]])
-        time_factor = f["circ_trotter"].attrs["time_factor"]
+            [complex(z[0], z[1]) for z in f["circ_trott/values"]])
+        time_factor = f["circ_trott"].attrs["time_factor"]
         ph = f["pauli_hamil"]
         norm = ph.attrs["normalization"]
         offset = ph.attrs["offset"]

@@ -261,7 +261,7 @@ circuit_prepst(struct circ *c)
 }
 
 static void
-trotter_step(struct circ *c, const double omega)
+trott_step(struct circ *c, const double omega)
 {
 	const struct circ_qdrift_hamil *hamil = &c->data->hamil;
 
@@ -322,7 +322,7 @@ circ_effect(struct circ *c)
 		return 0;
 
 	const double theta = asin(t);
-	trotter_step(c, theta);
+	trott_step(c, theta);
 
 	return 0;
 }

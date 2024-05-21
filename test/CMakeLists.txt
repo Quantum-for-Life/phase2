@@ -20,7 +20,7 @@ set(TEST_DATA_SOURCES
         ${TEST_DATA_SRC}/test-data_open.c
         ${TEST_DATA_SRC}/test-data_multidet.c
         ${TEST_DATA_SRC}/test-data_hamil.c
-        ${TEST_DATA_SRC}/test-data_trotter_steps.c
+        ${TEST_DATA_SRC}/test-data_trott_steps.c
 )
 add_compile_definitions(TEST_DATA_SRC="${TEST_DATA_SRC}")
 more_test(data TEST_DATA_SOURCES)

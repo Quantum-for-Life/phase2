@@ -1,5 +1,5 @@
 /*
- * Test routine: data_trotter_write() from data.h by creating a fresh H5 file
+ * Test routine: data_trott_write() from data.h by creating a fresh H5 file
  * Check if the values are written correctly.  Remove temporary file.
  */
 
@@ -15,7 +15,7 @@
 #define SIZE (5)
 #define MARGIN (1e-6)
 
-#define H5_GRP_NAME "circ_trotter"
+#define H5_GRP_NAME "circ_trott"
 #define H5_GRP_TIME_FACTOR "time_factor"
 #define H5_GRP_VALUES "values"
 
@@ -84,7 +84,7 @@ ex_create:
 }
 
 int
-test_data_trotter_steps(void)
+test_data_trott_steps(void)
 {
 	enum ret_code rc;
 
@@ -117,7 +117,7 @@ test_data_trotter_steps(void)
 	}
 
 	double tf;
-	if (data_circ_trotter_get_factor(fid, &tf) < 0) {
+	if (data_circ_trott_get_factor(fid, &tf) < 0) {
 		TEST_FAIL("data: read time_factor attribute");
 		rc = ERR_DAT2;
 		goto ex;
@@ -133,7 +133,7 @@ test_data_trotter_steps(void)
 		tst_vals_re[i] = creal(tst_vals[i]);
 		tst_vals_im[i] = cimag(tst_vals[i]);
 	}
-	data_circ_trotter_write_values(
+	data_circ_trott_write_values(
 		fid, (double *[]){ tst_vals_re, tst_vals_im }, SIZE);
 	data_close(fid);
 

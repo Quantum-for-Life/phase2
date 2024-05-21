@@ -75,7 +75,7 @@ class Case:
         self.num_qubits = num_qubits
         self.pauli_hamil = {}
         self.multidet = {}
-        self.trotter_steps = {}
+        self.trott_steps = {}
 
     def generate_pauli_hamil(self, num_terms: int, sort_terms=False):
         self.pauli_hamil["num_terms"] = num_terms
@@ -123,7 +123,7 @@ class Case:
         ]
 
     def compute_values(self):
-        trotter_steps = []
+        trott_steps = []
         state = multidet_to_vector(self.multidet["coeffs"],
                                    self.multidet["indices"],
                                    self.num_qubits)
@@ -134,8 +134,8 @@ class Case:
                 coeff = self.pauli_hamil["coeffs"][k]
                 state_work = math.cos(coeff) * state_work + 1j * math.sin(
                     coeff) * matrix.dot(state_work)
-            trotter_steps.append(np.vdot(state, state_work))
-        self.trotter_steps["values_comp"] = trotter_steps
+            trott_steps.append(np.vdot(state, state_work))
+        self.trott_steps["values_comp"] = trott_steps
 
     def write_h5file(self, filename=None):
 
@@ -165,18 +165,18 @@ class Case:
             h5_md.create_dataset(
                 "dets", shape=(md["num_dets"], self.num_qubits), dtype="u1"
             )[...] = md["dets"]
-            grp = f.create_group("trotter_steps")
+            grp = f.create_group("trott_steps")
             grp.attrs["time_factor"] = 1.0
 
     def write_h5file_solved(self):
         filename = self.filename_prefix + ".h5_solved"
         self.write_h5file(filename)
         with h5py.File(filename, 'a') as f:
-            h5_ts = f["trotter_steps"]
+            h5_ts = f["trott_steps"]
             h5_ts_values = h5_ts.create_dataset("values", shape=(NUM_STEPS, 2),
                                                 dtype="d")
             h5_ts_values[...] = [[z.real, z.imag] for z in
-                                 self.trotter_steps["values_comp"]]
+                                 self.trott_steps["values_comp"]]
 
 
 if __name__ == "__main__":
@@ -187,6 +187,6 @@ if __name__ == "__main__":
     case.generate_multidet(args.num_dets)
     case.write_h5file()
     if args.compute:
-        print("compute trotter steps")
+        print("compute trott steps")
         case.compute_values()
         case.write_h5file_solved()

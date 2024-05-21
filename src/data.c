@@ -26,9 +26,9 @@ enum {
 #define DATA_PAULI_HAMIL_PAULIS "paulis"
 #define DATA_PAULI_HAMIL_NORM "normalization"
 
-#define DATA_CIRC_TROTTER "circ_trotter"
-#define DATA_CIRC_TROTTER_TIME_FACTOR "time_factor"
-#define DATA_CIRC_TROTTER_VALUES "values"
+#define DATA_CIRC_TROTT "circ_trott"
+#define DATA_CIRC_TROTT_TIME_FACTOR "time_factor"
+#define DATA_CIRC_TROTT_VALUES "values"
 
 #define DATA_CIRC_QDRIFT "circ_qdrift"
 #define DATA_CIRC_QDRIFT_STEP_SIZE "step_size"
@@ -443,9 +443,9 @@ err_getnums:
 }
 
 static int
-trotter_open(data_id fid, hid_t *grpid)
+trott_open(data_id fid, hid_t *grpid)
 {
-	const hid_t id = H5Gopen2(fid, DATA_CIRC_TROTTER, H5P_DEFAULT);
+	const hid_t id = H5Gopen2(fid, DATA_CIRC_TROTT, H5P_DEFAULT);
 	if (id == H5I_INVALID_HID)
 		return -DATA_ETROTT;
 
@@ -454,24 +454,24 @@ trotter_open(data_id fid, hid_t *grpid)
 }
 
 static void
-trotter_close(hid_t grpid)
+trott_close(hid_t grpid)
 {
 	H5Gclose(grpid);
 }
 
 int
-data_circ_trotter_get_factor(data_id fid, double *factor)
+data_circ_trott_get_factor(data_id fid, double *factor)
 {
 	int ret = DATA_OK;
 
 	hid_t grpid;
-	if (trotter_open(fid, &grpid) < 0) {
+	if (trott_open(fid, &grpid) < 0) {
 		ret = -DATA_ETROTT;
 		goto err_open;
 	}
 
 	const hid_t attr_norm_id =
-		H5Aopen(grpid, DATA_CIRC_TROTTER_TIME_FACTOR, H5P_DEFAULT);
+		H5Aopen(grpid, DATA_CIRC_TROTT_TIME_FACTOR, H5P_DEFAULT);
 	if (attr_norm_id == H5I_INVALID_HID) {
 		ret = -DATA_ETROTT;
 		goto err_attr_open;
@@ -486,14 +486,14 @@ data_circ_trotter_get_factor(data_id fid, double *factor)
 err_attr_read:
 	H5Aclose(attr_norm_id);
 err_attr_open:
-	trotter_close(grpid);
+	trott_close(grpid);
 err_open:
 
 	return ret;
 }
 
 int
-data_circ_trotter_write_values(
+data_circ_trott_write_values(
 	data_id fid, double *values[2], size_t num_values)
 {
 	int ret = DATA_OK;
@@ -508,7 +508,7 @@ data_circ_trotter_write_values(
 		val_cont[2 * i + 1] = values[1][i];
 	}
 
-	if (trotter_open(fid, &grpid) < 0) {
+	if (trott_open(fid, &grpid) < 0) {
 		ret = -DATA_ETROTT;
 		goto err_open;
 	}
@@ -516,7 +516,7 @@ data_circ_trotter_write_values(
 		     NULL)) == H5I_INVALID_HID) {
 		goto err_fspace;
 	}
-	if ((dset = H5Dcreate2(grpid, DATA_CIRC_TROTTER_VALUES, H5T_IEEE_F64LE,
+	if ((dset = H5Dcreate2(grpid, DATA_CIRC_TROTT_VALUES, H5T_IEEE_F64LE,
 		     dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) ==
 		H5I_INVALID_HID) {
 		ret = -DATA_ETROTT;
@@ -533,7 +533,7 @@ err_dset_write:
 err_dset:
 	H5Sclose(dspace);
 err_fspace:
-	trotter_close(grpid);
+	trott_close(grpid);
 err_open:
 	free(val_cont);
 
@@ -541,7 +541,7 @@ err_open:
 }
 
 int
-data_circ_trotter_read_values_test(data_id fid, double *values[2], size_t num_values)
+data_circ_trott_read_values_test(data_id fid, double *values[2], size_t num_values)
 {
 	int ret = DATA_OK;
 
@@ -551,12 +551,12 @@ data_circ_trotter_read_values_test(data_id fid, double *values[2], size_t num_va
 	if (val_cont == NULL)
 		return -DATA_ENOMEM;
 
-	if (trotter_open(fid, &grpid) < 0) {
+	if (trott_open(fid, &grpid) < 0) {
 		ret = -DATA_ETROTT;
 		goto err_open;
 	}
 	const hid_t dset =
-		H5Dopen2(grpid, DATA_CIRC_TROTTER_VALUES, H5P_DEFAULT);
+		H5Dopen2(grpid, DATA_CIRC_TROTT_VALUES, H5P_DEFAULT);
 	if (dset == H5I_INVALID_HID) {
 		ret = -DATA_ETROTT;
 		goto err_dset;
@@ -575,7 +575,7 @@ data_circ_trotter_read_values_test(data_id fid, double *values[2], size_t num_va
 err_read:
 	H5Dclose(dset);
 err_dset:
-	trotter_close(grpid);
+	trott_close(grpid);
 err_open:
 	free(val_cont);
 	return ret;

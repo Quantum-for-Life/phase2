@@ -19,10 +19,10 @@ SIMUL_PROC	= $(SIMUL_H5).proc
 PYTHON		= python3
 PARSE_FCIDP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
 PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
-TROTT_PREP	= $(PYTHON) $(SCRIPTS)/trotter_prep.py
-TROTT_VALID	= $(PYTHON) $(SCRIPTS)/trotter_validate.py
+TROTT_PREP	= $(PYTHON) $(SCRIPTS)/trott_prep.py
+TROTT_VALID	= $(PYTHON) $(SCRIPTS)/trott_validate.py
 MPIRUN		= mpirun
-PH2RUN		= $(BUILD)/ph2run-trotter
+PH2RUN		= $(BUILD)/ph2run-trott
 CP			= cp -f
 RM			= rm -fv
 

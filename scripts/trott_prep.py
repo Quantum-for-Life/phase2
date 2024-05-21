@@ -21,7 +21,7 @@ def parse_arguments():
 def h5_output(outfile: str,
               time_factor: float = 1.0):
     with h5py.File(outfile, "a") as f:
-        grp = f.create_group("circ_trotter")
+        grp = f.create_group("circ_trott")
         grp.attrs["time_factor"] = time_factor
 
 

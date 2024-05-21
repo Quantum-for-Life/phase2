@@ -14,7 +14,7 @@ int
 test_data_hamil(void);
 
 int
-test_data_trotter_steps(void);
+test_data_trott_steps(void);
 
 int
 main(void)
@@ -31,8 +31,8 @@ main(void)
 		TEST_FAIL("data_hamil");
 		goto err;
 	}
-	if (test_data_trotter_steps() < 0) {
-		TEST_FAIL("data_trotter_steps");
+	if (test_data_trott_steps() < 0) {
+		TEST_FAIL("data_trott_steps");
 		goto err;
 	}
 

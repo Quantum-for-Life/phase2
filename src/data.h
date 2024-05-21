@@ -162,10 +162,10 @@ data_hamil_foreach(
 	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
 
 int
-data_circ_trotter_get_factor(data_id fid, double *factor);
+data_circ_trott_get_factor(data_id fid, double *factor);
 
 int
-data_circ_trotter_write_values(
+data_circ_trott_write_values(
 	data_id fid, double *values[2], size_t num_values);
 
 int
@@ -182,7 +182,7 @@ data_circ_qdrift_write_values(
 	data_id fid, double *values[2], size_t num_values);
 
 int
-data_circ_trotter_read_values_test(
+data_circ_trott_read_values_test(
 	data_id fid, double *values[2], size_t num_values);
 
 #endif // PHASE2_DATA_H
