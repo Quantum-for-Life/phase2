@@ -210,9 +210,9 @@ circ_data_from_file(struct circ_data *cd, const data_id fid)
 {
 	int rc = circ_hamil_from_file(&cd->hamil, fid);
 	rc |= circuit_multidet_from_data(&cd->multidet, fid);
-	data_trotter_get_factor(fid, &cd->step_size);
-	data_trotter_get_num_samples(fid, &cd->num_samples);
-	data_trotter_get_depth(fid, &cd->depth);
+	data_circ_qdrift_get_factor(fid, &cd->step_size);
+	data_circ_qdrift_get_num_samples(fid, &cd->num_samples);
+	data_circ_qdrift_get_depth(fid, &cd->depth);
 
 	return rc;
 }

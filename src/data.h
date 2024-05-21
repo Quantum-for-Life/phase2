@@ -162,16 +162,16 @@ data_hamil_foreach(
 	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
 
 int
-data_trotter_get_factor(data_id fid, double *step_size);
+data_circ_qdrift_get_factor(data_id fid, double *step_size);
 
 int
-data_trotter_get_num_samples(data_id fid, size_t *num_samples);
+data_circ_qdrift_get_num_samples(data_id fid, size_t *num_samples);
 
 int
-data_trotter_get_depth(data_id fid, size_t *depth);
+data_circ_qdrift_get_depth(data_id fid, size_t *depth);
 
 int
-data_trotter_write_values(data_id fid, double *values[2], size_t num_values);
+data_circ_qdrift_write_values(data_id fid, double *values[2], size_t num_values);
 
 int
 data_trotter_read_values_test(

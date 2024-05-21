@@ -117,7 +117,7 @@ run_circuit(data_id fid)
 	log_info("depth: %zu", rd.depth);
 	if (circ_simulate(&rd) < 0)
 		goto error;
-	data_trotter_write_values(fid, rd.samples, rd.num_samples);
+	data_circ_qdrift_write_values(fid, rd.samples, rd.num_samples);
 	goto cleanup;
 error:
 	rc = -1;
