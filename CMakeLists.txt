@@ -40,16 +40,16 @@ set(PHASE2_SOURCES
         ${SRC_DIR}/qreg.c
         ${SRC_DIR}/log.c
         ${SRC_DIR}/xoshiro256starstar.c
+        ${SRC_DIR}/circ_trotter.c
+        ${SRC_DIR}/circ_qdrift.c
 )
 add_executable(ph2run-trotter
         ${SRC_DIR}/main_trotter.c
-        ${SRC_DIR}/circ_trotter.c
         ${PHASE2_SOURCES}
 )
 
 add_executable(ph2run-qdrift
         ${SRC_DIR}/main_qdrift.c
-        ${SRC_DIR}/circ_qdrift.c
         ${PHASE2_SOURCES}
 )
 

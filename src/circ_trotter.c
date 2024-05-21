@@ -3,28 +3,17 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-<<<<<<<< HEAD:src/circ_trotter.c
 #include "circ_trotter.h"
-========
-#include "circ_qdrift.h"
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 #include "log.h"
 #include "qreg.h"
-#include "xoshiro256starstar.h"
 
 #define MAX_CACHE_CODES (1024)
-
-#define PRNG_SEED (0x235eac32)
 
 struct circ {
 	size_t	    num_qb;
 	struct qreg reg;
 
-<<<<<<<< HEAD:src/circ_trotter.c
 	const struct circ_trotter_data *data;
-========
-	const struct circ_qdrift_data *data;
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 
 	double prod[2];
 
@@ -34,19 +23,11 @@ struct circ {
 		fl	      angles[MAX_CACHE_CODES];
 		size_t	      num_codes;
 	} cache;
-
-	struct xoshiro256starstar rng;
-	size_t			 *sampled_idx;
 };
 
 static int
-<<<<<<<< HEAD:src/circ_trotter.c
 circ_create(struct circ *c, const struct circ_trotter_data *data,
 	const size_t num_qubits)
-========
-circ_create(
-	struct circ *c, const struct circ_qdrift_data *data, const size_t num_qubits)
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 {
 	struct qreg reg;
 	if (qreg_init(&reg, num_qubits) < 0)
@@ -56,12 +37,6 @@ circ_create(
 	c->data	  = data;
 	c->reg	  = reg;
 
-	xoshiro256starstar_init(&c->rng, PRNG_SEED);
-	size_t *sampled_idx = malloc(sizeof(size_t) * data->depth);
-	if (sampled_idx == NULL)
-		return -1;
-	c->sampled_idx = sampled_idx;
-
 	return 0;
 }
 
@@ -69,16 +44,10 @@ static void
 circ_destroy(struct circ *c)
 {
 	qreg_destroy(&c->reg);
-	if (c->sampled_idx)
-		free(c->sampled_idx);
 }
 
 static void
-<<<<<<<< HEAD:src/circ_trotter.c
 circ_hamil_init(struct circ_trotter_hamil *h)
-========
-circ_hamil_init(struct circ_qdrift_hamil *h)
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 {
 	h->num_qubits = 0;
 	h->num_terms  = 0;
@@ -87,11 +56,7 @@ circ_hamil_init(struct circ_qdrift_hamil *h)
 }
 
 static void
-<<<<<<<< HEAD:src/circ_trotter.c
 circ_hamil_destroy(struct circ_trotter_hamil *h)
-========
-circ_hamil_destroy(struct circ_qdrift_hamil *h)
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 {
 	if (h->paulis) {
 		free(h->paulis);
@@ -131,11 +96,7 @@ hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 }
 
 static int
-<<<<<<<< HEAD:src/circ_trotter.c
 circ_hamil_from_file(struct circ_trotter_hamil *h, const data_id fid)
-========
-circ_hamil_from_file(struct circ_qdrift_hamil *h, const data_id fid)
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 {
 	size_t num_qubits, num_terms;
 	double norm;
@@ -171,22 +132,14 @@ err:
 }
 
 static void
-<<<<<<<< HEAD:src/circ_trotter.c
 circ_multidet_init(struct circ_trotter_multidet *md)
-========
-circ_multidet_init(struct circ_qdrift_multidet *md)
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 {
 	md->num_dets = 0;
 	md->dets     = NULL;
 }
 
 static void
-<<<<<<<< HEAD:src/circ_trotter.c
 circ_multidet_destroy(struct circ_trotter_multidet *md)
-========
-circ_multidet_destroy(struct circ_qdrift_multidet *md)
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 {
 	if (md->dets) {
 		free(md->dets);
@@ -196,13 +149,8 @@ circ_multidet_destroy(struct circ_qdrift_multidet *md)
 }
 
 struct iter_multidet_data {
-<<<<<<<< HEAD:src/circ_trotter.c
 	size_t			      i;
 	struct circ_trotter_multidet *md;
-========
-	size_t		      i;
-	struct circ_qdrift_multidet *md;
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 };
 
 static int
@@ -219,11 +167,7 @@ iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
 }
 
 static int
-<<<<<<<< HEAD:src/circ_trotter.c
 circuit_multidet_from_data(struct circ_trotter_multidet *md, const data_id fid)
-========
-circuit_multidet_from_data(struct circ_qdrift_multidet *md, const data_id fid)
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 {
 	size_t num_qubits, num_dets;
 	if (data_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
@@ -247,48 +191,26 @@ error:
 }
 
 int
-<<<<<<<< HEAD:src/circ_trotter.c
 circ_trotter_data_init(struct circ_trotter_data *cd, size_t num_steps)
-========
-circ_data_from_file(struct circ_qdrift_data *cd, const data_id fid)
-{
-	int rc = circ_hamil_from_file(&cd->hamil, fid);
-	rc |= circuit_multidet_from_data(&cd->multidet, fid);
-	data_circ_qdrift_get_factor(fid, &cd->step_size);
-	data_circ_qdrift_get_num_samples(fid, &cd->num_samples);
-	data_circ_qdrift_get_depth(fid, &cd->depth);
-
-	return rc;
-}
-
-int
-circ_qdrift_data_init(struct circ_qdrift_data *cd, data_id fid)
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 {
 	circ_hamil_init(&cd->hamil);
 	circ_multidet_init(&cd->multidet);
+	cd->num_trott_steps = num_steps;
 
-	if (circ_data_from_file(cd, fid) < 0)
+	cd->trott_steps[0] = malloc(sizeof(double) * 2 * num_steps);
+	if (cd->trott_steps[0] == NULL)
 		return -1;
-	cd->samples[0] = malloc(sizeof(double) * 2 * cd->num_samples);
-	if (cd->samples[0] == NULL)
-		return -1;
-	cd->samples[1] = cd->samples[0] + cd->num_samples;
+	cd->trott_steps[1] = cd->trott_steps[0] + num_steps;
 
 	return 0;
 }
 
 void
-<<<<<<<< HEAD:src/circ_trotter.c
 circ_trotter_data_destroy(struct circ_trotter_data *cd)
-========
-circ_qdrift_data_destroy(struct circ_qdrift_data *cd)
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 {
 	circ_multidet_destroy(&cd->multidet);
 	circ_hamil_destroy(&cd->hamil);
 
-<<<<<<<< HEAD:src/circ_trotter.c
 	free(cd->trott_steps[0]);
 }
 
@@ -300,19 +222,12 @@ circ_trotter_data_from_file(struct circ_trotter_data *cd, data_id fid)
 	data_circ_trotter_get_factor(fid, &cd->time_factor);
 
 	return rc;
-========
-	free(cd->samples[0]);
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 }
 
 static int
 circuit_prepst(struct circ *c)
 {
-<<<<<<<< HEAD:src/circ_trotter.c
 	const struct circ_trotter_multidet *md = &c->data->multidet;
-========
-	const struct circ_qdrift_multidet *md = &c->data->multidet;
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 
 	qreg_zero(&c->reg);
 	for (size_t i = 0; i < md->num_dets; i++) {
@@ -330,19 +245,14 @@ circuit_prepst(struct circ *c)
 static void
 trotter_step(struct circ *c, const double omega)
 {
-<<<<<<<< HEAD:src/circ_trotter.c
 	const struct circ_trotter_hamil *hamil = &c->data->hamil;
-========
-	const struct circ_qdrift_hamil *hamil = &c->data->hamil;
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 
 	struct code_cache cache = c->cache;
 	cache.num_codes		= 0;
 
-	for (size_t i = 0; i < c->data->depth; i++) {
-		const fl	    angle     = omega;
-		const size_t	    i_sampled = c->sampled_idx[i];
-		const struct paulis code      = hamil->paulis[i_sampled];
+	for (size_t i = 0; i < hamil->num_terms; i++) {
+		const fl	    angle = omega * hamil->coeffs[i];
+		const struct paulis code  = hamil->paulis[i];
 
 		struct paulis code_hi, code_lo;
 		paulis_split(
@@ -386,14 +296,13 @@ trotter_step(struct circ *c, const double omega)
 static int
 circ_effect(struct circ *c)
 {
-	const double t = c->data->step_size;
+	const double t = c->data->time_factor;
 	if (isnan(t))
 		return -1;
 	if (fabs(t) < DBL_EPSILON)
 		return 0;
 
-	const double theta = asin(t);
-	trotter_step(c, theta);
+	trotter_step(c, t);
 
 	return 0;
 }
@@ -401,11 +310,7 @@ circ_effect(struct circ *c)
 static int
 circ_measure(struct circ *c)
 {
-<<<<<<<< HEAD:src/circ_trotter.c
 	const struct circ_trotter_multidet *md = &c->data->multidet;
-========
-	const struct circ_qdrift_multidet *md = &c->data->multidet;
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 
 	double pr[2] = { 0.0, 0.0 };
 	for (size_t i = 0; i < md->num_dets; i++) {
@@ -424,32 +329,8 @@ circ_measure(struct circ *c)
 	return 0;
 }
 
-static size_t
-circ_sample_invcdf(struct circ *c, double x)
-{
-	size_t i   = 0;
-	double cdf = 0;
-	while (cdf <= x)
-		cdf += fabs(c->data->hamil.coeffs[i++]);
-	return i - 1; /* Never again make the same off-by-one error! */
-}
-
-static void
-circ_sample_terms(struct circ *c)
-{
-	for (size_t i = 0; i < c->data->depth; i++) {
-		double x = (double)(xoshiro256starstar_next(&c->rng) >> 11) *
-			   0x1.0p-53;
-		c->sampled_idx[i] = circ_sample_invcdf(c, x);
-	}
-}
-
 int
-<<<<<<<< HEAD:src/circ_trotter.c
 circ_trotter_simulate(const struct circ_trotter_data *cd)
-========
-circ_qdrift_simulate(const struct circ_qdrift_data *cd)
->>>>>>>> refs/heads/circ-qdrift:src/circ_qdrift.c
 {
 	int ret = 0;
 
@@ -458,15 +339,14 @@ circ_qdrift_simulate(const struct circ_qdrift_data *cd)
 	struct circ c;
 	if (circ_create(&c, cd, num_qb) < 0)
 		goto error;
+	circuit_prepst(&c);
 
-	for (size_t i = 0; i < cd->num_samples; i++) {
-		circ_sample_terms(&c);
-		circuit_prepst(&c);
+	for (size_t i = 0; i < cd->num_trott_steps; i++) {
 		if (circ_effect(&c) < 0)
 			goto error;
 		circ_measure(&c);
-		cd->samples[0][i] = c.prod[0];
-		cd->samples[1][i] = c.prod[1];
+		cd->trott_steps[0][i] = c.prod[0];
+		cd->trott_steps[1][i] = c.prod[1];
 	}
 
 	goto exit;

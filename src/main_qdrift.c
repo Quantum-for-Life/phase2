@@ -5,11 +5,7 @@
 
 #include "mpi.h"
 
-<<<<<<<< HEAD:src/main_trotter.c
-#include "circ_trotter.h"
-========
 #include "circ_qdrift.h"
->>>>>>>> refs/heads/circ-qdrift:src/main_qdrift.c
 #include "data.h"
 #include "log.h"
 #include "qreg.h"
@@ -113,15 +109,6 @@ run_circuit(data_id fid)
 {
 	int rc = 0;
 
-<<<<<<<< HEAD:src/main_trotter.c
-	struct circ_trotter_data rd;
-	circ_trotter_data_init(&rd, num_steps);
-	if (circ_trotter_data_from_file(&rd, fid) < 0)
-		goto error;
-	if (circ_trotter_simulate(&rd) < 0)
-		goto error;
-	data_circ_trotter_write_values(fid, rd.trott_steps, num_steps);
-========
 	struct circ_qdrift_data rd;
 	if (circ_qdrift_data_init(&rd, fid) < 0)
 		goto error;
@@ -131,16 +118,11 @@ run_circuit(data_id fid)
 	if (circ_qdrift_simulate(&rd) < 0)
 		goto error;
 	data_circ_qdrift_write_values(fid, rd.samples, rd.num_samples);
->>>>>>>> refs/heads/circ-qdrift:src/main_qdrift.c
 	goto cleanup;
 error:
 	rc = -1;
 cleanup:
-<<<<<<<< HEAD:src/main_trotter.c
-	circ_trotter_data_destroy(&rd);
-========
 	circ_qdrift_data_destroy(&rd);
->>>>>>>> refs/heads/circ-qdrift:src/main_qdrift.c
 
 	return rc;
 }

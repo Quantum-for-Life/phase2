@@ -1,21 +1,16 @@
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "mpi.h"
 
-<<<<<<<< HEAD:src/main_trotter.c
 #include "circ_trotter.h"
-========
-#include "circ_qdrift.h"
->>>>>>>> refs/heads/circ-qdrift:src/main_qdrift.c
 #include "data.h"
 #include "log.h"
 #include "qreg.h"
 
 static struct opt {
 	const char *filename;
+	size_t	    num_steps;
 } OPT;
 
 void
@@ -26,14 +21,14 @@ opt_parse(int argc, char **argv);
 static int MAIN_RET = 0;
 
 #define ABORT_ON_ERROR(...)                                                    \
-	do {                                                                   \
+	{                                                                      \
 		log_error(__VA_ARGS__);                                        \
 		MAIN_RET = EXIT_FAILURE;                                       \
 		goto error;                                                    \
-	} while (0)
+	}
 
 int
-run_circuit(data_id fid);
+run_circuit(data_id fid, size_t num_steps);
 
 int
 main(int argc, char **argv)
@@ -50,7 +45,7 @@ main(int argc, char **argv)
 	MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	if ((num_ranks & (num_ranks - 1)) != 0)
-		ABORT_ON_ERROR("number of MPI ranks must be a power of two");
+		ABORT_ON_ERROR("number of MPI ranks must be a power of two")
 	log_info("*** Init ***");
 	log_info("MPI num_ranks: %d", num_ranks);
 	log_info("This is rank no. %d", rank);
@@ -60,12 +55,12 @@ main(int argc, char **argv)
 
 	data_id fid = data_open(OPT.filename);
 	if (fid == DATA_INVALID_FID)
-		ABORT_ON_ERROR("cannot process input data");
+		ABORT_ON_ERROR("cannot process input data")
 
 	log_info("*** Circuit ***");
 	log_info("Floating point precision: %d", QREG_PREC);
-	log_info("QDRIFT >>>");
-	if (run_circuit(fid) < 0) {
+	log_info("Num_steps: %zu", OPT.num_steps);
+	if (run_circuit(fid, OPT.num_steps) < 0) {
 		log_error("Failure: simulation error");
 		goto error;
 	}
@@ -90,30 +85,33 @@ void
 opt_help_page(int argc, char **argv)
 {
 	(void)argc;
-	fprintf(stderr,
-		"usage: %s SIMUL_FILE NUM_SAMPLES STEP_SIZE DEPTH"
-		"\n\n",
-		argv[0]);
+	fprintf(stderr, "usage: %s [SIMUL_FILE] [NUM_STEPS]\n\n", argv[0]);
 }
 
 int
 opt_parse(int argc, char **argv)
 {
-	if (argc < 2) {
+	if (argc < 3) {
 		opt_help_page(argc, argv);
 		return -1;
 	}
-	OPT.filename = argv[1];
+
+	OPT.filename	 = argv[1];
+	size_t num_steps = strtoull(argv[2], NULL, 10);
+	if (num_steps == 0) {
+		fprintf(stderr, "Wrong number of Trotter steps\n");
+		return -1;
+	}
+	OPT.num_steps = num_steps;
 
 	return 0;
 }
 
 int
-run_circuit(data_id fid)
+run_circuit(data_id fid, size_t num_steps)
 {
 	int rc = 0;
 
-<<<<<<<< HEAD:src/main_trotter.c
 	struct circ_trotter_data rd;
 	circ_trotter_data_init(&rd, num_steps);
 	if (circ_trotter_data_from_file(&rd, fid) < 0)
@@ -121,26 +119,11 @@ run_circuit(data_id fid)
 	if (circ_trotter_simulate(&rd) < 0)
 		goto error;
 	data_circ_trotter_write_values(fid, rd.trott_steps, num_steps);
-========
-	struct circ_qdrift_data rd;
-	if (circ_qdrift_data_init(&rd, fid) < 0)
-		goto error;
-	log_info("num_samples: %zu", rd.num_samples);
-	log_info("step_size: %f", rd.step_size);
-	log_info("depth: %zu", rd.depth);
-	if (circ_qdrift_simulate(&rd) < 0)
-		goto error;
-	data_circ_qdrift_write_values(fid, rd.samples, rd.num_samples);
->>>>>>>> refs/heads/circ-qdrift:src/main_qdrift.c
 	goto cleanup;
 error:
 	rc = -1;
 cleanup:
-<<<<<<<< HEAD:src/main_trotter.c
 	circ_trotter_data_destroy(&rd);
-========
-	circ_qdrift_data_destroy(&rd);
->>>>>>>> refs/heads/circ-qdrift:src/main_qdrift.c
 
 	return rc;
 }
