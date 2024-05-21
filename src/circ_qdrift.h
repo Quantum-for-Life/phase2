@@ -21,7 +21,7 @@ struct circ_qdrift_multidet {
 };
 
 struct circ_qdrift_data {
-	struct circ_qdrift_hamil hamil;
+	struct circ_qdrift_hamil    hamil;
 	struct circ_qdrift_multidet multidet;
 
 	double *samples[2];

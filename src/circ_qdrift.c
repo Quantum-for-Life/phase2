@@ -33,8 +33,8 @@ struct circ {
 };
 
 static int
-circ_create(
-	struct circ *c, const struct circ_qdrift_data *data, const size_t num_qubits)
+circ_create(struct circ *c, const struct circ_qdrift_data *data,
+	const size_t num_qubits)
 {
 	struct qreg reg;
 	if (qreg_init(&reg, num_qubits) < 0)
@@ -164,7 +164,7 @@ circ_multidet_destroy(struct circ_qdrift_multidet *md)
 }
 
 struct iter_multidet_data {
-	size_t		      i;
+	size_t			     i;
 	struct circ_qdrift_multidet *md;
 };
 

@@ -21,7 +21,7 @@ struct circ_trott_multidet {
 };
 
 struct circ_trott_data {
-	struct circ_trott_hamil    hamil;
+	struct circ_trott_hamil	   hamil;
 	struct circ_trott_multidet multidet;
 
 	double time_factor;

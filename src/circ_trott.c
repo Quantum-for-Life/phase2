@@ -149,7 +149,7 @@ circ_multidet_destroy(struct circ_trott_multidet *md)
 }
 
 struct iter_multidet_data {
-	size_t			      i;
+	size_t			    i;
 	struct circ_trott_multidet *md;
 };
 

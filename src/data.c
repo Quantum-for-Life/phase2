@@ -493,8 +493,7 @@ err_open:
 }
 
 int
-data_circ_trott_write_values(
-	data_id fid, double *values[2], size_t num_values)
+data_circ_trott_write_values(data_id fid, double *values[2], size_t num_values)
 {
 	int ret = DATA_OK;
 
@@ -541,7 +540,8 @@ err_open:
 }
 
 int
-data_circ_trott_read_values_test(data_id fid, double *values[2], size_t num_values)
+data_circ_trott_read_values_test(
+	data_id fid, double *values[2], size_t num_values)
 {
 	int ret = DATA_OK;
 
@@ -555,8 +555,7 @@ data_circ_trott_read_values_test(data_id fid, double *values[2], size_t num_valu
 		ret = -DATA_ETROTT;
 		goto err_open;
 	}
-	const hid_t dset =
-		H5Dopen2(grpid, DATA_CIRC_TROTT_VALUES, H5P_DEFAULT);
+	const hid_t dset = H5Dopen2(grpid, DATA_CIRC_TROTT_VALUES, H5P_DEFAULT);
 	if (dset == H5I_INVALID_HID) {
 		ret = -DATA_ETROTT;
 		goto err_dset;

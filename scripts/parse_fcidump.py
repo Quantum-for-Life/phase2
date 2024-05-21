@@ -86,13 +86,7 @@ class H5Output:
         with h5py.File(outfile, "w") as f:
             f.attrs["uuid"] = str(uuid.uuid4())
             grp = f.create_group("pauli_hamil")
-            # pos_offst = min(self.coeffs)
-            # if pos_offst < 0:
 
-            #    pos_offst = -pos_offst
-            # else:
-            #    pos_offst = 0
-            # self.coeffs = [x + pos_offst for x in self.coeffs]
             dset_coeffs = grp.create_dataset("coeffs", (self.num_sum_terms,), dtype="d")
             dset_coeffs[...] = self.coeffs
             dset_paulis = grp.create_dataset(
@@ -103,7 +97,6 @@ class H5Output:
             norm[0] = 1.0 / sum(abs(c) for c in self.coeffs)
             grp.attrs["normalization"] = norm[0]
             grp.attrs["offset"] = self.offset
-            # grp.attrs["positive_shift"] = pos_offst
 
 
 if __name__ == "__main__":
