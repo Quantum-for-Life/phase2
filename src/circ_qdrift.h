@@ -5,14 +5,14 @@
 
 #include "data.h"
 
-struct circ_hamil {
+struct circ_qdrift_hamil {
 	size_t	       num_qubits;
 	size_t	       num_terms;
 	double	      *coeffs;
 	struct paulis *paulis;
 };
 
-struct circ_multidet {
+struct circ_qdrift_multidet {
 	struct {
 		uint64_t idx;
 		double	 coeff[2];
@@ -20,9 +20,9 @@ struct circ_multidet {
 	size_t num_dets;
 };
 
-struct circ_data {
-	struct circ_hamil    hamil;
-	struct circ_multidet multidet;
+struct circ_qdrift_data {
+	struct circ_qdrift_hamil hamil;
+	struct circ_qdrift_multidet multidet;
 
 	double *samples[2];
 	size_t	num_samples;
@@ -31,12 +31,12 @@ struct circ_data {
 };
 
 int
-circ_data_init(struct circ_data *cd, data_id fid);
+circ_qdrift_data_init(struct circ_qdrift_data *cd, data_id fid);
 
 void
-circ_data_destroy(struct circ_data *cd);
+circ_qdrift_data_destroy(struct circ_qdrift_data *cd);
 
 int
-circ_simulate(const struct circ_data *cd);
+circ_qdrift_simulate(const struct circ_qdrift_data *cd);
 
 #endif // PHASE2_CIRC_QDRIFT_H

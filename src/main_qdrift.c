@@ -109,20 +109,20 @@ run_circuit(data_id fid)
 {
 	int rc = 0;
 
-	struct circ_data rd;
-	if (circ_data_init(&rd, fid) < 0)
+	struct circ_qdrift_data rd;
+	if (circ_qdrift_data_init(&rd, fid) < 0)
 		goto error;
 	log_info("num_samples: %zu", rd.num_samples);
 	log_info("step_size: %f", rd.step_size);
 	log_info("depth: %zu", rd.depth);
-	if (circ_simulate(&rd) < 0)
+	if (circ_qdrift_simulate(&rd) < 0)
 		goto error;
 	data_circ_qdrift_write_values(fid, rd.samples, rd.num_samples);
 	goto cleanup;
 error:
 	rc = -1;
 cleanup:
-	circ_data_destroy(&rd);
+	circ_qdrift_data_destroy(&rd);
 
 	return rc;
 }

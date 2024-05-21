@@ -17,7 +17,7 @@ struct circ {
 	size_t	    num_qb;
 	struct qreg reg;
 
-	const struct circ_data *data;
+	const struct circ_qdrift_data *data;
 
 	double prod[2];
 
@@ -34,7 +34,7 @@ struct circ {
 
 static int
 circ_create(
-	struct circ *c, const struct circ_data *data, const size_t num_qubits)
+	struct circ *c, const struct circ_qdrift_data *data, const size_t num_qubits)
 {
 	struct qreg reg;
 	if (qreg_init(&reg, num_qubits) < 0)
@@ -62,7 +62,7 @@ circ_destroy(struct circ *c)
 }
 
 static void
-circ_hamil_init(struct circ_hamil *h)
+circ_hamil_init(struct circ_qdrift_hamil *h)
 {
 	h->num_qubits = 0;
 	h->num_terms  = 0;
@@ -71,7 +71,7 @@ circ_hamil_init(struct circ_hamil *h)
 }
 
 static void
-circ_hamil_destroy(struct circ_hamil *h)
+circ_hamil_destroy(struct circ_qdrift_hamil *h)
 {
 	if (h->paulis) {
 		free(h->paulis);
@@ -111,7 +111,7 @@ hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 }
 
 static int
-circ_hamil_from_file(struct circ_hamil *h, const data_id fid)
+circ_hamil_from_file(struct circ_qdrift_hamil *h, const data_id fid)
 {
 	size_t num_qubits, num_terms;
 	double norm;
@@ -147,14 +147,14 @@ err:
 }
 
 static void
-circ_multidet_init(struct circ_multidet *md)
+circ_multidet_init(struct circ_qdrift_multidet *md)
 {
 	md->num_dets = 0;
 	md->dets     = NULL;
 }
 
 static void
-circ_multidet_destroy(struct circ_multidet *md)
+circ_multidet_destroy(struct circ_qdrift_multidet *md)
 {
 	if (md->dets) {
 		free(md->dets);
@@ -165,7 +165,7 @@ circ_multidet_destroy(struct circ_multidet *md)
 
 struct iter_multidet_data {
 	size_t		      i;
-	struct circ_multidet *md;
+	struct circ_qdrift_multidet *md;
 };
 
 static int
@@ -182,7 +182,7 @@ iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
 }
 
 static int
-circuit_multidet_from_data(struct circ_multidet *md, const data_id fid)
+circuit_multidet_from_data(struct circ_qdrift_multidet *md, const data_id fid)
 {
 	size_t num_qubits, num_dets;
 	if (data_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
@@ -206,7 +206,7 @@ error:
 }
 
 int
-circ_data_from_file(struct circ_data *cd, const data_id fid)
+circ_data_from_file(struct circ_qdrift_data *cd, const data_id fid)
 {
 	int rc = circ_hamil_from_file(&cd->hamil, fid);
 	rc |= circuit_multidet_from_data(&cd->multidet, fid);
@@ -218,7 +218,7 @@ circ_data_from_file(struct circ_data *cd, const data_id fid)
 }
 
 int
-circ_data_init(struct circ_data *cd, const data_id fid)
+circ_qdrift_data_init(struct circ_qdrift_data *cd, data_id fid)
 {
 	circ_hamil_init(&cd->hamil);
 	circ_multidet_init(&cd->multidet);
@@ -234,7 +234,7 @@ circ_data_init(struct circ_data *cd, const data_id fid)
 }
 
 void
-circ_data_destroy(struct circ_data *cd)
+circ_qdrift_data_destroy(struct circ_qdrift_data *cd)
 {
 	circ_multidet_destroy(&cd->multidet);
 	circ_hamil_destroy(&cd->hamil);
@@ -245,7 +245,7 @@ circ_data_destroy(struct circ_data *cd)
 static int
 circuit_prepst(struct circ *c)
 {
-	const struct circ_multidet *md = &c->data->multidet;
+	const struct circ_qdrift_multidet *md = &c->data->multidet;
 
 	qreg_zero(&c->reg);
 	for (size_t i = 0; i < md->num_dets; i++) {
@@ -263,7 +263,7 @@ circuit_prepst(struct circ *c)
 static void
 trotter_step(struct circ *c, const double omega)
 {
-	const struct circ_hamil *hamil = &c->data->hamil;
+	const struct circ_qdrift_hamil *hamil = &c->data->hamil;
 
 	struct code_cache cache = c->cache;
 	cache.num_codes		= 0;
@@ -330,7 +330,7 @@ circ_effect(struct circ *c)
 static int
 circ_measure(struct circ *c)
 {
-	const struct circ_multidet *md = &c->data->multidet;
+	const struct circ_qdrift_multidet *md = &c->data->multidet;
 
 	double pr[2] = { 0.0, 0.0 };
 	for (size_t i = 0; i < md->num_dets; i++) {
@@ -370,7 +370,7 @@ circ_sample_terms(struct circ *c)
 }
 
 int
-circ_simulate(const struct circ_data *cd)
+circ_qdrift_simulate(const struct circ_qdrift_data *cd)
 {
 	int ret = 0;
 
