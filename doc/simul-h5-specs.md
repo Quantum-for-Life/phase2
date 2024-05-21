@@ -94,7 +94,7 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
     - *Shape*: `(NUM_TERMS, NUM_QUBITS)`
     - *Comment*: Elements in the dataset denote single-qubit Pauli operators
       according to the convention:
-  
+
       ```text
       I = 0, X = 1, Y = 2, Z = 3
       ```
@@ -105,6 +105,15 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
     - *Type*: `double`
     - *Comment*: Coefficient multiplying the time parameter for Hamiltonian
       simulation.
+
+- Dataset: `values`
+    - *Type*: `double`
+    - *Shape*: `(NUM_STEPS, 2)`
+    - *Comment*: Columns specify the real (column 1) and imaginary (column 2)
+      part of a complex number. This dataset is created be the algorithm `silk`,
+      and the value of `NUM_STEPS` is specified as a command-line argument.
+
+## Group: `/circ_qdrift`
 
 - Dataset: `values`
     - *Type*: `double`

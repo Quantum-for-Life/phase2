@@ -4,7 +4,7 @@ project(phase2 VERSION 0.1.0 LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 
 add_compile_options(-Wall -Wextra -march=native)
-set(CMAKE_C_FLAGS_DEBUG "-Og")
+set(CMAKE_C_FLAGS_DEBUG "-Og -g")
 set(CMAKE_C_FLAGS_RELEASE "-O2")
 link_libraries(m)
 
@@ -38,11 +38,18 @@ include_directories(${SRC_DIR})
 set(PHASE2_SOURCES
         ${SRC_DIR}/data.c
         ${SRC_DIR}/qreg.c
-        ${SRC_DIR}/circ_trotter.c
         ${SRC_DIR}/log.c
+        ${SRC_DIR}/xoshiro256starstar.c
 )
 add_executable(ph2run-trotter
         ${SRC_DIR}/main_trotter.c
+        ${SRC_DIR}/circ_trotter.c
+        ${PHASE2_SOURCES}
+)
+
+add_executable(ph2run-qdrift
+        ${SRC_DIR}/main_qdrift.c
+        ${SRC_DIR}/circ_qdrift.c
         ${PHASE2_SOURCES}
 )
 

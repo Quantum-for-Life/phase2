@@ -165,7 +165,21 @@ int
 data_circ_trotter_get_factor(data_id fid, double *factor);
 
 int
-data_circ_trotter_write_values(data_id fid, double *values[2], size_t num_values);
+data_circ_trotter_write_values(
+	data_id fid, double *values[2], size_t num_values);
+
+int
+data_circ_qdrift_get_num_samples(data_id fid, size_t *num_samples);
+
+int
+data_circ_qdrift_get_factor(data_id fid, double *step_size);
+
+int
+data_circ_qdrift_get_depth(data_id fid, size_t *depth);
+
+int
+data_circ_qdrift_write_values(
+	data_id fid, double *values[2], size_t num_values);
 
 int
 data_circ_trotter_read_values_test(

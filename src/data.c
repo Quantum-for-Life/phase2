@@ -30,6 +30,12 @@ enum {
 #define DATA_CIRC_TROTTER_TIME_FACTOR "time_factor"
 #define DATA_CIRC_TROTTER_VALUES "values"
 
+#define DATA_CIRC_QDRIFT "circ_qdrift"
+#define DATA_CIRC_QDRIFT_STEP_SIZE "step_size"
+#define DATA_CIRC_QDRIFT_NUM_SAMPLES "num_samples"
+#define DATA_CIRC_QDRIFT_DEPTH "depth"
+#define DATA_CIRC_QDRIFT_VALUES "values"
+
 /* Open, close data file */
 data_id
 data_open(const char *filename)
@@ -487,7 +493,8 @@ err_open:
 }
 
 int
-data_circ_trotter_write_values(data_id fid, double *values[2], size_t num_values)
+data_circ_trotter_write_values(
+	data_id fid, double *values[2], size_t num_values)
 {
 	int ret = DATA_OK;
 
@@ -571,5 +578,168 @@ err_dset:
 	trotter_close(grpid);
 err_open:
 	free(val_cont);
+	return ret;
+}
+
+static int
+qdrift_open(data_id fid, hid_t *grpid)
+{
+	const hid_t id = H5Gopen2(fid, DATA_CIRC_QDRIFT, H5P_DEFAULT);
+	if (id == H5I_INVALID_HID)
+		return -DATA_ETROTT;
+
+	*grpid = id;
+	return DATA_OK;
+}
+
+static void
+qdrift_close(hid_t grpid)
+{
+	H5Gclose(grpid);
+}
+
+int
+data_circ_qdrift_get_factor(data_id fid, double *step_size)
+{
+	int ret = DATA_OK;
+
+	hid_t grpid;
+	if (qdrift_open(fid, &grpid) < 0) {
+		ret = -DATA_ETROTT;
+		goto err_open;
+	}
+
+	const hid_t attr_norm_id =
+		H5Aopen(grpid, DATA_CIRC_QDRIFT_STEP_SIZE, H5P_DEFAULT);
+	if (attr_norm_id == H5I_INVALID_HID) {
+		ret = -DATA_ETROTT;
+		goto err_attr_open;
+	}
+	double n;
+	if (H5Aread(attr_norm_id, H5T_NATIVE_DOUBLE, &n) < 0) {
+		ret = -DATA_ETROTT;
+		goto err_attr_read;
+	}
+	*step_size = n;
+
+err_attr_read:
+	H5Aclose(attr_norm_id);
+err_attr_open:
+	qdrift_close(grpid);
+err_open:
+
+	return ret;
+}
+
+int
+data_circ_qdrift_get_num_samples(data_id fid, size_t *num_samples)
+{
+	int ret = DATA_OK;
+
+	hid_t grpid;
+	if (qdrift_open(fid, &grpid) < 0) {
+		ret = -DATA_ETROTT;
+		goto err_open;
+	}
+
+	const hid_t attr_norm_id =
+		H5Aopen(grpid, DATA_CIRC_QDRIFT_NUM_SAMPLES, H5P_DEFAULT);
+	if (attr_norm_id == H5I_INVALID_HID) {
+		ret = -DATA_ETROTT;
+		goto err_attr_open;
+	}
+	uint64_t n;
+	if (H5Aread(attr_norm_id, H5T_NATIVE_UINT64, &n) < 0) {
+		ret = -DATA_ETROTT;
+		goto err_attr_read;
+	}
+	*num_samples = (size_t)n;
+
+err_attr_read:
+	H5Aclose(attr_norm_id);
+err_attr_open:
+	qdrift_close(grpid);
+err_open:
+
+	return ret;
+}
+
+int
+data_circ_qdrift_get_depth(data_id fid, size_t *depth)
+{
+	int ret = DATA_OK;
+
+	hid_t grpid;
+	if (qdrift_open(fid, &grpid) < 0) {
+		ret = -DATA_ETROTT;
+		goto err_open;
+	}
+
+	const hid_t attr_norm_id =
+		H5Aopen(grpid, DATA_CIRC_QDRIFT_DEPTH, H5P_DEFAULT);
+	if (attr_norm_id == H5I_INVALID_HID) {
+		ret = -DATA_ETROTT;
+		goto err_attr_open;
+	}
+	uint64_t n;
+	if (H5Aread(attr_norm_id, H5T_NATIVE_UINT64, &n) < 0) {
+		ret = -DATA_ETROTT;
+		goto err_attr_read;
+	}
+	*depth = (size_t)n;
+
+err_attr_read:
+	H5Aclose(attr_norm_id);
+err_attr_open:
+	qdrift_close(grpid);
+err_open:
+
+	return ret;
+}
+
+int
+data_circ_qdrift_write_values(data_id fid, double *values[2], size_t num_values)
+{
+	int ret = DATA_OK;
+
+	hid_t grpid, dspace, dset;
+
+	double *val_cont = malloc(sizeof(double) * 2 * num_values);
+	if (val_cont == NULL)
+		return -1;
+	for (size_t i = 0; i < num_values; i++) {
+		val_cont[2 * i]	    = values[0][i];
+		val_cont[2 * i + 1] = values[1][i];
+	}
+
+	if (qdrift_open(fid, &grpid) < 0) {
+		ret = -DATA_ETROTT;
+		goto err_open;
+	}
+	if ((dspace = H5Screate_simple(2, (hsize_t[]){ num_values, 2 },
+		     NULL)) == H5I_INVALID_HID) {
+		goto err_fspace;
+	}
+	if ((dset = H5Dcreate2(grpid, DATA_CIRC_QDRIFT_VALUES, H5T_IEEE_F64LE,
+		     dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) ==
+		H5I_INVALID_HID) {
+		ret = -DATA_ETROTT;
+		goto err_dset;
+	}
+	if (H5Dwrite(dset, H5T_NATIVE_DOUBLE, H5S_ALL, dspace, H5P_DEFAULT,
+		    val_cont) < 0) {
+		ret = -DATA_ETROTT;
+		goto err_dset_write;
+	}
+
+err_dset_write:
+	H5Dclose(dset);
+err_dset:
+	H5Sclose(dspace);
+err_fspace:
+	qdrift_close(grpid);
+err_open:
+	free(val_cont);
+
 	return ret;
 }

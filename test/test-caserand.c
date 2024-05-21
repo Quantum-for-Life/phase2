@@ -10,11 +10,11 @@
 
 static int MAIN_RET = 0;
 #define ABORT_ON_ERROR(...)                                                    \
-	{                                                                      \
+	do {                                                                   \
 		fprintf(stderr, __VA_ARGS__);                                  \
 		MAIN_RET = EXIT_FAILURE;                                       \
 		goto error;                                                    \
-	}
+	} while (0)
 
 #define NUM_STEPS (128)
 

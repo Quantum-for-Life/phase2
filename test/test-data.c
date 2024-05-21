@@ -1,5 +1,3 @@
-#include "data.h"
-
 #include "test.h"
 
 #ifndef TEST_DATA_SRC
@@ -14,12 +12,6 @@ test_data_multidet(void);
 
 int
 test_data_hamil(void);
-
-int
-test_data_times(void);
-
-int
-test_data_times_write(void);
 
 int
 test_data_trotter_steps(void);
