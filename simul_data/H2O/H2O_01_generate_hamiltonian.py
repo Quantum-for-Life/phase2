@@ -116,7 +116,7 @@ def main():
         h5_sp.create_dataset("coeffs", shape=(1,2), dtype="d")[...] = [[1, 0]]
         h5_sp.create_dataset("dets", shape=(1, num_qubits), dtype="u1")[...] = [hf_bitstring]
 
-        grp = f.create_group("trotter_steps")
+        grp = f.create_group("circ_trotter")
         grp.attrs["time_factor"] = 1.0
 
 
