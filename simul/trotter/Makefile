@@ -19,6 +19,7 @@ SIMUL_PROC	= $(SIMUL_H5).proc
 PYTHON		= python3
 PARSE_FCIDP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
 PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
+TROTT_PREP	= $(PYTHON) $(SCRIPTS)/trotter_prep.py
 TROTT_VALID	= $(PYTHON) $(SCRIPTS)/trotter_validate.py
 MPIRUN		= mpirun
 PH2RUN		= $(BUILD)/ph2run-trotter
@@ -26,8 +27,9 @@ CP			= cp -f
 RM			= rm -fv
 
 # Application flags
-PARSE_FCIDP_FLAGS	= --sort-terms --time-factor=$(TIME_FACT)
-PARSE_INPUTST_FLAGS 	=
+PARSE_FCIDP_FLAGS	= --sort-terms
+PARSE_INPUTST_FLAGS =
+TROTT_PREP_FLAGS	= --time-factor=$(TIME_FACT)
 TROTT_VALID_FLAGS	=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
 PH2RUN_FLAGS		= $(TROTT_STEPS)
@@ -42,6 +44,7 @@ all: $(SIMUL_PROC)
 $(SIMUL_ORIG): $(FCIDUMP) $(INPUTST)
 	$(PARSE_FCIDP) $(PARSE_FCIDP_FLAGS) -o $@ $(FCIDUMP)
 	$(PARSE_INPUTST) $(PARSE_INPUTST_FLAGS) -o $@ $(INPUTST)
+	$(TROTT_PREP) $(TROTT_PREP_FLAGS) -o $@
 
 $(SIMUL_H5): $(SIMUL_ORIG)
 	$(CP) $< $@
