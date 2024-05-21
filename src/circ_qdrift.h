@@ -1,5 +1,5 @@
-#ifndef PHASE2_CIRC_H
-#define PHASE2_CIRC_H
+#ifndef PHASE2_CIRC_QDRIFT_H
+#define PHASE2_CIRC_QDRIFT_H
 
 #include <stdint.h>
 
@@ -39,4 +39,4 @@ circ_data_destroy(struct circ_data *cd);
 int
 circ_simulate(const struct circ_data *cd);
 
-#endif // PHASE2_CIRC_H
+#endif // PHASE2_CIRC_QDRIFT_H

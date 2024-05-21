@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "circ.h"
+#include "circ_qdrift.h"
 #include "log.h"
 #include "qreg.h"
 #include "xoshiro256starstar.h"
