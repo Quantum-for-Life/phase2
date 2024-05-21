@@ -454,7 +454,7 @@ trotter_close(hid_t grpid)
 }
 
 int
-data_trotter_get_factor(data_id fid, double *factor)
+data_circ_trotter_get_factor(data_id fid, double *factor)
 {
 	int ret = DATA_OK;
 
@@ -487,7 +487,7 @@ err_open:
 }
 
 int
-data_trotter_write_values(data_id fid, double *values[2], size_t num_values)
+data_circ_trotter_write_values(data_id fid, double *values[2], size_t num_values)
 {
 	int ret = DATA_OK;
 
@@ -534,7 +534,7 @@ err_open:
 }
 
 int
-data_trotter_read_values_test(data_id fid, double *values[2], size_t num_values)
+data_circ_trotter_read_values_test(data_id fid, double *values[2], size_t num_values)
 {
 	int ret = DATA_OK;
 

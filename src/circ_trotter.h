@@ -5,14 +5,14 @@
 
 #include "data.h"
 
-struct circ_hamil {
+struct circ_trotter_hamil {
 	size_t	       num_qubits;
 	size_t	       num_terms;
 	double	      *coeffs;
 	struct paulis *paulis;
 };
 
-struct circ_multidet {
+struct circ_trotter_multidet {
 	struct {
 		uint64_t idx;
 		double	 coeff[2];
@@ -20,9 +20,9 @@ struct circ_multidet {
 	size_t num_dets;
 };
 
-struct circ_data {
-	struct circ_hamil    hamil;
-	struct circ_multidet multidet;
+struct circ_trotter_data {
+	struct circ_trotter_hamil    hamil;
+	struct circ_trotter_multidet multidet;
 
 	double time_factor;
 
@@ -31,15 +31,15 @@ struct circ_data {
 };
 
 int
-circ_data_init(struct circ_data *cd, size_t num_steps);
+circ_trotter_data_init(struct circ_trotter_data *cd, size_t num_steps);
 
 void
-circ_data_destroy(struct circ_data *cd);
+circ_trotter_data_destroy(struct circ_trotter_data *cd);
 
 int
-circ_data_from_file(struct circ_data *cd, data_id fid);
+circ_trotter_data_from_file(struct circ_trotter_data *cd, data_id fid);
 
 int
-circ_simulate(const struct circ_data *cd);
+circ_trotter_simulate(const struct circ_trotter_data *cd);
 
 #endif // PHASE2_CIRC_TROTTER_H
