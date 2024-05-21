@@ -26,7 +26,7 @@ enum {
 #define DATA_PAULI_HAMIL_PAULIS "paulis"
 #define DATA_PAULI_HAMIL_NORM "normalization"
 
-#define DATA_TROTTER_STEPS "trotter_steps"
+#define DATA_TROTTER_STEPS "circ_trotter"
 #define DATA_TROTTER_STEPS_TIME_FACTOR "time_factor"
 #define DATA_TROTTER_STEPS_VALUES "values"
 

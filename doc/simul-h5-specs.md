@@ -99,7 +99,7 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
       I = 0, X = 1, Y = 2, Z = 3
       ```
 
-## Group: `/trotter_steps`
+## Group: `/circ_trotter`
 
 - Attribute: `time_factor`
     - *Type*: `double`

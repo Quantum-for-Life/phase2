@@ -15,7 +15,7 @@
 #define SIZE (5)
 #define MARGIN (1e-6)
 
-#define H5_GRP_NAME "trotter_steps"
+#define H5_GRP_NAME "circ_trotter"
 #define H5_GRP_TIME_FACTOR "time_factor"
 #define H5_GRP_VALUES "values"
 
