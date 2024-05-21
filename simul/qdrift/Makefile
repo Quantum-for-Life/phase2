@@ -7,7 +7,7 @@ MPI_RANKS	= 4
 # #############################################################################
 
 # System
-ROOT_DIR	= ../
+ROOT_DIR	= ../../
 SCRIPTS		= $(ROOT_DIR)/scripts
 BUILD		= $(ROOT_DIR)/build
 
@@ -24,7 +24,7 @@ QDRIFT_SAMPLE	= $(PYTHON) $(SCRIPTS)/qdrift_sample.py
 QDRIFT_RPE		= $(PYTHON) $(SCRIPTS)/qdrift_rpe.py
 TROTT_VALID		= $(PYTHON) $(SCRIPTS)/trotter_validate.py
 MPIRUN			= mpirun
-PH2RUN			= $(BUILD)/ph2run
+PH2RUN			= $(BUILD)/ph2run-qdrift
 CP				= cp -f
 RM				= rm -fv
 

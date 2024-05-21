@@ -43,7 +43,7 @@ set(PHASE2_SOURCES
         ${SRC_DIR}/xoshiro256starstar.c
 )
 
-add_executable(ph2run
+add_executable(ph2run-qdrift
         ${SRC_DIR}/main.c
         ${PHASE2_SOURCES}
 )
