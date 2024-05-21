@@ -3,7 +3,7 @@
 
 #include "mpi.h"
 
-#include "circ.h"
+#include "circ_trotter.h"
 #include "data.h"
 #include "log.h"
 #include "qreg.h"

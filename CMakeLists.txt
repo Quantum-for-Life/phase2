@@ -38,11 +38,11 @@ include_directories(${SRC_DIR})
 set(PHASE2_SOURCES
         ${SRC_DIR}/data.c
         ${SRC_DIR}/qreg.c
-        ${SRC_DIR}/circ.c
+        ${SRC_DIR}/circ_trotter.c
         ${SRC_DIR}/log.c
 )
-add_executable(ph2run
-        ${SRC_DIR}/main.c
+add_executable(ph2run-trotter
+        ${SRC_DIR}/main_trotter.c
         ${PHASE2_SOURCES}
 )
 

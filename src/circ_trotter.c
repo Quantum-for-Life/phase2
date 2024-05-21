@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "circ.h"
+#include "circ_trotter.h"
 #include "log.h"
 #include "qreg.h"
 

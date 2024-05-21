@@ -1,5 +1,5 @@
-#ifndef PHASE2_CIRC_H
-#define PHASE2_CIRC_H
+#ifndef PHASE2_CIRC_TROTTER_H
+#define PHASE2_CIRC_TROTTER_H
 
 #include <stdint.h>
 
@@ -42,4 +42,4 @@ circ_data_from_file(struct circ_data *cd, data_id fid);
 int
 circ_simulate(const struct circ_data *cd);
 
-#endif // PHASE2_CIRC_H
+#endif // PHASE2_CIRC_TROTTER_H
