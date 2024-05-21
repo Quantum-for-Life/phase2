@@ -15,7 +15,7 @@
 #define SIZE (5)
 #define MARGIN (1e-6)
 
-#define H5_GRP_NAME "trotter_steps"
+#define H5_GRP_NAME "circ_trotter"
 #define H5_GRP_TIME_FACTOR "time_factor"
 #define H5_GRP_VALUES "values"
 
@@ -117,7 +117,7 @@ test_data_trotter_steps(void)
 	}
 
 	double tf;
-	if (data_trotter_get_factor(fid, &tf) < 0) {
+	if (data_circ_trotter_get_factor(fid, &tf) < 0) {
 		TEST_FAIL("data: read time_factor attribute");
 		rc = ERR_DAT2;
 		goto ex;
@@ -133,7 +133,7 @@ test_data_trotter_steps(void)
 		tst_vals_re[i] = creal(tst_vals[i]);
 		tst_vals_im[i] = cimag(tst_vals[i]);
 	}
-	data_trotter_write_values(
+	data_circ_trotter_write_values(
 		fid, (double *[]){ tst_vals_re, tst_vals_im }, SIZE);
 	data_close(fid);
 

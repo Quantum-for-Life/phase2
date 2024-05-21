@@ -3,7 +3,7 @@
 
 #include "mpi.h"
 
-#include "circ.h"
+#include "circ_trotter.h"
 #include "data.h"
 #include "log.h"
 #include "qreg.h"
@@ -112,18 +112,18 @@ run_circuit(data_id fid, size_t num_steps)
 {
 	int rc = 0;
 
-	struct circ_data rd;
-	circ_data_init(&rd, num_steps);
-	if (circ_data_from_file(&rd, fid) < 0)
+	struct circ_trotter_data rd;
+	circ_trotter_data_init(&rd, num_steps);
+	if (circ_trotter_data_from_file(&rd, fid) < 0)
 		goto error;
-	if (circ_simulate(&rd) < 0)
+	if (circ_trotter_simulate(&rd) < 0)
 		goto error;
-	data_trotter_write_values(fid, rd.trott_steps, num_steps);
+	data_circ_trotter_write_values(fid, rd.trott_steps, num_steps);
 	goto cleanup;
 error:
 	rc = -1;
 cleanup:
-	circ_data_destroy(&rd);
+	circ_trotter_data_destroy(&rd);
 
 	return rc;
 }

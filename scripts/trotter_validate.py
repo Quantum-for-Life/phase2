@@ -23,8 +23,8 @@ if __name__ == "__main__":
 
     with h5py.File(args.filename, "r") as f:
         values = np.array(
-            [complex(z[0], z[1]) for z in f["trotter_steps/values"]])
-        time_factor = f["trotter_steps"].attrs["time_factor"]
+            [complex(z[0], z[1]) for z in f["circ_trotter/values"]])
+        time_factor = f["circ_trotter"].attrs["time_factor"]
         ph = f["pauli_hamil"]
         norm = ph.attrs["normalization"]
         offset = ph.attrs["offset"]

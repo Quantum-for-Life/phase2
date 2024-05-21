@@ -29,8 +29,6 @@ def parse_arguments():
     parser.add_argument("-o", "--output", type=str, help="Output file: .h5")
     parser.add_argument("--sort-terms", action="store_true",
                         help="Sort Hamiltonian terms for faster computation")
-    parser.add_argument("-t", "--time-factor", type=float,
-                        help="Multiply phases by a real factor")
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args()
 
@@ -46,7 +44,6 @@ def fcidump_parse_fermionic_op(
 
 
 def h5_output(problem: ElectronicStructureProblem, outfile: str,
-              time_factor: float = 1.0,
               sort_terms=False):
     fermionic_op = problem.hamiltonian.second_q_op()
     mapper = JordanWignerMapper()
@@ -97,9 +94,6 @@ def h5_output(problem: ElectronicStructureProblem, outfile: str,
         grp.attrs["normalization"] = norm[0]
         grp.attrs["offset"] = offset
 
-        grp = f.create_group("trotter_steps")
-        grp.attrs["time_factor"] = time_factor
-
 
 if __name__ == "__main__":
     args = parse_arguments()
@@ -108,5 +102,4 @@ if __name__ == "__main__":
 
     if args.output:
         h5_output(fermionic_op, args.output,
-                  time_factor=args.time_factor,
                   sort_terms=args.sort_terms)

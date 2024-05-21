@@ -3,7 +3,7 @@
 
 #include "mpi.h"
 
-#include "circ.h"
+#include "circ_trotter.h"
 #include "data.h"
 
 #include "test.h"
@@ -47,14 +47,14 @@ caserand(const char *prefix)
 		goto err_data_open;
 	}
 
-	struct circ_data rd;
-	circ_data_init(&rd, NUM_STEPS);
-	if (circ_data_from_file(&rd, fid) != 0) {
+	struct circ_trotter_data rd;
+	circ_trotter_data_init(&rd, NUM_STEPS);
+	if (circ_trotter_data_from_file(&rd, fid) != 0) {
 		TEST_FAIL("Cannot parse simulation data");
 		goto err_rd_read;
 	}
 
-	if (circ_simulate(&rd) != 0) {
+	if (circ_trotter_simulate(&rd) != 0) {
 		TEST_FAIL("Simulation error");
 		goto err_simul;
 	}
@@ -67,7 +67,7 @@ caserand(const char *prefix)
 	}
 
 	double ref_values_re[NUM_STEPS], ref_values_im[NUM_STEPS];
-	if (data_trotter_read_values_test(fid_ref,
+	if (data_circ_trotter_read_values_test(fid_ref,
 		    (double *[]){ ref_values_re, ref_values_im },
 		    NUM_STEPS) != 0) {
 		TEST_FAIL("Cannot parse reference data");
@@ -94,7 +94,7 @@ caserand(const char *prefix)
 	}
 
 	data_close(fid_ref);
-	circ_data_destroy(&rd);
+	circ_trotter_data_destroy(&rd);
 	data_close(fid);
 	return 0;
 
@@ -103,7 +103,7 @@ err_rd_ref_read:
 	data_close(fid_ref);
 err_data_open_ref:
 err_simul:
-	circ_data_destroy(&rd);
+	circ_trotter_data_destroy(&rd);
 err_rd_read:
 	data_close(fid);
 err_data_open:
