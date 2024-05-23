@@ -1,7 +1,8 @@
 # ############################################################################
 # Simulation parameters:
-TIME_FACT	= 1.0
-TROTT_STEPS	= 128
+SIMUL_TAG	= 0001
+TIME_FACT	= 0.1
+TROTT_STEPS	= 1024
 MPI_RANKS	= 4
 # #############################################################################
 
@@ -15,6 +16,7 @@ INPUTST		= INPUTST
 SIMUL_H5	= simul.h5
 SIMUL_ORIG	= $(SIMUL_H5).orig
 SIMUL_PROC	= $(SIMUL_H5).proc
+SIMUL_ALL	= $(SIMUL_H5).all
 
 PYTHON		= python3
 PARSE_FCIDP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
@@ -37,7 +39,7 @@ PR2RUN_LOGLVL		= info
 
 
 .DEFAULT_GOAL: all
-.PHONY: all clean
+.PHONY: all clean dist-clean
 
 all: $(SIMUL_PROC)
 
@@ -52,8 +54,12 @@ $(SIMUL_H5): $(SIMUL_ORIG)
  		$(PH2RUN) $(SIMUL_H5) $(PH2RUN_FLAGS)
 
 $(SIMUL_PROC): $(SIMUL_H5)
-	$(TROTT_VALID) $(TROTT_VALID_FLAGS) $< > $@
-	@cat $@
+	@echo -n "$(SIMUL_TAG),$(TIME_FACT),$(TROTT_STEPS)," > $@
+	$(TROTT_VALID) $(TROTT_VALID_FLAGS) $< >> $@
+	@cat $@ | tee -a $(SIMUL_ALL)
 
 clean:
 	$(RM) $(SIMUL_ORIG) $(SIMUL_H5) $(SIMUL_PROC)
+
+dist-clean: clean
+	$(RM) $(SIMUL_ALL)
