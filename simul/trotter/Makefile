@@ -16,7 +16,6 @@ INPUTST		= INPUTST
 SIMUL_H5	= simul.h5
 SIMUL_ORIG	= $(SIMUL_H5).orig
 SIMUL_PROC	= $(SIMUL_H5).proc
-SIMUL_ALL	= $(SIMUL_H5).all
 
 PYTHON		= python3
 PARSE_FCIDP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
@@ -32,6 +31,7 @@ RM			= rm -fv
 PARSE_FCIDP_FLAGS	= --sort-terms
 PARSE_INPUTST_FLAGS =
 TROTT_PREP_FLAGS	= --time-factor=$(TIME_FACT)
+TROTT_RPE_FLAGS		=
 TROTT_VALID_FLAGS	=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
 PH2RUN_FLAGS		= $(TROTT_STEPS)
@@ -39,7 +39,7 @@ PR2RUN_LOGLVL		= info
 
 
 .DEFAULT_GOAL: all
-.PHONY: all clean dist-clean
+.PHONY: all clean
 
 all: $(SIMUL_PROC)
 
@@ -55,11 +55,8 @@ $(SIMUL_H5): $(SIMUL_ORIG)
 
 $(SIMUL_PROC): $(SIMUL_H5)
 	@echo -n "$(SIMUL_TAG),$(TIME_FACT),$(TROTT_STEPS)," > $@
-	$(TROTT_VALID) $(TROTT_VALID_FLAGS) $< >> $@
+	$(TROTT_RPE) $(TROTT_RPE_FLAGS) $< >> $@
 	@cat $@ | tee -a $(SIMUL_ALL)
 
 clean:
 	$(RM) $(SIMUL_ORIG) $(SIMUL_H5) $(SIMUL_PROC)
-
-dist-clean: clean
-	$(RM) $(SIMUL_ALL)
