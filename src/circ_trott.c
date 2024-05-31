@@ -9,7 +9,7 @@
 
 #define MAX_CACHE_CODES (1024)
 
-struct circ {
+struct circ_trott {
 	size_t	    num_qb;
 	struct qreg reg;
 
@@ -26,7 +26,7 @@ struct circ {
 };
 
 static int
-circ_create(struct circ *c, const struct circ_trott_data *data,
+circ_create(struct circ_trott *c, const struct circ_trott_data *data,
 	const size_t num_qubits)
 {
 	struct qreg reg;
@@ -41,7 +41,7 @@ circ_create(struct circ *c, const struct circ_trott_data *data,
 }
 
 static void
-circ_destroy(struct circ *c)
+circ_destroy(struct circ_trott *c)
 {
 	qreg_destroy(&c->reg);
 }
@@ -225,7 +225,7 @@ circ_trott_data_from_file(struct circ_trott_data *cd, data_id fid)
 }
 
 static int
-circuit_prepst(struct circ *c)
+circuit_prepst(struct circ_trott *c)
 {
 	const struct circ_trott_multidet *md = &c->data->multidet;
 
@@ -243,7 +243,7 @@ circuit_prepst(struct circ *c)
 }
 
 static void
-trott_step(struct circ *c, const double omega)
+trott_step(struct circ_trott *c, const double omega)
 {
 	const struct circ_trott_hamil *hamil = &c->data->hamil;
 
@@ -294,7 +294,7 @@ trott_step(struct circ *c, const double omega)
 }
 
 static int
-circ_effect(struct circ *c)
+circ_effect(struct circ_trott *c)
 {
 	const double t = c->data->time_factor;
 	if (isnan(t))
@@ -308,7 +308,7 @@ circ_effect(struct circ *c)
 }
 
 static int
-circ_measure(struct circ *c)
+circ_measure(struct circ_trott *c)
 {
 	const struct circ_trott_multidet *md = &c->data->multidet;
 
@@ -332,16 +332,24 @@ circ_measure(struct circ *c)
 int
 circ_trott_simulate(const struct circ_trott_data *cd)
 {
-	int ret = 0;
+	int    ret	    = 0;
+	size_t prog_percent = 0;
 
 	const size_t num_qb = cd->hamil.num_qubits;
 
-	struct circ c;
+	struct circ_trott c;
 	if (circ_create(&c, cd, num_qb) < 0)
 		goto error;
 	circuit_prepst(&c);
 
 	for (size_t i = 0; i < cd->num_trott_steps; i++) {
+		size_t percent = i * 100 / cd->num_trott_steps;
+		if (percent > prog_percent) {
+			prog_percent = percent;
+			log_info("Progress: %zu\% (trott_step: %zu)", percent,
+				i);
+		}
+
 		if (circ_effect(&c) < 0)
 			goto error;
 		circ_measure(&c);

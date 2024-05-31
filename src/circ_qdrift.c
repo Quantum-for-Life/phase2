@@ -13,7 +13,7 @@
 
 #define PRNG_SEED (0x235eac32)
 
-struct circ {
+struct circ_qdrift {
 	size_t	    num_qb;
 	struct qreg reg;
 
@@ -33,7 +33,7 @@ struct circ {
 };
 
 static int
-circ_create(struct circ *c, const struct circ_qdrift_data *data,
+circ_create(struct circ_qdrift *c, const struct circ_qdrift_data *data,
 	const size_t num_qubits)
 {
 	struct qreg reg;
@@ -54,7 +54,7 @@ circ_create(struct circ *c, const struct circ_qdrift_data *data,
 }
 
 static void
-circ_destroy(struct circ *c)
+circ_destroy(struct circ_qdrift *c)
 {
 	qreg_destroy(&c->reg);
 	if (c->sampled_idx)
@@ -243,7 +243,7 @@ circ_qdrift_data_destroy(struct circ_qdrift_data *cd)
 }
 
 static int
-circuit_prepst(struct circ *c)
+circuit_prepst(struct circ_qdrift *c)
 {
 	const struct circ_qdrift_multidet *md = &c->data->multidet;
 
@@ -261,7 +261,7 @@ circuit_prepst(struct circ *c)
 }
 
 static void
-trott_step(struct circ *c, const double omega)
+trott_step(struct circ_qdrift *c, const double omega)
 {
 	const struct circ_qdrift_hamil *hamil = &c->data->hamil;
 
@@ -313,7 +313,7 @@ trott_step(struct circ *c, const double omega)
 }
 
 static int
-circ_effect(struct circ *c)
+circ_effect(struct circ_qdrift *c)
 {
 	const double t = c->data->step_size;
 	if (isnan(t))
@@ -328,7 +328,7 @@ circ_effect(struct circ *c)
 }
 
 static int
-circ_measure(struct circ *c)
+circ_measure(struct circ_qdrift *c)
 {
 	const struct circ_qdrift_multidet *md = &c->data->multidet;
 
@@ -350,7 +350,7 @@ circ_measure(struct circ *c)
 }
 
 static size_t
-circ_sample_invcdf(struct circ *c, double x)
+circ_sample_invcdf(struct circ_qdrift *c, double x)
 {
 	size_t i   = 0;
 	double cdf = 0;
@@ -360,7 +360,7 @@ circ_sample_invcdf(struct circ *c, double x)
 }
 
 static void
-circ_sample_terms(struct circ *c)
+circ_sample_terms(struct circ_qdrift *c)
 {
 	for (size_t i = 0; i < c->data->depth; i++) {
 		double x = (double)(xoshiro256starstar_next(&c->rng) >> 11) *
@@ -376,7 +376,7 @@ circ_qdrift_simulate(const struct circ_qdrift_data *cd)
 
 	const size_t num_qb = cd->hamil.num_qubits;
 
-	struct circ c;
+	struct circ_qdrift c;
 	if (circ_create(&c, cd, num_qb) < 0)
 		goto error;
 
