@@ -133,13 +133,16 @@ paulis_split(const struct paulis code, const u32 qb_lo, const u32 qb_hi,
 	struct paulis *lo, struct paulis *hi)
 {
 	const u64 mask_lo = ((u64)1 << qb_lo) - 1;
+	const u64 mask_hi = ((u64)1 << (qb_hi + qb_lo)) - 1;
 
-	*lo = code;
+	lo->pak[0] = code.pak[0];
+	lo->pak[1] = code.pak[1];
 	paulis_mask(lo, mask_lo);
 	paulis_update_iscount(lo);
 
-	*hi = code;
-	paulis_mask(hi, ((u64)1 << (qb_lo + qb_hi)) - mask_lo);
+	hi->pak[0] = code.pak[0];
+	hi->pak[1] = code.pak[1];
+	paulis_mask(hi, mask_hi - mask_lo);
 	paulis_update_iscount(hi);
 }
 
@@ -231,7 +234,7 @@ static struct remote_idx
 calc_remote_idx(const u32 qb_lo, const u32 qb_hi, const u64 i)
 {
 	const u64 mask_lo = ((u64)1 << qb_lo) - 1;
-	const u64 mask_hi = ((u64)1 << (qb_hi + qb_lo)) - mask_lo;
+	const u64 mask_hi = ((u64)1 << (qb_hi + qb_lo)) - 1;
 
 	struct remote_idx di;
 	di.rank = (i & mask_hi) >> qb_lo;
@@ -398,7 +401,7 @@ qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	   code_hi acts on the value of rank_remote now
 	   (as if from receiving end). We discard the result. */
 	root4 buf_mul;
-	paulis_effect(code_hi, rnk_rem, &buf_mul);
+	paulis_effect(code_hi, rnk_loc, &buf_mul);
 
 	qreg_exchbuf_waitall(reg);
 
