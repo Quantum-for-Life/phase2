@@ -22,6 +22,7 @@ PARSE_FCIDP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
 PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
 TROTT_PREP	= $(PYTHON) $(SCRIPTS)/trott_prep.py
 TROTT_VALID	= $(PYTHON) $(SCRIPTS)/trott_validate.py
+TROTT_RPE	= $(PYTHON) $(SCRIPTS)/trott_rpe.py
 MPIRUN		= mpirun
 PH2RUN		= $(BUILD)/ph2run-trott
 CP			= cp -f
