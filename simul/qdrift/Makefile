@@ -47,10 +47,12 @@ all: simulate
 $(SIMUL_ORIG): $(FCIDUMP) $(INPUTST)
 	$(PARSE_FCIDP) $(PARSE_FCIDP_FLAGS) -o $@ $(FCIDUMP)
 	$(PARSE_INPUTST) $(PARSE_INPUTST_FLAGS) -o $@ $(INPUTST)
-	$(CP) $@ $(SIMUL_H5)
+
+$(SIMUL_H5): $(SIMUL_ORIG)
+	$(CP) $(SIMUL_ORIG) $(SIMUL_H5)
 	$(QDRIFT_SAMPLE) $(QDRIFT_SAMPLE_FLAGS) $(SIMUL_H5)
 
-simulate: $(SIMUL_ORIG)
+simulate: $(SIMUL_H5)
 	find . -iname "$(SIMUL_H5)-*" -exec $(MPIRUN) $(MPIRUN_FLAGS) -x PHASE2_LOG=$(PR2RUN_LOGLVL) $(PH2RUN) {} $(PH2RUN_FLAGS) \;
 
 rpe:
