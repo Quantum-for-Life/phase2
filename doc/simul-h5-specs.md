@@ -110,18 +110,29 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
     - *Type*: `double`
     - *Shape*: `(NUM_STEPS, 2)`
     - *Comment*: Columns specify the real (column 1) and imaginary (column 2)
-      part of a complex number. This dataset is created be the algorithm `silk`,
-      and the value of `NUM_STEPS` is specified as a command-line argument.
+      part of a complex number. The value of `NUM_STEPS` is specified as a command-line argument.
 
 ## Group: `/circ_qdrift`
 
+
+- Attribute: `step_size`
+    - *Type*: `double`
+    - *Comment*: QDrift parameter: step size.
+
+- Attribute: `num_samples`
+    - *Type*: `unsigned long`
+    - *Comment*: Number of independent samples in QDrift algorithm.
+
+- Attribute: `depth`
+    - *Type*: `unsigned long`
+    - *Comment*: Circuit depth.
+
 - Dataset: `values`
     - *Type*: `double`
-    - *Shape*: `(NUM_STEPS, 2)`
+    - *Shape*: `(NUM_SAMPLES, 2)`
     - *Comment*: Columns specify the real (column 1) and imaginary (column 2)
-      part of a complex number. This dataset is created be the algorithm `silk`,
-      and the value of `NUM_STEPS` is specified as a command-line argument.
-
+      part of a complex number.
+  
 [hdf5-data-types]: https://docs.hdfgroup.org/hdf5/v1_14/predefined_datatypes_tables.html
 
 [uuid-rfc]: https://datatracker.ietf.org/doc/html/rfc4122
