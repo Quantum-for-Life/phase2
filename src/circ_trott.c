@@ -219,7 +219,7 @@ circ_trott_data_from_file(struct circ_trott_data *cd, data_id fid)
 {
 	int rc = circ_hamil_from_file(&cd->hamil, fid);
 	rc |= circuit_multidet_from_data(&cd->multidet, fid);
-	data_circ_trott_get_factor(fid, &cd->time_factor);
+	data_circ_trott_getttrs(fid, &cd->time_factor);
 
 	return rc;
 }

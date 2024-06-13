@@ -162,7 +162,7 @@ data_hamil_foreach(
 	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
 
 int
-data_circ_trott_get_factor(data_id fid, double *factor);
+data_circ_trott_getttrs(data_id fid, double *factor);
 
 int
 data_circ_trott_write_values(data_id fid, double *values[2], size_t num_values);

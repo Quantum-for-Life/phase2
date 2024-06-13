@@ -117,7 +117,7 @@ test_data_trott_steps(void)
 	}
 
 	double tf;
-	if (data_circ_trott_get_factor(fid, &tf) < 0) {
+	if (data_circ_trott_getttrs(fid, &tf) < 0) {
 		TEST_FAIL("data: read time_factor attribute");
 		rc = ERR_DAT2;
 		goto ex;

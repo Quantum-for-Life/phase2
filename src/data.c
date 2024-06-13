@@ -373,27 +373,17 @@ exit_coeffs_alloc:
 }
 
 int
-data_circ_trott_get_factor(data_id fid, double *factor)
+data_circ_trott_getttrs(data_id fid, double *factor)
 {
-	int rt = -1;
+	int rt = 0;
 
 	hid_t grpid;
 	if (data_group_open(fid, &grpid, DATA_CIRC_TROTT) < 0)
 		return -1;
 
-	const hid_t attr_norm_id =
-		H5Aopen(grpid, DATA_CIRC_TROTT_TIME_FACTOR, H5P_DEFAULT);
-	if (attr_norm_id == H5I_INVALID_HID)
-		goto exit_attr_open;
-	double n;
-	if (H5Aread(attr_norm_id, H5T_NATIVE_DOUBLE, &n) < 0)
-		goto exit_attr_read;
-	*factor = n;
-	rt	= 0;
+	rt += data_read_attr(
+		grpid, DATA_CIRC_TROTT_TIME_FACTOR, H5T_NATIVE_DOUBLE, factor);
 
-exit_attr_read:
-	H5Aclose(attr_norm_id);
-exit_attr_open:
 	data_group_close(grpid);
 
 	return rt;
