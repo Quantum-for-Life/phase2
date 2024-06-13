@@ -35,15 +35,14 @@ paulis_new(void)
 	struct paulis code;
 	code.pak[0] = (u64)0;
 	code.pak[1] = (u64)0;
-	code.is	    = R0;
 
 	return code;
 }
 
-static void
-paulis_update_iscount(struct paulis *code)
+static int
+paulis_countis(struct paulis code)
 {
-	code->is = __builtin_popcountll(code->pak[0] & code->pak[1]) & 0x3;
+	return __builtin_popcountll(code.pak[0] & code.pak[1]) & 0x3;
 }
 
 void
@@ -69,7 +68,6 @@ paulis_set(struct paulis *code, const enum pauli_op pauli, const u32 n)
 		code->pak[1] |= n_mask;
 		break;
 	}
-	paulis_update_iscount(code);
 }
 
 enum pauli_op
@@ -104,7 +102,6 @@ paulis_mask(struct paulis *code, const u64 mask)
 {
 	code->pak[0] &= mask;
 	code->pak[1] &= mask;
-	paulis_update_iscount(code);
 }
 
 void
@@ -112,7 +109,6 @@ paulis_shr(struct paulis *code, const u32 n)
 {
 	code->pak[0] >>= n;
 	code->pak[1] >>= n;
-	paulis_update_iscount(code);
 }
 
 u64
@@ -121,8 +117,7 @@ paulis_effect(const struct paulis code, const u64 i, root4 *z)
 	u64 j = i ^ code.pak[0];
 	if (z != NULL) {
 		const int minuses = __builtin_popcountll(j & code.pak[1]);
-
-		*z = (code.is + 2 * minuses) & 0x3;
+		*z = (paulis_countis(code) + 2 * minuses) & 0x3;
 	}
 
 	return j;
@@ -138,12 +133,10 @@ paulis_split(const struct paulis code, const u32 qb_lo, const u32 qb_hi,
 	lo->pak[0] = code.pak[0];
 	lo->pak[1] = code.pak[1];
 	paulis_mask(lo, mask_lo);
-	paulis_update_iscount(lo);
 
 	hi->pak[0] = code.pak[0];
 	hi->pak[1] = code.pak[1];
 	paulis_mask(hi, mask_hi - mask_lo);
-	paulis_update_iscount(hi);
 }
 
 // Assume n > 0

@@ -57,7 +57,6 @@ static const char PAULI_LABEL[4] = { 'I', 'X', 'Y', 'Z' };
 
 struct paulis {
 	u64   pak[2];
-	root4 is;
 };
 
 struct paulis
