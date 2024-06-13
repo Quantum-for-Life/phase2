@@ -30,16 +30,12 @@ struct circ_qdrift_data {
 	size_t	depth;
 };
 
-int
-circ_qdrift_data_init(struct circ_qdrift_data *cd, data_id fid);
+int circ_qdrift_data_init(struct circ_qdrift_data *cd, data_id fid);
 
-void
-circ_qdrift_data_destroy(struct circ_qdrift_data *cd);
+void circ_qdrift_data_destroy(struct circ_qdrift_data *cd);
 
-int
-circ_data_from_file(struct circ_qdrift_data *cd, data_id fid);
+int circ_data_from_file(struct circ_qdrift_data *cd, data_id fid);
 
-int
-circ_qdrift_simulate(const struct circ_qdrift_data *cd);
+int circ_qdrift_simulate(const struct circ_qdrift_data *cd);
 
 #endif // PHASE2_CIRC_QDRIFT_H

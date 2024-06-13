@@ -22,16 +22,12 @@ struct xoshiro256ss {
 	uint64_t s[4];
 };
 
-void
-xoshiro256ss_init(struct xoshiro256ss *st, uint64_t seed);
+void xoshiro256ss_init(struct xoshiro256ss *st, uint64_t seed);
 
-uint64_t
-xoshiro256ss_next(struct xoshiro256ss *st);
+uint64_t xoshiro256ss_next(struct xoshiro256ss *st);
 
-void
-xoshiro256ss_jump(struct xoshiro256ss *st);
+void xoshiro256ss_jump(struct xoshiro256ss *st);
 
-void
-xoshiro256ss_longjump(struct xoshiro256ss *st);
+void xoshiro256ss_longjump(struct xoshiro256ss *st);
 
 #endif /* XOSHIRO256SS_H */

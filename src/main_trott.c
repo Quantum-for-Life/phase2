@@ -13,10 +13,8 @@ static struct opt {
 	size_t	    num_steps;
 } OPT;
 
-void
-opt_help_page(int argc, char **argv);
-int
-opt_parse(int argc, char **argv);
+void opt_help_page(int argc, char **argv);
+int  opt_parse(int argc, char **argv);
 
 static int MAIN_RET = 0;
 
@@ -27,11 +25,9 @@ static int MAIN_RET = 0;
 		goto error;                                                    \
 	}
 
-int
-run_circuit(data_id fid, size_t num_steps);
+int run_circuit(data_id fid, size_t num_steps);
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	int initialized;
 	MPI_Initialized(&initialized);
@@ -81,15 +77,13 @@ cleanup:
 	return MAIN_RET;
 }
 
-void
-opt_help_page(int argc, char **argv)
+void opt_help_page(int argc, char **argv)
 {
 	(void)argc;
 	fprintf(stderr, "usage: %s [SIMUL_FILE] [NUM_STEPS]\n\n", argv[0]);
 }
 
-int
-opt_parse(int argc, char **argv)
+int opt_parse(int argc, char **argv)
 {
 	if (argc < 3) {
 		opt_help_page(argc, argv);
@@ -107,8 +101,7 @@ opt_parse(int argc, char **argv)
 	return 0;
 }
 
-int
-run_circuit(data_id fid, size_t num_steps)
+int run_circuit(data_id fid, size_t num_steps)
 {
 	int rc = 0;
 

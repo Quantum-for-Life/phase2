@@ -56,32 +56,24 @@ enum pauli_op {
 static const char PAULI_LABEL[4] = { 'I', 'X', 'Y', 'Z' };
 
 struct paulis {
-	u64   pak[2];
+	u64 pak[2];
 };
 
-struct paulis
-paulis_new(void);
+struct paulis paulis_new(void);
 
-enum pauli_op
-paulis_get(struct paulis code, u32 n);
+enum pauli_op paulis_get(struct paulis code, u32 n);
 
-void
-paulis_set(struct paulis *code, enum pauli_op pauli, u32 n);
+void paulis_set(struct paulis *code, enum pauli_op pauli, u32 n);
 
-int
-paulis_eq(struct paulis code1, struct paulis code2);
+int paulis_eq(struct paulis code1, struct paulis code2);
 
-void
-paulis_mask(struct paulis *code, u64 mask);
+void paulis_mask(struct paulis *code, u64 mask);
 
-void
-paulis_shr(struct paulis *code, u32 n);
+void paulis_shr(struct paulis *code, u32 n);
 
-u64
-paulis_effect(struct paulis code, u64 i, root4 *z);
+u64 paulis_effect(struct paulis code, u64 i, root4 *z);
 
-void
-paulis_split(struct paulis code, u32 qb_lo, u32 qb_hi, struct paulis *lo,
+void paulis_split(struct paulis code, u32 qb_lo, u32 qb_hi, struct paulis *lo,
 	struct paulis *hi);
 
 struct qreg {
@@ -100,23 +92,17 @@ struct qreg {
 	size_t	     num_reqs;
 };
 
-int
-qreg_init(struct qreg *reg, u32 num_qubits);
+int qreg_init(struct qreg *reg, u32 num_qubits);
 
-void
-qreg_destroy(struct qreg *reg);
+void qreg_destroy(struct qreg *reg);
 
-void
-qreg_getamp(const struct qreg *reg, u64 i, fl (*z)[2]);
+void qreg_getamp(const struct qreg *reg, u64 i, fl (*z)[2]);
 
-void
-qreg_setamp(struct qreg *reg, u64 i, const fl z[2]);
+void qreg_setamp(struct qreg *reg, u64 i, const fl z[2]);
 
-void
-qreg_zero(struct qreg *reg);
+void qreg_zero(struct qreg *reg);
 
-void
-qreg_paulirot(struct qreg *reg, struct paulis code_hi,
+void qreg_paulirot(struct qreg *reg, struct paulis code_hi,
 	const struct paulis *codes_lo, const fl *angles, size_t num_codes);
 
 #endif // QREG_H

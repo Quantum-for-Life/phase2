@@ -57,14 +57,12 @@ static struct {
 static const char *level_strings[] = { "TRACE", "DEBUG", "INFO", "WARN",
 	"ERROR", "FATAL" };
 
-const char *
-log_level_string(const int level)
+const char *log_level_string(const int level)
 {
 	return level_strings[level];
 }
 
-int
-log_level_from_lowercase(enum log_level *level, const char *name)
+int log_level_from_lowercase(enum log_level *level, const char *name)
 {
 	if (!name) {
 		return -1;
@@ -97,14 +95,12 @@ log_level_from_lowercase(enum log_level *level, const char *name)
 	return -1;
 }
 
-void
-log_set_level(const int level)
+void log_set_level(const int level)
 {
 	L.level = level;
 }
 
-int
-log_add_callback(const log_logfn fn, void *data, const int level)
+int log_add_callback(const log_logfn fn, void *data, const int level)
 {
 	for (int i = 0; i < MAX_CALLBACKS; i++) {
 		if (!L.cb[i].fn) {
@@ -115,8 +111,7 @@ log_add_callback(const log_logfn fn, void *data, const int level)
 	return -1;
 }
 
-static void
-init_event(struct log_event *ev, void *data)
+static void init_event(struct log_event *ev, void *data)
 {
 	if (!ev->time) {
 		const time_t t = time(NULL);
@@ -125,8 +120,7 @@ init_event(struct log_event *ev, void *data)
 	ev->data = data;
 }
 
-void
-log_vlog(const int level, const char *fmt, va_list ap)
+void log_vlog(const int level, const char *fmt, va_list ap)
 {
 	struct log_event ev = {
 		.fmt   = fmt,
@@ -144,8 +138,7 @@ log_vlog(const int level, const char *fmt, va_list ap)
 	}
 }
 
-void
-log_log(const int level, const char *fmt, ...)
+void log_log(const int level, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -153,8 +146,7 @@ log_log(const int level, const char *fmt, ...)
 	va_end(ap);
 }
 
-void
-log_callback(struct log_event *ev)
+void log_callback(struct log_event *ev)
 {
 	int initialized, finalized;
 	MPI_Initialized(&initialized);
@@ -176,8 +168,7 @@ log_callback(struct log_event *ev)
 	fflush(fd);
 }
 
-int
-log_init(void)
+int log_init(void)
 {
 	enum log_level lvl;
 	const char    *lvl_str = getenv(PHASE2_LOG_ENVVAR);

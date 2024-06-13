@@ -22,8 +22,7 @@ typedef int64_t data_id;
  *
  *	A valid data_id value or DATA_INVALID_FID in case of error
  */
-data_id
-data_open(const char *filename);
+data_id data_open(const char *filename);
 
 /**
  * Close data file.
@@ -53,8 +52,7 @@ void data_close(data_id);
  *   0			if the value was successfully retrieved
  *  -1			in case of error
  */
-int
-data_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets);
+int data_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets);
 
 /**
  * Perform action "op" on each determinant in "multidet" group.
@@ -78,8 +76,7 @@ data_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets);
  *  -1      if the data could not be retrieved,
  *  or a user-defined value, if the iteration was terminated early
  */
-int
-data_multidet_foreach(data_id fid,
+int data_multidet_foreach(data_id fid,
 	int (*op)(double coeff[2], uint64_t idx, void *), void *op_data);
 
 /**
@@ -102,8 +99,7 @@ data_multidet_foreach(data_id fid,
  *   0			if the value was successfully retrieved
  *  -1			in case of error
  */
-int
-data_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms);
+int data_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms);
 
 /**
  * Get the normalization factor for the "hamil" group.
@@ -123,8 +119,7 @@ data_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms);
  *   0			if the value was successfully retrieved
  *  -1			in case of error
  */
-int
-data_hamil_getnorm(data_id fid, double *norm);
+int data_hamil_getnorm(data_id fid, double *norm);
 
 /**
  * Perform action "op" on each term of the Hamiltonian in "pauli_hamil" group.
@@ -157,26 +152,21 @@ data_hamil_getnorm(data_id fid, double *norm);
  *  -1      if the data could not be retrieved,
  *  or a user-defined value, if the iteration was terminated early
  */
-int
-data_hamil_foreach(
+int data_hamil_foreach(
 	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
 
-int
-data_circ_trott_getttrs(data_id fid, double *factor);
+int data_circ_trott_getttrs(data_id fid, double *factor);
 
-int
-data_circ_trott_write_values(data_id fid, double *values[2], size_t num_values);
-
-int
-data_circ_qdrift_getattrs(
-	data_id fid, size_t *num_samples, double *step_size, size_t *depth);
-
-int
-data_circ_qdrift_write_values(
+int data_circ_trott_write_values(
 	data_id fid, double *values[2], size_t num_values);
 
-int
-data_circ_trott_read_values_test(
+int data_circ_qdrift_getattrs(
+	data_id fid, size_t *num_samples, double *step_size, size_t *depth);
+
+int data_circ_qdrift_write_values(
+	data_id fid, double *values[2], size_t num_values);
+
+int data_circ_trott_read_values_test(
 	data_id fid, double *values[2], size_t num_values);
 
 #endif // PHASE2_DATA_H

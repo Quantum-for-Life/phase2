@@ -14,10 +14,8 @@ static struct opt {
 	const char *filename;
 } OPT;
 
-void
-opt_help_page(int argc, char **argv);
-int
-opt_parse(int argc, char **argv);
+void opt_help_page(int argc, char **argv);
+int  opt_parse(int argc, char **argv);
 
 static int MAIN_RET = 0;
 
@@ -28,11 +26,9 @@ static int MAIN_RET = 0;
 		goto error;                                                    \
 	} while (0)
 
-int
-run_circuit(data_id fid);
+int run_circuit(data_id fid);
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	int initialized;
 	MPI_Initialized(&initialized);
@@ -82,8 +78,7 @@ cleanup:
 	return MAIN_RET;
 }
 
-void
-opt_help_page(int argc, char **argv)
+void opt_help_page(int argc, char **argv)
 {
 	(void)argc;
 	fprintf(stderr,
@@ -92,8 +87,7 @@ opt_help_page(int argc, char **argv)
 		argv[0]);
 }
 
-int
-opt_parse(int argc, char **argv)
+int opt_parse(int argc, char **argv)
 {
 	if (argc < 2) {
 		opt_help_page(argc, argv);
@@ -104,8 +98,7 @@ opt_parse(int argc, char **argv)
 	return 0;
 }
 
-int
-run_circuit(data_id fid)
+int run_circuit(data_id fid)
 {
 	int rc = 0;
 

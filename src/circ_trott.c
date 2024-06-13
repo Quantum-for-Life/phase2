@@ -25,8 +25,7 @@ struct circ_trott {
 	} cache;
 };
 
-static int
-circ_create(struct circ_trott *c, const struct circ_trott_data *data,
+static int circ_create(struct circ_trott *c, const struct circ_trott_data *data,
 	const size_t num_qubits)
 {
 	struct qreg reg;
@@ -40,14 +39,12 @@ circ_create(struct circ_trott *c, const struct circ_trott_data *data,
 	return 0;
 }
 
-static void
-circ_destroy(struct circ_trott *c)
+static void circ_destroy(struct circ_trott *c)
 {
 	qreg_destroy(&c->reg);
 }
 
-static void
-circ_hamil_init(struct circ_trott_hamil *h)
+static void circ_hamil_init(struct circ_trott_hamil *h)
 {
 	h->num_qubits = 0;
 	h->num_terms  = 0;
@@ -55,8 +52,7 @@ circ_hamil_init(struct circ_trott_hamil *h)
 	h->paulis     = NULL;
 }
 
-static void
-circ_hamil_destroy(struct circ_trott_hamil *h)
+static void circ_hamil_destroy(struct circ_trott_hamil *h)
 {
 	if (h->paulis) {
 		free(h->paulis);
@@ -78,8 +74,7 @@ struct hamil_iter_data {
 	struct paulis *paulis;
 };
 
-static int
-hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
+static int hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 {
 	struct hamil_iter_data *idat	   = iter_data;
 	const size_t		i	   = idat->idx++;
@@ -95,8 +90,7 @@ hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 	return 0;
 }
 
-static int
-circ_hamil_from_file(struct circ_trott_hamil *h, const data_id fid)
+static int circ_hamil_from_file(struct circ_trott_hamil *h, const data_id fid)
 {
 	size_t num_qubits, num_terms;
 	double norm;
@@ -131,15 +125,13 @@ err:
 	return -1;
 }
 
-static void
-circ_multidet_init(struct circ_trott_multidet *md)
+static void circ_multidet_init(struct circ_trott_multidet *md)
 {
 	md->num_dets = 0;
 	md->dets     = NULL;
 }
 
-static void
-circ_multidet_destroy(struct circ_trott_multidet *md)
+static void circ_multidet_destroy(struct circ_trott_multidet *md)
 {
 	if (md->dets) {
 		free(md->dets);
@@ -153,8 +145,7 @@ struct iter_multidet_data {
 	struct circ_trott_multidet *md;
 };
 
-static int
-iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
+static int iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
 {
 	struct iter_multidet_data *imd = op_data;
 
@@ -166,8 +157,8 @@ iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
 	return 0;
 }
 
-static int
-circuit_multidet_from_data(struct circ_trott_multidet *md, const data_id fid)
+static int circuit_multidet_from_data(
+	struct circ_trott_multidet *md, const data_id fid)
 {
 	size_t num_qubits, num_dets;
 	if (data_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
@@ -190,8 +181,7 @@ error:
 	return -1;
 }
 
-int
-circ_trott_data_init(struct circ_trott_data *cd, size_t num_steps)
+int circ_trott_data_init(struct circ_trott_data *cd, size_t num_steps)
 {
 	circ_hamil_init(&cd->hamil);
 	circ_multidet_init(&cd->multidet);
@@ -205,8 +195,7 @@ circ_trott_data_init(struct circ_trott_data *cd, size_t num_steps)
 	return 0;
 }
 
-void
-circ_trott_data_destroy(struct circ_trott_data *cd)
+void circ_trott_data_destroy(struct circ_trott_data *cd)
 {
 	circ_multidet_destroy(&cd->multidet);
 	circ_hamil_destroy(&cd->hamil);
@@ -214,8 +203,7 @@ circ_trott_data_destroy(struct circ_trott_data *cd)
 	free(cd->trott_steps[0]);
 }
 
-int
-circ_trott_data_from_file(struct circ_trott_data *cd, data_id fid)
+int circ_trott_data_from_file(struct circ_trott_data *cd, data_id fid)
 {
 	int rc = circ_hamil_from_file(&cd->hamil, fid);
 	rc |= circuit_multidet_from_data(&cd->multidet, fid);
@@ -224,8 +212,7 @@ circ_trott_data_from_file(struct circ_trott_data *cd, data_id fid)
 	return rc;
 }
 
-static int
-circuit_prepst(struct circ_trott *c)
+static int circuit_prepst(struct circ_trott *c)
 {
 	const struct circ_trott_multidet *md = &c->data->multidet;
 
@@ -242,8 +229,7 @@ circuit_prepst(struct circ_trott *c)
 	return 0;
 }
 
-static void
-trott_step(struct circ_trott *c, const double omega)
+static void trott_step(struct circ_trott *c, const double omega)
 {
 	const struct circ_trott_hamil *hamil = &c->data->hamil;
 
@@ -293,8 +279,7 @@ trott_step(struct circ_trott *c, const double omega)
 			cache.angles, cache.num_codes);
 }
 
-static int
-circ_effect(struct circ_trott *c)
+static int circ_effect(struct circ_trott *c)
 {
 	const double t = c->data->time_factor;
 	if (isnan(t))
@@ -307,8 +292,7 @@ circ_effect(struct circ_trott *c)
 	return 0;
 }
 
-static int
-circ_measure(struct circ_trott *c)
+static int circ_measure(struct circ_trott *c)
 {
 	const struct circ_trott_multidet *md = &c->data->multidet;
 
@@ -329,8 +313,7 @@ circ_measure(struct circ_trott *c)
 	return 0;
 }
 
-int
-circ_trott_simulate(const struct circ_trott_data *cd)
+int circ_trott_simulate(const struct circ_trott_data *cd)
 {
 	int    ret	    = 0;
 	size_t prog_percent = 0;

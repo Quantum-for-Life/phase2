@@ -1,5 +1,3 @@
-# SPDX-License-Identifier: GPL-2.0
-#
 # clang-format configuration file. Intended for clang-format >= 11.
 #
 # For more information, see:
@@ -23,7 +21,7 @@ AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
-AlwaysBreakAfterReturnType: All
+AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: Yes
 BinPackArguments: true

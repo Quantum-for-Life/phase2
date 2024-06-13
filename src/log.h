@@ -19,10 +19,8 @@ enum log_level {
 #define log_error(...) log_log(LOG_ERROR, __VA_ARGS__)
 #define log_fatal(...) log_log(LOG_FATAL, __VA_ARGS__)
 
-int
-log_init(void);
+int log_init(void);
 
-void
-log_log(int level, const char *fmt, ...);
+void log_log(int level, const char *fmt, ...);
 
 #endif // LOG_H

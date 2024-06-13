@@ -5,29 +5,28 @@
 #include "data.h"
 
 /* Group, dataset names */
-#define DATA_STATE_PREP "state_prep"
-#define DATA_STATE_PREP_MULTIDET "multidet"
-#define DATA_STATE_PREP_MULTIDET_COEFFS "coeffs"
-#define DATA_STATE_PREP_MULTIDET_DETS "dets"
+#define DATA_STPREP "state_prep"
+#define DATA_STPREP_MULTIDET "multidet"
+#define DATA_STPREP_MULTIDET_COEFFS "coeffs"
+#define DATA_STPREP_MULTIDET_DETS "dets"
 
-#define DATA_PAULI_HAMIL "pauli_hamil"
-#define DATA_PAULI_HAMIL_COEFFS "coeffs"
-#define DATA_PAULI_HAMIL_PAULIS "paulis"
-#define DATA_PAULI_HAMIL_NORM "normalization"
+#define DATA_HAMIL "pauli_hamil"
+#define DATA_HAMIL_COEFFS "coeffs"
+#define DATA_HAMIL_PAULIS "paulis"
+#define DATA_HAMIL_NORM "normalization"
 
-#define DATA_CIRC_TROTT "circ_trott"
-#define DATA_CIRC_TROTT_TIME_FACTOR "time_factor"
-#define DATA_CIRC_TROTT_VALUES "values"
+#define DATA_CIRCTROTT "circ_trott"
+#define DATA_CIRCTROTT_TIMEFACTOR "time_factor"
+#define DATA_CIRCTROTT_VALUES "values"
 
-#define DATA_CIRC_QDRIFT "circ_qdrift"
-#define DATA_CIRC_QDRIFT_STEP_SIZE "step_size"
-#define DATA_CIRC_QDRIFT_NUM_SAMPLES "num_samples"
-#define DATA_CIRC_QDRIFT_CIRCUIT_DEPTH "depth"
-#define DATA_CIRC_QDRIFT_VALUES "values"
+#define DATA_CIRCQDRIFT "circ_qdrift"
+#define DATA_CIRCQDRIFT_STEPSIZE "step_size"
+#define DATA_CIRCQDRIFT_NUMSAMPLES "num_samples"
+#define DATA_CIRCQDRIFT_DEPTH "depth"
+#define DATA_CIRCQDRIFT_VALUES "values"
 
 /* Open, close data file */
-data_id
-data_open(const char *filename)
+data_id data_open(const char *filename)
 {
 	// init MPI environment
 	int initialized;
@@ -44,14 +43,12 @@ data_open(const char *filename)
 	return file_id;
 }
 
-void
-data_close(const data_id fid)
+void data_close(const data_id fid)
 {
 	H5Fclose(fid);
 }
 
-static int
-data_group_open(const hid_t fid, hid_t *grpid, const char *name)
+static int data_group_open(const hid_t fid, hid_t *grpid, const char *name)
 {
 	const hid_t hid = H5Gopen2(fid, name, H5P_DEFAULT);
 	if (hid == H5I_INVALID_HID)
@@ -61,14 +58,12 @@ data_group_open(const hid_t fid, hid_t *grpid, const char *name)
 	return 0;
 }
 
-static void
-data_group_close(const hid_t grpid)
+static void data_group_close(const hid_t grpid)
 {
 	H5Gclose(grpid);
 }
 
-static int
-data_read_attr(hid_t fid, const char *name, hid_t type_id, void *buf)
+static int data_read_attr(hid_t fid, const char *name, hid_t type_id, void *buf)
 {
 	int rt = 0;
 
@@ -87,14 +82,13 @@ struct multidet_handle {
 	hid_t multidet_grpid;
 };
 
-static int
-multidet_open(const data_id fid, struct multidet_handle *md)
+static int multidet_open(const data_id fid, struct multidet_handle *md)
 {
 	hid_t sp_id, md_id;
 
-	if (data_group_open(fid, &sp_id, DATA_STATE_PREP) < 0)
+	if (data_group_open(fid, &sp_id, DATA_STPREP) < 0)
 		return -1;
-	if (data_group_open(sp_id, &md_id, DATA_STATE_PREP_MULTIDET) < 0) {
+	if (data_group_open(sp_id, &md_id, DATA_STPREP_MULTIDET) < 0) {
 		data_group_close(sp_id);
 		return -1;
 	}
@@ -105,15 +99,13 @@ multidet_open(const data_id fid, struct multidet_handle *md)
 	return 0;
 }
 
-static void
-multidet_close(struct multidet_handle md)
+static void multidet_close(struct multidet_handle md)
 {
 	data_group_close(md.multidet_grpid);
 	data_group_close(md.state_prep_grpid);
 }
 
-int
-data_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets)
+int data_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets)
 {
 	int rt = -1;
 
@@ -122,7 +114,7 @@ data_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets)
 		return -1;
 
 	const hid_t dset_id = H5Dopen2(
-		md.multidet_grpid, DATA_STATE_PREP_MULTIDET_DETS, H5P_DEFAULT);
+		md.multidet_grpid, DATA_STPREP_MULTIDET_DETS, H5P_DEFAULT);
 	if (dset_id == H5I_INVALID_HID)
 		goto exit_md_open;
 
@@ -143,8 +135,7 @@ exit_md_open:
 	return rt;
 }
 
-static int
-multidet_read_data(data_id fid, double *coeffs, unsigned char *dets)
+static int multidet_read_data(data_id fid, double *coeffs, unsigned char *dets)
 {
 	int rt = -1;
 
@@ -152,8 +143,8 @@ multidet_read_data(data_id fid, double *coeffs, unsigned char *dets)
 	if (multidet_open(fid, &md) < 0)
 		goto exit_multidet_open;
 
-	const hid_t dset_coeffs_id = H5Dopen2(md.multidet_grpid,
-		DATA_STATE_PREP_MULTIDET_COEFFS, H5P_DEFAULT);
+	const hid_t dset_coeffs_id = H5Dopen2(
+		md.multidet_grpid, DATA_STPREP_MULTIDET_COEFFS, H5P_DEFAULT);
 	if (dset_coeffs_id == H5I_INVALID_HID)
 		goto exit_coeffs_open;
 	if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
@@ -161,7 +152,7 @@ multidet_read_data(data_id fid, double *coeffs, unsigned char *dets)
 		goto exit_coeffs_read;
 
 	const hid_t dset_dets_id = H5Dopen2(
-		md.multidet_grpid, DATA_STATE_PREP_MULTIDET_DETS, H5P_DEFAULT);
+		md.multidet_grpid, DATA_STPREP_MULTIDET_DETS, H5P_DEFAULT);
 	if (dset_dets_id == H5I_INVALID_HID)
 		goto exit_dets_open;
 	if (H5Dread(dset_dets_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
@@ -181,8 +172,7 @@ exit_multidet_open:
 	return rt;
 }
 
-int
-data_multidet_foreach(data_id fid,
+int data_multidet_foreach(data_id fid,
 	int (*op)(double coeff[2], uint64_t idx, void *), void *op_data)
 {
 	int    rt = -1, rc = 0;
@@ -229,17 +219,15 @@ exit_getnums:
 	return rt;
 }
 
-int
-data_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms)
+int data_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms)
 {
 	int rt = -1;
 
 	hid_t grpid;
-	if (data_group_open(fid, &grpid, DATA_PAULI_HAMIL) < 0)
+	if (data_group_open(fid, &grpid, DATA_HAMIL) < 0)
 		goto exit_open;
 
-	const hid_t dset_id =
-		H5Dopen2(grpid, DATA_PAULI_HAMIL_PAULIS, H5P_DEFAULT);
+	const hid_t dset_id = H5Dopen2(grpid, DATA_HAMIL_PAULIS, H5P_DEFAULT);
 	if (dset_id == H5I_INVALID_HID)
 		goto exit_read;
 
@@ -261,17 +249,15 @@ exit_open:
 	return rt;
 }
 
-int
-data_hamil_getnorm(data_id fid, double *norm)
+int data_hamil_getnorm(data_id fid, double *norm)
 {
 	int rt = -1;
 
 	hid_t grpid;
-	if (data_group_open(fid, &grpid, DATA_PAULI_HAMIL) < 0)
+	if (data_group_open(fid, &grpid, DATA_HAMIL) < 0)
 		goto exit_open;
 
-	const hid_t attr_norm_id =
-		H5Aopen(grpid, DATA_PAULI_HAMIL_NORM, H5P_DEFAULT);
+	const hid_t attr_norm_id = H5Aopen(grpid, DATA_HAMIL_NORM, H5P_DEFAULT);
 	if (attr_norm_id == H5I_INVALID_HID)
 		goto exit_attr_open;
 
@@ -290,17 +276,16 @@ exit_open:
 	return rt;
 }
 
-static int
-hamil_read_data(data_id fid, double *coeffs, unsigned char *paulis)
+static int hamil_read_data(data_id fid, double *coeffs, unsigned char *paulis)
 {
 	int rt = -1;
 
 	hid_t grpid;
-	if (data_group_open(fid, &grpid, DATA_PAULI_HAMIL) < 0)
+	if (data_group_open(fid, &grpid, DATA_HAMIL) < 0)
 		return -1;
 
 	const hid_t dset_coeffs_id =
-		H5Dopen2(grpid, DATA_PAULI_HAMIL_COEFFS, H5P_DEFAULT);
+		H5Dopen2(grpid, DATA_HAMIL_COEFFS, H5P_DEFAULT);
 	if (dset_coeffs_id == H5I_INVALID_HID)
 		goto exit_coeffs_open;
 
@@ -309,7 +294,7 @@ hamil_read_data(data_id fid, double *coeffs, unsigned char *paulis)
 		goto exit_coeffs_read;
 
 	const hid_t dset_paulis_id =
-		H5Dopen2(grpid, DATA_PAULI_HAMIL_PAULIS, H5P_DEFAULT);
+		H5Dopen2(grpid, DATA_HAMIL_PAULIS, H5P_DEFAULT);
 	if (dset_paulis_id == H5I_INVALID_HID)
 		goto exit_paulis_open;
 
@@ -330,8 +315,7 @@ exit_coeffs_open:
 	return rt;
 }
 
-int
-data_hamil_foreach(const data_id fid,
+int data_hamil_foreach(const data_id fid,
 	int (*op)(double, unsigned char *, void *), void *op_data)
 {
 	int    rt = -1, rc = 0;
@@ -372,25 +356,24 @@ exit_coeffs_alloc:
 	return rt;
 }
 
-int
-data_circ_trott_getttrs(data_id fid, double *factor)
+int data_circ_trott_getttrs(data_id fid, double *factor)
 {
 	int rt = 0;
 
 	hid_t grpid;
-	if (data_group_open(fid, &grpid, DATA_CIRC_TROTT) < 0)
+	if (data_group_open(fid, &grpid, DATA_CIRCTROTT) < 0)
 		return -1;
 
 	rt += data_read_attr(
-		grpid, DATA_CIRC_TROTT_TIME_FACTOR, H5T_NATIVE_DOUBLE, factor);
+		grpid, DATA_CIRCTROTT_TIMEFACTOR, H5T_NATIVE_DOUBLE, factor);
 
 	data_group_close(grpid);
 
 	return rt;
 }
 
-int
-data_circ_trott_write_values(data_id fid, double *values[2], size_t num_values)
+int data_circ_trott_write_values(
+	data_id fid, double *values[2], size_t num_values)
 {
 	int rt = -1;
 
@@ -403,13 +386,13 @@ data_circ_trott_write_values(data_id fid, double *values[2], size_t num_values)
 		val_cont[2 * i + 1] = values[1][i];
 	}
 
-	if (data_group_open(fid, &grpid, DATA_CIRC_TROTT) < 0)
+	if (data_group_open(fid, &grpid, DATA_CIRCTROTT) < 0)
 		goto exit_open;
 	if ((dspace = H5Screate_simple(
 		     2, (hsize_t[]){ num_values, 2 }, NULL)) == H5I_INVALID_HID)
 		goto exit_fspace;
 
-	if ((dset = H5Dcreate2(grpid, DATA_CIRC_TROTT_VALUES, H5T_IEEE_F64LE,
+	if ((dset = H5Dcreate2(grpid, DATA_CIRCTROTT_VALUES, H5T_IEEE_F64LE,
 		     dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) ==
 		H5I_INVALID_HID)
 		goto exit_dset;
@@ -432,8 +415,7 @@ exit_open:
 	return rt;
 }
 
-int
-data_circ_trott_read_values_test(
+int data_circ_trott_read_values_test(
 	data_id fid, double *values[2], size_t num_values)
 {
 	int rt = -1;
@@ -443,9 +425,9 @@ data_circ_trott_read_values_test(
 	if (val_cont == NULL)
 		return -1;
 
-	if (data_group_open(fid, &grpid, DATA_CIRC_TROTT) < 0)
+	if (data_group_open(fid, &grpid, DATA_CIRCTROTT) < 0)
 		goto exit_open;
-	const hid_t dset = H5Dopen2(grpid, DATA_CIRC_TROTT_VALUES, H5P_DEFAULT);
+	const hid_t dset = H5Dopen2(grpid, DATA_CIRCTROTT_VALUES, H5P_DEFAULT);
 	if (dset == H5I_INVALID_HID)
 		goto exit_dset;
 	if (H5Dread(dset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
@@ -469,30 +451,29 @@ exit_open:
 	return rt;
 }
 
-int
-data_circ_qdrift_getattrs(
+int data_circ_qdrift_getattrs(
 	data_id fid, size_t *num_samples, double *step_size, size_t *depth)
 {
 	int rt = 0;
 
 	hid_t grpid;
-	if (data_group_open(fid, &grpid, DATA_CIRC_QDRIFT) < 0)
+	if (data_group_open(fid, &grpid, DATA_CIRCQDRIFT) < 0)
 		return -1;
 
-	rt += data_read_attr(grpid, DATA_CIRC_QDRIFT_NUM_SAMPLES,
+	rt += data_read_attr(grpid, DATA_CIRCQDRIFT_NUMSAMPLES,
 		H5T_NATIVE_UINT64, num_samples);
-	rt += data_read_attr(grpid, DATA_CIRC_QDRIFT_STEP_SIZE,
-		H5T_NATIVE_DOUBLE, step_size);
-	rt += data_read_attr(grpid, DATA_CIRC_QDRIFT_CIRCUIT_DEPTH,
-		H5T_NATIVE_UINT64, depth);
+	rt += data_read_attr(
+		grpid, DATA_CIRCQDRIFT_STEPSIZE, H5T_NATIVE_DOUBLE, step_size);
+	rt += data_read_attr(
+		grpid, DATA_CIRCQDRIFT_DEPTH, H5T_NATIVE_UINT64, depth);
 
 	data_group_close(grpid);
 
 	return rt;
 }
 
-int
-data_circ_qdrift_write_values(data_id fid, double *values[2], size_t num_values)
+int data_circ_qdrift_write_values(
+	data_id fid, double *values[2], size_t num_values)
 {
 	int rt = -1;
 
@@ -505,13 +486,13 @@ data_circ_qdrift_write_values(data_id fid, double *values[2], size_t num_values)
 		val_cont[2 * i + 1] = values[1][i];
 	}
 
-	if (data_group_open(fid, &grpid, DATA_CIRC_QDRIFT) < 0)
+	if (data_group_open(fid, &grpid, DATA_CIRCQDRIFT) < 0)
 		goto exit_open;
 	if ((dspace = H5Screate_simple(
 		     2, (hsize_t[]){ num_values, 2 }, NULL)) == H5I_INVALID_HID)
 		goto exit_fspace;
 
-	if ((dset = H5Dcreate2(grpid, DATA_CIRC_QDRIFT_VALUES, H5T_IEEE_F64LE,
+	if ((dset = H5Dcreate2(grpid, DATA_CIRCQDRIFT_VALUES, H5T_IEEE_F64LE,
 		     dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) ==
 		H5I_INVALID_HID)
 		goto exit_dset;

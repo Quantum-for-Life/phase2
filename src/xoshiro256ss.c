@@ -11,24 +11,22 @@ See <http://creativecommons.org/publicdomain/zero/1.0/>. */
 
 #include "xoshiro256ss.h"
 
-static uint64_t
-splitmix64(uint64_t *st)
+static uint64_t splitmix64(uint64_t *st)
 {
 	uint64_t rt = (*st += UINT64_C(0x9E3779B97f4A7C15));
-	rt = (rt ^ (rt >> 30)) * UINT64_C(0xBF58476D1CE4E5B9);
-	rt = (rt ^ (rt >> 27)) * UINT64_C(0x94D049BB133111EB);
+	rt	    = (rt ^ (rt >> 30)) * UINT64_C(0xBF58476D1CE4E5B9);
+	rt	    = (rt ^ (rt >> 27)) * UINT64_C(0x94D049BB133111EB);
 
 	return rt ^ (rt >> 31);
 }
 
-void
-xoshiro256ss_init(struct xoshiro256ss *st, const uint64_t seed)
+void xoshiro256ss_init(struct xoshiro256ss *st, const uint64_t seed)
 {
 	uint64_t splmx = seed;
-	st->s[0]    = splitmix64(&splmx);
-	st->s[1]    = splitmix64(&splmx);
-	st->s[2]    = splitmix64(&splmx);
-	st->s[3]    = splitmix64(&splmx);
+	st->s[0]       = splitmix64(&splmx);
+	st->s[1]       = splitmix64(&splmx);
+	st->s[2]       = splitmix64(&splmx);
+	st->s[3]       = splitmix64(&splmx);
 
 	for (size_t _ = 0; _ < 128; _++)
 		xoshiro256ss_next(st);
@@ -45,14 +43,12 @@ xoshiro256ss_init(struct xoshiro256ss *st, const uint64_t seed)
    a 64-bit seed, we suggest to seed a splitmix64 generator and use its
    output to fill s. */
 
-static uint64_t
-rotl(const uint64_t x, int k)
+static uint64_t rotl(const uint64_t x, int k)
 {
 	return (x << k) | (x >> (64 - k));
 }
 
-uint64_t
-xoshiro256ss_next(struct xoshiro256ss *st)
+uint64_t xoshiro256ss_next(struct xoshiro256ss *st)
 {
 	const uint64_t result = rotl(st->s[1] * 5, 7) * 9;
 	const uint64_t t      = st->s[1] << 17;
@@ -70,8 +66,7 @@ xoshiro256ss_next(struct xoshiro256ss *st)
    to 2^128 calls to next(); it can be used to generate 2^128
    non-overlapping subsequences for parallel computations. */
 
-void
-xoshiro256ss_jump(struct xoshiro256ss *st)
+void xoshiro256ss_jump(struct xoshiro256ss *st)
 {
 	static const uint64_t JUMP[] = { 0x180ec6d33cfd0aba, 0xd5a61266f0c9392c,
 		0xa9582618e03fc9aa, 0x39abdc4529b1661c };
@@ -100,8 +95,7 @@ xoshiro256ss_jump(struct xoshiro256ss *st)
    from each of which jump() will generate 2^64 non-overlapping
    subsequences for parallel distributed computations. */
 
-void
-xoshiro256ss_longjump(struct xoshiro256ss *st)
+void xoshiro256ss_longjump(struct xoshiro256ss *st)
 {
 	static const uint64_t LONG_JUMP[] = { 0x76e15d3efefdcbbf,
 		0xc5004e441c522fb3, 0x77710069854ee241, 0x39109bb02acbe635 };
