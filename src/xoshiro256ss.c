@@ -12,11 +12,9 @@ See <http://creativecommons.org/publicdomain/zero/1.0/>. */
 #include "xoshiro256ss.h"
 
 static uint64_t
-splitmix64(uint64_t *state)
+splitmix64(uint64_t *st)
 {
-	uint64_t rt;
-
-	rt = (*state += UINT64_C(0x9E3779B97f4A7C15));
+	uint64_t rt = (*st += UINT64_C(0x9E3779B97f4A7C15));
 	rt = (rt ^ (rt >> 30)) * UINT64_C(0xBF58476D1CE4E5B9);
 	rt = (rt ^ (rt >> 27)) * UINT64_C(0x94D049BB133111EB);
 
@@ -24,16 +22,16 @@ splitmix64(uint64_t *state)
 }
 
 void
-xoshiro256ss_init(struct xoshiro256ss *state, uint64_t seed)
+xoshiro256ss_init(struct xoshiro256ss *st, const uint64_t seed)
 {
 	uint64_t splmx = seed;
-	state->s[0]    = splitmix64(&splmx);
-	state->s[1]    = splitmix64(&splmx);
-	state->s[2]    = splitmix64(&splmx);
-	state->s[3]    = splitmix64(&splmx);
+	st->s[0]    = splitmix64(&splmx);
+	st->s[1]    = splitmix64(&splmx);
+	st->s[2]    = splitmix64(&splmx);
+	st->s[3]    = splitmix64(&splmx);
 
 	for (size_t _ = 0; _ < 128; _++)
-		xoshiro256ss_next(state);
+		xoshiro256ss_next(st);
 }
 
 /* This is xoshiro256** 1.0, one of our all-purpose, rock-solid
@@ -47,23 +45,23 @@ xoshiro256ss_init(struct xoshiro256ss *state, uint64_t seed)
    a 64-bit seed, we suggest to seed a splitmix64 generator and use its
    output to fill s. */
 
-static inline uint64_t
+static uint64_t
 rotl(const uint64_t x, int k)
 {
 	return (x << k) | (x >> (64 - k));
 }
 
 uint64_t
-xoshiro256ss_next(struct xoshiro256ss *state)
+xoshiro256ss_next(struct xoshiro256ss *st)
 {
-	const uint64_t result = rotl(state->s[1] * 5, 7) * 9;
-	const uint64_t t      = state->s[1] << 17;
-	state->s[2] ^= state->s[0];
-	state->s[3] ^= state->s[1];
-	state->s[1] ^= state->s[2];
-	state->s[0] ^= state->s[3];
-	state->s[2] ^= t;
-	state->s[3] = rotl(state->s[3], 45);
+	const uint64_t result = rotl(st->s[1] * 5, 7) * 9;
+	const uint64_t t      = st->s[1] << 17;
+	st->s[2] ^= st->s[0];
+	st->s[3] ^= st->s[1];
+	st->s[1] ^= st->s[2];
+	st->s[0] ^= st->s[3];
+	st->s[2] ^= t;
+	st->s[3] = rotl(st->s[3], 45);
 
 	return result;
 }
@@ -73,30 +71,28 @@ xoshiro256ss_next(struct xoshiro256ss *state)
    non-overlapping subsequences for parallel computations. */
 
 void
-xoshiro256ss_jump(struct xoshiro256ss *state)
+xoshiro256ss_jump(struct xoshiro256ss *st)
 {
 	static const uint64_t JUMP[] = { 0x180ec6d33cfd0aba, 0xd5a61266f0c9392c,
 		0xa9582618e03fc9aa, 0x39abdc4529b1661c };
 
-	uint64_t s0 = 0;
-	uint64_t s1 = 0;
-	uint64_t s2 = 0;
-	uint64_t s3 = 0;
+	uint64_t s0, s1, s2, s3;
+	s0 = s1 = s2 = s3 = 0;
 	for (size_t i = 0; i < sizeof JUMP / sizeof *JUMP; i++)
 		for (int b = 0; b < 64; b++) {
 			if (JUMP[i] & UINT64_C(1) << b) {
-				s0 ^= state->s[0];
-				s1 ^= state->s[1];
-				s2 ^= state->s[2];
-				s3 ^= state->s[3];
+				s0 ^= st->s[0];
+				s1 ^= st->s[1];
+				s2 ^= st->s[2];
+				s3 ^= st->s[3];
 			}
-			xoshiro256ss_next(state);
+			xoshiro256ss_next(st);
 		}
 
-	state->s[0] = s0;
-	state->s[1] = s1;
-	state->s[2] = s2;
-	state->s[3] = s3;
+	st->s[0] = s0;
+	st->s[1] = s1;
+	st->s[2] = s2;
+	st->s[3] = s3;
 }
 
 /* This is the long-jump function for the generator. It is equivalent to
@@ -105,28 +101,26 @@ xoshiro256ss_jump(struct xoshiro256ss *state)
    subsequences for parallel distributed computations. */
 
 void
-xoshiro256ss_longjump(struct xoshiro256ss *state)
+xoshiro256ss_longjump(struct xoshiro256ss *st)
 {
 	static const uint64_t LONG_JUMP[] = { 0x76e15d3efefdcbbf,
 		0xc5004e441c522fb3, 0x77710069854ee241, 0x39109bb02acbe635 };
 
-	uint64_t s0 = 0;
-	uint64_t s1 = 0;
-	uint64_t s2 = 0;
-	uint64_t s3 = 0;
+	uint64_t s0, s1, s2, s3;
+	s0 = s1 = s2 = s3 = 0;
 	for (size_t i = 0; i < sizeof LONG_JUMP / sizeof *LONG_JUMP; i++)
 		for (int b = 0; b < 64; b++) {
 			if (LONG_JUMP[i] & UINT64_C(1) << b) {
-				s0 ^= state->s[0];
-				s1 ^= state->s[1];
-				s2 ^= state->s[2];
-				s3 ^= state->s[3];
+				s0 ^= st->s[0];
+				s1 ^= st->s[1];
+				s2 ^= st->s[2];
+				s3 ^= st->s[3];
 			}
-			xoshiro256ss_next(state);
+			xoshiro256ss_next(st);
 		}
 
-	state->s[0] = s0;
-	state->s[1] = s1;
-	state->s[2] = s2;
-	state->s[3] = s3;
+	st->s[0] = s0;
+	st->s[1] = s1;
+	st->s[2] = s2;
+	st->s[3] = s3;
 }
