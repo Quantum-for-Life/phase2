@@ -7,7 +7,7 @@
 #include "circ_qdrift.h"
 #include "log.h"
 #include "qreg.h"
-#include "xoshiro256starstar.h"
+#include "xoshiro256ss.h"
 
 #define MAX_CACHE_CODES (1024)
 
@@ -28,7 +28,7 @@ struct circ_qdrift {
 		size_t	      num_codes;
 	} cache;
 
-	struct xoshiro256starstar rng;
+	struct xoshiro256ss rng;
 	size_t			 *sampled_idx;
 };
 
@@ -44,7 +44,7 @@ circ_create(struct circ_qdrift *c, const struct circ_qdrift_data *data,
 	c->data	  = data;
 	c->reg	  = reg;
 
-	xoshiro256starstar_init(&c->rng, PRNG_SEED);
+	xoshiro256ss_init(&c->rng, PRNG_SEED);
 	size_t *sampled_idx = malloc(sizeof(size_t) * data->depth);
 	if (sampled_idx == NULL)
 		return -1;
@@ -363,7 +363,7 @@ static void
 circ_sample_terms(struct circ_qdrift *c)
 {
 	for (size_t i = 0; i < c->data->depth; i++) {
-		double x = (double)(xoshiro256starstar_next(&c->rng) >> 11) *
+		double x = (double)(xoshiro256ss_next(&c->rng) >> 11) *
 			   0x1.0p-53;
 		c->sampled_idx[i] = circ_sample_invcdf(c, x);
 	}

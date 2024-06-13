@@ -9,7 +9,7 @@ See <http://creativecommons.org/publicdomain/zero/1.0/>. */
 #include <stddef.h>
 #include <stdint.h>
 
-#include "xoshiro256starstar.h"
+#include "xoshiro256ss.h"
 
 static uint64_t
 splitmix64(uint64_t *state)
@@ -24,7 +24,7 @@ splitmix64(uint64_t *state)
 }
 
 void
-xoshiro256starstar_init(struct xoshiro256starstar *state, uint64_t seed)
+xoshiro256ss_init(struct xoshiro256ss *state, uint64_t seed)
 {
 	uint64_t splmx = seed;
 	state->s[0]    = splitmix64(&splmx);
@@ -33,7 +33,7 @@ xoshiro256starstar_init(struct xoshiro256starstar *state, uint64_t seed)
 	state->s[3]    = splitmix64(&splmx);
 
 	for (size_t _ = 0; _ < 128; _++)
-		xoshiro256starstar_next(state);
+		xoshiro256ss_next(state);
 }
 
 /* This is xoshiro256** 1.0, one of our all-purpose, rock-solid
@@ -54,7 +54,7 @@ rotl(const uint64_t x, int k)
 }
 
 uint64_t
-xoshiro256starstar_next(struct xoshiro256starstar *state)
+xoshiro256ss_next(struct xoshiro256ss *state)
 {
 	const uint64_t result = rotl(state->s[1] * 5, 7) * 9;
 	const uint64_t t      = state->s[1] << 17;
@@ -73,7 +73,7 @@ xoshiro256starstar_next(struct xoshiro256starstar *state)
    non-overlapping subsequences for parallel computations. */
 
 void
-xoshiro256starstar_jump(struct xoshiro256starstar *state)
+xoshiro256ss_jump(struct xoshiro256ss *state)
 {
 	static const uint64_t JUMP[] = { 0x180ec6d33cfd0aba, 0xd5a61266f0c9392c,
 		0xa9582618e03fc9aa, 0x39abdc4529b1661c };
@@ -90,7 +90,7 @@ xoshiro256starstar_jump(struct xoshiro256starstar *state)
 				s2 ^= state->s[2];
 				s3 ^= state->s[3];
 			}
-			xoshiro256starstar_next(state);
+			xoshiro256ss_next(state);
 		}
 
 	state->s[0] = s0;
@@ -105,7 +105,7 @@ xoshiro256starstar_jump(struct xoshiro256starstar *state)
    subsequences for parallel distributed computations. */
 
 void
-xoshiro256starstar_long_jump(struct xoshiro256starstar *state)
+xoshiro256ss_longjump(struct xoshiro256ss *state)
 {
 	static const uint64_t LONG_JUMP[] = { 0x76e15d3efefdcbbf,
 		0xc5004e441c522fb3, 0x77710069854ee241, 0x39109bb02acbe635 };
@@ -122,7 +122,7 @@ xoshiro256starstar_long_jump(struct xoshiro256starstar *state)
 				s2 ^= state->s[2];
 				s3 ^= state->s[3];
 			}
-			xoshiro256starstar_next(state);
+			xoshiro256ss_next(state);
 		}
 
 	state->s[0] = s0;

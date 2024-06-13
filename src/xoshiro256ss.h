@@ -13,25 +13,25 @@
  * implementation is thread-safe.
  */
 
-#ifndef XOSHIRO256STARSTAR_H
-#define XOSHIRO256STARSTAR_H
+#ifndef XOSHIRO256SS_H
+#define XOSHIRO256SS_H
 
 #include <stdint.h>
 
-struct xoshiro256starstar {
+struct xoshiro256ss {
 	uint64_t s[4];
 };
 
 void
-xoshiro256starstar_init(struct xoshiro256starstar *state, uint64_t seed);
+xoshiro256ss_init(struct xoshiro256ss *state, uint64_t seed);
 
 uint64_t
-xoshiro256starstar_next(struct xoshiro256starstar *state);
+xoshiro256ss_next(struct xoshiro256ss *state);
 
 void
-xoshiro256starstar_jump(struct xoshiro256starstar *state);
+xoshiro256ss_jump(struct xoshiro256ss *state);
 
 void
-xoshiro256starstar_long_jump(struct xoshiro256starstar *state);
+xoshiro256ss_longjump(struct xoshiro256ss *state);
 
-#endif /* XOSHIRO256STARSTAR_H */
+#endif /* XOSHIRO256SS_H */

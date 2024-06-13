@@ -39,7 +39,7 @@ set(PHASE2_SOURCES
         ${SRC_DIR}/data.c
         ${SRC_DIR}/qreg.c
         ${SRC_DIR}/log.c
-        ${SRC_DIR}/xoshiro256starstar.c
+        ${SRC_DIR}/xoshiro256ss.c
         ${SRC_DIR}/circ_trott.c
         ${SRC_DIR}/circ_qdrift.c
 )
