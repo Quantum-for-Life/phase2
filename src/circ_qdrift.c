@@ -29,7 +29,7 @@ struct circ_qdrift {
 	} cache;
 
 	struct xoshiro256ss rng;
-	size_t			 *sampled_idx;
+	size_t		   *sampled_idx;
 };
 
 static int
@@ -210,9 +210,8 @@ circ_data_from_file(struct circ_qdrift_data *cd, const data_id fid)
 {
 	int rc = circ_hamil_from_file(&cd->hamil, fid);
 	rc |= circuit_multidet_from_data(&cd->multidet, fid);
-	data_circ_qdrift_get_factor(fid, &cd->step_size);
-	data_circ_qdrift_get_num_samples(fid, &cd->num_samples);
-	data_circ_qdrift_get_depth(fid, &cd->depth);
+	rc |= data_circ_qdrift_getattrs(
+		fid, &cd->num_samples, &cd->step_size, &cd->depth);
 
 	return rc;
 }
@@ -363,8 +362,8 @@ static void
 circ_sample_terms(struct circ_qdrift *c)
 {
 	for (size_t i = 0; i < c->data->depth; i++) {
-		double x = (double)(xoshiro256ss_next(&c->rng) >> 11) *
-			   0x1.0p-53;
+		double x =
+			(double)(xoshiro256ss_next(&c->rng) >> 11) * 0x1.0p-53;
 		c->sampled_idx[i] = circ_sample_invcdf(c, x);
 	}
 }

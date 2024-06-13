@@ -22,7 +22,7 @@
 #define DATA_CIRC_QDRIFT "circ_qdrift"
 #define DATA_CIRC_QDRIFT_STEP_SIZE "step_size"
 #define DATA_CIRC_QDRIFT_NUM_SAMPLES "num_samples"
-#define DATA_CIRC_QDRIFT_DEPTH "depth"
+#define DATA_CIRC_QDRIFT_CIRCUIT_DEPTH "depth"
 #define DATA_CIRC_QDRIFT_VALUES "values"
 
 /* Open, close data file */
@@ -65,6 +65,21 @@ static void
 data_group_close(const hid_t grpid)
 {
 	H5Gclose(grpid);
+}
+
+static int
+data_read_attr(hid_t fid, const char *name, hid_t type_id, void *buf)
+{
+	int rt = 0;
+
+	hid_t attr_id = H5Aopen(fid, name, H5P_DEFAULT);
+	if (attr_id == H5I_INVALID_HID)
+		return -1;
+	if (H5Aread(attr_id, type_id, buf) < 0)
+		rt = -1;
+	H5Aclose(attr_id);
+
+	return rt;
 }
 
 struct multidet_handle {
@@ -465,84 +480,22 @@ exit_open:
 }
 
 int
-data_circ_qdrift_get_factor(data_id fid, double *step_size)
+data_circ_qdrift_getattrs(
+	data_id fid, size_t *num_samples, double *step_size, size_t *depth)
 {
-	int rt = -1;
+	int rt = 0;
 
 	hid_t grpid;
 	if (data_group_open(fid, &grpid, DATA_CIRC_QDRIFT) < 0)
 		return -1;
 
-	const hid_t attr_norm_id =
-		H5Aopen(grpid, DATA_CIRC_QDRIFT_STEP_SIZE, H5P_DEFAULT);
-	if (attr_norm_id == H5I_INVALID_HID)
-		goto exit_attr_open;
-	double n;
-	if (H5Aread(attr_norm_id, H5T_NATIVE_DOUBLE, &n) < 0)
-		goto exit_attr_read;
+	rt += data_read_attr(grpid, DATA_CIRC_QDRIFT_NUM_SAMPLES,
+		H5T_NATIVE_UINT64, num_samples);
+	rt += data_read_attr(grpid, DATA_CIRC_QDRIFT_STEP_SIZE,
+		H5T_NATIVE_DOUBLE, step_size);
+	rt += data_read_attr(grpid, DATA_CIRC_QDRIFT_CIRCUIT_DEPTH,
+		H5T_NATIVE_UINT64, depth);
 
-	*step_size = n;
-	rt	   = 0;
-
-exit_attr_read:
-	H5Aclose(attr_norm_id);
-exit_attr_open:
-	data_group_close(grpid);
-
-	return rt;
-}
-
-int
-data_circ_qdrift_get_num_samples(data_id fid, size_t *num_samples)
-{
-	int rt = -1;
-
-	hid_t grpid;
-	if (data_group_open(fid, &grpid, DATA_CIRC_QDRIFT) < 0)
-		return -1;
-
-	const hid_t attr_norm_id =
-		H5Aopen(grpid, DATA_CIRC_QDRIFT_NUM_SAMPLES, H5P_DEFAULT);
-	if (attr_norm_id == H5I_INVALID_HID)
-		goto exit_attr_open;
-	uint64_t n;
-	if (H5Aread(attr_norm_id, H5T_NATIVE_UINT64, &n) < 0)
-		goto exit_attr_read;
-
-	*num_samples = (size_t)n;
-	rt	     = 0;
-
-exit_attr_read:
-	H5Aclose(attr_norm_id);
-exit_attr_open:
-	data_group_close(grpid);
-
-	return rt;
-}
-
-int
-data_circ_qdrift_get_depth(data_id fid, size_t *depth)
-{
-	int rt = -1;
-
-	hid_t grpid;
-	if (data_group_open(fid, &grpid, DATA_CIRC_QDRIFT) < 0)
-		return -1;
-
-	const hid_t attr_norm_id =
-		H5Aopen(grpid, DATA_CIRC_QDRIFT_DEPTH, H5P_DEFAULT);
-	if (attr_norm_id == H5I_INVALID_HID)
-		goto exit_attr_open;
-	uint64_t n;
-	if (H5Aread(attr_norm_id, H5T_NATIVE_UINT64, &n) < 0)
-		goto exit_attr_read;
-
-	*depth = (size_t)n;
-	rt     = 0;
-
-exit_attr_read:
-	H5Aclose(attr_norm_id);
-exit_attr_open:
 	data_group_close(grpid);
 
 	return rt;

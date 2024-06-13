@@ -168,13 +168,8 @@ int
 data_circ_trott_write_values(data_id fid, double *values[2], size_t num_values);
 
 int
-data_circ_qdrift_get_num_samples(data_id fid, size_t *num_samples);
-
-int
-data_circ_qdrift_get_factor(data_id fid, double *step_size);
-
-int
-data_circ_qdrift_get_depth(data_id fid, size_t *depth);
+data_circ_qdrift_getattrs(
+	data_id fid, size_t *num_samples, double *step_size, size_t *depth);
 
 int
 data_circ_qdrift_write_values(
