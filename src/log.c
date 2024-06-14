@@ -33,19 +33,19 @@
 #define MAX_CALLBACKS (32)
 
 struct log_event {
+	int	   level;
+	struct tm *time;
+
 	va_list	    ap;
 	const char *fmt;
-	struct tm  *time;
-	void	   *data;
-	int	    level;
+
+	void *data;
 };
 
-typedef void (*log_logfn)(struct log_event *ev);
-
 struct callback {
-	log_logfn fn;
-	void	 *data;
-	int	  level;
+	void  (*fn)(struct log_event *ev);
+	void *data;
+	int   level;
 };
 
 static struct {
@@ -64,35 +64,40 @@ const char *log_level_string(const int level)
 
 int log_level_from_lowercase(enum log_level *level, const char *name)
 {
-	if (!name) {
+	if (!name)
 		return -1;
-	}
-	if (strncmp(name, "trace", 5) == 0) {
+
+	int rt = 0;
+	switch (name[0]) {
+	case 't':
+	case 'T':
 		*level = LOG_TRACE;
-		return 0;
-	}
-	if (strncmp(name, "debug", 5) == 0) {
+		break;
+	case 'd':
+	case 'D':
 		*level = LOG_DEBUG;
-		return 0;
-	}
-	if (strncmp(name, "info", 4) == 0) {
+		break;
+	case 'i':
+	case 'I':
 		*level = LOG_INFO;
-		return 0;
-	}
-	if (strncmp(name, "warn", 4) == 0) {
+		break;
+	case 'w':
+	case 'W':
 		*level = LOG_WARN;
-		return 0;
-	}
-	if (strncmp(name, "error", 5) == 0) {
+		break;
+	case 'e':
+	case 'E':
 		*level = LOG_ERROR;
-		return 0;
-	}
-	if (strncmp(name, "fatal", 5) == 0) {
+		break;
+	case 'f':
+	case 'F':
 		*level = LOG_FATAL;
-		return 0;
+		break;
+	default:
+		rt = -1;
 	}
 
-	return -1;
+	return rt;
 }
 
 void log_set_level(const int level)
@@ -100,14 +105,15 @@ void log_set_level(const int level)
 	L.level = level;
 }
 
-int log_add_callback(const log_logfn fn, void *data, const int level)
+int log_add_callback(
+	void (*fn)(struct log_event *ev), void *data, const int level)
 {
-	for (int i = 0; i < MAX_CALLBACKS; i++) {
+	for (int i = 0; i < MAX_CALLBACKS; i++)
 		if (!L.cb[i].fn) {
 			L.cb[i] = (struct callback){ fn, data, level };
 			return 0;
 		}
-	}
+
 	return -1;
 }
 
@@ -154,9 +160,8 @@ void log_callback(struct log_event *ev)
 	if (initialized && !finalized) {
 		int rank;
 		MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-		if (rank > 0) {
+		if (rank > 0)
 			return;
-		}
 	}
 
 	char  buf[64];
@@ -172,9 +177,9 @@ int log_init(void)
 {
 	enum log_level lvl;
 	const char    *lvl_str = getenv(PHASE2_LOG_ENVVAR);
-	if (!lvl_str || log_level_from_lowercase(&lvl, lvl_str) < 0) {
+	if (!lvl_str || log_level_from_lowercase(&lvl, lvl_str) < 0)
 		lvl = LOG_ERROR;
-	}
+
 	log_set_level(lvl);
 	log_add_callback(log_callback, stderr, lvl);
 
