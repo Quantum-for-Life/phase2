@@ -33,7 +33,7 @@ const char *CASEIDS[NUM_CASES] = {
 #define MARGIN (1e-5)
 #endif
 
-static const char *CASE_DIR = PH2_TEST_DATA "/trott_caserand";
+static const char *CASE_DIR = PH2_TESTDIR "/trott_caserand";
 
 /* Defined in data.c */
 int data_circ_trott_read_values_test(

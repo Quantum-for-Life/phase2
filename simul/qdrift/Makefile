@@ -9,7 +9,7 @@ MPI_RANKS	= 4
 # System
 ROOT_DIR	= ../..
 SCRIPTS		= $(ROOT_DIR)/scripts
-BUILD		= $(ROOT_DIR)/build
+BUILD		= $(ROOT_DIR)/ph2run
 
 FCIDUMP		= FCIDUMP
 INPUTST		= INPUTST

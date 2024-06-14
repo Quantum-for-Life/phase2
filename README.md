@@ -8,14 +8,14 @@ Simulate generic Hamiltonians using Trotter product formula. 🏭
 
 To run the simulation, you will need:
 
-- Linux platform, with a C/C++ compiler toolchain and CMake>=3.19
+- Linux platform, with a C/C++ compiler toolchain
 - [OpenMPI][openmpi-website]
 - Parallel [HDF5][hdf5-website]
 
-Assuming we're on Ubuntu, you can install the dependencies with:
+Assuming we're on x86-64 Ubuntu, you can install the dependencies with:
 
 ```bash
-sudo apt install gcc g++ cmake 
+sudo apt install gcc
 sudo apt install libopenmpi-dev openmpi-common
 sudo apt install libhdf5-dev hdf5-tools libhdf5-mpi-dev libhdf5-openmpi-dev 
 ```
@@ -26,7 +26,6 @@ load the necessary modules:
 ```bash
 env2lmod
 module load gcc
-module load cmake
 module load hdf5
 module load openmpi
 ```
@@ -40,18 +39,19 @@ module load openmpi
 Download and compile the source code with:
 
 ```bash
-git clone https://github.com/Quantum-for-Life/phase2.git
+git clone https://github.com/Quantum-for-Life/phase2
 cd phase2
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j6
+make
 ```
 
 To run the test suite:
 
 ```bash
-ctest -V
+make test
 ```
+
+Consult [Makefile](./Makefile) for how to configure the build system, if you
+have the dependencies install in a different location.
 
 # How to use it
 
@@ -59,7 +59,7 @@ Prepare an input file for the simulation according to the
 [specification](./simul/simul-h5-specs.md). Then run:
 
 ```bash
-mpirun -n [NUM_CPUS] ./ph2run [SIMUL_FILE] [NUM_STEPS]
+mpirun -n [NUM_CPUS] ./ph2run/ph2run-trott [SIMUL_FILE] [NUM_STEPS]
 ```
 
 where
@@ -81,7 +81,7 @@ PHASE2_LOG=info mpirun -n 8 ./ph2run simul.h5 100
 will compute 100 Trotter steps for a Hamiltonian specified in the file
 `simul.h5` using 8 MPI processes, and write the result to the same file.
 
-See also the directory: `./simul` for a simple automated system with `Makefile`.
+See also the directory: `./simul` for an example of a simple automated system.
 
 *TODO*:
 

@@ -80,3 +80,8 @@ simul.log
 simul.h5*
 
 *.swp
+
+ph2run/ph2run-*
+test/test-data
+test/test-trott_caserand
+
