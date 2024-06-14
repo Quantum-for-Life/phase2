@@ -372,8 +372,8 @@ int data_circ_trott_getttrs(data_id fid, double *factor)
 	return rt;
 }
 
-int data_circ_trott_write_values(
-	data_id fid, double *values[2], size_t num_values)
+static int data_circ_write_values(const char *grp_name, const char *dset_name,
+	const data_id fid, double *values[2], const size_t num_values)
 {
 	int rt = -1;
 
@@ -386,15 +386,14 @@ int data_circ_trott_write_values(
 		val_cont[2 * i + 1] = values[1][i];
 	}
 
-	if (data_group_open(fid, &grpid, DATA_CIRCTROTT) < 0)
+	if (data_group_open(fid, &grpid, grp_name) < 0)
 		goto exit_open;
 	if ((dspace = H5Screate_simple(
 		     2, (hsize_t[]){ num_values, 2 }, NULL)) == H5I_INVALID_HID)
 		goto exit_fspace;
 
-	if ((dset = H5Dcreate2(grpid, DATA_CIRCTROTT_VALUES, H5T_IEEE_F64LE,
-		     dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) ==
-		H5I_INVALID_HID)
+	if ((dset = H5Dcreate2(grpid, dset_name, H5T_IEEE_F64LE, dspace,
+		     H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) == H5I_INVALID_HID)
 		goto exit_dset;
 
 	if (H5Dwrite(dset, H5T_NATIVE_DOUBLE, H5S_ALL, dspace, H5P_DEFAULT,
@@ -415,8 +414,15 @@ exit_open:
 	return rt;
 }
 
+int data_circ_trott_write_values(
+	const data_id fid, double *values[2], const size_t num_values)
+{
+	return data_circ_write_values(
+		DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES, fid, values, num_values);
+}
+
 int data_circ_trott_read_values_test(
-	data_id fid, double *values[2], size_t num_values)
+	const data_id fid, double *values[2], const size_t num_values)
 {
 	int rt = -1;
 
@@ -451,8 +457,8 @@ exit_open:
 	return rt;
 }
 
-int data_circ_qdrift_getattrs(
-	data_id fid, size_t *num_samples, double *step_size, size_t *depth)
+int data_circ_qdrift_getattrs(const data_id fid, size_t *num_samples,
+	double *step_size, size_t *depth)
 {
 	int rt = 0;
 
@@ -473,43 +479,8 @@ int data_circ_qdrift_getattrs(
 }
 
 int data_circ_qdrift_write_values(
-	data_id fid, double *values[2], size_t num_values)
+	const data_id fid, double *values[2], const size_t num_values)
 {
-	int rt = -1;
-
-	hid_t	grpid, dspace, dset;
-	double *val_cont = malloc(sizeof(double) * 2 * num_values);
-	if (val_cont == NULL)
-		return -1;
-	for (size_t i = 0; i < num_values; i++) {
-		val_cont[2 * i]	    = values[0][i];
-		val_cont[2 * i + 1] = values[1][i];
-	}
-
-	if (data_group_open(fid, &grpid, DATA_CIRCQDRIFT) < 0)
-		goto exit_open;
-	if ((dspace = H5Screate_simple(
-		     2, (hsize_t[]){ num_values, 2 }, NULL)) == H5I_INVALID_HID)
-		goto exit_fspace;
-
-	if ((dset = H5Dcreate2(grpid, DATA_CIRCQDRIFT_VALUES, H5T_IEEE_F64LE,
-		     dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) ==
-		H5I_INVALID_HID)
-		goto exit_dset;
-	if (H5Dwrite(dset, H5T_NATIVE_DOUBLE, H5S_ALL, dspace, H5P_DEFAULT,
-		    val_cont) < 0)
-		goto exit_dset_write;
-
-	rt = 0;
-
-exit_dset_write:
-	H5Dclose(dset);
-exit_dset:
-	H5Sclose(dspace);
-exit_fspace:
-	data_group_close(grpid);
-exit_open:
-	free(val_cont);
-
-	return rt;
+	return data_circ_write_values(DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_VALUES,
+		fid, values, num_values);
 }
