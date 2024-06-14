@@ -26,7 +26,7 @@ jobs:
           sudo apt install libhdf5-dev libhdf5-mpi-dev libhdf5-openmpi-dev
       - name: Build
         run: |
-          make -DPRECISION=${{ matrix.precision }}
+          CFLAGS="-DPRECISION=${{ matrix.precision }}" make 
       - name: Run tests
         run: |
           make test
