@@ -3,8 +3,6 @@
 #include <stdlib.h>
 
 #include "circ.h"
-#include "data.h"
-#include "qreg.h"
 
 void circ_hamil_init(struct circ_hamil *h)
 {

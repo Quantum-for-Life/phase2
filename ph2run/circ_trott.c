@@ -5,7 +5,6 @@
 
 #include "circ.h"
 #include "log.h"
-#include "qreg.h"
 
 #define MAX_CACHE_CODES (1024)
 

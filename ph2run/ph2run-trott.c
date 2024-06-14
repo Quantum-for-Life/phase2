@@ -4,7 +4,6 @@
 #include "mpi.h"
 
 #include "circ.h"
-#include "data.h"
 #include "log.h"
 
 static struct opt {

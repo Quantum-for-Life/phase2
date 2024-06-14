@@ -6,7 +6,6 @@
 
 #include "circ.h"
 #include "log.h"
-#include "qreg.h"
 #include "xoshiro256ss.h"
 
 #define MAX_CACHE_CODES (1024)
