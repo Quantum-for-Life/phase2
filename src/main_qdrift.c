@@ -5,10 +5,9 @@
 
 #include "mpi.h"
 
-#include "circ_qdrift.h"
+#include "circ.h"
 #include "data.h"
 #include "log.h"
-#include "qreg.h"
 
 static struct opt {
 	const char *filename;

@@ -3,7 +3,7 @@
 
 #include "mpi.h"
 
-#include "circ_trott.h"
+#include "circ.h"
 #include "data.h"
 
 #include "test.h"
