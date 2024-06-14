@@ -56,8 +56,8 @@ add_executable(ph2run-qdrift
 
 # -----------------------------------------------------------------------------
 # Testing
-set(PH2_SIMUL_DATA ${PROJECT_SOURCE_DIR}/simul_data)
-add_compile_definitions(PH2_SIMUL_DATA="${PH2_SIMUL_DATA}")
+set(PH2_TEST_DATA ${PROJECT_SOURCE_DIR}/test)
+add_compile_definitions(PH2_TEST_DATA="${PH2_TEST_DATA}")
 
 include(CTest)
 if (BUILD_TESTING)
