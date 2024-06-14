@@ -62,7 +62,7 @@ PROGS	= $(PH2RUNDIR)/ph2run-qdrift \
 	debug			\
 	test
 
-all: build
+all: build build-test
 
 debug:	build build-test
 debug:	CFLAGS	+= -g -Og -DDEBUG
