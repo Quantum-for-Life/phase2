@@ -1,9 +1,5 @@
 #include "test.h"
 
-#ifndef TEST_DATA_SRC
-#error
-#endif
-
 int test_data_open(void);
 
 int test_data_multidet(void);
