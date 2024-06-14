@@ -56,7 +56,7 @@ ctest -V
 # How to use it
 
 Prepare an input file for the simulation according to the
-[specification](./doc/simul-h5-specs.md). Then run:
+[specification](./simul/simul-h5-specs.md). Then run:
 
 ```bash
 mpirun -n [NUM_CPUS] ./ph2run [SIMUL_FILE] [NUM_STEPS]
