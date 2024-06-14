@@ -1,9 +1,8 @@
 # ############################################################################
 # Simulation parameters:
-SIMUL_TAG	= 0001
-TIME_FACT	= 0.1
+TIME_FACT	= 0.01
 TROTT_STEPS	= 1024
-MPI_RANKS	= 4
+MPI_RANKS	= 2
 # #############################################################################
 
 # System
@@ -15,49 +14,45 @@ FCIDUMP		= FCIDUMP
 INPUTST		= INPUTST
 SIMUL_H5	= simul.h5
 SIMUL_ORIG	= $(SIMUL_H5).orig
-SIMUL_PROC	= $(SIMUL_H5).proc
+SIMUL_RES	= $(SIMUL_H5).res
 
 PYTHON		= python3
-PARSE_FCIDP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
-PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
-TROTT_PREP	= $(PYTHON) $(SCRIPTS)/trott_prep.py
-TROTT_VALID	= $(PYTHON) $(SCRIPTS)/trott_validate.py
-TROTT_RPE	= $(PYTHON) $(SCRIPTS)/trott_rpe.py
 MPIRUN		= mpirun
 PH2RUN		= $(BUILD)/ph2run-trott
-CP			= cp -f
-RM			= rm -fv
+
+PARSE_FCIDUMP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
+PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
+TROTT_PREP	= $(PYTHON) $(SCRIPTS)/trott_prep.py
+TROTT_RPE	= $(PYTHON) $(SCRIPTS)/trott_rpe.py
 
 # Application flags
-PARSE_FCIDP_FLAGS	= --sort-terms
+PARSE_FCIDUMP_FLAGS	= --sort-terms
 PARSE_INPUTST_FLAGS =
 TROTT_PREP_FLAGS	= --time-factor=$(TIME_FACT)
 TROTT_RPE_FLAGS		=
-TROTT_VALID_FLAGS	=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
 PH2RUN_FLAGS		= $(TROTT_STEPS)
-PR2RUN_LOGLVL		= info
+PR2RUN_LOGLVL		= error
 
 
 .DEFAULT_GOAL: all
 .PHONY: all clean
 
-all: $(SIMUL_PROC)
+all: $(SIMUL_RES)
 
 $(SIMUL_ORIG): $(FCIDUMP) $(INPUTST)
-	$(PARSE_FCIDP) $(PARSE_FCIDP_FLAGS) -o $@ $(FCIDUMP)
+	$(PARSE_FCIDUMP) $(PARSE_FCIDUMP_FLAGS) -o $@ $(FCIDUMP)
 	$(PARSE_INPUTST) $(PARSE_INPUTST_FLAGS) -o $@ $(INPUTST)
 	$(TROTT_PREP) $(TROTT_PREP_FLAGS) -o $@
 
 $(SIMUL_H5): $(SIMUL_ORIG)
-	$(CP) $< $@
+	cp $< $@
 	$(MPIRUN) $(MPIRUN_FLAGS) -x PHASE2_LOG=$(PR2RUN_LOGLVL) \
  		$(PH2RUN) $(SIMUL_H5) $(PH2RUN_FLAGS)
 
-$(SIMUL_PROC): $(SIMUL_H5)
-	@echo -n "$(SIMUL_TAG),$(TIME_FACT),$(TROTT_STEPS)," > $@
+$(SIMUL_RES): $(SIMUL_H5)
+	@echo -n "$(TIME_FACT),$(TROTT_STEPS)," > $@
 	$(TROTT_RPE) $(TROTT_RPE_FLAGS) $< >> $@
-	@cat $@ | tee -a $(SIMUL_ALL)
 
 clean:
-	$(RM) $(SIMUL_ORIG) $(SIMUL_H5) $(SIMUL_PROC)
+	$(RM) $(SIMUL_ORIG) $(SIMUL_H5) $(SIMUL_RES)
