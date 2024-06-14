@@ -166,7 +166,4 @@ int data_circ_qdrift_getattrs(
 int data_circ_qdrift_write_values(
 	data_id fid, double *values[2], size_t num_values);
 
-int data_circ_trott_read_values_test(
-	data_id fid, double *values[2], size_t num_values);
-
 #endif // PHASE2_DATA_H

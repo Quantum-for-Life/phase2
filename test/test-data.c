@@ -4,20 +4,15 @@
 #error
 #endif
 
-int
-test_data_open(void);
+int test_data_open(void);
 
-int
-test_data_multidet(void);
+int test_data_multidet(void);
 
-int
-test_data_hamil(void);
+int test_data_hamil(void);
 
-int
-test_data_trott_steps(void);
+int test_data_trott_steps(void);
 
-int
-main(void)
+int main(void)
 {
 	if (test_data_open() < 0) {
 		TEST_FAIL("data_open");

@@ -8,8 +8,7 @@
 
 #define MARGIN (1e-6)
 
-static int
-test_get_nums(void)
+static int test_get_nums(void)
 {
 	int rc = 0;
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
@@ -43,8 +42,7 @@ test_get_nums(void)
 	return rc;
 }
 
-static int
-iter_count_dets(double coeff[2], size_t idx, void *op_data)
+static int iter_count_dets(double coeff[2], size_t idx, void *op_data)
 {
 	(void)coeff;
 	(void)idx;
@@ -55,8 +53,7 @@ iter_count_dets(double coeff[2], size_t idx, void *op_data)
 	return 0;
 }
 
-static int
-iter_count_dets_onlytwo(double coeff[2], size_t idx, void *op_data)
+static int iter_count_dets_onlytwo(double coeff[2], size_t idx, void *op_data)
 {
 	(void)coeff;
 	(void)idx;
@@ -76,8 +73,7 @@ struct iter_store {
 	size_t		idx[128];
 };
 
-static int
-iter_store_dets(double coeff[2], const size_t idx, void *op_data)
+static int iter_store_dets(double coeff[2], const size_t idx, void *op_data)
 {
 	struct iter_store *is = op_data;
 
@@ -88,8 +84,7 @@ iter_store_dets(double coeff[2], const size_t idx, void *op_data)
 	return 0;
 }
 
-static int
-test_iter0(void)
+static int test_iter0(void)
 {
 	const struct test_data td  = TEST_DATA[0];
 	data_id		       fid = data_open(td.filename);
@@ -127,8 +122,7 @@ err:
 	return -1;
 }
 
-static int
-test_iter1(void)
+static int test_iter1(void)
 {
 	const struct test_data td  = TEST_DATA[1];
 	data_id		       fid = data_open(td.filename);
@@ -195,8 +189,7 @@ err:
 	return -1;
 }
 
-int
-test_data_multidet()
+int test_data_multidet()
 {
 	if (test_get_nums() < 0)
 		goto err;

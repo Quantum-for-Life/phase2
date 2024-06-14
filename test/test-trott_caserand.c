@@ -35,8 +35,11 @@ const char *CASEIDS[NUM_CASES] = {
 
 static const char *CASE_DIR = PH2_SIMUL_DATA "/case-rand";
 
-static int
-caserand(const char *prefix)
+/* Defined in data.c */
+int data_circ_trott_read_values_test(
+	data_id fid, double *values[2], size_t num_values);
+
+static int caserand(const char *prefix)
 {
 	char filename[1024] = { 0 };
 
@@ -110,8 +113,7 @@ err_data_open:
 	return -1;
 }
 
-int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	int initialized;
 	MPI_Initialized(&initialized);
