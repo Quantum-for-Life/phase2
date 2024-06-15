@@ -106,7 +106,6 @@ build-test: $(TESTS)
 
 test: build-test
 	@for tt in $(TESTS); do \
-		echo \--- $$tt ; \
-		$$tt && echo OK || ( echo FAIL; exit 1 ) ; \
+		$$tt && echo "$$tt: OK" || ( echo "$$tt: FAIL"; exit 1 ) ; \
 	done
 
