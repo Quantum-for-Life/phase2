@@ -58,7 +58,7 @@ static void circ_destroy(struct circ_qdrift *c)
 		free(c->sampled_idx);
 }
 
-int circ_data_from_file(struct circ_qdrift_data *cd, const data_id fid)
+int circ_qdrift_data_from_file(struct circ_qdrift_data *cd, const data_id fid)
 {
 	int rc = circ_hamil_from_file(&cd->hamil, fid);
 	rc |= circ_multidet_from_file(&cd->multidet, fid);
@@ -73,7 +73,7 @@ int circ_qdrift_data_init(struct circ_qdrift_data *cd, data_id fid)
 	circ_hamil_init(&cd->hamil);
 	circ_multidet_init(&cd->multidet);
 
-	if (circ_data_from_file(cd, fid) < 0)
+	if (circ_qdrift_data_from_file(cd, fid) < 0)
 		return -1;
 	cd->samples[0] = malloc(sizeof(double) * 2 * cd->num_samples);
 	if (cd->samples[0] == NULL)
