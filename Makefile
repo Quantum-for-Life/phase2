@@ -7,7 +7,7 @@
 
 CC	?= gcc
 INCLUDE	:= ./include
-CFLAGS	+= -Wall -Wextra -O2 -march=native -I$(INCLUDE)
+CFLAGS	+= -std=c17 -Wall -Wextra -O2 -march=native -I$(INCLUDE)
 LDFLAGS +=
 LDLIBS	+= -lm
 LIB64	:= /usr/lib/x86_64-linux-gnu
@@ -106,7 +106,6 @@ build-test: $(TESTS)
 
 test: build-test
 	@for tt in $(TESTS); do \
-		echo \--- $$tt ; \
-		$$tt && echo OK || ( echo FAIL; exit 1 ) ; \
+		$$tt && echo "$$tt: OK" || ( echo "$$tt: FAIL"; exit 1 ) ; \
 	done
 

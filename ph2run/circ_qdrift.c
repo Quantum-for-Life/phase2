@@ -23,7 +23,7 @@ struct circ_qdrift {
 	struct code_cache {
 		struct paulis code_hi;
 		struct paulis codes_lo[MAX_CACHE_CODES];
-		fl	      angles[MAX_CACHE_CODES];
+		double	      angles[MAX_CACHE_CODES];
 		size_t	      num_codes;
 	} cache;
 
@@ -97,11 +97,8 @@ static int circuit_prepst(struct circ_qdrift *c)
 
 	qreg_zero(&c->reg);
 	for (size_t i = 0; i < md->num_dets; i++) {
-		const fl coeff[2] = {
-			/* We cast each element to a (possibly) lower precision
-			 * floating point number: fl */
-			md->dets[i].coeff[0], md->dets[i].coeff[1]
-		};
+		const _Complex double coeff = md->dets[i].coeff[0] +
+			 _Complex_I * md->dets[i].coeff[1];
 		qreg_setamp(&c->reg, md->dets[i].idx, coeff);
 	}
 
@@ -116,7 +113,7 @@ static void trott_step(struct circ_qdrift *c, const double omega)
 	cache.num_codes		= 0;
 
 	for (size_t i = 0; i < c->data->depth; i++) {
-		const fl	    angle     = omega;
+		const double	    angle     = omega;
 		const size_t	    i_sampled = c->sampled_idx[i];
 		const struct paulis code      = hamil->paulis[i_sampled];
 
@@ -177,19 +174,17 @@ static int circ_measure(struct circ_qdrift *c)
 {
 	const struct circ_multidet *md = &c->data->multidet;
 
-	double pr[2] = { 0.0, 0.0 };
+	_Complex double pr = 0.0;
 	for (size_t i = 0; i < md->num_dets; i++) {
-		fl amp[2];
-		qreg_getamp(&c->reg, md->dets[i].idx, &amp);
+		_Complex double a;
+		qreg_getamp(&c->reg, md->dets[i].idx, &a);
 
-		const double damp_re = md->dets[i].coeff[0];
-		const double damp_im = md->dets[i].coeff[1];
-		/* inner product with damp complex-conjugated */
-		pr[0] += damp_re * amp[0] + damp_im * amp[1];
-		pr[1] += damp_re * amp[1] - damp_im * amp[0];
+		const _Complex double damp = md->dets[i].coeff[0] +
+			_Complex_I * md->dets[i].coeff[1];
+		pr += a * conj(damp);
 	}
-	c->prod[0] = pr[0];
-	c->prod[1] = pr[1];
+	c->prod[0] = creal(pr);
+	c->prod[1] = cimag(pr);
 
 	return 0;
 }

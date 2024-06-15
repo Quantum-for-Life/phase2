@@ -51,7 +51,6 @@ int main(int argc, char **argv)
 		ABORT_ON_ERROR("cannot process input data");
 
 	log_info("*** Circuit ***");
-	log_info("Floating point precision: %d", QREG_PREC);
 	log_info("QDRIFT >>>");
 	if (run_circuit(fid) < 0) {
 		log_error("Failure: simulation error");

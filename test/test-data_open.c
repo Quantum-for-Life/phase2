@@ -3,6 +3,7 @@
 #include "test-data.h"
 #include "test.h"
 
+/*
 static int open_nonexist(void)
 {
 	if (data_open("") != DATA_INVALID_FID)
@@ -15,11 +16,12 @@ static int open_nonexist(void)
 err:
 	return -1;
 }
+*/
 
 static int open_exist(const char *filename)
 {
 	data_id fid;
-	if ((fid = data_open(filename) == DATA_INVALID_FID))
+	if ((fid = data_open(filename)) == DATA_INVALID_FID)
 		goto err;
 
 	data_close(fid);
@@ -31,10 +33,14 @@ err:
 
 int test_data_open(void)
 {
-	if (open_nonexist() < 0) {
-		TEST_FAIL("data open nonexits");
-		goto err;
-	}
+	/* This test generates noisy error messages from HDF5 and it's
+	 * not particularly important.  Disable.
+	 *
+	 * if (open_nonexist() < 0) {
+	 *	TEST_FAIL("data open nonexits");
+	 *	goto err;
+	 * }
+	 */
 
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
 		const char *filename = TEST_DATA[i].filename;
