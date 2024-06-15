@@ -7,7 +7,7 @@
 
 CC	?= gcc
 INCLUDE	:= ./include
-CFLAGS	+= -Wall -Wextra -O2 -march=native -I$(INCLUDE)
+CFLAGS	+= -std=c17 -Wall -Wextra -O2 -march=native -I$(INCLUDE)
 LDFLAGS +=
 LDLIBS	+= -lm
 LIB64	:= /usr/lib/x86_64-linux-gnu
