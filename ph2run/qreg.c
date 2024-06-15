@@ -1,3 +1,4 @@
+#include <complex.h>
 #include <math.h>
 #include <stdlib.h>
 
@@ -103,12 +104,27 @@ void paulis_shr(struct paulis *code, const u32 n)
 	code->pak[1] >>= n;
 }
 
-u64 paulis_effect(const struct paulis code, const u64 i, root4 *z)
+u64 paulis_effect(const struct paulis code, const u64 i, c64 *z)
 {
 	u64 j = i ^ code.pak[0];
 	if (z != NULL) {
 		const int minuses = __builtin_popcountll(j & code.pak[1]);
-		*z		  = (paulis_countis(code) + 2 * minuses) & 0x3;
+		int root4  = (paulis_countis(code) + 2 * minuses) & 0x3;
+		switch (root4) {
+		case 0:
+			break;
+		case 1:
+			*z *= _Complex_I;
+			break;
+		case 2:
+			*z *= -1.0;
+			break;
+		case 3:
+			*z *= - _Complex_I;
+			break;
+		default:
+			__builtin_unreachable();
+		}
 	}
 
 	return j;
@@ -282,27 +298,12 @@ static void qreg_exchbuf_waitall(struct qreg *reg)
 	MPI_Waitall(2 * nr, reg->reqs_rcv, MPI_STATUSES_IGNORE);
 }
 
-static void kernel_mul(fl *amp[2], const u64 i, const root4 z)
+static void kernel_mul(fl *amp[2], const u64 i, const c64 z)
 {
-	const fl x = amp[0][i];
-	const fl y = amp[1][i];
-
-	switch (z) {
-	case R0:
-		break;
-	case R1:
-		amp[0][i] = -y;
-		amp[1][i] = x;
-		break;
-	case R2:
-		amp[0][i] = -x;
-		amp[1][i] = -y;
-		break;
-	case R3:
-		amp[0][i] = y;
-		amp[1][i] = -x;
-		break;
-	}
+	const c64 x = amp[0][i] + _Complex_I * amp[1][i];
+	const c64 y = x * z;
+	amp[0][i] = creal(y);
+	amp[1][i] = cimag(y);
 }
 
 static void kernel_sep(fl *amp, fl *buf, const u64 i)
@@ -314,49 +315,17 @@ static void kernel_sep(fl *amp, fl *buf, const u64 i)
 	buf[i] = (a - b) / 2.0;
 }
 
-static void kernel_rot(fl *amp[2], const u64 i, const root4 zi, const u64 j,
-	const root4 zj, const fl eip[2])
+static void kernel_rot(fl *amp[2], const u64 i, const c64 zi, const u64 j,
+	const c64 zj, const c64 eip)
 {
-	const fl xi_re = amp[0][i], xi_im = amp[1][i];
-	const fl xj_re = amp[0][j], xj_im = amp[1][j];
+	_Complex double yi, yj;
+	const _Complex double xi = amp[0][i] + _Complex_I * amp[1][i];
+	const _Complex double xj = amp[0][j] + _Complex_I * amp[1][j];
+	yi = creal(eip) * xi + _Complex_I * cimag(eip) * zi * xj;
+	yj = creal(eip) * xj + _Complex_I * cimag(eip) * zj * xi;
 
-	switch (zi) {
-	case R0:
-		amp[0][i] = eip[0] * xi_re - eip[1] * xj_im;
-		amp[1][i] = eip[0] * xi_im + eip[1] * xj_re;
-		break;
-	case R1:
-		amp[0][i] = eip[0] * xi_re - eip[1] * xj_re;
-		amp[1][i] = eip[0] * xi_im - eip[1] * xj_im;
-		break;
-	case R2:
-		amp[0][i] = eip[0] * xi_re + eip[1] * xj_im;
-		amp[1][i] = eip[0] * xi_im - eip[1] * xj_re;
-		break;
-	case R3:
-		amp[0][i] = eip[0] * xi_re + eip[1] * xj_re;
-		amp[1][i] = eip[0] * xi_im + eip[1] * xj_im;
-		break;
-	}
-
-	switch (zj) {
-	case R0:
-		amp[0][j] = eip[0] * xj_re - eip[1] * xi_im;
-		amp[1][j] = eip[0] * xj_im + eip[1] * xi_re;
-		break;
-	case R1:
-		amp[0][j] = eip[0] * xj_re - eip[1] * xi_re;
-		amp[1][j] = eip[0] * xj_im - eip[1] * xi_im;
-		break;
-	case R2:
-		amp[0][j] = eip[0] * xj_re + eip[1] * xi_im;
-		amp[1][j] = eip[0] * xj_im - eip[1] * xi_re;
-		break;
-	case R3:
-		amp[0][j] = eip[0] * xj_re + eip[1] * xi_re;
-		amp[1][j] = eip[0] * xj_im + eip[1] * xi_im;
-		break;
-	}
+	amp[0][i] = creal(yi); amp[1][i] = cimag(yi);
+	amp[0][j] = creal(yj); amp[1][j] = cimag(yj);
 }
 
 /* All codes are assumed to share the same hi code */
@@ -371,7 +340,7 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	/* Compute multiplication factor for the buffer
 	   code_hi acts on the value of rank_remote now
 	   (as if from receiving end). We discard the result. */
-	root4 buf_mul;
+	c64 buf_mul = 1.0;
 	paulis_effect(code_hi, rnk_loc, &buf_mul);
 
 	qreg_exchbuf_waitall(reg);
@@ -384,19 +353,18 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	}
 	for (size_t k = 0; k < num_codes; k++) {
 		/* Here, an imlicit cast from fl to double and back */
-		const fl eip_amp[2] = { cos(angles[k]), sin(angles[k]) };
-		const fl eip_buf[2] = { eip_amp[0], -eip_amp[1] };
+		const c64 eip = cexp(_Complex_I * angles[k]);
 
 		for (u64 i = 0; i < reg->num_amps; i++) {
-			root4 zi, zj;
+			c64 zi = 1.0, zj = 1.0;
 
 			const u64 j = paulis_effect(codes_lo[k], i, &zi);
 			if (j < i)
 				continue;
 			paulis_effect(codes_lo[k], j, &zj);
 
-			kernel_rot(reg->amp, i, zi, j, zj, eip_amp);
-			kernel_rot(reg->buf, i, zi, j, zj, eip_buf);
+			kernel_rot(reg->amp, i, zi, j, zj, eip);
+			kernel_rot(reg->buf, i, zi, j, zj, conj(eip));
 		}
 	}
 	for (u64 i = 0; i < reg->num_amps; i++) {

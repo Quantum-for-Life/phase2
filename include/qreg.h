@@ -18,18 +18,14 @@ enum {
 	QREG_ESIZE,
 };
 
-typedef int8_t	i8;
-typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
-
-typedef uint8_t	 u8;
-typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
-
 typedef float  f32;
 typedef double f64;
+
+typedef _Complex double c64;
 
 #if QREG_PREC == 1
 typedef f32 fl;
@@ -38,13 +34,6 @@ typedef f32 fl;
 typedef f64 fl;
 #define QREG_MPI_FL MPI_DOUBLE
 #endif
-
-typedef enum root4 {
-	R0, // +1
-	R1, // +i
-	R2, // -1
-	R3, // -i:
-} root4;
 
 enum pauli_op {
 	PAULI_I = 0,
@@ -71,7 +60,7 @@ void paulis_mask(struct paulis *code, u64 mask);
 
 void paulis_shr(struct paulis *code, u32 n);
 
-u64 paulis_effect(struct paulis code, u64 i, root4 *z);
+u64 paulis_effect(struct paulis code, u64 i, c64 *z);
 
 void paulis_split(struct paulis code, u32 qb_lo, u32 qb_hi, struct paulis *lo,
 	struct paulis *hi);
