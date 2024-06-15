@@ -2,37 +2,34 @@
 # Configuration
 
 CC	?= gcc
-CFLAGS	+= -Wall -Wextra -O3 -march=native
-INCLUDE	+= -I./include
-LDFLAGS += 
+CFLAGS	+= -Wall -Wextra -O3 -march=native -I./include
+LDFLAGS +=
 LDLIBS	+= -lm
 LIB64	:= /usr/lib/x86_64-linux-gnu
 
-# If you're unsure where to find the compiled MPI libraries 
+# If you're unsure where to find the compiled MPI libraries
 # or headers, but have OpenMPI installed in your system,
 # you can query:
 #
-#	mpicc --showme
+#	mpicc -showme
 #
-MPI_INCLUDE	= -I$(LIB64)/openmpi/include
+MPI_CFLAGS	= -I$(LIB64)/openmpi/include
 MPI_LDFLAGS	= -L$(LIB64)/openmpi/lib
 MPI_LDLIBS	= -lmpi
 
-# Make sure all paths point to the _parallel_ version of 
-# HDF5.  You can the correct paths for your system by querying:
+# Make sure all paths point to the _parallel_ version of
+# HDF5.  You can find the correct paths for your system by querying:
 #
-#	h5pcc --show
+#	h5pcc -shlib -show
 #
-HDF5_INCLUDE	= -I/usr/include/hdf5/openmpi
-HDF5_LDFLAGS	= -Wl,-rpath -Wl,$(LIB64)/hdf5/openmpi
-HDF5_LDLIBS	= -lcrypto -lcurl -lsz -lz -ldl -lm
-HDF5_LIBS	= $(LIB64)/hdf5/openmpi/libhdf5_hl.a \
-		 	$(LIB64)/hdf5/openmpi/libhdf5.a 
+HDF5_CFLAGS	= -I/usr/include/hdf5/openmpi
+HDF5_LDFLAGS	= -L$(LIB64)/hdf5/openmpi -Wl,-rpath -Wl,$(LIB64)/hdf5/openmpi
+HDF5_LDLIBS	= -lhdf5 -lhdf5_hl -lcrypto -lcurl -lsz -lz -ldl -lm
+
 # Update flags
-INCLUDE	+= $(MPI_INCLUDE) $(HDF5_INCLUDE)
+CFLAGS	+= $(MPI_CFLAGS) $(HDF5_CFLAGS)
 LDFLAGS	+= $(MPI_LDFLAGS) $(HDF5_LDFLAGS)
-LDLIBS	+= $(MPI_LDLIBS) $(HDF5_LIBS) $(HDF5_LDLIBS)
-CFLAGS 	+= $(INCLUDE)
+LDLIBS	+= $(MPI_LDLIBS) $(HDF5_LDLIBS)
 
 # --------------------------------------------------------------------------- #
 # Build dependencies
@@ -72,8 +69,7 @@ build: $(PROGS)
 # --------------------------------------------------------------------------- #
 # Testing
 
-TESTDIR	= ./test
-
+TESTDIR	:= ./test
 CFLAGS	+= -I$(TESTDIR) -DPH2_TESTDIR=\"$(TESTDIR)\"
 
 $(TESTDIR)/test-data: $(TESTDIR)/test-data_hamil.o	\
@@ -93,7 +89,7 @@ test: build-test
 	@for tt in $(TESTS); do \
 		echo \--- $$tt ; \
 		$$tt && echo OK || ( echo FAIL; exit 1 ) ; \
-	done 
+	done
 
 clean:
 	$(RM) $(PH2RUNDIR)/*.o $(PH2RUNDIR)/*.d
