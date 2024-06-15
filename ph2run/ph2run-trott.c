@@ -16,12 +16,11 @@ int  opt_parse(int argc, char **argv);
 
 static int MAIN_RET = 0;
 
-#define ABORT_ON_ERROR(...)                                                    \
-	{                                                                      \
+#define ABORT_ON_ERROR(...) ({                                                 \
 		log_error(__VA_ARGS__);                                        \
 		MAIN_RET = EXIT_FAILURE;                                       \
 		goto error;                                                    \
-	}
+	})
 
 int run_circuit(data_id fid, size_t num_steps);
 
@@ -39,7 +38,7 @@ int main(int argc, char **argv)
 	MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	if ((num_ranks & (num_ranks - 1)) != 0)
-		ABORT_ON_ERROR("number of MPI ranks must be a power of two")
+		ABORT_ON_ERROR("number of MPI ranks must be a power of two");
 	log_info("*** Init ***");
 	log_info("MPI num_ranks: %d", num_ranks);
 	log_info("This is rank no. %d", rank);
@@ -49,10 +48,9 @@ int main(int argc, char **argv)
 
 	data_id fid = data_open(OPT.filename);
 	if (fid == DATA_INVALID_FID)
-		ABORT_ON_ERROR("cannot process input data")
+		ABORT_ON_ERROR("cannot process input data");
 
 	log_info("*** Circuit ***");
-	log_info("Floating point precision: %d", QREG_PREC);
 	log_info("Num_steps: %zu", OPT.num_steps);
 	if (run_circuit(fid, OPT.num_steps) < 0) {
 		log_error("Failure: simulation error");

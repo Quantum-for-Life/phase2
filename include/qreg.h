@@ -5,35 +5,7 @@
 
 #include "mpi.h"
 
-#ifndef QREG_PREC
-#define QREG_PREC (2)
-#endif
-
 #define QREG_MAX_WIDTH (64)
-
-enum {
-	QREG_OK = 0,
-	QREG_EMPI,
-	QREG_ENOMEM,
-	QREG_ESIZE,
-};
-
-typedef int32_t i32;
-typedef int64_t i64;
-typedef uint32_t u32;
-typedef uint64_t u64;
-typedef float  f32;
-typedef double f64;
-
-typedef _Complex double c64;
-
-#if QREG_PREC == 1
-typedef f32 fl;
-#define QREG_MPI_FL MPI_FLOAT
-#elif QREG_PREC == 2
-typedef f64 fl;
-#define QREG_MPI_FL MPI_DOUBLE
-#endif
 
 enum pauli_op {
 	PAULI_I = 0,
@@ -45,25 +17,25 @@ enum pauli_op {
 static const char PAULI_LABEL[4] = { 'I', 'X', 'Y', 'Z' };
 
 struct paulis {
-	u64 pak[2];
+	uint64_t pak[2];
 };
 
 struct paulis paulis_new(void);
 
-enum pauli_op paulis_get(struct paulis code, u32 n);
+enum pauli_op paulis_get(struct paulis code, uint32_t n);
 
-void paulis_set(struct paulis *code, enum pauli_op pauli, u32 n);
+void paulis_set(struct paulis *code, enum pauli_op pauli, uint32_t n);
 
 int paulis_eq(struct paulis code1, struct paulis code2);
 
-void paulis_mask(struct paulis *code, u64 mask);
+void paulis_mask(struct paulis *code, uint64_t mask);
 
-void paulis_shr(struct paulis *code, u32 n);
+void paulis_shr(struct paulis *code, uint32_t n);
 
-u64 paulis_effect(struct paulis code, u64 i, c64 *z);
+uint64_t paulis_effect(struct paulis code, uint64_t i, _Complex double *z);
 
-void paulis_split(struct paulis code, u32 qb_lo, u32 qb_hi, struct paulis *lo,
-	struct paulis *hi);
+void paulis_split(struct paulis code, 
+	uint32_t qb_lo, uint32_t qb_hi, struct paulis *lo,struct paulis *hi);
 
 struct qreg {
 	struct qreg_ev {
@@ -71,27 +43,28 @@ struct qreg {
 		int rank;
 	} ev;
 
-	u32 qb_lo, qb_hi;
+	uint32_t qb_lo, qb_hi;
 
-	fl *amp[2], *buf[2];
-	u64 num_amps;
+	_Complex double *amp;
+	_Complex double *buf;
+	uint64_t num_amps;
 
 	int	     msg_count;
 	MPI_Request *reqs_snd, *reqs_rcv;
 	size_t	     num_reqs;
 };
 
-int qreg_init(struct qreg *reg, u32 num_qubits);
+int qreg_init(struct qreg *reg, uint32_t num_qubits);
 
 void qreg_destroy(struct qreg *reg);
 
-void qreg_getamp(const struct qreg *reg, u64 i, fl (*z)[2]);
+void qreg_getamp(const struct qreg *reg, uint64_t i, _Complex double *z);
 
-void qreg_setamp(struct qreg *reg, u64 i, const fl z[2]);
+void qreg_setamp(struct qreg *reg, uint64_t i, _Complex double z);
 
 void qreg_zero(struct qreg *reg);
 
 void qreg_paulirot(struct qreg *reg, struct paulis code_hi,
-	const struct paulis *codes_lo, const fl *angles, size_t num_codes);
+	const struct paulis *codes_lo, const double *angles, size_t num_codes);
 
 #endif // QREG_H
