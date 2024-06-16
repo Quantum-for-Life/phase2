@@ -93,12 +93,6 @@ int paulis_eq(const struct paulis code1, const struct paulis code2)
 	return code1.pak[0] == code2.pak[0] && code1.pak[1] == code2.pak[1];
 }
 
-void paulis_mask(struct paulis *code, const uint64_t mask)
-{
-	code->pak[0] &= mask;
-	code->pak[1] &= mask;
-}
-
 void paulis_shr(struct paulis *code, const uint32_t n)
 {
 	code->pak[0] >>= n;
@@ -110,8 +104,9 @@ uint64_t paulis_effect(
 {
 	uint64_t j = i ^ code.pak[0];
 	if (z != NULL) {
-		const int minuses = __builtin_popcountll(j & code.pak[1]);
-		int	  root4	  = (paulis_countis(code) + 2 * minuses) & 0x3;
+		const int minus = __builtin_popcountll(j & code.pak[1]);
+		const int root4 = (paulis_countis(code) + 2 * minus) & 0x3;
+
 		switch (root4) {
 		case 0:
 			break;
@@ -132,19 +127,31 @@ uint64_t paulis_effect(
 	return j;
 }
 
+static void qb_split(uint64_t n, const uint32_t qb_lo, const uint32_t qb_hi,
+	uint64_t *lo, uint64_t *hi)
+{
+	const uint64_t mask_lo = (UINT64_C(1) << qb_lo) - 1;
+	const uint64_t mask_hi = (UINT64_C(1) << qb_hi) - 1;
+
+	*lo = n & mask_lo;
+	n >>= qb_lo;
+	*hi = n & mask_hi;
+}
+
 void paulis_split(const struct paulis code, const uint32_t qb_lo,
 	const uint32_t qb_hi, struct paulis *lo, struct paulis *hi)
 {
-	const uint64_t mask_lo = ((uint64_t)1 << qb_lo) - 1;
-	const uint64_t mask_hi = ((uint64_t)1 << (qb_hi + qb_lo)) - 1;
+	uint64_t n, nlo, nhi;
 
-	lo->pak[0] = code.pak[0];
-	lo->pak[1] = code.pak[1];
-	paulis_mask(lo, mask_lo);
+	n = code.pak[0];
+	qb_split(n, qb_lo, qb_hi, &nlo, &nhi);
+	lo->pak[0] = nlo;
+	hi->pak[0] = nhi;
 
-	hi->pak[0] = code.pak[0];
-	hi->pak[1] = code.pak[1];
-	paulis_mask(hi, mask_hi - mask_lo);
+	n = code.pak[1];
+	qb_split(n, qb_lo, qb_hi, &nlo, &nhi);
+	lo->pak[1] = nlo;
+	hi->pak[1] = nhi;
 }
 
 int qreg_init(struct qreg *reg, const uint32_t num_qubits)
@@ -203,39 +210,23 @@ void qreg_destroy(struct qreg *reg)
 	reg->reqs_rcv = NULL;
 }
 
-struct remote_idx {
-	int	 rank;
-	uint64_t i;
-};
-
-static struct remote_idx calc_remote_idx(
-	const uint32_t qb_lo, const uint32_t qb_hi, const uint64_t i)
-{
-	const uint64_t mask_lo = (UINT64_C(1) << qb_lo) - 1;
-	const uint64_t mask_hi = (UINT64_C(1) << (qb_hi + qb_lo)) - 1;
-
-	struct remote_idx di;
-	di.rank = (i & mask_hi) >> qb_lo;
-	di.i	= i & mask_lo;
-
-	return di;
-}
-
 void qreg_getamp(const struct qreg *reg, const uint64_t i, _Complex double *z)
 {
-	const struct remote_idx di = calc_remote_idx(reg->qb_lo, reg->qb_hi, i);
+	uint64_t rank, loci;
+	qb_split(i, reg->qb_lo, reg->qb_hi, &loci, &rank);
 
-	if (reg->ev.rank == di.rank)
-		*z = reg->amp[di.i];
-	MPI_Bcast(z, 2, MPI_DOUBLE, di.rank, MPI_COMM_WORLD);
+	if (reg->ev.rank == (int)rank)
+		*z = reg->amp[loci];
+	MPI_Bcast(z, 2, MPI_DOUBLE, rank, MPI_COMM_WORLD);
 }
 
 void qreg_setamp(struct qreg *reg, const uint64_t i, _Complex double z)
 {
-	const struct remote_idx di = calc_remote_idx(reg->qb_lo, reg->qb_hi, i);
+	uint64_t rank, loci;
+	qb_split(i, reg->qb_lo, reg->qb_hi, &loci, &rank);
 
-	if (reg->ev.rank == di.rank)
-		reg->amp[di.i] = z;
+	if (reg->ev.rank == (int)rank)
+		reg->amp[loci] = z;
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 

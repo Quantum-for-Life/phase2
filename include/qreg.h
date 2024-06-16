@@ -28,14 +28,12 @@ void paulis_set(struct paulis *code, enum pauli_op pauli, uint32_t n);
 
 int paulis_eq(struct paulis code1, struct paulis code2);
 
-void paulis_mask(struct paulis *code, uint64_t mask);
-
 void paulis_shr(struct paulis *code, uint32_t n);
 
 uint64_t paulis_effect(struct paulis code, uint64_t i, _Complex double *z);
 
-void paulis_split(struct paulis code, 
-	uint32_t qb_lo, uint32_t qb_hi, struct paulis *lo,struct paulis *hi);
+void paulis_split(struct paulis code, uint32_t qb_lo, uint32_t qb_hi,
+	struct paulis *lo, struct paulis *hi);
 
 struct qreg {
 	struct qreg_ev {
@@ -47,7 +45,7 @@ struct qreg {
 
 	_Complex double *amp;
 	_Complex double *buf;
-	uint64_t num_amps;
+	uint64_t	 num_amps;
 
 	int	     msg_count;
 	MPI_Request *reqs_snd, *reqs_rcv;
