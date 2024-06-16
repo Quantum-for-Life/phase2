@@ -24,7 +24,7 @@ int ev_init(struct qreg_ev *ev)
 		return -1;
 
 	ev->num_ranks = nrk;
-	ev->rank      = rk;
+	ev->rank = rk;
 
 	return 0;
 }
@@ -99,8 +99,7 @@ void paulis_shr(struct paulis *code, const uint32_t n)
 	code->pak[1] >>= n;
 }
 
-uint64_t paulis_effect(
-	const struct paulis code, const uint64_t i, _Complex double *z)
+uint64_t paulis_effect(const struct paulis code, const uint64_t i, c64 *z)
 {
 	uint64_t j = i ^ code.pak[0];
 	if (z != NULL) {
@@ -111,13 +110,13 @@ uint64_t paulis_effect(
 		case 0:
 			break;
 		case 1:
-			*z *= _Complex_I;
+			*z *= I;
 			break;
 		case 2:
 			*z *= -1.0;
 			break;
 		case 3:
-			*z *= -_Complex_I;
+			*z *= -I;
 			break;
 		default:
 			__builtin_unreachable();
@@ -164,28 +163,28 @@ int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 		qb_hi++;
 	if (qb_hi >= num_qubits)
 		return -1;
-	const uint32_t qb_lo	= num_qubits - qb_hi;
+	const uint32_t qb_lo = num_qubits - qb_hi;
 	const uint64_t num_amps = UINT64_C(1) << qb_lo;
 
-	const int    msg_count = num_amps < MAX_COUNT ? num_amps : MAX_COUNT;
-	const size_t num_reqs  = num_amps / msg_count;
+	const int msg_count = num_amps < MAX_COUNT ? num_amps : MAX_COUNT;
+	const size_t num_reqs = num_amps / msg_count;
 
 	MPI_Request *reqs = malloc(sizeof *reqs * num_reqs * 2);
 	if (!reqs)
 		goto err_reqs_alloc;
-	_Complex double *amp = malloc(sizeof *amp * num_amps * 2);
+	c64 *amp = malloc(sizeof *amp * num_amps * 2);
 	if (!amp)
 		goto err_amp_alloc;
 
-	reg->qb_lo     = qb_lo;
-	reg->qb_hi     = qb_hi;
-	reg->amp       = amp;
-	reg->buf       = amp + num_amps;
-	reg->num_amps  = num_amps;
+	reg->qb_lo = qb_lo;
+	reg->qb_hi = qb_hi;
+	reg->amp = amp;
+	reg->buf = amp + num_amps;
+	reg->num_amps = num_amps;
 	reg->msg_count = msg_count;
-	reg->reqs_snd  = reqs;
-	reg->reqs_rcv  = reqs + num_reqs;
-	reg->num_reqs  = num_reqs;
+	reg->reqs_snd = reqs;
+	reg->reqs_rcv = reqs + num_reqs;
+	reg->num_reqs = num_reqs;
 
 	return 0;
 
@@ -210,7 +209,7 @@ void qreg_destroy(struct qreg *reg)
 	reg->reqs_rcv = NULL;
 }
 
-void qreg_getamp(const struct qreg *reg, const uint64_t i, _Complex double *z)
+void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
 {
 	uint64_t rank, loci;
 	qb_split(i, reg->qb_lo, reg->qb_hi, &loci, &rank);
@@ -220,7 +219,7 @@ void qreg_getamp(const struct qreg *reg, const uint64_t i, _Complex double *z)
 	MPI_Bcast(z, 2, MPI_DOUBLE, rank, MPI_COMM_WORLD);
 }
 
-void qreg_setamp(struct qreg *reg, const uint64_t i, _Complex double z)
+void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 {
 	uint64_t rank, loci;
 	qb_split(i, reg->qb_lo, reg->qb_hi, &loci, &rank);
@@ -232,7 +231,7 @@ void qreg_setamp(struct qreg *reg, const uint64_t i, _Complex double z)
 
 void qreg_zero(struct qreg *reg)
 {
-	_Complex double *z = reg->amp;
+	c64 *z = reg->amp;
 	while (z < reg->amp + reg->num_amps)
 		*z++ = 0.0;
 }
@@ -259,16 +258,15 @@ static void qreg_exchbuf_waitall(struct qreg *reg)
 	MPI_Waitall(nr, reg->reqs_rcv, MPI_STATUSES_IGNORE);
 }
 
-static void kernel_rot(_Complex double *amp, const uint64_t i,
-	const _Complex double zi, const uint64_t j, const _Complex double zj,
-	const _Complex double eip)
+static void kernel_rot(c64 *amp, const uint64_t i, const c64 zi,
+	const uint64_t j, const c64 zj, const c64 eip)
 {
-	_Complex double xi, xj;
+	c64 xi, xj;
 
-	xi     = amp[i];
-	xj     = amp[j];
-	amp[i] = creal(eip) * xi + _Complex_I * cimag(eip) * zi * xj;
-	amp[j] = creal(eip) * xj + _Complex_I * cimag(eip) * zj * xi;
+	xi = amp[i];
+	xj = amp[j];
+	amp[i] = creal(eip) * xi + I * cimag(eip) * zi * xj;
+	amp[j] = creal(eip) * xj + I * cimag(eip) * zj * xi;
 }
 
 void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
@@ -283,7 +281,7 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	/* Compute multiplication factor for the buffer
 	   code_hi acts on the value of rank_remote now
 	   (as if from receiving end). We discard the result. */
-	_Complex double buf_mul = 1.0;
+	c64 buf_mul = 1.0;
 	paulis_effect(code_hi, rnk_loc, &buf_mul);
 
 	qreg_exchbuf_waitall(reg);
@@ -297,10 +295,10 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 		reg->buf[i] = (a - b) / 2.0;
 	}
 	for (size_t k = 0; k < num_codes; k++) {
-		const _Complex double eip = cexp(_Complex_I * angles[k]);
+		const c64 eip = cexp(I * angles[k]);
 		for (uint64_t i = 0; i < reg->num_amps; i++) {
-			_Complex double z = 1.0;
-			const uint64_t	j = paulis_effect(codes_lo[k], i, &z);
+			c64 z = 1.0;
+			const uint64_t j = paulis_effect(codes_lo[k], i, &z);
 			if (j < i)
 				continue;
 

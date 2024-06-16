@@ -7,6 +7,8 @@
 
 #define QREG_MAX_WIDTH (64)
 
+typedef _Complex double c64;
+
 enum pauli_op {
 	PAULI_I = 0,
 	PAULI_X = 1,
@@ -30,7 +32,7 @@ int paulis_eq(struct paulis code1, struct paulis code2);
 
 void paulis_shr(struct paulis *code, uint32_t n);
 
-uint64_t paulis_effect(struct paulis code, uint64_t i, _Complex double *z);
+uint64_t paulis_effect(struct paulis code, uint64_t i, c64 *z);
 
 void paulis_split(struct paulis code, uint32_t qb_lo, uint32_t qb_hi,
 	struct paulis *lo, struct paulis *hi);
@@ -43,22 +45,21 @@ struct qreg {
 
 	uint32_t qb_lo, qb_hi;
 
-	_Complex double *amp;
-	_Complex double *buf;
-	uint64_t	 num_amps;
+	c64 *amp, *buf;
+	uint64_t num_amps;
 
-	int	     msg_count;
+	int msg_count;
 	MPI_Request *reqs_snd, *reqs_rcv;
-	size_t	     num_reqs;
+	size_t num_reqs;
 };
 
 int qreg_init(struct qreg *reg, uint32_t num_qubits);
 
 void qreg_destroy(struct qreg *reg);
 
-void qreg_getamp(const struct qreg *reg, uint64_t i, _Complex double *z);
+void qreg_getamp(const struct qreg *reg, uint64_t i, c64 *z);
 
-void qreg_setamp(struct qreg *reg, uint64_t i, _Complex double z);
+void qreg_setamp(struct qreg *reg, uint64_t i, c64 z);
 
 void qreg_zero(struct qreg *reg);
 
