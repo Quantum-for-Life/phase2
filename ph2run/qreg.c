@@ -258,15 +258,15 @@ static void qreg_exchbuf_waitall(struct qreg *reg)
 	MPI_Waitall(nr, reg->reqs_rcv, MPI_STATUSES_IGNORE);
 }
 
-static void kernel_rot(c64 *amp, const uint64_t i, const c64 zi,
-	const uint64_t j, const c64 zj, const c64 eip)
+static void kernel_rot(c64 *amp, const uint64_t i, const uint64_t j,
+	const c64 z, const c64 eip)
 {
 	c64 xi, xj;
 
 	xi = amp[i];
 	xj = amp[j];
-	amp[i] = creal(eip) * xi + I * cimag(eip) * zi * xj;
-	amp[j] = creal(eip) * xj + I * cimag(eip) * zj * xi;
+	amp[i] = creal(eip) * xi + I * cimag(eip) * z * xj;
+	amp[j] = creal(eip) * xj + I * cimag(eip) * conj(z) * xi;
 }
 
 void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
@@ -302,8 +302,8 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 			if (j < i)
 				continue;
 
-			kernel_rot(reg->amp, i, z, j, conj(z), eip);
-			kernel_rot(reg->buf, i, z, j, conj(z), conj(eip));
+			kernel_rot(reg->amp, i, j, z, eip);
+			kernel_rot(reg->buf, i, j, z, conj(eip));
 		}
 	}
 	for (uint64_t i = 0; i < reg->num_amps; i++)
