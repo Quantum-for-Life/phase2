@@ -18,7 +18,7 @@ LIB64	:= /usr/lib/x86_64-linux-gnu
 # $ mpicc -showme
 #
 MPI_CFLAGS	= -I$(LIB64)/openmpi/include
-MPI_LIBFLAGS	= -L$(LIB64)/openmpi/lib
+MPI_LDFLAGS	= -L$(LIB64)/openmpi/lib
 MPI_LDLIBS	= -lmpi
 
 # Make sure you use the _parallel_ version of HDF5.
