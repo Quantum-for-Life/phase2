@@ -7,7 +7,7 @@
 
 CC	?= gcc
 INCLUDE	:= ./include
-CFLAGS	+= -std=c17 -Wall -Wextra -O2 -march=native -I$(INCLUDE)
+CFLAGS	+= -std=c11 -Wall -Wextra -O3 -march=native -mavx2
 LDFLAGS +=
 LDLIBS	+= -lm
 LIB64	:= /usr/lib/x86_64-linux-gnu
@@ -31,6 +31,7 @@ HDF5_LDFLAGS	= -L$(LIB64)/hdf5/openmpi -Wl,-rpath -Wl,$(LIB64)/hdf5/openmpi
 HDF5_LDLIBS	= -lhdf5 -lhdf5_hl -lcrypto -lcurl -lsz -lz -ldl -lm
 
 # Update flags
+CFLAGS	+= -I$(INCLUDE)
 CFLAGS	+= $(MPI_CFLAGS) $(HDF5_CFLAGS)
 LDFLAGS	+= $(MPI_LDFLAGS) $(HDF5_LDFLAGS)
 LDLIBS	+= $(MPI_LDLIBS) $(HDF5_LDLIBS)
