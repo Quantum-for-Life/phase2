@@ -54,8 +54,6 @@ if __name__ == "__main__":
     if thJ > math.pi:
         thJ = - (2 * math.pi - thJ)
     x = 2 ** (-J)
-    E0 = (math.sqrt(1 - x * x)) / (norm * time_factor * x) * math.tan(x * thJ)
-    # print(E0)
+    E0 = thJ / (norm * time_factor)
     print(E0 + offset)
 
-    # print([p + offset for p in peaks_freqs])
