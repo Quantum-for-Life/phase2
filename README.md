@@ -1,10 +1,13 @@
-# phase2
+phase2
+======
 
 [![CI](https://github.com/Quantum-for-Life/phase2/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/Quantum-for-Life/phase2/actions/workflows/CI.yml)
 
 Hamiltonian simulation with Trotter product formula. 🏭
 
-# Dependencies
+
+Dependencies
+------------
 
 To run a simulation, you will need:
 
@@ -13,7 +16,7 @@ To run a simulation, you will need:
 - [OpenMPI][openmpi-website]
 - Parallel [HDF5][hdf5-website]
 
-Assuming we're on x86-64 Ubuntu, you can install the dependencies with:
+Assuming we're on Ubuntu 22.04 or later, you can install the dependencies with:
 
 ```bash
 sudo apt install gcc
@@ -42,7 +45,9 @@ complicated.
 [hdf5-website]: https://www.hdfgroup.org/solutions/hdf5/
 [openmpi-website]: https://www.open-mpi.org/
 
-# Compiling the source code
+
+Compiling the source code
+-------------------------
 
 Download and compile the source code with:
 
@@ -60,7 +65,9 @@ make test
 
 Consult [Makefile](./Makefile) for how to configure the build system.
 
-# How to use it
+
+How to use it
+-------------
 
 Prepare an input file for the simulation according to the
 [specification](./simul/simul-h5-specs.md). Then run:
