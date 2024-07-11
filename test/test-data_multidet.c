@@ -12,8 +12,8 @@ static int test_get_nums(void)
 {
 	int rc = 0;
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
-		struct test_data td	  = TEST_DATA[i];
-		const char	*filename = td.filename;
+		struct test_data td = TEST_DATA[i];
+		const char *filename = td.filename;
 
 		data_id fid = data_open(filename);
 		if (fid == DATA_INVALID_FID) {
@@ -68,9 +68,9 @@ static int iter_count_dets_onlytwo(double coeff[2], size_t idx, void *op_data)
 }
 
 struct iter_store {
-	size_t		index;
+	size_t index;
 	_Complex double coeff[128];
-	size_t		idx[128];
+	size_t idx[128];
 };
 
 static int iter_store_dets(double coeff[2], const size_t idx, void *op_data)
@@ -78,7 +78,7 @@ static int iter_store_dets(double coeff[2], const size_t idx, void *op_data)
 	struct iter_store *is = op_data;
 
 	is->coeff[is->index] = coeff[0] + _Complex_I * coeff[1];
-	is->idx[is->index]   = idx;
+	is->idx[is->index] = idx;
 	is->index++;
 
 	return 0;
@@ -86,8 +86,8 @@ static int iter_store_dets(double coeff[2], const size_t idx, void *op_data)
 
 static int test_iter0(void)
 {
-	const struct test_data td  = TEST_DATA[0];
-	data_id		       fid = data_open(td.filename);
+	const struct test_data td = TEST_DATA[0];
+	data_id fid = data_open(td.filename);
 	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;
@@ -124,8 +124,8 @@ err:
 
 static int test_iter1(void)
 {
-	const struct test_data td  = TEST_DATA[1];
-	data_id		       fid = data_open(td.filename);
+	const struct test_data td = TEST_DATA[1];
+	data_id fid = data_open(td.filename);
 	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;
@@ -154,9 +154,9 @@ static int test_iter1(void)
 	}
 
 	struct iter_store is;
-	size_t		  exp_idx[]   = { 4, 5, 6 };
-	_Complex double	  exp_coeff[] = { 0.108292 + I * 0.333811,
-		  0.0491404 + I * 0.613936, 0.565802 + I * 0.421163 };
+	size_t exp_idx[] = { 4, 5, 6 };
+	_Complex double exp_coeff[] = { 0.108292 + I * 0.333811,
+		0.0491404 + I * 0.613936, 0.565802 + I * 0.421163 };
 
 	is.index = 0;
 	if (data_multidet_foreach(fid, iter_store_dets, &is) != 0) {

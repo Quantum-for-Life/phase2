@@ -13,8 +13,8 @@ static int test_getnums(void)
 {
 	int rc = 0;
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
-		struct test_data td	  = TEST_DATA[i];
-		const char	*filename = td.filename;
+		struct test_data td = TEST_DATA[i];
+		const char *filename = td.filename;
 
 		data_id fid = data_open(filename);
 		if (fid == DATA_INVALID_FID) {
@@ -49,8 +49,8 @@ static int test_getnorm(void)
 {
 	int rc = 0;
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
-		struct test_data td	  = TEST_DATA[i];
-		const char	*filename = td.filename;
+		struct test_data td = TEST_DATA[i];
+		const char *filename = td.filename;
 
 		data_id fid = data_open(filename);
 		if (fid == DATA_INVALID_FID) {
@@ -103,9 +103,9 @@ static int iter_count_onlytwo(
 }
 
 struct iter_store {
-	size_t	      idx;
-	size_t	      num_qubits;
-	double	      coeffs[128];
+	size_t idx;
+	size_t num_qubits;
+	double coeffs[128];
 	unsigned char paulis[128];
 };
 
@@ -126,8 +126,8 @@ static int iter_store(double coeff, unsigned char *paulis, void *op_data)
 
 static int test_iter0(void)
 {
-	const struct test_data td  = TEST_DATA[0];
-	data_id		       fid = data_open(td.filename);
+	const struct test_data td = TEST_DATA[0];
+	data_id fid = data_open(td.filename);
 	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;
@@ -168,8 +168,8 @@ err:
 
 static int test_iter1(void)
 {
-	const struct test_data td  = TEST_DATA[1];
-	data_id		       fid = data_open(td.filename);
+	const struct test_data td = TEST_DATA[1];
+	data_id fid = data_open(td.filename);
 	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("open file: %s", td.filename);
 		return -1;
@@ -203,7 +203,7 @@ static int test_iter1(void)
 	}
 
 	struct iter_store is;
-	is.idx	      = 0;
+	is.idx = 0;
 	is.num_qubits = num_qubits;
 	if (data_hamil_foreach(fid, iter_store, &is) != 0) {
 		TEST_FAIL("iteration terminated early");

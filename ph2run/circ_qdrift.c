@@ -13,7 +13,7 @@
 #define PRNG_SEED (0x235eac32)
 
 struct circ_qdrift {
-	size_t	    num_qb;
+	size_t num_qb;
 	struct qreg reg;
 
 	const struct circ_qdrift_data *data;
@@ -23,12 +23,12 @@ struct circ_qdrift {
 	struct code_cache {
 		struct paulis code_hi;
 		struct paulis codes_lo[MAX_CACHE_CODES];
-		double	      angles[MAX_CACHE_CODES];
-		size_t	      num_codes;
+		double angles[MAX_CACHE_CODES];
+		size_t num_codes;
 	} cache;
 
 	struct xoshiro256ss rng;
-	size_t		   *sampled_idx;
+	size_t *sampled_idx;
 };
 
 static int circ_create(struct circ_qdrift *c,
@@ -39,8 +39,8 @@ static int circ_create(struct circ_qdrift *c,
 		return -1;
 
 	c->num_qb = num_qubits;
-	c->data	  = data;
-	c->reg	  = reg;
+	c->data = data;
+	c->reg = reg;
 
 	xoshiro256ss_init(&c->rng, PRNG_SEED);
 	size_t *sampled_idx = malloc(sizeof(size_t) * data->depth);
@@ -95,7 +95,7 @@ static int circuit_prepst(struct circ_qdrift *c)
 	qreg_zero(&c->reg);
 	for (size_t i = 0; i < md->num_dets; i++) {
 		const _Complex double coeff = md->dets[i].coeff[0] +
-			 _Complex_I * md->dets[i].coeff[1];
+					      _Complex_I * md->dets[i].coeff[1];
 		qreg_setamp(&c->reg, md->dets[i].idx, coeff);
 	}
 
@@ -107,12 +107,12 @@ static void trott_step(struct circ_qdrift *c, const double omega)
 	const struct circ_hamil *hamil = &c->data->hamil;
 
 	struct code_cache cache = c->cache;
-	cache.num_codes		= 0;
+	cache.num_codes = 0;
 
 	for (size_t i = 0; i < c->data->depth; i++) {
-		const double	    angle     = omega;
-		const size_t	    i_sampled = c->sampled_idx[i];
-		const struct paulis code      = hamil->paulis[i_sampled];
+		const double angle = omega;
+		const size_t i_sampled = c->sampled_idx[i];
+		const struct paulis code = hamil->paulis[i_sampled];
 
 		struct paulis code_hi, code_lo;
 		paulis_split(
@@ -120,18 +120,18 @@ static void trott_step(struct circ_qdrift *c, const double omega)
 		paulis_shr(&code_hi, c->reg.qb_lo);
 
 		if (cache.num_codes == 0) {
-			cache.code_hi	  = code_hi;
+			cache.code_hi = code_hi;
 			cache.codes_lo[0] = code_lo;
-			cache.angles[0]	  = angle;
+			cache.angles[0] = angle;
 			cache.num_codes++;
 			continue;
 		}
 
 		if (paulis_eq(cache.code_hi, code_hi) &&
 			cache.num_codes < MAX_CACHE_CODES) {
-			const size_t k	  = cache.num_codes++;
+			const size_t k = cache.num_codes++;
 			cache.codes_lo[k] = code_lo;
-			cache.angles[k]	  = angle;
+			cache.angles[k] = angle;
 			continue;
 		}
 
@@ -140,10 +140,10 @@ static void trott_step(struct circ_qdrift *c, const double omega)
 		qreg_paulirot(&c->reg, cache.code_hi, cache.codes_lo,
 			cache.angles, cache.num_codes);
 
-		cache.num_codes	  = 1;
-		cache.code_hi	  = code_hi;
+		cache.num_codes = 1;
+		cache.code_hi = code_hi;
 		cache.codes_lo[0] = code_lo;
-		cache.angles[0]	  = angle;
+		cache.angles[0] = angle;
 	}
 
 	log_trace("paulirot, last term group, num_codes: %zu", cache.num_codes);
@@ -177,7 +177,7 @@ static int circ_measure(struct circ_qdrift *c)
 		qreg_getamp(&c->reg, md->dets[i].idx, &a);
 
 		const _Complex double damp = md->dets[i].coeff[0] +
-			_Complex_I * md->dets[i].coeff[1];
+					     _Complex_I * md->dets[i].coeff[1];
 		pr += a * conj(damp);
 	}
 	c->prod[0] = creal(pr);
@@ -188,7 +188,7 @@ static int circ_measure(struct circ_qdrift *c)
 
 static size_t circ_sample_invcdf(struct circ_qdrift *c, double x)
 {
-	size_t i   = 0;
+	size_t i = 0;
 	double cdf = 0;
 	while (cdf <= x)
 		cdf += fabs(c->data->hamil.coeffs[i++]);

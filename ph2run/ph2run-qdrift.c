@@ -11,7 +11,7 @@ static struct opt {
 } OPT;
 
 void opt_help_page(int argc, char **argv);
-int  opt_parse(int argc, char **argv);
+int opt_parse(int argc, char **argv);
 
 static int MAIN_RET = 0;
 

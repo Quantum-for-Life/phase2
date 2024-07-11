@@ -142,8 +142,8 @@ int test_data_trott_steps(void)
 		goto ex_create;
 	}
 
-	hid_t		grp_id = H5Gopen(file_id, H5_GRP_NAME, H5P_DEFAULT);
-	hid_t		dset   = H5Dopen2(grp_id, H5_GRP_VALUES, H5P_DEFAULT);
+	hid_t grp_id = H5Gopen(file_id, H5_GRP_NAME, H5P_DEFAULT);
+	hid_t dset = H5Dopen2(grp_id, H5_GRP_VALUES, H5P_DEFAULT);
 	_Complex double val_read[SIZE];
 	if (H5Dread(dset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
 		    val_read) < 0) {
