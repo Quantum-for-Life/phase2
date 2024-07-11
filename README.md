@@ -60,7 +60,7 @@ make
 To run the test suite:
 
 ```bash
-make test
+make check
 ```
 
 Consult [Makefile](./Makefile) for how to configure the build system.

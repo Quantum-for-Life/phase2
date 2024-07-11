@@ -70,7 +70,7 @@ PROGS	= 	$(PH2RUNDIR)/ph2run-qdrift \
 	build build-test 	\
 	clean			\
 	debug			\
-	test
+	check
 
 all: build build-test
 
@@ -105,7 +105,7 @@ TESTS	= 	$(TESTDIR)/test-data \
 
 build-test: $(TESTS)
 
-test: build-test
+check: build-test
 	@for tt in $(TESTS); do \
 		$$tt && echo "$$tt: OK" || ( echo "$$tt: FAIL"; exit 1 ) ; \
 	done
