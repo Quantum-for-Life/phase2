@@ -4,26 +4,12 @@
 
 #include "circ.h"
 
-void circ_hamil_init(struct circ_hamil *h)
-{
-	h->num_qubits = 0;
-	h->num_terms  = 0;
-	h->coeffs     = NULL;
-	h->paulis     = NULL;
-}
-
 void circ_hamil_destroy(struct circ_hamil *h)
 {
-	if (h->paulis) {
+	if (h->paulis)
 		free(h->paulis);
-		h->paulis = NULL;
-	}
-	if (h->coeffs) {
+	if (h->coeffs)
 		free(h->coeffs);
-		h->coeffs = NULL;
-	}
-	h->num_terms  = 0;
-	h->num_qubits = 0;
 }
 
 struct hamil_iter_data {
@@ -85,19 +71,10 @@ err:
 	return -1;
 }
 
-void circ_multidet_init(struct circ_multidet *md)
-{
-	md->num_dets = 0;
-	md->dets     = NULL;
-}
-
 void circ_multidet_destroy(struct circ_multidet *md)
 {
-	if (md->dets) {
+	if (md->dets)
 		free(md->dets);
-		md->dets = NULL;
-	}
-	md->num_dets = 0;
 }
 
 struct iter_multidet_data {

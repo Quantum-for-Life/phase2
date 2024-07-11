@@ -46,10 +46,7 @@ static void circ_destroy(struct circ_trott *c)
 
 int circ_trott_data_init(struct circ_trott_data *cd, size_t num_steps)
 {
-	circ_hamil_init(&cd->hamil);
-	circ_multidet_init(&cd->multidet);
 	cd->num_trott_steps = num_steps;
-
 	cd->trott_steps[0] = malloc(sizeof(double) * 2 * num_steps);
 	if (cd->trott_steps[0] == NULL)
 		return -1;

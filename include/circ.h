@@ -22,13 +22,10 @@ struct circ_multidet {
 	size_t num_dets;
 };
 
-void circ_hamil_init(struct circ_hamil *h);
-void circ_hamil_destroy(struct circ_hamil *h);
 int  circ_hamil_from_file(struct circ_hamil *h, data_id fid);
-
-void circ_multidet_init(struct circ_multidet *md);
-void circ_multidet_destroy(struct circ_multidet *md);
+void circ_hamil_destroy(struct circ_hamil *h);
 int  circ_multidet_from_file(struct circ_multidet *md, data_id fid);
+void circ_multidet_destroy(struct circ_multidet *md);
 
 /* Circuit: trott */
 struct circ_trott_data {

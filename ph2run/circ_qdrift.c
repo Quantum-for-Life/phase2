@@ -70,9 +70,6 @@ int circ_qdrift_data_from_file(struct circ_qdrift_data *cd, const data_id fid)
 
 int circ_qdrift_data_init(struct circ_qdrift_data *cd, data_id fid)
 {
-	circ_hamil_init(&cd->hamil);
-	circ_multidet_init(&cd->multidet);
-
 	if (circ_qdrift_data_from_file(cd, fid) < 0)
 		return -1;
 	cd->samples[0] = malloc(sizeof(double) * 2 * cd->num_samples);
