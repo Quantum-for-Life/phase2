@@ -8,15 +8,16 @@
 
 static struct opt {
 	const char *filename;
-	size_t	    num_steps;
+	size_t num_steps;
 } OPT;
 
 void opt_help_page(int argc, char **argv);
-int  opt_parse(int argc, char **argv);
+int opt_parse(int argc, char **argv);
 
 static int MAIN_RET = 0;
 
-#define ABORT_ON_ERROR(...) ({                                                 \
+#define ABORT_ON_ERROR(...)                                                    \
+	({                                                                     \
 		log_error(__VA_ARGS__);                                        \
 		MAIN_RET = EXIT_FAILURE;                                       \
 		goto error;                                                    \
@@ -86,7 +87,7 @@ int opt_parse(int argc, char **argv)
 		return -1;
 	}
 
-	OPT.filename	 = argv[1];
+	OPT.filename = argv[1];
 	size_t num_steps = strtoull(argv[2], NULL, 10);
 	if (num_steps == 0) {
 		fprintf(stderr, "Wrong number of Trotter steps\n");

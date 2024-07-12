@@ -10,7 +10,7 @@
 #define MAX_CACHE_CODES (1024)
 
 struct circ_trott {
-	size_t	    num_qb;
+	size_t num_qb;
 	struct qreg reg;
 
 	const struct circ_trott_data *data;
@@ -20,8 +20,8 @@ struct circ_trott {
 	struct code_cache {
 		struct paulis code_hi;
 		struct paulis codes_lo[MAX_CACHE_CODES];
-		double	      angles[MAX_CACHE_CODES];
-		size_t	      num_codes;
+		double angles[MAX_CACHE_CODES];
+		size_t num_codes;
 	} cache;
 };
 
@@ -33,8 +33,8 @@ static int circ_create(struct circ_trott *c, const struct circ_trott_data *data,
 		return -1;
 
 	c->num_qb = num_qubits;
-	c->data	  = data;
-	c->reg	  = reg;
+	c->data = data;
+	c->reg = reg;
 
 	return 0;
 }
@@ -46,10 +46,7 @@ static void circ_destroy(struct circ_trott *c)
 
 int circ_trott_data_init(struct circ_trott_data *cd, size_t num_steps)
 {
-	circ_hamil_init(&cd->hamil);
-	circ_multidet_init(&cd->multidet);
 	cd->num_trott_steps = num_steps;
-
 	cd->trott_steps[0] = malloc(sizeof(double) * 2 * num_steps);
 	if (cd->trott_steps[0] == NULL)
 		return -1;
@@ -81,8 +78,8 @@ static int circuit_prepst(struct circ_trott *c)
 
 	qreg_zero(&c->reg);
 	for (size_t i = 0; i < md->num_dets; i++) {
-		const _Complex double coeff = 
-			md->dets[i].coeff[0] + _Complex_I * md->dets[i].coeff[1];
+		const _Complex double coeff = md->dets[i].coeff[0] +
+					      _Complex_I * md->dets[i].coeff[1];
 		qreg_setamp(&c->reg, md->dets[i].idx, coeff);
 	}
 
@@ -94,11 +91,11 @@ static void trott_step(struct circ_trott *c, const double omega)
 	const struct circ_hamil *hamil = &c->data->hamil;
 
 	struct code_cache cache = c->cache;
-	cache.num_codes		= 0;
+	cache.num_codes = 0;
 
 	for (size_t i = 0; i < hamil->num_terms; i++) {
-		const double	    angle = omega * hamil->coeffs[i];
-		const struct paulis code  = hamil->paulis[i];
+		const double angle = omega * hamil->coeffs[i];
+		const struct paulis code = hamil->paulis[i];
 
 		struct paulis code_hi, code_lo;
 		paulis_split(
@@ -106,18 +103,18 @@ static void trott_step(struct circ_trott *c, const double omega)
 		paulis_shr(&code_hi, c->reg.qb_lo);
 
 		if (cache.num_codes == 0) {
-			cache.code_hi	  = code_hi;
+			cache.code_hi = code_hi;
 			cache.codes_lo[0] = code_lo;
-			cache.angles[0]	  = angle;
+			cache.angles[0] = angle;
 			cache.num_codes++;
 			continue;
 		}
 
 		if (paulis_eq(cache.code_hi, code_hi) &&
 			cache.num_codes < MAX_CACHE_CODES) {
-			const size_t k	  = cache.num_codes++;
+			const size_t k = cache.num_codes++;
 			cache.codes_lo[k] = code_lo;
-			cache.angles[k]	  = angle;
+			cache.angles[k] = angle;
 			continue;
 		}
 
@@ -126,10 +123,10 @@ static void trott_step(struct circ_trott *c, const double omega)
 		qreg_paulirot(&c->reg, cache.code_hi, cache.codes_lo,
 			cache.angles, cache.num_codes);
 
-		cache.num_codes	  = 1;
-		cache.code_hi	  = code_hi;
+		cache.num_codes = 1;
+		cache.code_hi = code_hi;
 		cache.codes_lo[0] = code_lo;
-		cache.angles[0]	  = angle;
+		cache.angles[0] = angle;
 	}
 
 	log_trace("paulirot, last term group, num_codes: %zu", cache.num_codes);
@@ -162,7 +159,7 @@ static int circ_measure(struct circ_trott *c)
 		qreg_getamp(&c->reg, md->dets[i].idx, &a);
 
 		const _Complex double damp = md->dets[i].coeff[0] +
-			_Complex_I * md->dets[i].coeff[1];
+					     _Complex_I * md->dets[i].coeff[1];
 		pr += a * conj(damp);
 	}
 	c->prod[0] = creal(pr);
@@ -173,7 +170,7 @@ static int circ_measure(struct circ_trott *c)
 
 int circ_trott_simulate(const struct circ_trott_data *cd)
 {
-	int    ret	    = 0;
+	int ret = 0;
 	size_t prog_percent = 0;
 
 	const size_t num_qb = cd->hamil.num_qubits;

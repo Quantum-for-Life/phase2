@@ -14,8 +14,8 @@ See <http://creativecommons.org/publicdomain/zero/1.0/>. */
 static uint64_t splitmix64(uint64_t *st)
 {
 	uint64_t rt = (*st += UINT64_C(0x9E3779B97f4A7C15));
-	rt	    = (rt ^ (rt >> 30)) * UINT64_C(0xBF58476D1CE4E5B9);
-	rt	    = (rt ^ (rt >> 27)) * UINT64_C(0x94D049BB133111EB);
+	rt = (rt ^ (rt >> 30)) * UINT64_C(0xBF58476D1CE4E5B9);
+	rt = (rt ^ (rt >> 27)) * UINT64_C(0x94D049BB133111EB);
 
 	return rt ^ (rt >> 31);
 }
@@ -23,10 +23,10 @@ static uint64_t splitmix64(uint64_t *st)
 void xoshiro256ss_init(struct xoshiro256ss *st, const uint64_t seed)
 {
 	uint64_t splmx = seed;
-	st->s[0]       = splitmix64(&splmx);
-	st->s[1]       = splitmix64(&splmx);
-	st->s[2]       = splitmix64(&splmx);
-	st->s[3]       = splitmix64(&splmx);
+	st->s[0] = splitmix64(&splmx);
+	st->s[1] = splitmix64(&splmx);
+	st->s[2] = splitmix64(&splmx);
+	st->s[3] = splitmix64(&splmx);
 
 	for (size_t _ = 0; _ < 128; _++)
 		xoshiro256ss_next(st);
@@ -51,7 +51,7 @@ static uint64_t rotl(const uint64_t x, int k)
 uint64_t xoshiro256ss_next(struct xoshiro256ss *st)
 {
 	const uint64_t result = rotl(st->s[1] * 5, 7) * 9;
-	const uint64_t t      = st->s[1] << 17;
+	const uint64_t t = st->s[1] << 17;
 	st->s[2] ^= st->s[0];
 	st->s[3] ^= st->s[1];
 	st->s[1] ^= st->s[2];

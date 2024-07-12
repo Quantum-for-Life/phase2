@@ -32,24 +32,24 @@
 #define MAX_CALLBACKS (32)
 
 struct log_event {
-	int	   level;
+	int level;
 	struct tm *time;
 
-	va_list	    ap;
+	va_list ap;
 	const char *fmt;
 
 	void *data;
 };
 
 struct callback {
-	void  (*fn)(struct log_event *ev);
+	void (*fn)(struct log_event *ev);
 	void *data;
-	int   level;
+	int level;
 };
 
 static struct {
-	void	       *data;
-	int		level;
+	void *data;
+	int level;
 	struct callback cb[MAX_CALLBACKS];
 } L;
 
@@ -120,7 +120,7 @@ static void init_event(struct log_event *ev, void *data)
 {
 	if (!ev->time) {
 		const time_t t = time(NULL);
-		ev->time       = localtime(&t);
+		ev->time = localtime(&t);
 	}
 	ev->data = data;
 }
@@ -128,7 +128,7 @@ static void init_event(struct log_event *ev, void *data)
 void log_vlog(const int level, const char *fmt, va_list ap)
 {
 	struct log_event ev = {
-		.fmt   = fmt,
+		.fmt = fmt,
 		.level = level,
 	};
 
@@ -163,7 +163,7 @@ void log_callback(struct log_event *ev)
 			return;
 	}
 
-	char  buf[64];
+	char buf[64];
 	FILE *fd = ev->data;
 	buf[strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", ev->time)] = '\0';
 	fprintf(fd, "%s %-5s ", buf, log_level_string(ev->level));
@@ -175,7 +175,7 @@ void log_callback(struct log_event *ev)
 int log_init(void)
 {
 	enum log_level lvl;
-	const char    *lvl_str = getenv(PHASE2_LOG_ENVVAR);
+	const char *lvl_str = getenv(PHASE2_LOG_ENVVAR);
 	if (!lvl_str || log_level_from_lowercase(&lvl, lvl_str) < 0)
 		lvl = LOG_ERROR;
 

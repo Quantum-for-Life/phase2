@@ -32,7 +32,7 @@ int ev_init(struct qreg_ev *ev)
 struct paulis paulis_new(void)
 {
 	struct paulis code = {
-		.pak = {0, 0}
+		.pak = { 0, 0 }
 	};
 
 	return code;
@@ -138,18 +138,17 @@ static void qb_split(uint64_t n, const uint32_t qb_lo, const uint32_t qb_hi,
 }
 
 void paulis_split(const struct paulis code, const uint32_t qb_lo,
-        const uint32_t qb_hi, struct paulis *lo, struct paulis *hi)
+	const uint32_t qb_hi, struct paulis *lo, struct paulis *hi)
 {
-        const uint64_t mask_lo = ((uint64_t)1 << qb_lo) - 1;
-        const uint64_t mask_hi = ((uint64_t)1 << (qb_hi + qb_lo)) - 1;
+	const uint64_t mask_lo = ((uint64_t)1 << qb_lo) - 1;
+	const uint64_t mask_hi = ((uint64_t)1 << (qb_hi + qb_lo)) - 1;
 
-        lo->pak[0] = code.pak[0] & mask_lo;
-        lo->pak[1] = code.pak[1] & mask_lo;
+	lo->pak[0] = code.pak[0] & mask_lo;
+	lo->pak[1] = code.pak[1] & mask_lo;
 
-        hi->pak[0] = code.pak[0] & mask_hi;
-        hi->pak[1] = code.pak[1] & mask_hi;
+	hi->pak[0] = code.pak[0] & mask_hi;
+	hi->pak[1] = code.pak[1] & mask_hi;
 }
-
 
 int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 {

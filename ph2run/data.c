@@ -94,7 +94,7 @@ static int multidet_open(const data_id fid, struct multidet_handle *md)
 	}
 
 	md->state_prep_grpid = sp_id;
-	md->multidet_grpid   = md_id;
+	md->multidet_grpid = md_id;
 
 	return 0;
 }
@@ -119,13 +119,13 @@ int data_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets)
 		goto exit_md_open;
 
 	const hid_t dsp_id = H5Dget_space(dset_id);
-	hsize_t	    dsp_dims[2];
+	hsize_t dsp_dims[2];
 	if (H5Sget_simple_extent_dims(dsp_id, dsp_dims, NULL) != 2)
 		goto exit_dims;
 
-	*num_dets   = dsp_dims[0];
+	*num_dets = dsp_dims[0];
 	*num_qubits = dsp_dims[1];
-	rt	    = 0;
+	rt = 0;
 
 exit_dims:
 	H5Sclose(dsp_id);
@@ -175,7 +175,7 @@ exit_multidet_open:
 int data_multidet_foreach(data_id fid,
 	int (*op)(double coeff[2], uint64_t idx, void *), void *op_data)
 {
-	int    rt = -1, rc = 0;
+	int rt = -1, rc = 0;
 	size_t num_qubits, num_dets;
 
 	if (data_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
@@ -232,13 +232,13 @@ int data_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms)
 		goto exit_read;
 
 	const hid_t dsp_id = H5Dget_space(dset_id);
-	hsize_t	    dsp_dims[2];
+	hsize_t dsp_dims[2];
 	if (H5Sget_simple_extent_dims(dsp_id, dsp_dims, NULL) != 2)
 		goto exit_dims;
 
-	*num_terms  = dsp_dims[0];
+	*num_terms = dsp_dims[0];
 	*num_qubits = dsp_dims[1];
-	rt	    = 0;
+	rt = 0;
 
 exit_dims:
 	H5Sclose(dsp_id);
@@ -266,7 +266,7 @@ int data_hamil_getnorm(data_id fid, double *norm)
 		goto exit_attr_read;
 
 	*norm = n;
-	rt    = 0;
+	rt = 0;
 
 exit_attr_read:
 	H5Aclose(attr_norm_id);
@@ -318,7 +318,7 @@ exit_coeffs_open:
 int data_hamil_foreach(const data_id fid,
 	int (*op)(double, unsigned char *, void *), void *op_data)
 {
-	int    rt = -1, rc = 0;
+	int rt = -1, rc = 0;
 	size_t num_qubits, num_terms;
 
 	if (data_hamil_getnums(fid, &num_qubits, &num_terms) < 0)
@@ -377,12 +377,12 @@ static int data_circ_write_values(const char *grp_name, const char *dset_name,
 {
 	int rt = -1;
 
-	hid_t	grpid, dspace, dset;
+	hid_t grpid, dspace, dset;
 	double *val_cont = malloc(sizeof(double) * 2 * num_values);
 	if (val_cont == NULL)
 		return -1;
 	for (size_t i = 0; i < num_values; i++) {
-		val_cont[2 * i]	    = values[0][i];
+		val_cont[2 * i] = values[0][i];
 		val_cont[2 * i + 1] = values[1][i];
 	}
 
@@ -426,7 +426,7 @@ int data_circ_trott_read_values_test(
 {
 	int rt = -1;
 
-	hid_t	grpid;
+	hid_t grpid;
 	double *val_cont = malloc(sizeof(double) * 2 * num_values);
 	if (val_cont == NULL)
 		return -1;
