@@ -89,7 +89,7 @@ by setting `PHASE2_LOG` environment variable to be one of: `trace`,
 `debug`, `info`, `warn`, `error`, `fatal`. E.g.,
 
 ```bash
-PHASE2_LOG=info mpirun -n 8 ./ph2run-trott simul.h5 100
+mpirun -n 8 -x PHASE2_LOG=info ./ph2run-trott simul.h5 100
 ```
 
 will compute 100 Trotter steps for a Hamiltonian specified in the file
