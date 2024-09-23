@@ -24,23 +24,17 @@ sudo apt install libopenmpi-dev openmpi-common
 sudo apt install libhdf5-dev hdf5-tools libhdf5-mpi-dev libhdf5-openmpi-dev
 ```
 
-If you want to run the simulation on Euler cluster (ETHZ), you only need to
-load necessary modules:
+If you want to run the simulation on Euler cluster (ETHZ), all you need is to
+load the required modules:
 
 ```bash
-ml load stack/2024-05
-ml load curl/8.4.0-mxgyalo
-ml load libszip/2.1.1-xxz4pi5
+ml load stack/2024-06
+ml load curl/8.4.0-s6dtj75
+ml load libszip/2.1.1-gz5ijo3
 ml load openmpi
 ml load hdf5
 ml load python
 ```
-
-*Note.* This list assumes that Euler has fully migrated to Ubuntu by now
-(expected to complete by 8 July 2024). If you log in to the legacy CentOS-7
-version, the procedure (and how to compile the sources) is a bit more
-complicated.
-
 
 [hdf5-website]: https://www.hdfgroup.org/solutions/hdf5/
 [openmpi-website]: https://www.open-mpi.org/
