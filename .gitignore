@@ -82,6 +82,9 @@ simul.h5*
 *.swp
 
 ph2run/ph2run-*
-test/test-data
-test/test-trott_caserand
+test/t-data_hamil
+test/t-data_multidet
+test/t-data_open
+test/t-data_trott_steps
+test/t-trott_caserand
 

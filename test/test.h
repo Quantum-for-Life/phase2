@@ -1,13 +1,37 @@
 #ifndef TEST_H
 #define TEST_H
 
+#include <stdbool.h>
 #include <stdio.h>
 
-#define TEST_FAIL(...)                                                         \
-	do {                                                                   \
-		fprintf(stderr, "FAILED %s:%d \"", __FILE__, __LINE__);        \
-		fprintf(stderr, __VA_ARGS__);                                  \
-		fprintf(stderr, "\"\n");                                       \
-	} while (0)
+static _Atomic bool TEST_RT = true;
 
-#endif // TEST_H
+#define TEST_FAIL(fmt, ...)	({					\
+		fprintf(stderr, "%s:%d FAIL \"" fmt "\"\n",		\
+			__FILE__, __LINE__ __VA_OPT__(,) __VA_ARGS__);	\
+		TEST_RT = false;					\
+	})
+
+#define TEST_ASSERT(expr, fmt, ...)	({				\
+		if (!(expr))						\
+			TEST_FAIL(fmt __VA_OPT__(,) __VA_ARGS__);	\
+	})
+
+#define TEST_STR(a) #a
+#define TEST_XSTR(a) TEST_STR(a)
+
+#define TEST_EQ(a, b)	({						\
+		TEST_ASSERT((a) == (b), "expected %s == %s",		\
+			TEST_XSTR(a), TEST_XSTR(b));			\
+	})
+
+static void TEST_MAIN(void);
+
+int main(int, char **)
+{
+	TEST_MAIN();
+
+	return TEST_RT ? 0 : -1;
+}
+
+#endif /* TEST_H */

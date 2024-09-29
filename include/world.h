@@ -38,7 +38,7 @@ struct world {
 	int rank;
 };
 
-int world_init(int argc, char **argv);
+int world_init(int *argc, char ***argv);
 int world_fin(void);
 
 int world_info(struct world *wd);

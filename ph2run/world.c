@@ -187,7 +187,7 @@ static struct world WORLD = {
 	.rank = 0,
 };
 
-int world_init(int argc, char **argv)
+int world_init(int *argc, char ***argv)
 {
 	if (log_init() < 0)
 		goto err;
@@ -195,7 +195,7 @@ int world_init(int argc, char **argv)
 	int init, sz, rk;
 
 	MPI_Initialized(&init);
-	if (!init && MPI_Init(&argc, &argv) != MPI_SUCCESS)
+	if (!init && MPI_Init(argc, argv) != MPI_SUCCESS)
 		goto err;
 	if (MPI_Comm_size(MPI_COMM_WORLD, &sz) != MPI_SUCCESS)
 		goto err;

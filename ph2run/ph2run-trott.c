@@ -27,7 +27,7 @@ int run_circuit(data_id fid, size_t num_steps);
 
 int main(int argc, char **argv)
 {
-	if (world_init(argc, argv) != WORLD_READY)
+	if (world_init(&argc, &argv) != WORLD_READY)
 		exit(EXIT_FAILURE);
 
 	int rank, num_ranks;

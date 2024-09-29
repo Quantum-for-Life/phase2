@@ -90,16 +90,14 @@ clean:
 TESTDIR	:= ./test
 CFLAGS	+= -I$(TESTDIR) -DPH2_TESTDIR=\"$(TESTDIR)\"
 
-$(TESTDIR)/test-data:	$(TESTDIR)/test-data_hamil.o		\
-			$(TESTDIR)/test-data_multidet.o		\
-			$(TESTDIR)/test-data_open.o		\
-			$(TESTDIR)/test-data_trott_steps.o	\
-				$(PH2RUNOBJS)
+TESTS	:= 	$(TESTDIR)/t-data_hamil				\
+		$(TESTDIR)/t-data_multidet			\
+		$(TESTDIR)/t-data_open				\
+		$(TESTDIR)/t-data_trott_steps			\
+		$(TESTDIR)/t-trott_caserand
 
-$(TESTDIR)/test-trott_caserand: $(PH2RUNOBJS) $(PH2RUNDIR)/circ_trott.o
-
-TESTS	:= 	$(TESTDIR)/test-data \
-		$(TESTDIR)/test-trott_caserand
+$(TESTS):			$(PH2RUNOBJS)
+$(TESTDIR)/t-trott_caserand:	$(PH2RUNDIR)/circ_trott.o
 
 build-test: $(TESTS)
 

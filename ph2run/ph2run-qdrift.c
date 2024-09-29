@@ -26,7 +26,7 @@ int run_circuit(data_id fid);
 
 int main(int argc, char **argv)
 {
-	if (world_init(argc, argv) != WORLD_READY)
+	if (world_init(&argc, &argv) != WORLD_READY)
 		exit(EXIT_FAILURE);
 
 	int rank, num_ranks;

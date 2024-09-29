@@ -9,14 +9,6 @@
 
 #include "test.h"
 
-static int MAIN_RET = 0;
-#define ABORT_ON_ERROR(...)                                                    \
-	do {                                                                   \
-		fprintf(stderr, __VA_ARGS__);                                  \
-		MAIN_RET = EXIT_FAILURE;                                       \
-		goto error;                                                    \
-	} while (0)
-
 #define NUM_STEPS (128)
 
 #define NUM_CASES (16)
@@ -114,33 +106,32 @@ err_data_open:
 	return -1;
 }
 
-int main(int argc, char **argv)
+static void TEST_MAIN(void)
 {
-	if (world_init(argc, argv) != WORLD_READY)
-		return -1;
+	if (world_init((void *)0, (void *)0) != WORLD_READY) {
+		TEST_FAIL("world init");
+		return;
+	}
 
 	int rank, num_ranks;
 	MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	if ((num_ranks & (num_ranks - 1)) != 0)
-		ABORT_ON_ERROR("number of MPI ranks must be a power of two");
+	if ((num_ranks & (num_ranks - 1)) != 0) {
+		TEST_FAIL("number of MPI ranks must be a power of two");
+		return;
+	}
 
 	for (size_t i = 0; i < NUM_CASES; i++) {
 		char buf[64];
 		snprintf(buf, 64, "case-%s", CASEIDS[i]);
 		if (caserand(buf) != 0) {
 			TEST_FAIL("random case %s", buf);
-			goto error;
+			return;
 		}
 	}
 
 	if (world_fin() != WORLD_DONE) {
-		TEST_FAIL("shutdown world");
-		goto error;
+		TEST_FAIL("world shutdown");
+		return;
 	}
-
-	return MAIN_RET;
-error:
-	MAIN_RET = -1;
-	return MAIN_RET;
 }
