@@ -9,7 +9,7 @@
 
 #include <hdf5.h>
 
-#include "data.h"
+#include "phase2/data.h"
 #include "test.h"
 
 #define SIZE (5)

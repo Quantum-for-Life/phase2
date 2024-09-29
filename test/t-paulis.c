@@ -1,7 +1,7 @@
 #include <complex.h>
 #include <stdint.h>
 
-#include "paulis.h"
+#include "phase2/paulis.h"
 #include "xoshiro256ss.h"
 
 #include "test.h"

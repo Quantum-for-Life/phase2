@@ -2,8 +2,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "circ.h"
-#include "paulis.h"
+#include "phase2/circ.h"
+#include "phase2/paulis.h"
 
 void circ_hamil_destroy(struct circ_hamil *h)
 {

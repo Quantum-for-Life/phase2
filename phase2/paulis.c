@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "paulis.h"
+#include "phase2/paulis.h"
 
 typedef _Complex double c64;
 

@@ -38,11 +38,11 @@ PH2DIR		:=		./phase2
 LIBS		:=
 
 # APIs
-$(PH2DIR)/circ.o:		$(INCLUDE)/circ.h
-$(PH2DIR)/data.o:		$(INCLUDE)/data.h
-$(PH2DIR)/paulis.o:		$(INCLUDE)/paulis.h
-$(PH2DIR)/qreg.o:		$(INCLUDE)/qreg.h
-$(PH2DIR)/world.o:		$(INCLUDE)/world.h
+$(PH2DIR)/circ.o:		$(INCLUDE)/phase2/circ.h
+$(PH2DIR)/data.o:		$(INCLUDE)/phase2/data.h
+$(PH2DIR)/paulis.o:		$(INCLUDE)/phase2/paulis.h
+$(PH2DIR)/qreg.o:		$(INCLUDE)/phase2/qreg.h
+$(PH2DIR)/world.o:		$(INCLUDE)/phase2/world.h
 $(PH2DIR)/xoshiro256ss.o:	$(INCLUDE)/xoshiro256ss.h
 
 # Object files

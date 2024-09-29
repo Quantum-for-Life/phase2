@@ -27,7 +27,7 @@
 
 #include "mpi.h"
 
-#include "world.h"
+#include "phase2/world.h"
 
 #define MAX_CALLBACKS (32)
 

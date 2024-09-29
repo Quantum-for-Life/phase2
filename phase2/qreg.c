@@ -3,9 +3,9 @@
 
 #include "mpi.h"
 
-#include "paulis.h"
-#include "qreg.h"
-#include "world.h"
+#include "phase2/paulis.h"
+#include "phase2/qreg.h"
+#include "phase2/world.h"
 
 typedef _Complex double c64;
 

@@ -3,8 +3,8 @@
 
 #include "mpi.h"
 
-#include "circ.h"
-#include "world.h"
+#include "phase2/circ.h"
+#include "phase2/world.h"
 
 static struct opt {
 	const char *filename;

@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "circ.h"
-#include "world.h"
+#include "phase2/circ.h"
+#include "phase2/world.h"
 #include "xoshiro256ss.h"
 
 #define MAX_CACHE_CODES (1024)

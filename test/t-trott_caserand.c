@@ -3,9 +3,9 @@
 
 #include "mpi.h"
 
-#include "circ.h"
-#include "data.h"
-#include "world.h"
+#include "phase2/circ.h"
+#include "phase2/data.h"
+#include "phase2/world.h"
 
 #include "test.h"
 
