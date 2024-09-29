@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "circ.h"
+#include "paulis.h"
 
 void circ_hamil_destroy(struct circ_hamil *h)
 {

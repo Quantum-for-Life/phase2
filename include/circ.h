@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "data.h"
+#include "paulis.h"
 #include "qreg.h"
 
 struct circ_hamil {
