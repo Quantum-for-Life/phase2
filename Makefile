@@ -106,6 +106,9 @@ $(TESTDIR)/t-data_open:		$(PH2OBJS)				\
 $(TESTDIR)/t-data_trott_steps:	$(PH2OBJS)				\
 				$(TESTDIR)/test.h			\
 				$(TESTDIR)/test-data.h
+$(TESTDIR)/t-paulis:		$(TESTDIR)/test.h			\
+				$(PH2DIR)/paulis.o			\
+				$(PH2DIR)/xoshiro256ss.o
 $(TESTDIR)/t-trott_caserand:	$(PH2OBJS)				\
 				$(PH2DIR)/circ_trott.o			\
 				$(TESTDIR)/test.h
@@ -114,6 +117,7 @@ TESTS			:=	$(TESTDIR)/t-data_hamil			\
 				$(TESTDIR)/t-data_multidet		\
 				$(TESTDIR)/t-data_open			\
 				$(TESTDIR)/t-data_trott_steps		\
+				$(TESTDIR)/t-paulis			\
 				$(TESTDIR)/t-trott_caserand
 
 build-test: $(TESTS)

@@ -86,5 +86,6 @@ test/t-data_hamil
 test/t-data_multidet
 test/t-data_open
 test/t-data_trott_steps
+test/t-paulis
 test/t-trott_caserand
 
