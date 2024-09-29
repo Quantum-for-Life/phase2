@@ -34,7 +34,8 @@ HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcrypto -lcurl -lsz -lz -ldl -lm
 # --------------------------------------------------------------------------- #
 # Build dependencies                                                          #
 # --------------------------------------------------------------------------- #
-PH2DIR	=	./ph2run
+PH2DIR		:=		./phase2
+LIBS		:=
 
 # APIs
 $(PH2DIR)/circ.o:		$(INCLUDE)/circ.h
@@ -45,7 +46,7 @@ $(PH2DIR)/world.o:		$(INCLUDE)/world.h
 $(PH2DIR)/xoshiro256ss.o:	$(INCLUDE)/xoshiro256ss.h
 
 # Object files
-PH2OBJS	=			$(PH2DIR)/circ.o			\
+PH2OBJS		:=		$(PH2DIR)/circ.o			\
 				$(PH2DIR)/data.o			\
 				$(PH2DIR)/world.o			\
 				$(PH2DIR)/paulis.o			\
@@ -53,14 +54,14 @@ PH2OBJS	=			$(PH2DIR)/circ.o			\
 				$(PH2DIR)/xoshiro256ss.o
 
 # Applications
-$(PH2DIR)/ph2run-trott:		$(PH2OBJS) $(PH2DIR)/circ_trott.o
-$(PH2DIR)/ph2run-qdrift:	$(PH2OBJS) $(PH2DIR)/circ_qdrift.o
-PROGS		:= $(PH2DIR)/ph2run-qdrift				\
-			$(PH2DIR)/ph2run-trott
+PH2RUNDIR	:=		./ph2run
+PROGS		:= 		$(PH2RUNDIR)/ph2run-qdrift		\
+				$(PH2RUNDIR)/ph2run-trott
+$(PH2RUNDIR)/ph2run-trott:	$(PH2OBJS) $(PH2DIR)/circ_trott.o
+$(PH2RUNDIR)/ph2run-qdrift:	$(PH2OBJS) $(PH2DIR)/circ_qdrift.o
 
 # Update flags
-CFLAGS		+= -I$(INCLUDE) -I$(PH2DIR)				\
-			$(MPI_CFLAGS) $(HDF5_CFLAGS)
+CFLAGS		+= -I$(INCLUDE) -I$(PH2DIR) $(MPI_CFLAGS) $(HDF5_CFLAGS)
 LDFLAGS		+= $(MPI_LDFLAGS) $(HDF5_LDFLAGS)
 LDLIBS		+= $(MPI_LDLIBS) $(HDF5_LDLIBS)
 
@@ -84,8 +85,10 @@ build: $(PROGS)
 
 clean:
 	$(RM) $(PH2DIR)/*.o $(PH2DIR)/*.d
-	$(RM) $(PROGS)
+	$(RM) $(PH2RUNDIR)/*.o $(PH2RUNDIR)/*.d
 	$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
+	$(RM) $(LIBS)
+	$(RM) $(PROGS)
 	$(RM) $(TESTS)
 
 # --------------------------------------------------------------------------- #
