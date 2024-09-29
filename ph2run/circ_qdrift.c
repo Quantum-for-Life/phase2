@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 #include "circ.h"
-#include "log.h"
+#include "world.h"
 #include "xoshiro256ss.h"
 
 #define MAX_CACHE_CODES (1024)

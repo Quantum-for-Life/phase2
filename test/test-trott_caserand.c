@@ -5,6 +5,7 @@
 
 #include "circ.h"
 #include "data.h"
+#include "world.h"
 
 #include "test.h"
 
@@ -115,9 +116,7 @@ err_data_open:
 
 int main(int argc, char **argv)
 {
-	int initialized;
-	MPI_Initialized(&initialized);
-	if (!initialized && MPI_Init(&argc, &argv) != MPI_SUCCESS)
+	if (world_init(argc, argv) != WORLD_READY)
 		return -1;
 
 	int rank, num_ranks;
@@ -133,6 +132,11 @@ int main(int argc, char **argv)
 			TEST_FAIL("random case %s", buf);
 			goto error;
 		}
+	}
+
+	if (world_fin() != WORLD_DONE) {
+		TEST_FAIL("shutdown world");
+		goto error;
 	}
 
 	return MAIN_RET;

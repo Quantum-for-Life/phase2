@@ -8,7 +8,7 @@ AS	:= nasm
 ASFLAGS	+= -felf64 -w+all -w-reloc-rel-dword -Ox
 CC	?= gcc
 CFLAGS	+= -std=c17 -MP -MMD -Wall -Wextra -O2 -march=native -mavx2
-INCLUDE	:= ./include
+INCLUDE	:= -I./include -I./ph2run
 DEPS	:= $(wildcard *.d)
 LDFLAGS +=
 LDLIBS	+= -lm
@@ -33,7 +33,7 @@ HDF5_LDFLAGS	:= -L$(LIB64)/hdf5/openmpi -Wl,-rpath -Wl,$(LIB64)/hdf5/openmpi
 HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcrypto -lcurl -lsz -lz -ldl -lm
 
 # Update flags
-CFLAGS	+= -I$(INCLUDE) $(MPI_CFLAGS) $(HDF5_CFLAGS)
+CFLAGS	+= $(INCLUDE) $(MPI_CFLAGS) $(HDF5_CFLAGS)
 LDFLAGS	+= $(MPI_LDFLAGS) $(HDF5_LDFLAGS)
 LDLIBS	+= $(MPI_LDLIBS) $(HDF5_LDLIBS)
 
@@ -43,7 +43,6 @@ LDLIBS	+= $(MPI_LDLIBS) $(HDF5_LDLIBS)
 PH2RUNDIR	=	./ph2run
 PH2RUNOBJS	=	$(PH2RUNDIR)/circ.o	\
 			$(PH2RUNDIR)/data.o	\
-			$(PH2RUNDIR)/log.o	\
 			$(PH2RUNDIR)/world.o	\
 			$(PH2RUNDIR)/paulis.o	\
 			$(PH2RUNDIR)/qreg.o	\

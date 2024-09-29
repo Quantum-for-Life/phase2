@@ -11,8 +11,6 @@
 #define QREG_MAX_WIDTH (64)
 
 struct qreg {
-	struct world wd;
-
 	uint32_t qb_lo, qb_hi;
 
 	c64 *amp, *buf;
