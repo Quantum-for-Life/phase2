@@ -34,37 +34,39 @@ HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcrypto -lcurl -lsz -lz -ldl -lm
 # --------------------------------------------------------------------------- #
 # Build dependencies                                                          #
 # --------------------------------------------------------------------------- #
-PH2DIR		:=		./phase2
-LIBS		:=
+PHASE2DIR	:= ./phase2
+PH2RUNDIR	:= ./ph2run
+UTILSDIR	:= ./utils
 
 # APIs
-$(PH2DIR)/circ.o:		$(INCLUDE)/phase2/circ.h
-$(PH2DIR)/data.o:		$(INCLUDE)/phase2/data.h
-$(PH2DIR)/paulis.o:		$(INCLUDE)/phase2/paulis.h
-$(PH2DIR)/qreg.o:		$(INCLUDE)/phase2/qreg.h
-$(PH2DIR)/world.o:		$(INCLUDE)/phase2/world.h
-$(PH2DIR)/xoshiro256ss.o:	$(INCLUDE)/xoshiro256ss.h
+$(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h
+$(PHASE2DIR)/data.o:	$(INCLUDE)/phase2/data.h
+$(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
+$(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h
+$(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h
+
+$(UTILSDIR)/xoshiro256ss.o:	$(INCLUDE)/xoshiro256ss.h
 
 # Object files
-PH2OBJS		:=		$(PH2DIR)/circ.o			\
-				$(PH2DIR)/data.o			\
-				$(PH2DIR)/world.o			\
-				$(PH2DIR)/paulis.o			\
-				$(PH2DIR)/qreg.o			\
-				$(PH2DIR)/xoshiro256ss.o
+PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
+			$(PHASE2DIR)/circ_trott.o			\
+			$(PHASE2DIR)/circ_qdrift.o			\
+			$(PHASE2DIR)/data.o				\
+			$(PHASE2DIR)/paulis.o				\
+			$(PHASE2DIR)/qreg.o				\
+			$(PHASE2DIR)/world.o
+				
+UTILSOBJS	:= $(UTILSDIR)/xoshiro256ss.o
 
 # Applications
-PH2RUNDIR	:=		./ph2run
-PROGS		:= 		$(PH2RUNDIR)/ph2run-qdrift		\
-				$(PH2RUNDIR)/ph2run-trott
-$(PH2RUNDIR)/ph2run-trott:	$(PH2OBJS) $(PH2DIR)/circ_trott.o
-$(PH2RUNDIR)/ph2run-qdrift:	$(PH2OBJS) $(PH2DIR)/circ_qdrift.o
+PROGS		:= $(PH2RUNDIR)/ph2run-qdrift				\
+			$(PH2RUNDIR)/ph2run-trott
+$(PROGS):	$(PHASE2OBJS) $(UTILSOBJS)
 
 # Update flags
-CFLAGS		+= -I$(INCLUDE) -I$(PH2DIR) $(MPI_CFLAGS) $(HDF5_CFLAGS)
+CFLAGS		+= -I$(INCLUDE) $(MPI_CFLAGS) $(HDF5_CFLAGS)
 LDFLAGS		+= $(MPI_LDFLAGS) $(HDF5_LDFLAGS)
 LDLIBS		+= $(MPI_LDLIBS) $(HDF5_LDLIBS)
-
 # --------------------------------------------------------------------------- #
 # Targets                                                                     #
 # --------------------------------------------------------------------------- #
@@ -77,17 +79,17 @@ LDLIBS		+= $(MPI_LDLIBS) $(HDF5_LDLIBS)
 
 all: build build-test
 
-debug:	build build-test
-debug:	ASFLAGS	+= -DDEBUG -Og -Fdwarf
-debug:	CFLAGS	+= -DDEBUG -g -Og
+debug: build build-test
+debug: ASFLAGS	+= -DDEBUG -Og -Fdwarf
+debug: CFLAGS	+= -DDEBUG -g -Og
 
 build: $(PROGS)
 
 clean:
-	$(RM) $(PH2DIR)/*.o $(PH2DIR)/*.d
+	$(RM) $(PHASE2DIR)/*.o $(PHASE2DIR)/*.d
 	$(RM) $(PH2RUNDIR)/*.o $(PH2RUNDIR)/*.d
+	$(RM) $(UTILSDIR)/*.o $(UTILSDIR)/*.d
 	$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
-	$(RM) $(LIBS)
 	$(RM) $(PROGS)
 	$(RM) $(TESTS)
 
@@ -97,31 +99,16 @@ clean:
 TESTDIR		:= ./test
 CFLAGS		+= -I$(TESTDIR) -DPH2_TESTDIR=\"$(TESTDIR)\"
 
-$(TESTDIR)/t-data_hamil:	$(PH2OBJS)				\
-				$(TESTDIR)/test.h			\
-				$(TESTDIR)/test-data.h
-$(TESTDIR)/t-data_multidet:	$(PH2OBJS)				\
-				$(TESTDIR)/test.h			\
-				$(TESTDIR)/test-data.h
-$(TESTDIR)/t-data_open:		$(PH2OBJS)				\
-				$(TESTDIR)/test.h			\
-				$(TESTDIR)/test-data.h
-$(TESTDIR)/t-data_trott_steps:	$(PH2OBJS)				\
-				$(TESTDIR)/test.h			\
-				$(TESTDIR)/test-data.h
-$(TESTDIR)/t-paulis:		$(TESTDIR)/test.h			\
-				$(PH2DIR)/paulis.o			\
-				$(PH2DIR)/xoshiro256ss.o
-$(TESTDIR)/t-trott_caserand:	$(PH2OBJS)				\
-				$(PH2DIR)/circ_trott.o			\
-				$(TESTDIR)/test.h
+TESTS		:= $(TESTDIR)/t-data_hamil				\
+			$(TESTDIR)/t-data_multidet			\
+			$(TESTDIR)/t-data_open				\
+			$(TESTDIR)/t-data_trott_steps			\
+			$(TESTDIR)/t-paulis				\
+			$(TESTDIR)/t-trott_caserand
 
-TESTS			:=	$(TESTDIR)/t-data_hamil			\
-				$(TESTDIR)/t-data_multidet		\
-				$(TESTDIR)/t-data_open			\
-				$(TESTDIR)/t-data_trott_steps		\
-				$(TESTDIR)/t-paulis			\
-				$(TESTDIR)/t-trott_caserand
+$(TESTS):	$(TESTDIR)/test.h					\
+		$(TESTDIR)/t-data.h					\
+		$(PHASE2OBJS) $(UTILSOBJS)
 
 build-test: $(TESTS)
 

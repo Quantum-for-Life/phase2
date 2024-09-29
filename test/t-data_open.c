@@ -1,7 +1,7 @@
 #include "phase2/data.h"
 
+#include "t-data.h"
 #include "test.h"
-#include "test-data.h"
 
 /*
 static int open_nonexist(void)

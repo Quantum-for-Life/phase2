@@ -4,8 +4,8 @@
 
 #include "phase2/data.h"
 
+#include "t-data.h"
 #include "test.h"
-#include "test-data.h"
 
 #define MARGIN (10e-8)
 
