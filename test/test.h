@@ -6,6 +6,10 @@
 
 static _Atomic bool TEST_RT = true;
 
+/*
+ * __VA_OPT__ has been added to C23. It is also part of GNU C and is
+ * supported by gcc.
+ */
 #define TEST_FAIL(fmt, ...)	({					\
 		fprintf(stderr, "%s:%d FAIL \"" fmt "\"\n",		\
 			__FILE__, __LINE__ __VA_OPT__(,) __VA_ARGS__);	\

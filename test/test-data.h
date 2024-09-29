@@ -1,6 +1,8 @@
 #ifndef TEST_DATA_H
 #define TEST_DATA_H
 
+#include <stddef.h>
+
 #define NUM_TEST_FILES (2)
 static struct test_data {
 	const char *filename;
