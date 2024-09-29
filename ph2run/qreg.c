@@ -5,36 +5,16 @@
 
 #include "paulis.h"
 #include "qreg.h"
+#include "world.h"
 
 #define MAX_COUNT (1 << 29)
 
-int ev_init(struct qreg_ev *ev)
-{
-	int init, nrk, rk;
-
-	MPI_Initialized(&init);
-	if (!init && MPI_Init(NULL, NULL) != MPI_SUCCESS)
-		return -1;
-
-	if (MPI_Comm_size(MPI_COMM_WORLD, &nrk) != MPI_SUCCESS)
-		return -1;
-	if (nrk == 0)
-		return -1;
-	if (MPI_Comm_rank(MPI_COMM_WORLD, &rk) != MPI_SUCCESS)
-		return -1;
-
-	ev->num_ranks = nrk;
-	ev->rank = rk;
-
-	return 0;
-}
-
 int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 {
-	if (ev_init(&reg->ev) < 0)
-		goto err_ev;
+	if (world_init(&reg->wd) < 0)
+		goto err_wd;
 
-	uint32_t qb_hi = 0, nrk = reg->ev.num_ranks;
+	uint32_t qb_hi = 0, nrk = reg->wd.num_ranks;
 	while (nrk >>= 1)
 		qb_hi++;
 	if (qb_hi >= num_qubits)
@@ -68,7 +48,7 @@ int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 err_amp_alloc:
 	free(reqs);
 err_reqs_alloc:
-err_ev:
+err_wd:
 	return -1;
 }
 
@@ -101,7 +81,7 @@ void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
 	uint64_t rank, loci;
 	qb_split(i, reg->qb_lo, reg->qb_hi, &loci, &rank);
 
-	if (reg->ev.rank == (int)rank)
+	if (reg->wd.rank == (int)rank)
 		*z = reg->amp[loci];
 	MPI_Bcast(z, 2, MPI_DOUBLE, rank, MPI_COMM_WORLD);
 }
@@ -111,7 +91,7 @@ void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 	uint64_t rank, loci;
 	qb_split(i, reg->qb_lo, reg->qb_hi, &loci, &rank);
 
-	if (reg->ev.rank == (int)rank)
+	if (reg->wd.rank == (int)rank)
 		reg->amp[loci] = z;
 	MPI_Barrier(MPI_COMM_WORLD);
 }
@@ -161,7 +141,7 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	const size_t num_codes)
 {
 	/* Compute permutation from outer qubits */
-	const uint64_t rnk_loc = reg->ev.rank;
+	const uint64_t rnk_loc = reg->wd.rank;
 	const uint64_t rnk_rem = paulis_effect(code_hi, rnk_loc, NULL);
 	qreg_exchbuf_init(reg, rnk_rem);
 

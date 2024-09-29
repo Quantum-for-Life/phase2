@@ -44,6 +44,7 @@ PH2RUNDIR	=	./ph2run
 PH2RUNOBJS	=	$(PH2RUNDIR)/circ.o	\
 			$(PH2RUNDIR)/data.o	\
 			$(PH2RUNDIR)/log.o	\
+			$(PH2RUNDIR)/world.o	\
 			$(PH2RUNDIR)/paulis.o	\
 			$(PH2RUNDIR)/qreg.o	\
 			$(PH2RUNDIR)/xoshiro256ss.o

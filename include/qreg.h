@@ -6,14 +6,12 @@
 #include "mpi.h"
 
 #include "paulis.h"
+#include "world.h"
 
 #define QREG_MAX_WIDTH (64)
 
 struct qreg {
-	struct qreg_ev {
-		int num_ranks;
-		int rank;
-	} ev;
+	struct world wd;
 
 	uint32_t qb_lo, qb_hi;
 
