@@ -13,7 +13,7 @@
 struct qreg {
 	uint32_t qb_lo, qb_hi;
 
-	c64 *amp, *buf;
+	_Complex double *amp, *buf;
 	uint64_t num_amps;
 
 	int msg_count;
@@ -25,9 +25,9 @@ int qreg_init(struct qreg *reg, uint32_t num_qubits);
 
 void qreg_destroy(struct qreg *reg);
 
-void qreg_getamp(const struct qreg *reg, uint64_t i, c64 *z);
+void qreg_getamp(const struct qreg *reg, uint64_t i, _Complex double *z);
 
-void qreg_setamp(struct qreg *reg, uint64_t i, c64 z);
+void qreg_setamp(struct qreg *reg, uint64_t i, _Complex double z);
 
 void qreg_zero(struct qreg *reg);
 

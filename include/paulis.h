@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 
-typedef _Complex double c64;
-
 enum pauli_op {
 	PAULI_I = 0,
 	PAULI_X = 1,
@@ -28,7 +26,7 @@ int paulis_eq(struct paulis code1, struct paulis code2);
 
 void paulis_shr(struct paulis *code, uint32_t n);
 
-uint64_t paulis_effect(struct paulis code, uint64_t i, c64 *z);
+uint64_t paulis_effect(struct paulis code, uint64_t i, _Complex double *z);
 
 void paulis_split(struct paulis code, uint32_t qb_lo, uint32_t qb_hi,
 	struct paulis *lo, struct paulis *hi);
