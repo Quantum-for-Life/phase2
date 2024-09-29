@@ -288,8 +288,10 @@ void TEST_MAIN(void)
 	for (size_t n = 0; n < 9999; n++) {
 		test_paulis_eq(n);
 		test_paulis_getset(n);
-		test_paulis_shr(n);
 	}
+	
+	for (size_t n = 0; n < WIDTH; n++)
+		test_paulis_shr(n);
 
 	test_paulis_effect_00();
 	test_paulis_effect_i1();
