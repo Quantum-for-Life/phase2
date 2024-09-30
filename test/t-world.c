@@ -2,7 +2,7 @@
 
 #include "test.h"
 
-void TEST_MAIN(void)
+static void TEST_MAIN(void)
 {
 	struct world wd;
 

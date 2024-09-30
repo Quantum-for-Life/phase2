@@ -24,21 +24,21 @@ static _Complex double AMPS[NUM_AMPS];
 #define SEED UINT64_C(0x34eaaa33)
 static struct xoshiro256ss RNG;
 
-double rand_double(void)
+static double rand_double(void)
 {
 	uint64_t x = xoshiro256ss_next(&RNG);
 
 	return (x >> 11) * 0x1.0p-53;
 }
 
-enum pauli_op rand_pauli_op(void)
+static enum pauli_op rand_pauli_op(void)
 {
 	enum pauli_op x = (int)(xoshiro256ss_next(&RNG) % 4);
 
 	return x;
 }
 
-void test_qreg_init(void)
+static void t_qreg_init(void)
 {
 	struct qreg reg;
 	uint32_t qb_lo, qb_hi, wd_size;
@@ -61,7 +61,7 @@ void test_qreg_init(void)
 	qreg_destroy(&reg);
 }
 
-void test_qreg_getsetamp_01(void)
+static void t_qreg_getsetamp_01(void)
 {
 	_Complex double z;
 	struct qreg reg;
@@ -90,7 +90,7 @@ void test_qreg_getsetamp_01(void)
 }
 
 
-void test_qreg_getsetamp_02(size_t tag)
+static void t_qreg_getsetamp_02(size_t tag)
 {
 	_Complex double z;
 	struct qreg reg;
@@ -114,7 +114,7 @@ void test_qreg_getsetamp_02(size_t tag)
 	qreg_destroy(&reg);
 }
 
-void test_qreg_zero(void)
+static void t_qreg_zero(void)
 {
 	_Complex double z;
 	struct qreg reg;
@@ -142,7 +142,7 @@ void test_qreg_zero(void)
  * Test if Pauli string equal to identity produces
  * just multiplication by phase.
  */
-void test_qreg_paulirot_00(void)
+static void t_qreg_paulirot_00(void)
 {
 	_Complex double z, z_exp;
 	struct qreg reg;
@@ -187,7 +187,7 @@ static void print_paulis(struct paulis ps)
 */
 
 /* Test rotation by one random Pauli string */
-void test_qreg_paulirot_01(size_t tag)
+static void t_qreg_paulirot_01(size_t tag)
 {
 	_Complex double z, z_exp;
 	struct qreg reg;
@@ -227,7 +227,7 @@ void test_qreg_paulirot_01(size_t tag)
 
 
 /* Test rotation by two random Pauli strings */
-void test_qreg_paulirot_02(size_t tag)
+static void t_qreg_paulirot_02(size_t tag)
 {
 	_Complex double z[2];
 	struct qreg reg;
@@ -294,7 +294,7 @@ void test_qreg_paulirot_02(size_t tag)
 
 
 /* Test rotation by n random Pauli strings */
-void test_qreg_paulirot_03(size_t tag, size_t n)
+static void t_qreg_paulirot_03(size_t tag, size_t n)
 {
 	_Complex double z[2];
 	struct qreg reg;
@@ -373,7 +373,7 @@ void test_qreg_paulirot_03(size_t tag, size_t n)
 	free(ps);
 }
 
-void TEST_MAIN(void)
+static void TEST_MAIN(void)
 {
 	world_init((void *)0, (void *) 0);
 	world_info(&WD);
@@ -381,21 +381,21 @@ void TEST_MAIN(void)
 
 	xoshiro256ss_init(&RNG, SEED);
 
-	test_qreg_init();
-	test_qreg_getsetamp_01();
+	t_qreg_init();
+	t_qreg_getsetamp_01();
 	for (size_t k = 0; k < 999; k++)
-		test_qreg_getsetamp_02(k);
-	test_qreg_zero();
+		t_qreg_getsetamp_02(k);
+	t_qreg_zero();
 
-	test_qreg_paulirot_00();
+	t_qreg_paulirot_00();
 	for (size_t k = 0; k < 999; k++)
-		test_qreg_paulirot_01(k);
+		t_qreg_paulirot_01(k);
 	for (size_t k = 0; k < 999; k++)
-		test_qreg_paulirot_02(k);
+		t_qreg_paulirot_02(k);
 	for (size_t k = 0; k < 9; k++)
 		for (size_t n = 1; n <= 99; n++)
-			test_qreg_paulirot_03(k, n);
-	test_qreg_paulirot_03(1234, 999);
+			t_qreg_paulirot_03(k, n);
+	t_qreg_paulirot_03(1234, 999);
 
 	world_fin();
 }

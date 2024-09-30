@@ -8,9 +8,9 @@
 #include "t-data.h"
 #include "test.h"
 
-#define MARGIN (10e-8)
+#define MARGIN (1.0e-8)
 
-static int test_getnums(void)
+static int t_getnums(void)
 {
 	int rc = 0;
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
@@ -46,7 +46,7 @@ static int test_getnums(void)
 	return rc;
 }
 
-static int test_getnorm(void)
+static int t_getnorm(void)
 {
 	int rc = 0;
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
@@ -125,7 +125,7 @@ static int iter_store(double coeff, unsigned char *paulis, void *op_data)
 	return 0;
 }
 
-static int test_iter0(void)
+static int t_iter0(void)
 {
 	const struct test_data td = TEST_DATA[0];
 	data_id fid = data_open(td.filename);
@@ -167,7 +167,7 @@ err:
 	return -1;
 }
 
-static int test_iter1(void)
+static int t_iter1(void)
 {
 	const struct test_data td = TEST_DATA[1];
 	data_id fid = data_open(td.filename);
@@ -237,11 +237,11 @@ err:
 	return -1;
 }
 
-static int test_iter(void)
+static int t_iter(void)
 {
-	if (test_iter0() < 0)
+	if (t_iter0() < 0)
 		return -1;
-	if (test_iter1() < 0)
+	if (t_iter1() < 0)
 		return -1;
 
 	return 0;
@@ -251,15 +251,15 @@ static void TEST_MAIN(void)
 {
 	world_init((void *)0, (void *) 0);
 
-	if (test_getnums() < 0) {
+	if (t_getnums() < 0) {
 		TEST_FAIL("getnums");
 		return;
 	}
-	if (test_getnorm() < 0) {
+	if (t_getnorm() < 0) {
 		TEST_FAIL("getnorm");
 		return;
 	}
-	if (test_iter() < 0) {
+	if (t_iter() < 0) {
 		TEST_FAIL("iter");
 		return;
 	}

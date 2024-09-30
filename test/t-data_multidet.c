@@ -7,9 +7,9 @@
 #include "t-data.h"
 #include "test.h"
 
-#define MARGIN (1e-6)
+#define MARGIN (1.0e-6)
 
-static int test_get_nums(void)
+static int t_get_nums(void)
 {
 	int rc = 0;
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
@@ -85,7 +85,7 @@ static int iter_store_dets(double coeff[2], const size_t idx, void *op_data)
 	return 0;
 }
 
-static int test_iter0(void)
+static int t_iter0(void)
 {
 	const struct test_data td = TEST_DATA[0];
 	data_id fid = data_open(td.filename);
@@ -123,7 +123,7 @@ err:
 	return -1;
 }
 
-static int test_iter1(void)
+static int t_iter1(void)
 {
 	const struct test_data td = TEST_DATA[1];
 	data_id fid = data_open(td.filename);
@@ -190,19 +190,19 @@ err:
 	return -1;
 }
 
-void TEST_MAIN(void)
+static void TEST_MAIN(void)
 {
 	world_init((void *)0, (void *) 0);
 
-	if (test_get_nums() < 0) {
+	if (t_get_nums() < 0) {
 		TEST_FAIL("getnums");
 		return;
 	}
-	if (test_iter0() < 0) {
+	if (t_iter0() < 0) {
 		TEST_FAIL("iter0");
 		return;
 	}
-	if (test_iter1() < 0) {
+	if (t_iter1() < 0) {
 		TEST_FAIL("iter1");
 		return;
 	}

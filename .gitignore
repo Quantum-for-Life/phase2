@@ -81,7 +81,12 @@ simul.h5*
 
 *.swp
 
-ph2run/ph2run-*
+ph2run/ph2run-trott
+ph2run/ph2run-qdrift
+
+test/t-circ
+test/t-circ_qdrift
+test/t-circ_trott
 test/t-data_hamil
 test/t-data_multidet
 test/t-data_open

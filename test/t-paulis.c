@@ -12,7 +12,7 @@ static struct xoshiro256ss RNG;
 
 #define WIDTH (64)
 
-void test_paulis_new(void)
+static void t_paulis_new(void)
 {
 	struct paulis ps = paulis_new();
 
@@ -21,7 +21,7 @@ void test_paulis_new(void)
 			"k=%zu, should be PAULI_I", k);
 }
 
-void test_paulis_getset(size_t tag)
+static void t_paulis_getset(size_t tag)
 {
 	enum pauli_op op[WIDTH];
 	struct paulis ps = paulis_new();
@@ -36,7 +36,7 @@ void test_paulis_getset(size_t tag)
 	}
 }
 
-void test_paulis_eq(size_t tag)
+static void t_paulis_eq(size_t tag)
 {
 	enum pauli_op op;
 	struct paulis ps1, ps2;
@@ -53,7 +53,7 @@ void test_paulis_eq(size_t tag)
 }
 
 
-void test_paulis_shr(size_t n)
+static void t_paulis_shr(size_t n)
 {
 	enum pauli_op op;
 	struct paulis ps1, ps2;
@@ -73,7 +73,7 @@ void test_paulis_shr(size_t n)
 	TEST_ASSERT(paulis_eq(ps1, ps2), "n=%zu, should be equal", n);
 }
 
-void test_paulis_effect_00(void)
+static void t_paulis_effect_00(void)
 {
 	_Complex double z = 11.3;
 	struct paulis ps = paulis_new();
@@ -88,7 +88,7 @@ void test_paulis_effect_00(void)
 	}
 }
 
-void test_paulis_effect_i1(void)
+static void t_paulis_effect_i1(void)
 {
 	_Complex double z;
 	struct paulis ps = paulis_new();
@@ -104,7 +104,7 @@ void test_paulis_effect_i1(void)
 }
 
 
-void test_paulis_effect_i2(void)
+static void t_paulis_effect_i2(void)
 {
 	_Complex double z;
 	struct paulis ps = paulis_new();
@@ -129,7 +129,7 @@ void test_paulis_effect_i2(void)
 }
 
 
-void test_paulis_effect_01(void)
+static void t_paulis_effect_01(void)
 {
 	_Complex double z;
 	struct paulis ps = paulis_new();
@@ -182,7 +182,7 @@ void test_paulis_effect_01(void)
 	TEST_EQ(z, -I);
 }
 
-void test_paulis_effect_02(size_t tag)
+static void t_paulis_effect_02(size_t tag)
 {
 	uint64_t x, y, y_exp, kk;
 	_Complex double z, z_exp;
@@ -229,7 +229,7 @@ void test_paulis_effect_02(size_t tag)
 
 }
 
-void test_paulis_split_01(size_t tag)
+static void t_paulis_split_01(size_t tag)
 {
 	uint32_t lo, hi;
 	struct paulis ps_lo, ps_hi, ps = paulis_new();
@@ -281,30 +281,30 @@ void test_paulis_split_01(size_t tag)
 	}
 }
 
-void TEST_MAIN(void)
+static void TEST_MAIN(void)
 {
 	world_init((void *)0, (void *)0);
 
 	xoshiro256ss_init(&RNG, SEED);
 
-	test_paulis_new();
+	t_paulis_new();
 	for (size_t n = 0; n < 9999; n++) {
-		test_paulis_eq(n);
-		test_paulis_getset(n);
+		t_paulis_eq(n);
+		t_paulis_getset(n);
 	}
 	
 	for (size_t n = 0; n < WIDTH; n++)
-		test_paulis_shr(n);
+		t_paulis_shr(n);
 
-	test_paulis_effect_00();
-	test_paulis_effect_i1();
-	test_paulis_effect_i2();
-	test_paulis_effect_01();
+	t_paulis_effect_00();
+	t_paulis_effect_i1();
+	t_paulis_effect_i2();
+	t_paulis_effect_01();
 	for (size_t n = 0; n < 9999; n++)
-		test_paulis_effect_02(n);
+		t_paulis_effect_02(n);
 
 	for (size_t n = 0; n < 9999; n++)
-		test_paulis_split_01(n);
+		t_paulis_split_01(n);
 
 	world_fin();
 }

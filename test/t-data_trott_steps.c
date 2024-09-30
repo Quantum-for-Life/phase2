@@ -2,7 +2,6 @@
  * Test routine: data_trott_write() from data.h by creating a fresh H5 file
  * Check if the values are written correctly.  Remove temporary file.
  */
-
 #include <complex.h>
 #include <math.h>
 #include <stdio.h>
@@ -15,7 +14,7 @@
 #include "test.h"
 
 #define SIZE (5)
-#define MARGIN (1e-6)
+#define MARGIN (1.0e-6)
 
 #define H5_GRP_NAME "circ_trott"
 #define H5_GRP_TIME_FACTOR "time_factor"
@@ -84,7 +83,7 @@ ex_create:
 	return rc;
 }
 
-void TEST_MAIN(void)
+static void TEST_MAIN(void)
 {
 	enum ret_code rc;
 
