@@ -4,9 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "data.h"
-#include "paulis.h"
-#include "qreg.h"
+#include "phase2/data.h"
+#include "phase2/paulis.h"
+#include "phase2/qreg.h"
 
 struct circ_hamil {
 	size_t num_qubits;

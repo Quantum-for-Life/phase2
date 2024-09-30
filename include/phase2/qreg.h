@@ -5,8 +5,8 @@
 
 #include "mpi.h"
 
-#include "paulis.h"
-#include "world.h"
+#include "phase2/paulis.h"
+#include "phase2/world.h"
 
 #define QREG_MAX_WIDTH (64)
 
