@@ -3,8 +3,8 @@
 
 #include "mpi.h"
 
-#include "circ.h"
-#include "log.h"
+#include "phase2/circ.h"
+#include "phase2/world.h"
 
 static struct opt {
 	const char *filename;
@@ -27,12 +27,7 @@ int run_circuit(data_id fid, size_t num_steps);
 
 int main(int argc, char **argv)
 {
-	int initialized;
-	MPI_Initialized(&initialized);
-	if (!initialized && MPI_Init(&argc, &argv) != MPI_SUCCESS)
-		exit(EXIT_FAILURE);
-
-	if (log_init() < 0)
+	if (world_init(&argc, &argv) != WORLD_READY)
 		exit(EXIT_FAILURE);
 
 	int rank, num_ranks;
@@ -66,9 +61,7 @@ error:
 cleanup:
 
 	log_info("Shut down simulation environment");
-	int finalized;
-	MPI_Finalized(&finalized);
-	if (!finalized && MPI_Finalize() != MPI_SUCCESS)
+	if (world_fin() != WORLD_DONE)
 		MAIN_RET = EXIT_FAILURE;
 
 	return MAIN_RET;

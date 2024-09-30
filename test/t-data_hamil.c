@@ -2,9 +2,9 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "data.h"
+#include "phase2/data.h"
 
-#include "test-data.h"
+#include "t-data.h"
 #include "test.h"
 
 #define MARGIN (10e-8)
@@ -246,16 +246,18 @@ static int test_iter(void)
 	return 0;
 }
 
-int test_data_hamil()
+static void TEST_MAIN(void)
 {
-	if (test_getnums() < 0)
-		goto err;
-	if (test_getnorm() < 0)
-		goto err;
-	if (test_iter() < 0)
-		goto err;
-
-	return 0;
-err:
-	return -1;
+	if (test_getnums() < 0) {
+		TEST_FAIL("getnums");
+		return;
+	}
+	if (test_getnorm() < 0) {
+		TEST_FAIL("getnorm");
+		return;
+	}
+	if (test_iter() < 0) {
+		TEST_FAIL("iter");
+		return;
+	}
 }

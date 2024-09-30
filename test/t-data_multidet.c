@@ -1,9 +1,9 @@
 #include <complex.h>
 #include <stdio.h>
 
-#include "data.h"
+#include "phase2/data.h"
 
-#include "test-data.h"
+#include "t-data.h"
 #include "test.h"
 
 #define MARGIN (1e-6)
@@ -189,16 +189,19 @@ err:
 	return -1;
 }
 
-int test_data_multidet()
+void TEST_MAIN(void)
 {
-	if (test_get_nums() < 0)
-		goto err;
-	if (test_iter0() < 0)
-		goto err;
-	if (test_iter1() < 0)
-		goto err;
+	if (test_get_nums() < 0) {
+		TEST_FAIL("getnums");
+		return;
+	}
+	if (test_iter0() < 0) {
+		TEST_FAIL("iter0");
+		return;
+	}
+	if (test_iter1() < 0) {
+		TEST_FAIL("iter1");
+		return;
+	}
 
-	return 0;
-err:
-	return -1;
 }

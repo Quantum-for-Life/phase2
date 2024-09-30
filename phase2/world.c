@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2020 rxi
+ * Copyright 2020 rxi (log facility)
+ * Copyright 2024 Marek Miller (log and world)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -19,7 +20,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +27,7 @@
 
 #include "mpi.h"
 
-#include "log.h"
+#include "phase2/world.h"
 
 #define MAX_CALLBACKS (32)
 
@@ -153,15 +153,11 @@ void log_log(const int level, const char *fmt, ...)
 
 void log_callback(struct log_event *ev)
 {
-	int initialized, finalized;
-	MPI_Initialized(&initialized);
-	MPI_Finalized(&finalized);
-	if (initialized && !finalized) {
-		int rank;
-		MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-		if (rank > 0)
-			return;
-	}
+	struct world wd;
+	if (world_info(&wd) !=  WORLD_READY)
+		return;
+	if (wd.rank > 0)
+		return;
 
 	char buf[64];
 	FILE *fd = ev->data;
@@ -183,4 +179,55 @@ int log_init(void)
 	log_add_callback(log_callback, stderr, lvl);
 
 	return 0;
+}
+
+static struct world WORLD = {
+	.stat = WORLD_UNDEF,
+	.size = 0,
+	.rank = 0,
+};
+
+int world_init(int *argc, char ***argv)
+{
+	if (log_init() < 0)
+		goto err;
+
+	int init, sz, rk;
+
+	MPI_Initialized(&init);
+	if (!init && MPI_Init(argc, argv) != MPI_SUCCESS)
+		goto err;
+	if (MPI_Comm_size(MPI_COMM_WORLD, &sz) != MPI_SUCCESS)
+		goto err;
+	if (sz == 0)
+		goto err;
+	if (MPI_Comm_rank(MPI_COMM_WORLD, &rk) != MPI_SUCCESS)
+		goto err;
+
+	WORLD.size = sz;
+	WORLD.rank = rk;
+	return WORLD.stat = WORLD_READY;
+
+err:
+	return WORLD.stat = WORLD_ERR;
+}
+
+int world_fin(void)
+{
+	if (WORLD.stat == WORLD_READY) {
+		if (MPI_Finalize() == MPI_SUCCESS)
+			WORLD.stat = WORLD_DONE;
+		else
+			WORLD.stat = WORLD_ERR;
+	}
+
+	return WORLD.stat;
+}
+
+int world_info(struct world *wd)
+{
+	wd->size = WORLD.size;
+	wd->rank = WORLD.rank;
+
+	return wd->stat = WORLD.stat;
 }

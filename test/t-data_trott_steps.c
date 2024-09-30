@@ -9,7 +9,7 @@
 
 #include <hdf5.h>
 
-#include "data.h"
+#include "phase2/data.h"
 #include "test.h"
 
 #define SIZE (5)
@@ -82,7 +82,7 @@ ex_create:
 	return rc;
 }
 
-int test_data_trott_steps(void)
+void TEST_MAIN(void)
 {
 	enum ret_code rc;
 
@@ -178,5 +178,5 @@ ex_prepare:
 		goto ex_create;
 	}
 ex_create:
-	return rc == ERR_OK ? 0 : -1;
+	return;
 }

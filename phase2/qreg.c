@@ -1,161 +1,25 @@
 #include <complex.h>
-#include <math.h>
 #include <stdlib.h>
 
 #include "mpi.h"
 
-#include "qreg.h"
+#include "phase2/paulis.h"
+#include "phase2/qreg.h"
+#include "phase2/world.h"
+
+typedef _Complex double c64;
 
 #define MAX_COUNT (1 << 29)
 
-int ev_init(struct qreg_ev *ev)
-{
-	int init, nrk, rk;
-
-	MPI_Initialized(&init);
-	if (!init && MPI_Init(NULL, NULL) != MPI_SUCCESS)
-		return -1;
-
-	if (MPI_Comm_size(MPI_COMM_WORLD, &nrk) != MPI_SUCCESS)
-		return -1;
-	if (nrk == 0)
-		return -1;
-	if (MPI_Comm_rank(MPI_COMM_WORLD, &rk) != MPI_SUCCESS)
-		return -1;
-
-	ev->num_ranks = nrk;
-	ev->rank = rk;
-
-	return 0;
-}
-
-struct paulis paulis_new(void)
-{
-	struct paulis code = {
-		.pak = { 0, 0 }
-	};
-
-	return code;
-}
-
-static int paulis_countis(struct paulis code)
-{
-	return __builtin_popcountll(code.pak[0] & code.pak[1]);
-}
-
-void paulis_set(
-	struct paulis *code, const enum pauli_op pauli, const uint32_t n)
-{
-	const uint64_t n_mask = UINT64_C(1) << n;
-
-	switch (pauli) {
-	case PAULI_I:
-		code->pak[0] &= ~n_mask;
-		code->pak[1] &= ~n_mask;
-		break;
-	case PAULI_X:
-		code->pak[0] |= n_mask;
-		code->pak[1] &= ~n_mask;
-		break;
-	case PAULI_Y:
-		code->pak[0] |= n_mask;
-		code->pak[1] |= n_mask;
-		break;
-	case PAULI_Z:
-		code->pak[0] &= ~n_mask;
-		code->pak[1] |= n_mask;
-		break;
-	}
-}
-
-enum pauli_op paulis_get(const struct paulis code, const uint32_t n)
-{
-	int pa = 0;
-	pa |= code.pak[0] >> n & 1;
-	pa |= (code.pak[1] >> n & 1) << 1;
-
-	switch (pa) {
-	case 0:
-		return PAULI_I;
-	case 1:
-		return PAULI_X;
-	case 2:
-		return PAULI_Z;
-	case 3:
-		return PAULI_Y;
-	default:
-		__builtin_unreachable();
-	}
-}
-
-int paulis_eq(const struct paulis code1, const struct paulis code2)
-{
-	return code1.pak[0] == code2.pak[0] && code1.pak[1] == code2.pak[1];
-}
-
-void paulis_shr(struct paulis *code, const uint32_t n)
-{
-	code->pak[0] >>= n;
-	code->pak[1] >>= n;
-}
-
-uint64_t paulis_effect(const struct paulis code, const uint64_t i, c64 *z)
-{
-	uint64_t j = i ^ code.pak[0];
-	if (z != NULL) {
-		const int minus = __builtin_popcountll(j & code.pak[1]);
-		const int root4 = (paulis_countis(code) + 2 * minus) & 0x3;
-
-		switch (root4) {
-		case 0:
-			break;
-		case 1:
-			*z *= I;
-			break;
-		case 2:
-			*z *= -1.0;
-			break;
-		case 3:
-			*z *= -I;
-			break;
-		default:
-			__builtin_unreachable();
-		}
-	}
-
-	return j;
-}
-
-static void qb_split(uint64_t n, const uint32_t qb_lo, const uint32_t qb_hi,
-	uint64_t *lo, uint64_t *hi)
-{
-	const uint64_t mask_lo = (UINT64_C(1) << qb_lo) - 1;
-	const uint64_t mask_hi = (UINT64_C(1) << qb_hi) - 1;
-
-	*lo = n & mask_lo;
-	n >>= qb_lo;
-	*hi = n & mask_hi;
-}
-
-void paulis_split(const struct paulis code, const uint32_t qb_lo,
-	const uint32_t qb_hi, struct paulis *lo, struct paulis *hi)
-{
-	const uint64_t mask_lo = ((uint64_t)1 << qb_lo) - 1;
-	const uint64_t mask_hi = ((uint64_t)1 << (qb_hi + qb_lo)) - 1;
-
-	lo->pak[0] = code.pak[0] & mask_lo;
-	lo->pak[1] = code.pak[1] & mask_lo;
-
-	hi->pak[0] = code.pak[0] & mask_hi;
-	hi->pak[1] = code.pak[1] & mask_hi;
-}
+/* Local copy of the world info. Initialized by qreg_init() */
+static struct world WD;
 
 int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 {
-	if (ev_init(&reg->ev) < 0)
-		goto err_ev;
+	if (world_info(&WD) != WORLD_READY)
+		return -1;
 
-	uint32_t qb_hi = 0, nrk = reg->ev.num_ranks;
+	uint32_t qb_hi = 0, nrk = WD.size;
 	while (nrk >>= 1)
 		qb_hi++;
 	if (qb_hi >= num_qubits)
@@ -189,7 +53,6 @@ int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 err_amp_alloc:
 	free(reqs);
 err_reqs_alloc:
-err_ev:
 	return -1;
 }
 
@@ -206,12 +69,23 @@ void qreg_destroy(struct qreg *reg)
 	reg->reqs_rcv = NULL;
 }
 
+static void qb_split(uint64_t n, const uint32_t qb_lo, const uint32_t qb_hi,
+	uint64_t *lo, uint64_t *hi)
+{
+	const uint64_t mask_lo = (UINT64_C(1) << qb_lo) - 1;
+	const uint64_t mask_hi = (UINT64_C(1) << qb_hi) - 1;
+
+	*lo = n & mask_lo;
+	n >>= qb_lo;
+	*hi = n & mask_hi;
+}
+
 void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
 {
 	uint64_t rank, loci;
 	qb_split(i, reg->qb_lo, reg->qb_hi, &loci, &rank);
 
-	if (reg->ev.rank == (int)rank)
+	if (WD.rank == (int)rank)
 		*z = reg->amp[loci];
 	MPI_Bcast(z, 2, MPI_DOUBLE, rank, MPI_COMM_WORLD);
 }
@@ -221,7 +95,7 @@ void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 	uint64_t rank, loci;
 	qb_split(i, reg->qb_lo, reg->qb_hi, &loci, &rank);
 
-	if (reg->ev.rank == (int)rank)
+	if (WD.rank == (int)rank)
 		reg->amp[loci] = z;
 	MPI_Barrier(MPI_COMM_WORLD);
 }
@@ -262,8 +136,8 @@ static void kernel_rot(c64 *amp, const uint64_t i, const uint64_t j,
 
 	xi = amp[i];
 	xj = amp[j];
-	amp[i] = creal(eip) * xi + I * cimag(eip) * z * xj;
-	amp[j] = creal(eip) * xj + I * cimag(eip) * conj(z) * xi;
+	amp[i] = creal(eip) * xi + I * cimag(eip) * conj(z) * xj;
+	amp[j] = creal(eip) * xj + I * cimag(eip) * z * xi;
 }
 
 void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
@@ -271,7 +145,7 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	const size_t num_codes)
 {
 	/* Compute permutation from outer qubits */
-	const uint64_t rnk_loc = reg->ev.rank;
+	const uint64_t rnk_loc = WD.rank;
 	const uint64_t rnk_rem = paulis_effect(code_hi, rnk_loc, NULL);
 	qreg_exchbuf_init(reg, rnk_rem);
 
@@ -285,7 +159,7 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 
 	/* Compute permutation from inner qubits */
 	for (uint64_t i = 0; i < reg->num_amps; i++) {
-		reg->buf[i] *= buf_mul;
+		reg->buf[i] *= conj(buf_mul);
 
 		_Complex a = reg->amp[i], b = reg->buf[i];
 		reg->amp[i] = (a + b) / 2.0;

@@ -2,7 +2,7 @@
 
 #include "hdf5.h"
 
-#include "data.h"
+#include "phase2/data.h"
 
 /* Group, dataset names */
 #define DATA_STPREP "state_prep"

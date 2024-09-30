@@ -1,6 +1,6 @@
-#include "data.h"
+#include "phase2/data.h"
 
-#include "test-data.h"
+#include "t-data.h"
 #include "test.h"
 
 /*
@@ -31,7 +31,7 @@ err:
 	return -1;
 }
 
-int test_data_open(void)
+static void TEST_MAIN(void)
 {
 	/* This test generates noisy error messages from HDF5 and it's
 	 * not particularly important.  Disable.
@@ -46,11 +46,7 @@ int test_data_open(void)
 		const char *filename = TEST_DATA[i].filename;
 		if (open_exist(filename) < 0) {
 			TEST_FAIL("open data file: %s", filename);
-			goto err;
+			return;
 		}
 	}
-
-	return 0;
-err:
-	return -1;
 }
