@@ -87,5 +87,6 @@ test/t-data_multidet
 test/t-data_open
 test/t-data_trott_steps
 test/t-paulis
+test/t-qreg
 test/t-trott_caserand
 

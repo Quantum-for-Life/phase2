@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 #include "phase2/paulis.h"
+#include "phase2/world.h"
 #include "xoshiro256ss.h"
 
 #include "test.h"
@@ -282,6 +283,8 @@ void test_paulis_split_01(size_t tag)
 
 void TEST_MAIN(void)
 {
+	world_init((void *)0, (void *)0);
+
 	xoshiro256ss_init(&RNG, SEED);
 
 	test_paulis_new();
@@ -302,4 +305,6 @@ void TEST_MAIN(void)
 
 	for (size_t n = 0; n < 9999; n++)
 		test_paulis_split_01(n);
+
+	world_fin();
 }

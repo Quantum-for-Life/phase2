@@ -75,7 +75,8 @@ LDLIBS		+= $(MPI_LDLIBS) $(HDF5_LDLIBS)
 	build build-test 	\
 	clean			\
 	debug			\
-	check
+	check			\
+	check-mpi
 
 all: build build-test
 
@@ -104,6 +105,7 @@ TESTS		:= $(TESTDIR)/t-data_hamil				\
 			$(TESTDIR)/t-data_open				\
 			$(TESTDIR)/t-data_trott_steps			\
 			$(TESTDIR)/t-paulis				\
+			$(TESTDIR)/t-qreg				\
 			$(TESTDIR)/t-trott_caserand
 
 $(TESTS):	$(TESTDIR)/test.h					\
@@ -115,5 +117,15 @@ build-test: $(TESTS)
 check: build-test
 	@for tt in $(TESTS); do						\
 		./$$tt && echo "$$tt: OK" || ( echo "$$tt: FAIL"; exit 1 ) ; \
+	done
+
+MPIRUN		:= mpirun
+MPIFLAGS	:=
+MPIRANKS	?= 2
+
+check-mpi: build-test
+	@for tt in $(TESTS); do						\
+		$(MPIRUN) -n $(MPIRANKS) $(MPIFLAGS) ./$$tt && 		\
+		echo "$$tt: OK" || ( echo "$$tt: FAIL"; exit 1 ) ; 	\
 	done
 

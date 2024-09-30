@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "phase2/data.h"
+#include "phase2/world.h"
 
 #include "t-data.h"
 #include "test.h"
@@ -191,6 +192,8 @@ err:
 
 void TEST_MAIN(void)
 {
+	world_init((void *)0, (void *) 0);
+
 	if (test_get_nums() < 0) {
 		TEST_FAIL("getnums");
 		return;
@@ -204,4 +207,5 @@ void TEST_MAIN(void)
 		return;
 	}
 
+	world_fin();
 }

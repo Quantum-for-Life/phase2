@@ -10,6 +10,8 @@
 #include <hdf5.h>
 
 #include "phase2/data.h"
+#include "phase2/world.h"
+
 #include "test.h"
 
 #define SIZE (5)
@@ -85,6 +87,8 @@ ex_create:
 void TEST_MAIN(void)
 {
 	enum ret_code rc;
+
+	world_init((void *)0, (void *)0);
 
 	/* Create a temporary H5 file */
 	if (!tmpnam(filename)) {
@@ -178,5 +182,8 @@ ex_prepare:
 		goto ex_create;
 	}
 ex_create:
+
+	world_fin();
+
 	return;
 }

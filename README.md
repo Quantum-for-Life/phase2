@@ -57,6 +57,22 @@ To run the test suite:
 make check
 ```
 
+Individual tests can be found in `./test` directory. The compiled applications
+are MPI-aware and can be run in a distributed mode with `mpirun` as well:
+
+```bash
+make check-mpi
+```
+
+You can specify the number of MPI processess with `MPIRANKS=n` like this:
+
+```bash
+make check-mpi MPIRANKS=16
+```
+
+The default value is `MPIRANKS=2`. This number *must be a power of two*
+and must not exceed the number or cores available.
+
 Consult [Makefile](./Makefile) for how to configure the build system.
 
 

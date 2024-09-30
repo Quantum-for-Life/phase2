@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "phase2/data.h"
+#include "phase2/world.h"
 
 #include "t-data.h"
 #include "test.h"
@@ -248,6 +249,8 @@ static int test_iter(void)
 
 static void TEST_MAIN(void)
 {
+	world_init((void *)0, (void *) 0);
+
 	if (test_getnums() < 0) {
 		TEST_FAIL("getnums");
 		return;
@@ -260,4 +263,6 @@ static void TEST_MAIN(void)
 		TEST_FAIL("iter");
 		return;
 	}
+
+	world_fin();
 }

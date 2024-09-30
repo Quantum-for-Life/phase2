@@ -1,4 +1,5 @@
 #include "phase2/data.h"
+#include "phase2/world.h"
 
 #include "t-data.h"
 #include "test.h"
@@ -33,6 +34,8 @@ err:
 
 static void TEST_MAIN(void)
 {
+	world_init((void *)0, (void *) 0);
+
 	/* This test generates noisy error messages from HDF5 and it's
 	 * not particularly important.  Disable.
 	 *
@@ -49,4 +52,6 @@ static void TEST_MAIN(void)
 			return;
 		}
 	}
+
+	world_fin();
 }
