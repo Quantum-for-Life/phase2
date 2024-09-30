@@ -100,7 +100,8 @@ clean:
 TESTDIR		:= ./test
 CFLAGS		+= -I$(TESTDIR) -DPH2_TESTDIR=\"$(TESTDIR)\"
 
-TESTS		:= $(TESTDIR)/t-data_hamil				\
+TESTS		:= $(TESTDIR)/t-circ_trott				\
+			$(TESTDIR)/t-data_hamil				\
 			$(TESTDIR)/t-data_multidet			\
 			$(TESTDIR)/t-data_open				\
 			$(TESTDIR)/t-data_trott_steps			\
