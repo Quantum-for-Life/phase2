@@ -105,8 +105,8 @@ TESTS		:= $(TESTDIR)/t-data_hamil				\
 			$(TESTDIR)/t-data_open				\
 			$(TESTDIR)/t-data_trott_steps			\
 			$(TESTDIR)/t-paulis				\
-			$(TESTDIR)/t-qreg
-#			$(TESTDIR)/t-trott_caserand
+			$(TESTDIR)/t-qreg				\
+			$(TESTDIR)/t-world
 
 $(TESTS):	$(TESTDIR)/test.h					\
 		$(TESTDIR)/t-data.h					\
