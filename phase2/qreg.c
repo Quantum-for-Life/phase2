@@ -136,8 +136,8 @@ static void kernel_rot(c64 *amp, const uint64_t i, const uint64_t j,
 
 	xi = amp[i];
 	xj = amp[j];
-	amp[i] = creal(eip) * xi + I * cimag(eip) * conj(z) * xj;
-	amp[j] = creal(eip) * xj + I * cimag(eip) * z * xi;
+	amp[i] = creal(eip) * xi + I * cimag(eip) * z * xj;
+	amp[j] = creal(eip) * xj + I * cimag(eip) * conj(z) * xi;
 }
 
 void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
@@ -159,7 +159,7 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 
 	/* Compute permutation from inner qubits */
 	for (uint64_t i = 0; i < reg->num_amps; i++) {
-		reg->buf[i] *= conj(buf_mul);
+		reg->buf[i] *= buf_mul;
 
 		_Complex a = reg->amp[i], b = reg->buf[i];
 		reg->amp[i] = (a + b) / 2.0;
