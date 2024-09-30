@@ -17,13 +17,9 @@ static struct world WD;
 #define WIDTH (64)
 #define MARGIN (1.0e-10)
 
-#define NUM_QUBITS (7)
+#define NUM_QUBITS (13)
 #define NUM_AMPS (1UL << NUM_QUBITS)
 static _Complex double AMPS[NUM_AMPS];
-#define NUM_PAULIS (99)
-static struct paulis PS[NUM_PAULIS];
-static double angles[NUM_PAULIS];
-
 
 #define SEED UINT64_C(0x34eaaa33)
 static struct xoshiro256ss RNG;
@@ -38,7 +34,7 @@ double rand_dbl(void)
 enum pauli_op rand_pauli_op(void)
 {
 	enum pauli_op x = (int)(xoshiro256ss_next(&RNG) % 4);
-	
+
 	return x;
 }
 
@@ -142,7 +138,7 @@ void test_qreg_zero(void)
 	qreg_destroy(&reg);
 }
 
-/* 
+/*
  * Test if Pauli string equal to identity produces
  * just multiplication by phase.
  */
@@ -190,6 +186,7 @@ static void print_paulis(struct paulis ps)
 }
 */
 
+/* Test rotation by one random Pauli string */
 void test_qreg_paulirot_01(size_t tag)
 {
 	_Complex double z, z_exp;
@@ -215,10 +212,10 @@ void test_qreg_paulirot_01(size_t tag)
 
 	for (size_t i = 0; i < NUM_AMPS; i++) {
 		_Complex double u = 1.0;
-		
+
 		size_t j = paulis_effect(ps, i, &u);
 		z_exp = cos(angle) * AMPS[i] + I * u * sin(angle) * AMPS[j];
-		
+
 		qreg_getamp(&reg, i, &z);
 		TEST_ASSERT(cabs(z - z_exp) < MARGIN,
 			"[%zu] i=%zu, z=%f+%fi, z_exp=%f+%fi", tag, i,
@@ -226,6 +223,154 @@ void test_qreg_paulirot_01(size_t tag)
 	}
 
 	qreg_destroy(&reg);
+}
+
+
+/* Test rotation by two random Pauli strings */
+void test_qreg_paulirot_02(size_t tag)
+{
+	_Complex double z[2];
+	struct qreg reg;
+	struct paulis ps[2], ps_hi[2], ps_lo[2];
+	double angle[2];
+
+	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0,
+		"cannot initialize qreg");
+	for (size_t i = 0; i < NUM_AMPS; i++) {
+		z[0] = rand_dbl() + rand_dbl() * I;
+		AMPS[i] = z[0];
+		qreg_setamp(&reg, i, z[0]);
+	}
+
+	ps[0] = ps_lo[0] = ps_hi[1] = paulis_new();
+	ps[1] = ps_lo[1] = ps_hi[1] = paulis_new();
+	for (size_t k = 0; k < reg.qb_lo; k++) {
+		paulis_set(&ps[0], rand_pauli_op(), k);
+		paulis_set(&ps[1], rand_pauli_op(), k);
+	}
+	for (size_t k = reg.qb_lo; k < reg.qb_lo +  reg.qb_hi; k++) {
+		enum pauli_op op = rand_pauli_op();
+		paulis_set(&ps[0], op, k);
+		paulis_set(&ps[1], op, k);
+	}
+	paulis_split(ps[0], reg.qb_lo, reg.qb_hi, &ps_lo[0], &ps_hi[0]);
+	paulis_split(ps[1], reg.qb_lo, reg.qb_hi, &ps_lo[1], &ps_hi[1]);
+	TEST_ASSERT(paulis_eq(ps_hi[0], ps_hi[1]),
+		"[%zu] hi codes should be equal", tag);
+	paulis_shr(&ps_hi[0], reg.qb_lo);
+	paulis_shr(&ps_hi[1], reg.qb_lo);
+
+	angle[0] = rand_dbl();
+	angle[1] = rand_dbl();
+	qreg_paulirot(&reg, ps_hi[0], ps_lo, angle, 2);
+
+	for (size_t k = 0; k < 2; k++) {
+		for (size_t i = 0; i < NUM_AMPS; i++) {
+			_Complex double u = 1.0;
+
+			size_t j = paulis_effect(ps[k], i, &u);
+			if (j < i)
+				continue;
+
+			z[0] = cos(angle[k]) * AMPS[i] +
+				I * u * sin(angle[k]) * AMPS[j];
+			z[1] = cos(angle[k]) * AMPS[j] +
+				I * conj(u) * sin(angle[k]) * AMPS[i];
+			AMPS[i] = z[0];
+			AMPS[j] = z[1];
+		}
+	}
+
+	for (size_t i = 0; i < NUM_AMPS; i++) {
+		qreg_getamp(&reg, i, &z[0]);
+		TEST_ASSERT(cabs(z[0] - AMPS[i]) < MARGIN,
+			"[%zu] i=%zu, z=%f+%fi, z_exp=%f+%fi", tag, i,
+			creal(z[0]), cimag(z[0]),
+			creal(AMPS[i]), cimag(AMPS[i]));
+	}
+
+	qreg_destroy(&reg);
+}
+
+
+/* Test rotation by n random Pauli strings */
+void test_qreg_paulirot_03(size_t tag, size_t n)
+{
+	_Complex double z[2];
+	struct qreg reg;
+	struct paulis *ps, *ps_hi, *ps_lo;
+	double *angle;
+
+	ps = malloc(sizeof(struct paulis) * n * 3);
+	angle = malloc(sizeof(double) * n);
+	if (!ps || !angle) {
+		TEST_FAIL("cannot allocate memory");
+		return;
+	}
+	ps_hi = ps + n;
+	ps_lo = ps_hi + n;
+
+	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0,
+		"cannot initialize qreg");
+	for (size_t i = 0; i < NUM_AMPS; i++) {
+		z[0] = rand_dbl() + rand_dbl() * I;
+		AMPS[i] = z[0];
+		qreg_setamp(&reg, i, z[0]);
+	}
+
+	for (size_t l = 0; l < n; l++)
+		ps[l] = ps_lo[l] = ps_hi[l] = paulis_new();
+	for (size_t k = 0; k < reg.qb_lo; k++)
+		for (size_t l = 0; l < n; l++)
+			paulis_set(&ps[l], rand_pauli_op(), k);
+	for (size_t k = reg.qb_lo; k < reg.qb_lo +  reg.qb_hi; k++) {
+		enum pauli_op op = rand_pauli_op();
+		for (size_t l = 0; l < n; l++)
+			paulis_set(&ps[l], op, k);
+	}
+	for (size_t l = 0; l < n; l++) {
+		paulis_split(ps[l], reg.qb_lo, reg.qb_hi,
+			&ps_lo[l], &ps_hi[l]);
+		if (l > 0)
+			TEST_ASSERT(paulis_eq(ps_hi[0], ps_hi[l]),
+				"[%zu] l=%zu hi codes should be equal",
+				tag, l);
+
+	}
+	for (size_t l = 0; l < n; l++) {
+		angle[l] = rand_dbl();
+		paulis_shr(&ps_hi[l], reg.qb_lo);
+	}
+	qreg_paulirot(&reg, ps_hi[0], ps_lo, angle, n);
+
+	for (size_t k = 0; k < n; k++) {
+		for (size_t i = 0; i < NUM_AMPS; i++) {
+			_Complex double u = 1.0;
+
+			size_t j = paulis_effect(ps[k], i, &u);
+			if (j < i)
+				continue;
+
+			z[0] = cos(angle[k]) * AMPS[i] +
+				I * u * sin(angle[k]) * AMPS[j];
+			z[1] = cos(angle[k]) * AMPS[j] +
+				I * conj(u) * sin(angle[k]) * AMPS[i];
+			AMPS[i] = z[0];
+			AMPS[j] = z[1];
+		}
+	}
+
+	for (size_t i = 0; i < NUM_AMPS; i++) {
+		qreg_getamp(&reg, i, &z[0]);
+		TEST_ASSERT(cabs(z[0] - AMPS[i]) < MARGIN,
+			"[%zu] n=%zu, i=%zu, z=%f+%fi, z_exp=%f+%fi", tag, n, i,
+			creal(z[0]), cimag(z[0]),
+			creal(AMPS[i]), cimag(AMPS[i]));
+	}
+
+	qreg_destroy(&reg);
+	free(angle);
+	free(ps);
 }
 
 void TEST_MAIN(void)
@@ -238,13 +383,19 @@ void TEST_MAIN(void)
 
 	test_qreg_init();
 	test_qreg_getsetamp_01();
-	for (size_t k = 0; k < 9999; k++)
+	for (size_t k = 0; k < 999; k++)
 		test_qreg_getsetamp_02(k);
 	test_qreg_zero();
 
 	test_qreg_paulirot_00();
-	for (size_t k = 0; k < 9999; k++)
+	for (size_t k = 0; k < 999; k++)
 		test_qreg_paulirot_01(k);
+	for (size_t k = 0; k < 999; k++)
+		test_qreg_paulirot_02(k);
+	for (size_t k = 0; k < 9; k++)
+		for (size_t n = 1; n <= 99; n++)
+			test_qreg_paulirot_03(k, n);
+	test_qreg_paulirot_03(1234, 999);
 
 	world_fin();
 }
