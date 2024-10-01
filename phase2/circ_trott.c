@@ -63,10 +63,14 @@ void circ_trott_data_destroy(struct circ_trott_data *cd)
 	free(cd->trott_steps[0]);
 }
 
-int circ_trott_data_from_file(struct circ_trott_data *cd, data_id fid)
+int circ_trott_data_init_from_file(struct circ_trott_data *cd,
+	size_t num_steps, data_id fid)
 {
-	int rc = circ_hamil_from_file(&cd->hamil, fid);
-	rc |= circ_multidet_from_file(&cd->multidet, fid);
+	if (circ_trott_data_init(cd, num_steps) < 0)
+		return -1;
+
+	int rc = circ_hamil_init_from_file(&cd->hamil, fid);
+	rc |= circ_multidet_init_from_file(&cd->multidet, fid);
 	data_circ_trott_getttrs(fid, &cd->time_factor);
 
 	return rc;

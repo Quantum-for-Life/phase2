@@ -96,8 +96,7 @@ int run_circuit(data_id fid, size_t num_steps)
 	int rc = 0;
 
 	struct circ_trott_data rd;
-	circ_trott_data_init(&rd, num_steps);
-	if (circ_trott_data_from_file(&rd, fid) < 0)
+	if (circ_trott_data_init_from_file(&rd, num_steps, fid) < 0)
 		goto error;
 	if (circ_trott_simulate(&rd) < 0)
 		goto error;

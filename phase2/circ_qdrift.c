@@ -58,10 +58,11 @@ static void circ_destroy(struct circ_qdrift *c)
 		free(c->sampled_idx);
 }
 
-int circ_qdrift_data_from_file(struct circ_qdrift_data *cd, const data_id fid)
+static int circ_qdrift_data_from_file(struct circ_qdrift_data *cd,
+					const data_id fid)
 {
-	int rc = circ_hamil_from_file(&cd->hamil, fid);
-	rc |= circ_multidet_from_file(&cd->multidet, fid);
+	int rc = circ_hamil_init_from_file(&cd->hamil, fid);
+	rc |= circ_multidet_init_from_file(&cd->multidet, fid);
 	rc |= data_circ_qdrift_getattrs(
 		fid, &cd->num_samples, &cd->step_size, &cd->depth);
 

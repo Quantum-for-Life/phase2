@@ -5,6 +5,24 @@
 #include "phase2/circ.h"
 #include "phase2/paulis.h"
 
+int circ_hamil_init(struct circ_hamil *h, size_t num_terms)
+{
+	double *coeffs = malloc(sizeof *coeffs * num_terms);
+	struct paulis *paulis = malloc(sizeof(struct paulis) * num_terms);
+	if (!(coeffs && paulis))
+		goto err;
+
+	h->num_terms = num_terms;
+	h->coeffs = coeffs;
+	h->paulis = paulis;
+
+	return 0;
+err:
+	free(coeffs);
+	free(paulis);
+	return -1;
+}
+
 void circ_hamil_destroy(struct circ_hamil *h)
 {
 	if (h->paulis)
@@ -37,7 +55,7 @@ static int hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
 	return 0;
 }
 
-int circ_hamil_from_file(struct circ_hamil *h, const data_id fid)
+int circ_hamil_init_from_file(struct circ_hamil *h, const data_id fid)
 {
 	size_t num_qubits, num_terms;
 	double norm;
@@ -47,29 +65,31 @@ int circ_hamil_from_file(struct circ_hamil *h, const data_id fid)
 	if (data_hamil_getnorm(fid, &norm) < 0)
 		return -1;
 
-	double *coeffs = malloc(sizeof *coeffs * num_terms);
-	struct paulis *paulis = malloc(sizeof(struct paulis) * num_terms);
-	if (!(coeffs && paulis))
-		goto err;
+	if (circ_hamil_init(h, num_terms) < 0)
+		return -1;
 
 	struct hamil_iter_data idat = { .idx = 0,
 		.num_qubits = num_qubits,
 		.norm = norm,
-		.coeffs = coeffs,
-		.paulis = paulis };
+		.coeffs = h->coeffs,
+		.paulis = h->paulis };
 	if (data_hamil_foreach(fid, hamil_iter, &idat) != 0)
-		goto err;
+		return -1;
 
 	h->num_qubits = num_qubits;
-	h->num_terms = num_terms;
-	h->coeffs = coeffs;
-	h->paulis = paulis;
 
 	return 0;
-err:
-	free(coeffs);
-	free(paulis);
-	return -1;
+}
+
+int circ_multidet_init(struct circ_multidet *md, size_t num_dets)
+{
+	md->dets = malloc(sizeof *md->dets * num_dets);
+	if (md->dets == NULL)
+		return -1;
+
+	md->num_dets = num_dets;
+
+	return 0;
 }
 
 void circ_multidet_destroy(struct circ_multidet *md)
@@ -95,25 +115,20 @@ static int iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
 	return 0;
 }
 
-int circ_multidet_from_file(struct circ_multidet *md, const data_id fid)
+int circ_multidet_init_from_file(struct circ_multidet *md, const data_id fid)
 {
 	size_t num_qubits, num_dets;
 	if (data_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
 		return -1;
-	md->dets = malloc(sizeof *md->dets * num_dets);
-	if (md->dets == NULL)
+
+	if (circ_multidet_init(md, num_dets) < 0)
 		return -1;
 
 	struct iter_multidet_data imd;
 	imd.i = 0;
 	imd.md = md;
 	if (data_multidet_foreach(fid, iter_multidet, &imd) < 0)
-		goto error;
-
-	md->num_dets = num_dets;
+		return -1;
 
 	return 0;
-error:
-	free(md->dets);
-	return -1;
 }

@@ -8,12 +8,21 @@
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 
+
 struct circ_hamil {
 	size_t num_qubits;
 	size_t num_terms;
 	double *coeffs;
 	struct paulis *paulis;
 };
+
+int circ_hamil_init(struct circ_hamil *h, size_t num_terms);
+
+/* Convenience function. Use instead of circ_hamil_init */
+int circ_hamil_init_from_file(struct circ_hamil *h, data_id fid);
+
+void circ_hamil_destroy(struct circ_hamil *h);
+
 
 struct circ_multidet {
 	struct {
@@ -23,10 +32,13 @@ struct circ_multidet {
 	size_t num_dets;
 };
 
-int circ_hamil_from_file(struct circ_hamil *h, data_id fid);
-void circ_hamil_destroy(struct circ_hamil *h);
-int circ_multidet_from_file(struct circ_multidet *md, data_id fid);
+int circ_multidet_init(struct circ_multidet *md, size_t num_dets);
+
+/* Convenience function. Use instead of circ_multidet_init */
+int circ_multidet_init_from_file(struct circ_multidet *md, data_id fid);
+
 void circ_multidet_destroy(struct circ_multidet *md);
+
 
 /* Circuit: trott */
 struct circ_trott_data {
@@ -40,9 +52,15 @@ struct circ_trott_data {
 };
 
 int circ_trott_data_init(struct circ_trott_data *cd, size_t num_steps);
+
+/* Convenience function. Use instead of circ_trott_data_init. */
+int circ_trott_data_init_from_file(struct circ_trott_data *cd,
+	size_t num_steps, data_id fid);
+
 void circ_trott_data_destroy(struct circ_trott_data *cd);
-int circ_trott_data_from_file(struct circ_trott_data *cd, data_id fid);
+
 int circ_trott_simulate(const struct circ_trott_data *cd);
+
 
 /* Circuit: qdrift */
 struct circ_qdrift_data {
@@ -57,8 +75,9 @@ struct circ_qdrift_data {
 };
 
 int circ_qdrift_data_init(struct circ_qdrift_data *cd, data_id fid);
+
 void circ_qdrift_data_destroy(struct circ_qdrift_data *cd);
-int circ_qdirft_data_from_file(struct circ_qdrift_data *cd, data_id fid);
+
 int circ_qdrift_simulate(const struct circ_qdrift_data *cd);
 
 #endif // CIRC_H
