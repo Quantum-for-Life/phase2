@@ -2,7 +2,6 @@
  * Test routine: data_trott_write() from data.h by creating a fresh H5 file
  * Check if the values are written correctly.  Remove temporary file.
  */
-
 #include <complex.h>
 #include <math.h>
 #include <stdio.h>
@@ -15,7 +14,7 @@
 #include "test.h"
 
 #define SIZE (5)
-#define MARGIN (1e-6)
+#define MARGIN (1.0e-6)
 
 #define H5_GRP_NAME "circ_trott"
 #define H5_GRP_TIME_FACTOR "time_factor"
@@ -31,7 +30,7 @@ _Complex double tst_vals[SIZE] = {
 
 static double time_factor = 0.3224;
 
-static char filename[L_tmpnam];
+static char *FILENAME = "/tmp/G1w1Clar2ZLovBir2cGYUbCxgIaV4";
 
 enum ret_code {
 	ERR = INT_MIN,
@@ -84,20 +83,25 @@ ex_create:
 	return rc;
 }
 
-void TEST_MAIN(void)
+static void TEST_MAIN(void)
 {
 	enum ret_code rc;
 
+	struct world wd;
 	world_init((void *)0, (void *)0);
+	world_info(&wd);
 
-	/* Create a temporary H5 file */
-	if (!tmpnam(filename)) {
-		TEST_FAIL("generate temp filename");
-		rc = ERR_CREATEFILE;
-		goto ex_create;
-	}
+	if (wd.rank == 0)
+		remove(FILENAME);
+
+	/*
+	 * Set up file access property list with parallel I/O access
+	 */
+	hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
+	H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+
 	hid_t file_id =
-		H5Fcreate(filename, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
+		H5Fcreate(FILENAME, H5F_ACC_EXCL, H5P_DEFAULT, plist_id);
 	if (file_id == H5I_INVALID_HID) {
 		TEST_FAIL("create H5 file");
 		rc = ERR_CREATEFILE;
@@ -111,7 +115,7 @@ void TEST_MAIN(void)
 		goto ex_prepare;
 	}
 
-	data_id fid = data_open(filename);
+	data_id fid = data_open(FILENAME);
 	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("data: reopen file");
 		rc = ERR_DAT2;
@@ -139,7 +143,7 @@ void TEST_MAIN(void)
 		fid, (double *[]){ tst_vals_re, tst_vals_im }, SIZE);
 	data_close(fid);
 
-	file_id = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+	file_id = H5Fopen(FILENAME, H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file_id == H5I_INVALID_HID) {
 		TEST_FAIL("open H5 file");
 		rc = ERR_CREATEFILE;
@@ -169,20 +173,18 @@ ex_readh5:
 	H5Dclose(dset);
 	H5Gclose(grp_id);
 	H5Fclose(file_id);
-	fid = data_open(filename);
+	fid = data_open(FILENAME);
 ex:
 	data_close(fid);
 ex_dat2_open:
 ex_prepare:
 	/* Delete temporary file */
-	// printf("Temp file: %s\n", filename);
-	if (remove(filename) != 0) {
+	if (wd.rank == 0 && remove(FILENAME) != 0) {
 		TEST_FAIL("remove temp file");
 		rc = ERR_DELFILE;
 		goto ex_create;
 	}
 ex_create:
-
 	world_fin();
 
 	return;

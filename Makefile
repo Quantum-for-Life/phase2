@@ -36,7 +36,7 @@ HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcrypto -lcurl -lsz -lz -ldl -lm
 # --------------------------------------------------------------------------- #
 PHASE2DIR	:= ./phase2
 PH2RUNDIR	:= ./ph2run
-UTILSDIR	:= ./utils
+LIBDIR		:= ./lib
 
 # APIs
 $(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h
@@ -45,7 +45,7 @@ $(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
 $(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h
 $(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h
 
-$(UTILSDIR)/xoshiro256ss.o:	$(INCLUDE)/xoshiro256ss.h
+$(LIBDIR)/xoshiro256ss.o:	$(INCLUDE)/xoshiro256ss.h
 
 # Object files
 PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
@@ -56,7 +56,7 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/qreg.o				\
 			$(PHASE2DIR)/world.o
 				
-UTILSOBJS	:= $(UTILSDIR)/xoshiro256ss.o
+UTILSOBJS	:= $(LIBDIR)/xoshiro256ss.o
 
 # Applications
 PROGS		:= $(PH2RUNDIR)/ph2run-qdrift				\
@@ -89,7 +89,7 @@ build: $(PROGS)
 clean:
 	$(RM) $(PHASE2DIR)/*.o $(PHASE2DIR)/*.d
 	$(RM) $(PH2RUNDIR)/*.o $(PH2RUNDIR)/*.d
-	$(RM) $(UTILSDIR)/*.o $(UTILSDIR)/*.d
+	$(RM) $(LIBDIR)/*.o $(LIBDIR)/*.d
 	$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
 	$(RM) $(PROGS)
 	$(RM) $(TESTS)
@@ -100,13 +100,14 @@ clean:
 TESTDIR		:= ./test
 CFLAGS		+= -I$(TESTDIR) -DPH2_TESTDIR=\"$(TESTDIR)\"
 
-TESTS		:= $(TESTDIR)/t-data_hamil				\
+TESTS		:= $(TESTDIR)/t-circ_trott				\
+			$(TESTDIR)/t-data_hamil				\
 			$(TESTDIR)/t-data_multidet			\
 			$(TESTDIR)/t-data_open				\
 			$(TESTDIR)/t-data_trott_steps			\
 			$(TESTDIR)/t-paulis				\
 			$(TESTDIR)/t-qreg				\
-			$(TESTDIR)/t-trott_caserand
+			$(TESTDIR)/t-world
 
 $(TESTS):	$(TESTDIR)/test.h					\
 		$(TESTDIR)/t-data.h					\
