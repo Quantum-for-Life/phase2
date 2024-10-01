@@ -11,7 +11,7 @@ Dependencies
 
 To run a simulation, you will need:
 
-- CPU supporting AVX2 instuction set extension
+- CPU supporting AVX2 instruction set extension
 - Linux x86-64 platform, with a C11/C++11 compiler toolchain
 - [OpenMPI][openmpi-website]
 - Parallel [HDF5][hdf5-website]
@@ -64,14 +64,14 @@ are MPI-aware and can be run in a distributed mode with `mpirun` as well:
 make check-mpi
 ```
 
-You can specify the number of MPI processess with `MPIRANKS=n` like this:
+You can specify the number of MPI processes with `MPIRANKS=n` like this:
 
 ```bash
 make check-mpi MPIRANKS=16
 ```
 
 The default value is `MPIRANKS=2`. This number *must be a power of two*
-and must not exceed the number or cores available.
+and must not exceed the number of cores available.
 
 Consult [Makefile](./Makefile) for how to configure the build system.
 
@@ -97,7 +97,7 @@ where
 - `NUM_CPUS` is the `mpirun` option specifying the number of processes to
   run. This must be a power of 2.
 - `SIMUL_FILE` is the path to the simulation file in the HDF5 format.
-- `NUM_STEPS` is a integer number of Trotter steps the program is going to
+- `NUM_STEPS` is an integer number of Trotter steps the program is going to
   compute.
 
 Optionally, you can specify the level of log messages for the program to report,
