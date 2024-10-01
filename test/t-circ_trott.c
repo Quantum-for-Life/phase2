@@ -14,7 +14,7 @@
 
 static struct world WD;
 
-#define MARGIN		(1.0e-10)
+#define MARGIN		(1.0e-14)
 #define WIDTH		(64)
 #define NUM_QUBITS	(12)
 #define NUM_AMPS	(1UL << NUM_QUBITS)
