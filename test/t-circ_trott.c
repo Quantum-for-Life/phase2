@@ -69,7 +69,8 @@ static struct paulis rand_paulis(uint32_t num_qubits)
 	return ps;
 }
 
-static void trotter_circuit(void)
+/* Mockup trotter circuit. Explicit and local. */
+static void trotter_mockup(void)
 {
 	for (size_t i = 0; i < NUM_AMPS; i++)
 		AMPS[i] = AMPS_INIT[i];
@@ -100,7 +101,7 @@ static void trotter_circuit(void)
 	}
 }
 
-static void t_trotter_circuit_sanity_check(void)
+static void t_trotter_mockup_sanity_check(void)
 {
 	AMPS_INIT[0] = 1.0;
 	for (size_t i = 1; i < NUM_AMPS; i++)
@@ -113,7 +114,7 @@ static void t_trotter_circuit_sanity_check(void)
 	HAMIL_PAULIS[0] = paulis_new();
 	HAMIL_COEFFS[0] = 1.0;
 
-	trotter_circuit();
+	trotter_mockup();
 
 	TEST_ASSERT(TROTT_VALS[0] == cexp(I), "trotter circuit sanity check");
 }
@@ -125,6 +126,8 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	HAMIL_TERMS = ht;
 	HAMIL_TIME_FACTOR = rand_double() * 0.5 + 0.5;
 
+
+	/* Generate random multidet / hamiltonian */
 	double norm = 0.0;
 	for (size_t m = 0; m < MULTIDET_DETS; m++) {
 		MULTIDET_COEFFS[m] = rand_complex();
@@ -140,36 +143,30 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 		HAMIL_PAULIS[k] = rand_paulis(NUM_QUBITS);
 	}
 
+
+	/* Initialize state for mockup circuit. */
 	for (size_t i = 0; i < NUM_AMPS; i++)
 		AMPS_INIT[i] = 0.0;
 	for (size_t m = 0; m < MULTIDET_DETS; m++)
 		AMPS_INIT[MULTIDET_IDX[m]] = MULTIDET_COEFFS[m];
 
-	trotter_circuit();
+	trotter_mockup();
 
+
+	/* Initialize data for circ_trott. */
 	struct circ_trott_data td;
 	circ_trott_data_init(&td, TROTT_STEPS);
 	td.time_factor = HAMIL_TIME_FACTOR;
 	td.num_trott_steps = TROTT_STEPS;
+
+	circ_hamil_init(&td.hamil, HAMIL_TERMS);
 	td.hamil.num_qubits = NUM_QUBITS;
-	td.hamil.num_terms = HAMIL_TERMS;
-	td.hamil.coeffs = malloc(sizeof *td.hamil.coeffs * HAMIL_TERMS);
-	td.hamil.paulis = malloc(sizeof *td.hamil.paulis * HAMIL_TERMS);
-	if (td.hamil.coeffs == NULL || td.hamil.paulis == NULL) {
-		TEST_FAIL("memory alloc");
-		return;
-	}
 	for (size_t k = 0; k < HAMIL_TERMS; k++) {
 		td.hamil.coeffs[k] = HAMIL_COEFFS[k];
 		td.hamil.paulis[k] = HAMIL_PAULIS[k];
 	}
-	td.multidet.num_dets = MULTIDET_DETS;
-	td.multidet.dets = malloc(sizeof *td.multidet.dets * MULTIDET_DETS);
-	if (td.multidet.dets == NULL) {
-		TEST_FAIL("memory alloc");
-		/* memory leak from td.hamil above */
-		return;
-	}
+
+	circ_multidet_init(&td.multidet, MULTIDET_DETS);
 	for (size_t m = 0; m < MULTIDET_DETS; m++) {
 		td.multidet.dets[m].idx = MULTIDET_IDX[m];
 		td.multidet.dets[m].coeff[0] = creal(MULTIDET_COEFFS[m]);
@@ -178,6 +175,8 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 
 	circ_trott_simulate(&td);
 
+
+	/* Compare results. */
 	for (size_t s = 0; s < TROTT_STEPS; s++) {
 		_Complex double eval;
 		eval = td.trott_steps[0][s] + I * td.trott_steps[1][s];
@@ -200,7 +199,7 @@ void TEST_MAIN(void)
 
 	xoshiro256ss_init(&RNG, SEED);
 
-	t_trotter_circuit_sanity_check();
+	t_trotter_mockup_sanity_check();
 
 	for (size_t n = 0; n < 9; n++)
 		for(size_t ts = 1; ts < TROTT_STEPS_MAX; ts++) {
