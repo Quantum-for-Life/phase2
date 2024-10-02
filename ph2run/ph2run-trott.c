@@ -47,11 +47,11 @@ int run_circuit(data_id fid, size_t num_steps)
 	double t_tot;
 
 	struct circ_trott_data rd;
-	if ((rt = circ_trott_data_init_from_file(&rd, num_steps, fid)) < 0)
+	if (circ_trott_data_init_from_file(&rd, num_steps, fid) < 0)
 		goto exit_trott_data;
 
 	clock_gettime(CLOCK_REALTIME, &t1);
-	if ((rt = circ_trott_simulate(&rd)) < 0)
+	if (circ_trott_simulate(&rd) < 0)
 		goto exit_trott_simulate;
 
 	clock_gettime(CLOCK_REALTIME, &t2);
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 	log_info("MPI num_ranks: %d", num_ranks);
 	log_info("This is rank no. %d", WD.rank);
 
-	if ((rt = opt_parse(argc, argv)) < 0) {
+	if (opt_parse(argc, argv) < 0) {
 		log_error("can't parse program arguments");
 		goto exit_opt_parse;
 	}
@@ -110,15 +110,14 @@ int main(int argc, char **argv)
 
 	log_info("*** Circuit: trott ***");
 	log_info("Num_steps: %zu", OPT.num_steps);
-	if ((rt = run_circuit(fid, OPT.num_steps)) < 0) {
+	if (run_circuit(fid, OPT.num_steps) < 0) {
 		log_error("Failure: simulation error");
 		goto exit_run_circuit;
 	}
 
 	rt = 0; /* Success. */
-
-	log_info("Shut down simulation environment");
 exit_run_circuit:
+	log_info("Shut down simulation environment");
 	data_close(fid);
 exit_data_open:
 exit_opt_parse:
