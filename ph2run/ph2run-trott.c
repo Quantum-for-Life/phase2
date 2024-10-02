@@ -50,7 +50,7 @@ int main(int argc, char **argv)
 	if (fid == DATA_INVALID_FID)
 		ABORT_ON_ERROR("cannot process input data");
 
-	log_info("*** Circuit ***");
+	log_info("*** Circuit: trott ***");
 	log_info("Num_steps: %zu", OPT.num_steps);
 	if (run_circuit(fid, OPT.num_steps) < 0) {
 		log_error("Failure: simulation error");
@@ -115,9 +115,9 @@ int run_circuit(data_id fid, size_t num_steps)
 
 	data_circ_trott_write_values(fid, rd.trott_steps, num_steps);
 
-	log_info("Simulation summary (CSV):");
-	log_info("n_qb,n_terms,n_dets,n_trott_steps,n_ranks,t_tot");
-	log_info("%zu,%zu,%zu,%zu,%d,%.3f",
+	log_info("> Simulation summary (CSV):");
+	log_info("> n_qb,n_terms,n_dets,n_steps,n_ranks,t_tot");
+	log_info("> %zu,%zu,%zu,%zu,%d,%.3f",
 		rd.hamil.num_qubits, rd.hamil.num_terms,
 		rd.multidet.num_dets, rd.num_trott_steps, WD.size, t_tot);
 
