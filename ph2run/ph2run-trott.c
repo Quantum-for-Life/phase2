@@ -1,5 +1,7 @@
+#define _XOPEN_SOURCE 600
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "mpi.h"
 
@@ -25,19 +27,21 @@ static int MAIN_RET = 0;
 
 int run_circuit(data_id fid, size_t num_steps);
 
+static struct world WD;
+
 int main(int argc, char **argv)
 {
+
 	if (world_init(&argc, &argv) != WORLD_READY)
 		exit(EXIT_FAILURE);
+	world_info(&WD);
 
-	int rank, num_ranks;
-	MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	if ((num_ranks & (num_ranks - 1)) != 0)
+	unsigned int num_ranks = WD.size;
+	if (num_ranks == 0 || (num_ranks & (num_ranks - 1)) != 0)
 		ABORT_ON_ERROR("number of MPI ranks must be a power of two");
 	log_info("*** Init ***");
 	log_info("MPI num_ranks: %d", num_ranks);
-	log_info("This is rank no. %d", rank);
+	log_info("This is rank no. %d", WD.rank);
 
 	if (opt_parse(argc, argv) < 0)
 		exit(EXIT_FAILURE);
@@ -95,12 +99,28 @@ int run_circuit(data_id fid, size_t num_steps)
 {
 	int rc = 0;
 
+	struct timespec t1, t2;
+	double t_tot;
+
 	struct circ_trott_data rd;
 	if (circ_trott_data_init_from_file(&rd, num_steps, fid) < 0)
 		goto error;
+
+	clock_gettime(CLOCK_REALTIME, &t1);
 	if (circ_trott_simulate(&rd) < 0)
 		goto error;
+	clock_gettime(CLOCK_REALTIME, &t2);
+	t_tot = (double)(t2.tv_sec - t1.tv_sec) +
+		(double)(t2.tv_nsec - t1.tv_nsec) * 1.0e-9;
+
 	data_circ_trott_write_values(fid, rd.trott_steps, num_steps);
+
+	log_info("Simulation summary (CSV):");
+	log_info("n_qb,n_terms,n_dets,n_trott_steps,n_ranks,t_tot");
+	log_info("%zu,%zu,%zu,%zu,%d,%.3f",
+		rd.hamil.num_qubits, rd.hamil.num_terms,
+		rd.multidet.num_dets, rd.num_trott_steps, WD.size, t_tot);
+
 	goto cleanup;
 error:
 	rc = -1;
