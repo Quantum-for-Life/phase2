@@ -80,7 +80,7 @@ exit_trott_data:
 
 int main(int argc, char **argv)
 {
-	int rt = -1; /* Return value */
+	int rt = -1; /* Return value. */
 
 	if (world_init(&argc, &argv) != WORLD_READY)
 		goto exit_world_init;
@@ -116,6 +116,7 @@ int main(int argc, char **argv)
 	}
 
 	rt = 0; /* Success. */
+
 exit_run_circuit:
 	log_info("Shut down simulation environment");
 	data_close(fid);
