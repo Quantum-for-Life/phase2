@@ -51,7 +51,7 @@ $(SIMUL_H5): $(SIMUL_ORIG)
 		$(PH2RUN) $(SIMUL_H5) $(PH2RUN_FLAGS)
 
 $(SIMUL_PROC): $(SIMUL_H5)
-	@echo -n "$(TIME_FACT),$(TROTT_STEPS)," > $@
+	@echo -n "$(TIME_FACT),$(TROTT_STEPS)," >> $@
 	$(TROTT_RPE) $(TROTT_RPE_FLAGS) $< | tee -a $@
 
 clean:

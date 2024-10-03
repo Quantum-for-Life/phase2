@@ -207,29 +207,36 @@ static void circ_sample_terms(struct circ_qdrift *c)
 
 int circ_qdrift_simulate(const struct circ_qdrift_data *cd)
 {
-	int ret = 0;
+	int rt = -1;
 
+	size_t prog_percent = 0;
 	const size_t num_qb = cd->hamil.num_qubits;
 
 	struct circ_qdrift c;
 	if (circ_create(&c, cd, num_qb) < 0)
-		goto error;
+		goto exit_circ_create;
 
 	for (size_t i = 0; i < cd->num_samples; i++) {
+		size_t percent = i * 100 / cd->num_samples;
+		if (percent > prog_percent) {
+			prog_percent = percent;
+			log_info("Progress: %zu\% (samples: %zu)", percent, i);
+		}
+
 		circ_sample_terms(&c);
 		circuit_prepst(&c);
 		if (circ_effect(&c) < 0)
-			goto error;
+			goto exit_circ_effect;
 		circ_measure(&c);
 		cd->samples[0][i] = c.prod[0];
 		cd->samples[1][i] = c.prod[1];
 	}
 
-	goto exit;
-error:
-	ret = -1;
-exit:
-	circ_destroy(&c);
+	rt = 0; /* Success. */
 
-	return ret;
+exit_circ_effect:
+	circ_destroy(&c);
+exit_circ_create:
+
+	return rt;
 }

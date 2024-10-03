@@ -15,6 +15,7 @@ FCIDUMP		?= FCIDUMP
 INPUTST		?= INPUTST
 SIMUL_H5	:= simul.h5
 SIMUL_ORIG	:= $(SIMUL_H5).orig
+SIMUL_PROC	:= $(SIMUL_H5).proc
 
 PYTHON		?= python3
 MPIRUN		?= mpirun
@@ -37,7 +38,7 @@ PH2RUN_FLAGS		=
 PR2RUN_LOGLVL		= info
 
 .DEFAULT_GOAL := all
-.PHONY: all clean simulate
+.PHONY: all clean rpe simulate
 
 all: simulate
 
@@ -50,13 +51,14 @@ $(SIMUL_H5): $(SIMUL_ORIG)
 	$(QDRIFT_SAMPLE) $(QDRIFT_SAMPLE_FLAGS) $(SIMUL_H5)
 
 simulate: $(SIMUL_H5)
-	find . -iname "$(SIMUL_H5)-*" \
-		-exec $(MPIRUN) $(MPIRUN_FLAGS) \
-			-x PHASE2_LOG=$(PR2RUN_LOGLVL) \
+	find . -iname "$(SIMUL_H5)-*"				\
+		-exec echo {} \;				\
+		-exec $(MPIRUN) $(MPIRUN_FLAGS)			\
+			-x PHASE2_LOG=$(PR2RUN_LOGLVL)		\
 			$(PH2RUN) {} $(PH2RUN_FLAGS) \;
 
 rpe:
-	$(QDRIFT_RPE) $(QDRIFT_RPE_FLAGS) $(SIMUL_H5)
+	$(QDRIFT_RPE) $(QDRIFT_RPE_FLAGS) $(SIMUL_H5) | tee -a $(SIMUL_PROC)
 
 clean:
 	$(RM) $(SIMUL_ORIG) $(SIMUL_H5)*

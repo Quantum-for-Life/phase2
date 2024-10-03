@@ -174,14 +174,14 @@ static int circ_measure(struct circ_trott *c)
 
 int circ_trott_simulate(const struct circ_trott_data *cd)
 {
-	int ret = 0;
-	size_t prog_percent = 0;
+	int rt = -1;
 
+	size_t prog_percent = 0;
 	const size_t num_qb = cd->hamil.num_qubits;
 
 	struct circ_trott c;
 	if (circ_create(&c, cd, num_qb) < 0)
-		goto error;
+		goto exit_circ_create;
 	circuit_prepst(&c);
 
 	for (size_t i = 0; i < cd->num_trott_steps; i++) {
@@ -193,17 +193,17 @@ int circ_trott_simulate(const struct circ_trott_data *cd)
 		}
 
 		if (circ_effect(&c) < 0)
-			goto error;
+			goto exit_circ_effect;
 		circ_measure(&c);
 		cd->trott_steps[0][i] = c.prod[0];
 		cd->trott_steps[1][i] = c.prod[1];
 	}
 
-	goto exit;
-error:
-	ret = -1;
-exit:
-	circ_destroy(&c);
+	rt = 0; /* Success. */
 
-	return ret;
+exit_circ_effect:
+	circ_destroy(&c);
+exit_circ_create:
+
+	return rt;
 }
