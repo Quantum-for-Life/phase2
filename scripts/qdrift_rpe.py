@@ -61,4 +61,5 @@ if __name__ == "__main__":
     if thJ > math.pi:
         thJ = - (2 * math.pi - thJ)
     E0 = (math.sqrt(1 - x * x)) / (norm * x) * math.tan(x * thJ)
-    print(E0, E0 + offset)
+    E = E0 + offset
+    print(f"{delta},{epsilon},{E0},{E}")
