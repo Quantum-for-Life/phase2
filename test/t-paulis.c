@@ -308,5 +308,5 @@ static void TEST_MAIN(void)
 	for (size_t n = 0; n < 9999; n++)
 		t_paulis_split_01(n);
 
-	world_fin();
+	world_destroy();
 }

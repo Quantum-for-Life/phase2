@@ -226,5 +226,5 @@ void TEST_MAIN(void)
 	t_circ_trott(9999,
 		TROTT_STEPS_MAX-1, MULTIDET_DETS_MAX-1, HAMIL_TERMS_MAX-1);
 
-	world_fin();
+	world_destroy();
 }

@@ -188,7 +188,7 @@ ex_prepare:
 		goto ex_create;
 	}
 ex_create:
-	world_fin();
+	world_destroy();
 
 	return;
 }
