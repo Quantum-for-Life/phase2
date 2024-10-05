@@ -31,6 +31,38 @@ HDF5_CFLAGS	:= -I/usr/include/hdf5/openmpi
 HDF5_LDFLAGS	:= -L$(LIB64)/hdf5/openmpi -Wl,-rpath -Wl,$(LIB64)/hdf5/openmpi
 HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcrypto -lcurl -lsz -lz -ldl -lm
 
+# Backends.
+#
+# You can specify which backend the qreg API should use.  Available options
+# are (case-sensitive):
+#
+# 	* qreg	- native engine
+# 	* QuEST	- QuEST library
+#
+# See below for how to specify the dependencies.
+PHASE2_QREG	:= qreg
+#PHASE2_QREG	:= QuEST
+
+PHASE2_QREG_CFLAGS	:=
+PHASE2_QREG_LDFLAGS	:=
+PHASE2_QREG_LDLIBS	:=
+
+ifeq ($(PHASE2_QREG),qreg)
+PHASE2_QREG_OBJ		:= qreg.o
+PHASE2_QREG_CFLAGS	+= -DPHASE2_QREG=0
+PHASE2_QREG_LDFLAGS	+=
+PHASE2_QREG_LDLIBS	+=
+endif
+
+ifeq ($(PHASE2_QREG),QuEST)
+QUEST_INCLUDE		:= $(HOME)/usr/include/QuEST
+QUEST_LIBDIR		:= $(HOME)/usr/lib
+PHASE2_QREG_OBJ		:= qreg_QuEST.o
+PHASE2_QREG_CFLAGS	+= -DPHASE2_QREG=1 -I$(QUEST_INCLUDE)
+PHASE2_QREG_LDFLAGS	+= -L$(QUEST_LIBDIR) -Wl,-rpath -Wl,$(LIBDIR)
+PHASE2_QREG_LDLIBS	+= -lQuEST
+endif
+
 # --------------------------------------------------------------------------- #
 # Build dependencies                                                          #
 # --------------------------------------------------------------------------- #
@@ -53,7 +85,7 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/circ_qdrift.o			\
 			$(PHASE2DIR)/data.o				\
 			$(PHASE2DIR)/paulis.o				\
-			$(PHASE2DIR)/qreg.o				\
+			$(PHASE2DIR)/$(PHASE2_QREG_OBJ)			\
 			$(PHASE2DIR)/world.o
 				
 UTILSOBJS	:= $(LIBDIR)/xoshiro256ss.o
@@ -64,9 +96,16 @@ PROGS		:= $(PH2RUNDIR)/ph2run-qdrift				\
 $(PROGS):	$(PHASE2OBJS) $(UTILSOBJS)
 
 # Update flags
-CFLAGS		+= -I$(INCLUDE) $(MPI_CFLAGS) $(HDF5_CFLAGS)
-LDFLAGS		+= $(MPI_LDFLAGS) $(HDF5_LDFLAGS)
-LDLIBS		+= $(MPI_LDLIBS) $(HDF5_LDLIBS)
+CFLAGS		+= -I$(INCLUDE)						\
+			$(MPI_CFLAGS)					\
+			$(HDF5_CFLAGS)					\
+			$(PHASE2_QREG_CFLAGS)
+LDFLAGS		+= $(MPI_LDFLAGS)					\
+			$(HDF5_LDFLAGS)					\
+			$(PHASE2_QREG_LDFLAGS)
+LDLIBS		+= $(MPI_LDLIBS)					\
+			$(HDF5_LDLIBS)					\
+			$(PHASE2_QREG_LDLIBS)
 # --------------------------------------------------------------------------- #
 # Targets                                                                     #
 # --------------------------------------------------------------------------- #
