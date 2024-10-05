@@ -120,7 +120,7 @@ exit_data_open:
 exit_opt_parse:
 exit_num_ranks:
 exit_world_init:
-	world_fin();
+	world_destroy();
 
 	return rt;
 }

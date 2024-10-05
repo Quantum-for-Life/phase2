@@ -57,5 +57,5 @@ static void TEST_MAIN(void)
 		}
 	}
 
-	world_fin();
+	world_destroy();
 }

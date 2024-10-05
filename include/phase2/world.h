@@ -74,7 +74,7 @@ int world_init(int *argc, char ***argv, uint64_t seed);
  *	WORLD_DONE	- in case of success
  *	WORLD_ERR	- in case of error
  */
-int world_fin(void);
+int world_destroy(void);
 
 /* Get information about the world.
  *

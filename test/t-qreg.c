@@ -398,5 +398,5 @@ static void TEST_MAIN(void)
 			t_qreg_paulirot_03(k, n);
 	t_qreg_paulirot_03(1234, 999);
 
-	world_fin();
+	world_destroy();
 }

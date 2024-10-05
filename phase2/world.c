@@ -59,7 +59,7 @@ err:
 	return WORLD.stat = WORLD_ERR;
 }
 
-int world_fin(void)
+int world_destroy(void)
 {
 	if (WORLD.stat == WORLD_READY) {
 		if (MPI_Finalize() == MPI_SUCCESS)
