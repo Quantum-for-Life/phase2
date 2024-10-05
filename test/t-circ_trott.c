@@ -12,6 +12,7 @@
 
 #include "test.h"
 
+#define WD_SEED UINT64_C(0x682011f6dd97fc67)
 static struct world WD;
 
 #define MARGIN		(1.0e-14)
@@ -193,7 +194,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 
 void TEST_MAIN(void)
 {
-	world_init((void *)0, (void *) 0);
+	world_init((void *)0, (void *) 0, WD_SEED);
 	world_info(&WD);
 	log_info("MPI world size: %d", WD.size);
 
