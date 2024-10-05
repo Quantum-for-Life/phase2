@@ -1,5 +1,6 @@
 #include <complex.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #include "phase2/data.h"
@@ -7,6 +8,8 @@
 
 #include "t-data.h"
 #include "test.h"
+
+#define WD_SEED UINT64_C(0xc9c70166d249f2d4)
 
 #define MARGIN (1.0e-8)
 
@@ -249,7 +252,7 @@ static int t_iter(void)
 
 static void TEST_MAIN(void)
 {
-	world_init((void *)0, (void *) 0);
+	world_init((void *)0, (void *)0, WD_SEED);
 
 	if (t_getnums() < 0) {
 		TEST_FAIL("getnums");

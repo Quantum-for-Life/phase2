@@ -1,4 +1,5 @@
 #define _XOPEN_SOURCE 600
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -8,6 +9,7 @@
 #include "phase2/circ.h"
 #include "phase2/world.h"
 
+#define WD_SEED UINT64_C(0xd326119d4859ebb2)
 static struct world WD;
 
 static struct opt {
@@ -82,7 +84,7 @@ int main(int argc, char **argv)
 {
 	int rt = -1; /* Return value. */
 
-	if (world_init(&argc, &argv) != WORLD_READY)
+	if (world_init(&argc, &argv, WD_SEED) != WORLD_READY)
 		goto exit_world_init;
 	world_info(&WD);
 

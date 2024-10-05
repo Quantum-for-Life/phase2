@@ -5,6 +5,7 @@
 #include <complex.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #include <hdf5.h>
 
@@ -12,6 +13,8 @@
 #include "phase2/world.h"
 
 #include "test.h"
+
+#define WD_SEED UINT64_C(0x3a1e27cce387af66)
 
 #define SIZE (5)
 #define MARGIN (1.0e-6)
@@ -88,7 +91,7 @@ static void TEST_MAIN(void)
 	enum ret_code rc;
 
 	struct world wd;
-	world_init((void *)0, (void *)0);
+	world_init((void *)0, (void *)0, WD_SEED);
 	world_info(&wd);
 
 	if (wd.rank == 0)
