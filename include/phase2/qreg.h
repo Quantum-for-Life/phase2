@@ -17,9 +17,9 @@
  *	1	- QuEST
  *
  */
-#ifndef PHASE2_QREG
-#define PHASE2_QREG (0)
-#endif /* PHASE2_QREG */
+#ifndef PHASE2_BACKEND
+#define PHASE2_BACKEND (0)
+#endif /* PHASE2_BACKEND */
 
 struct qreg {
 	uint32_t qb_lo, qb_hi;
