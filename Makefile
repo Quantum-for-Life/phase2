@@ -50,13 +50,14 @@ HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcrypto -lcurl -lsz -lz -ldl -lm
 BACKEND		:= qreg
 #BACKEND	:= QuEST
 
+BACKEND_OBJS	:=
 BACKEND_CFLAGS	:=
 BACKEND_LDFLAGS	:=
 BACKEND_LDLIBS	:=
 
 ifeq ($(BACKEND),qreg)
 BACKEND_N	:= 0
-BACKEND_OBJS	:= $(PHASE2DIR)/qreg.o $(PHASE2DIR)/world.o
+BACKEND_OBJS	+= $(PHASE2DIR)/qreg.o
 BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
 BACKEND_LDFLAGS	+=
 BACKEND_LDLIBS	+=
@@ -68,10 +69,11 @@ QUEST_INCLUDE	:= $(QUEST_PREFIX)/usr/include/QuEST
 QUEST_LIBDIR	:= $(QUEST_PREFIX)/usr/lib
 
 BACKEND_N	:= 1
-BACKEND_OBJS	:= $(PHASE2DIR)/qreg.o $(PHASE2DIR)/world_QuEST.o
-BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)				\
+BACKEND_OBJS	+= $(PHASE2DIR)/qreg.o					\
+			$(PHASE2DIR)/world_QuEST.o
+BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)			\
 			-I$(QUEST_INCLUDE)
-BACKEND_LDFLAGS	+= -L$(QUEST_LIBDIR) -Wl,-rpath -Wl,$(LIBDIR)
+BACKEND_LDFLAGS	+= -L$(QUEST_LIBDIR) -Wl,-rpath -Wl,$(QUEST_LIBDIR)
 BACKEND_LDLIBS	+= -lQuEST
 endif
 
@@ -92,6 +94,7 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/data.o				\
 			$(PHASE2DIR)/paulis.o				\
 			$(BACKEND_OBJS)					\
+			$(PHASE2DIR)/world.o				\
 			$(PHASE2DIR)/world_log.o
 				
 UTILSOBJS	:= $(LIBDIR)/xoshiro256ss.o

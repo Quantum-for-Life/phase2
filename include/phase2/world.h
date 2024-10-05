@@ -53,13 +53,13 @@ struct world {
  * This should be called exactly once at the begging of the program.  The MPI
  * world communicator is initialized here as well as the logging facility.
  *
- * The PRNG is intialized with the seed.  The seed must not be zero.  The state
- * of the PRNG is deterministically split among MPI processess, so that each
+ * The PRNG is initialized with the seed.  The seed must not be zero.  The state
+ * of the PRNG is deterministically split among MPI processes, so that each
  * process has it own state.
  *
  * Returns:
  * 	WORLD_READY	- in case of success
- *	WORLD_ERR	- if an error occured, e.g. seed is zero
+ *	WORLD_ERR	- if an error occurred, e.g. seed is zero
  */
 int world_init(int *argc, char ***argv, uint64_t seed);
 

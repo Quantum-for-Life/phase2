@@ -6,6 +6,14 @@
 
 int log_init(void);
 
+#if PHASE2_BACKEND == 1 /* QuEST */
+int world_QuEST_init(struct world *wd);
+int world_QuEST_destroy(struct world *wd);
+#else
+static int world_QuEST_init(struct world *wd) { (void)wd; return 0; }
+static int world_QuEST_destroy(struct world *wd) { (void)wd; return 0; }
+#endif /* PHASE2_BACKEND */
+
 static struct world WORLD = {
 	.stat = WORLD_UNDEF,
 	.size = 0,
@@ -42,6 +50,9 @@ int world_init(int *argc, char ***argv, uint64_t seed)
 	for (int i = 0; i < WORLD.rank; i++)
 		xoshiro256ss_longjump(&WORLD.rng);
 
+	if (world_QuEST_init(&WORLD) < 0)
+		goto err;
+
 	return WORLD.stat = WORLD_READY;
 
 err:
@@ -56,6 +67,9 @@ int world_fin(void)
 		else
 			WORLD.stat = WORLD_ERR;
 	}
+
+	if (world_QuEST_destroy(&WORLD) < 0)
+		WORLD.stat = WORLD_ERR;
 
 	return WORLD.stat;
 }
