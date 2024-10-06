@@ -3,10 +3,7 @@
 #include "QuEST.h"
 
 #include "phase2/world.h"
-
-struct world_QuEST {
-	QuESTEnv env;
-};
+#include "world_QuEST.h"
 
 int world_QuEST_init(struct world *wd) {
 

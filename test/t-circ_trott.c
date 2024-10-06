@@ -15,7 +15,12 @@
 #define WD_SEED UINT64_C(0x682011f6dd97fc67)
 static struct world WD;
 
-#define MARGIN		(1.0e-14)
+#if PHASE2_BACKEND == 0
+#define MARGIN (1.0e-14)
+#elif PHASE2_BACKEND == 1 /* QuEST */
+#define MARGIN (1.0e-6)
+#endif /* PHASE2_BACKEND */
+
 #define WIDTH		(64)
 #define NUM_QUBITS	(12)
 #define NUM_AMPS	(1UL << NUM_QUBITS)
@@ -54,9 +59,9 @@ static _Complex double rand_complex(void)
 	return z / cabs(z);
 }
 
-static enum pauli_op rand_pauli_op(void)
+static pauli_op_t rand_pauli_op(void)
 {
-	enum pauli_op x = (int)(xoshiro256ss_next(&RNG) % 4);
+	pauli_op_t x = (int)(xoshiro256ss_next(&RNG) % 4);
 
 	return x;
 }
