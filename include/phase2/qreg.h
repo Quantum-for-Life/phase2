@@ -44,6 +44,10 @@ void qreg_setamp(struct qreg *reg, uint64_t i, _Complex double z);
 
 void qreg_zero(struct qreg *reg);
 
+/* Apply product of Pauli rotations for a list of strings sharing the same 
+ * operation on hi qubits.
+ *
+ */
 void qreg_paulirot(struct qreg *reg, struct paulis code_hi,
 	const struct paulis *codes_lo, const double *angles, size_t num_codes);
 

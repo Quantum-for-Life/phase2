@@ -112,16 +112,16 @@ uint64_t paulis_effect(const struct paulis code, const uint64_t i, c64 *z)
 void paulis_split(const struct paulis code, const uint32_t qb_lo,
 	const uint32_t qb_hi, struct paulis *lo, struct paulis *hi)
 {
-	const uint64_t mask_lo = (UINT64_C(1) << qb_lo) - 1;
-	const uint64_t mask_hi = (UINT64_C(1) << (qb_hi + qb_lo)) - 1;
+	uint64_t mask_lo, mask_hi;
+
+	mask_lo = (UINT64_C(1) << qb_lo) - 1;
+	mask_hi = (UINT64_C(1) << (qb_hi + qb_lo)) - 1 - mask_lo;
 
 	lo->pak[0] = code.pak[0] & mask_lo;
 	lo->pak[1] = code.pak[1] & mask_lo;
 
 	hi->pak[0] = code.pak[0] & mask_hi;
-	hi->pak[0] &= ~mask_lo;
 	hi->pak[1] = code.pak[1] & mask_hi;
-	hi->pak[1] &= ~mask_lo;
 }
 
 
