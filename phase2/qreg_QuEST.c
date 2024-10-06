@@ -86,11 +86,10 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 {
 	struct qreg_QuEST *qr = reg->data;
 
-	struct paulis hi = code_hi;
-	paulis_shl(&hi, reg->qb_lo);
 	for (size_t k = 0; k < num_codes; k++) {
 		struct paulis code;
-		paulis_merge(&code, reg->qb_lo, reg->qb_hi, codes_lo[k], hi);
+		paulis_merge(&code, reg->qb_lo, reg->qb_hi,
+			codes_lo[k], code_hi);
 
 		for (size_t i = 0; i < qr->num_qubits; i++)
 			qr->tar_op[i] = paulis_get(code, i);

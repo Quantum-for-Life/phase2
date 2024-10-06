@@ -128,15 +128,11 @@ void paulis_split(const struct paulis code, const uint32_t qb_lo,
 void paulis_merge(struct paulis *code, const uint32_t qb_lo,
 	const uint32_t qb_hi, const struct paulis lo, const struct paulis hi)
 {
-	const uint64_t mask_lo = (UINT64_C(1) << qb_lo) - 1;
-	const uint64_t mask_hi = (UINT64_C(1) << (qb_hi + qb_lo)) - 1;
+	uint64_t mask_lo, mask_hi;
 
-	
-	code->pak[0] = 0;
-	code->pak[0] |= hi.pak[0] & (mask_hi - mask_lo);
-	code->pak[0] |= lo.pak[0] & mask_lo;
+	mask_lo = (UINT64_C(1) << qb_lo) - 1;
+	mask_hi = (UINT64_C(1) << (qb_hi + qb_lo)) - 1 - mask_lo;
 
-	code->pak[1] = 0;
-	code->pak[1] |= hi.pak[1] & (mask_hi - mask_lo);
-	code->pak[1] |= lo.pak[1] & mask_lo;
+	code->pak[0] = (lo.pak[0] & mask_lo) | (hi.pak[0] & mask_hi);
+	code->pak[1] = (lo.pak[1] & mask_lo) | (hi.pak[1] & mask_hi);
 }
