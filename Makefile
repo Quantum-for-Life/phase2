@@ -64,6 +64,7 @@ BACKEND_LDLIBS	+=
 endif
 
 ifeq ($(BACKEND),QuEST)
+# Specify QUEST_PREFIX, if you have QuEST installed in a nonstandard location.
 QUEST_PREFIX	:=
 QUEST_INCLUDE	:= $(QUEST_PREFIX)/usr/include/QuEST
 QUEST_LIBDIR	:= $(QUEST_PREFIX)/usr/lib
