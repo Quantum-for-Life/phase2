@@ -1,8 +1,12 @@
+#include <stdint.h>
+
 #include "phase2/data.h"
 #include "phase2/world.h"
 
 #include "t-data.h"
 #include "test.h"
+
+#define WD_SEED UINT64_C(0xd771f4ae402e568b)
 
 /*
 static int open_nonexist(void)
@@ -34,7 +38,7 @@ err:
 
 static void TEST_MAIN(void)
 {
-	world_init((void *)0, (void *) 0);
+	world_init((void *)0, (void *)0, WD_SEED);
 
 	/* This test generates noisy error messages from HDF5 and it's
 	 * not particularly important.  Disable.
@@ -53,5 +57,5 @@ static void TEST_MAIN(void)
 		}
 	}
 
-	world_fin();
+	world_destroy();
 }

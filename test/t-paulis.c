@@ -7,6 +7,8 @@
 
 #include "test.h"
 
+#define WD_SEED UINT64_C(0x92ee46fade7a5742)
+
 #define SEED (0x2a44fe101UL)
 static struct xoshiro256ss RNG;
 
@@ -283,7 +285,7 @@ static void t_paulis_split_01(size_t tag)
 
 static void TEST_MAIN(void)
 {
-	world_init((void *)0, (void *)0);
+	world_init((void *)0, (void *)0, WD_SEED);
 
 	xoshiro256ss_init(&RNG, SEED);
 
@@ -306,5 +308,5 @@ static void TEST_MAIN(void)
 	for (size_t n = 0; n < 9999; n++)
 		t_paulis_split_01(n);
 
-	world_fin();
+	world_destroy();
 }

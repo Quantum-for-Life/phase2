@@ -1,6 +1,10 @@
 #ifndef WORLD_H
 #define WORLD_H
 
+#include <stdint.h>
+
+#include "xoshiro256ss.h"
+
 #define PHASE2_LOG_ENVVAR "PHASE2_LOG"
 
 enum log_level {
@@ -12,6 +16,7 @@ enum log_level {
 	LOG_FATAL
 };
 
+/* Call world_init() before using this. */
 void log_log(int level, const char *fmt, ...);
 
 #define log_trace(...) log_log(LOG_TRACE, __VA_ARGS__)
@@ -36,11 +41,49 @@ struct world {
 	enum world_stat stat;
 	int size;
 	int rank;
+
+	uint64_t seed;
+	struct xoshiro256ss rng;
+
+	void *data;	/* opaque handle to alternative engine environments */
 };
 
-int world_init(int *argc, char ***argv);
-int world_fin(void);
+/* Initialize the world with command line parameters and a seed for PRNG.
+ *
+ * This should be called exactly once at the begging of the program.  The MPI
+ * world communicator is initialized here as well as the logging facility.
+ *
+ * The PRNG is intialized with the seed.  The seed must not be zero.  The state
+ * of the PRNG is deterministically split among MPI processess, so that each
+ * process has it own state.
+ *
+ * Returns:
+ * 	WORLD_READY	- in case of success
+ *	WORLD_ERR	- if an error occured, e.g. seed is zero
+ */
+int world_init(int *argc, char ***argv, uint64_t seed);
 
+/* Destroy the world (global simulation environment).
+ *
+ * This should be called exactly once at the end of the program.
+ *
+ * This function deinitialized the log facility as well, so no log messages
+ * will be recorded after calling this function.
+ *
+ * Returns:
+ *	WORLD_DONE	- in case of success
+ *	WORLD_ERR	- in case of error
+ */
+int world_destroy(void);
+
+/* Get information about the world.
+ *
+ * This populates the supplied struct with the information about the global
+ * static world structure.  It does not change the world state or parameters.
+ *
+ * Returns:
+ *	The same value as stored in wd->stat after the call.
+ */
 int world_info(struct world *wd);
 
 #endif /* WORLD_H */

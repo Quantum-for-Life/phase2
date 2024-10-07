@@ -12,6 +12,7 @@
 
 #include "test.h"
 
+#define WD_SEED UINT64_C(0x12cd3d62423a5600)
 static struct world WD;
 
 #define WIDTH (64)
@@ -370,7 +371,7 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 
 static void TEST_MAIN(void)
 {
-	world_init((void *)0, (void *) 0);
+	world_init((void *)0, (void *)0, WD_SEED);
 	world_info(&WD);
 	log_info("MPI world size: %d", WD.size);
 
@@ -392,5 +393,5 @@ static void TEST_MAIN(void)
 			t_qreg_paulirot_03(k, n);
 	t_qreg_paulirot_03(1234, 999);
 
-	world_fin();
+	world_destroy();
 }
