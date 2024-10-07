@@ -73,6 +73,9 @@ make check-mpi MPIRANKS=16
 The default value is `MPIRANKS=2`. This number *must be a power of two*
 and must not exceed the number of cores available.
 
+The system can be configured to use the simulator library
+[QuEST](https://github.com/QuEST-Kit/QuEST) as a backend, instead of the
+internal engine.  Make sure QuEST is compiled in the `DISTRIBUTED` mode.
 Consult [Makefile](./Makefile) for how to configure the build system.
 
 
@@ -111,8 +114,8 @@ mpirun -n 8 -x PHASE2_LOG=info ./ph2run-trott simul.h5 100
 will compute 100 Trotter steps for a Hamiltonian specified in the file
 `simul.h5` using 8 MPI processes, and write the result back to the same file.
 
-See also the directory: [./simul](./simul) for an example of a simple automated system,
-and the repository:
+See also the directory: [./simul](./simul) for an example of a simple
+automated system, and the repository:
 [Quantum-for-Life/simul-trott-error](https://github.com/Quantum-for-Life/simul-trott-error)
 for a real-life application.
 

@@ -7,7 +7,7 @@
 
 #define PHASE2_LOG_ENVVAR "PHASE2_LOG"
 
-enum log_level {
+enum world_log_level {
 	LOG_TRACE,
 	LOG_DEBUG,
 	LOG_INFO,
@@ -17,14 +17,14 @@ enum log_level {
 };
 
 /* Call world_init() before using this. */
-void log_log(int level, const char *fmt, ...);
+void world_log(int level, const char *fmt, ...);
 
-#define log_trace(...) log_log(LOG_TRACE, __VA_ARGS__)
-#define log_debug(...) log_log(LOG_DEBUG, __VA_ARGS__)
-#define log_info(...) log_log(LOG_INFO, __VA_ARGS__)
-#define log_warn(...) log_log(LOG_WARN, __VA_ARGS__)
-#define log_error(...) log_log(LOG_ERROR, __VA_ARGS__)
-#define log_fatal(...) log_log(LOG_FATAL, __VA_ARGS__)
+#define log_trace(...) world_log(LOG_TRACE, __VA_ARGS__)
+#define log_debug(...) world_log(LOG_DEBUG, __VA_ARGS__)
+#define log_info(...) world_log(LOG_INFO, __VA_ARGS__)
+#define log_warn(...) world_log(LOG_WARN, __VA_ARGS__)
+#define log_error(...) world_log(LOG_ERROR, __VA_ARGS__)
+#define log_fatal(...) world_log(LOG_FATAL, __VA_ARGS__)
 
 enum world_stat {
 	WORLD_UNDEF	= -1,
@@ -53,13 +53,13 @@ struct world {
  * This should be called exactly once at the begging of the program.  The MPI
  * world communicator is initialized here as well as the logging facility.
  *
- * The PRNG is intialized with the seed.  The seed must not be zero.  The state
- * of the PRNG is deterministically split among MPI processess, so that each
+ * The PRNG is initialized with the seed.  The seed must not be zero.  The state
+ * of the PRNG is deterministically split among MPI processes, so that each
  * process has it own state.
  *
  * Returns:
  * 	WORLD_READY	- in case of success
- *	WORLD_ERR	- if an error occured, e.g. seed is zero
+ *	WORLD_ERR	- if an error occurred, e.g. seed is zero
  */
 int world_init(int *argc, char ***argv, uint64_t seed);
 

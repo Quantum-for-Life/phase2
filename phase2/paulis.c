@@ -21,7 +21,7 @@ static int paulis_countis(struct paulis code)
 }
 
 void paulis_set(
-	struct paulis *code, const enum pauli_op pauli, const uint32_t n)
+	struct paulis *code, const pauli_op_t pauli, const uint32_t n)
 {
 	const uint64_t n_mask = UINT64_C(1) << n;
 
@@ -45,7 +45,7 @@ void paulis_set(
 	}
 }
 
-enum pauli_op paulis_get(const struct paulis code, const uint32_t n)
+pauli_op_t paulis_get(const struct paulis code, const uint32_t n)
 {
 	int pa = 0;
 	pa |= code.pak[0] >> n & 1;
@@ -68,6 +68,12 @@ enum pauli_op paulis_get(const struct paulis code, const uint32_t n)
 int paulis_eq(const struct paulis code1, const struct paulis code2)
 {
 	return code1.pak[0] == code2.pak[0] && code1.pak[1] == code2.pak[1];
+}
+
+void paulis_shl(struct paulis *code, const uint32_t n)
+{
+	code->pak[0] <<= n;
+	code->pak[1] <<= n;
 }
 
 void paulis_shr(struct paulis *code, const uint32_t n)
@@ -116,4 +122,17 @@ void paulis_split(const struct paulis code, const uint32_t qb_lo,
 
 	hi->pak[0] = code.pak[0] & mask_hi;
 	hi->pak[1] = code.pak[1] & mask_hi;
+}
+
+
+void paulis_merge(struct paulis *code, const uint32_t qb_lo,
+	const uint32_t qb_hi, const struct paulis lo, const struct paulis hi)
+{
+	uint64_t mask_lo, mask_hi;
+
+	mask_lo = (UINT64_C(1) << qb_lo) - 1;
+	mask_hi = (UINT64_C(1) << (qb_hi + qb_lo)) - 1 - mask_lo;
+
+	code->pak[0] = (lo.pak[0] & mask_lo) | (hi.pak[0] & mask_hi);
+	code->pak[1] = (lo.pak[1] & mask_lo) | (hi.pak[1] & mask_hi);
 }

@@ -13,6 +13,13 @@ LDFLAGS 	+=
 LDLIBS		+= -lm
 LIB64		:= /usr/lib/x86_64-linux-gnu
 
+# --------------------------------------------------------------------------- #
+# Build dependencies                                                          #
+# --------------------------------------------------------------------------- #
+PHASE2DIR	:= ./phase2
+PH2RUNDIR	:= ./ph2run
+LIBDIR		:= ./lib
+
 # If you're unsure where to find the compiled MPI libraries or headers,
 # but have OpenMPI installed in your system, you can query:
 #
@@ -31,12 +38,46 @@ HDF5_CFLAGS	:= -I/usr/include/hdf5/openmpi
 HDF5_LDFLAGS	:= -L$(LIB64)/hdf5/openmpi -Wl,-rpath -Wl,$(LIB64)/hdf5/openmpi
 HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcrypto -lcurl -lsz -lz -ldl -lm
 
-# --------------------------------------------------------------------------- #
-# Build dependencies                                                          #
-# --------------------------------------------------------------------------- #
-PHASE2DIR	:= ./phase2
-PH2RUNDIR	:= ./ph2run
-LIBDIR		:= ./lib
+# Backends
+#
+# You can specify which backend the qreg API should use.  Available options
+# are (case-sensitive):
+#
+# 	* qreg	- native engine
+# 	* QuEST	- QuEST library
+#
+# See below for how to specify the dependencies.
+BACKEND		:= qreg
+#BACKEND	:= QuEST
+
+BACKEND_OBJS	:=
+BACKEND_CFLAGS	:=
+BACKEND_LDFLAGS	:=
+BACKEND_LDLIBS	:=
+
+ifeq ($(BACKEND),qreg)
+BACKEND_N	:= 0
+BACKEND_OBJS	+= $(PHASE2DIR)/qreg.o
+BACKEND_CFLAGS	+=
+BACKEND_LDFLAGS	+=
+BACKEND_LDLIBS	+=
+endif
+
+ifeq ($(BACKEND),QuEST)
+# Specify QUEST_PREFIX, if you have QuEST installed in a nonstandard location.
+QUEST_PREFIX	:=
+QUEST_INCLUDE	:= $(QUEST_PREFIX)/usr/include/QuEST
+QUEST_LIBDIR	:= $(QUEST_PREFIX)/usr/lib
+BACKEND_N	:= 1
+BACKEND_OBJS	+= $(PHASE2DIR)/qreg_QuEST.o				\
+			$(PHASE2DIR)/world_QuEST.o
+BACKEND_CFLAGS	+= -I$(QUEST_INCLUDE)
+BACKEND_LDFLAGS	+= -L$(QUEST_LIBDIR) -Wl,-rpath -Wl,$(QUEST_LIBDIR)
+BACKEND_LDLIBS	+= -lQuEST
+$(BACKEND_OBJS): $(PHASE2DIR)/world_QuEST.h
+endif
+
+BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
 
 # APIs
 $(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h
@@ -44,6 +85,7 @@ $(PHASE2DIR)/data.o:	$(INCLUDE)/phase2/data.h
 $(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
 $(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h
 $(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h
+$(PHASE2DIR)/world_log.o: $(INCLUDE)/phase2/world.h
 
 $(LIBDIR)/xoshiro256ss.o:	$(INCLUDE)/xoshiro256ss.h
 
@@ -53,8 +95,9 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/circ_qdrift.o			\
 			$(PHASE2DIR)/data.o				\
 			$(PHASE2DIR)/paulis.o				\
-			$(PHASE2DIR)/qreg.o				\
-			$(PHASE2DIR)/world.o
+			$(BACKEND_OBJS)					\
+			$(PHASE2DIR)/world.o				\
+			$(PHASE2DIR)/world_log.o
 				
 UTILSOBJS	:= $(LIBDIR)/xoshiro256ss.o
 
@@ -64,9 +107,16 @@ PROGS		:= $(PH2RUNDIR)/ph2run-qdrift				\
 $(PROGS):	$(PHASE2OBJS) $(UTILSOBJS)
 
 # Update flags
-CFLAGS		+= -I$(INCLUDE) $(MPI_CFLAGS) $(HDF5_CFLAGS)
-LDFLAGS		+= $(MPI_LDFLAGS) $(HDF5_LDFLAGS)
-LDLIBS		+= $(MPI_LDLIBS) $(HDF5_LDLIBS)
+CFLAGS		+= -I$(INCLUDE)						\
+			$(MPI_CFLAGS)					\
+			$(HDF5_CFLAGS)					\
+			$(BACKEND_CFLAGS)
+LDFLAGS		+= $(MPI_LDFLAGS)					\
+			$(HDF5_LDFLAGS)					\
+			$(BACKEND_LDFLAGS)
+LDLIBS		+= $(MPI_LDLIBS)					\
+			$(HDF5_LDLIBS)					\
+			$(BACKEND_LDLIBS)
 # --------------------------------------------------------------------------- #
 # Targets                                                                     #
 # --------------------------------------------------------------------------- #
