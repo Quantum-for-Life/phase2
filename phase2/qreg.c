@@ -145,15 +145,18 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	const size_t num_codes)
 {
 	/* Compute permutation from outer qubits */
+	struct paulis hi = code_hi;
+	paulis_shr(&hi, reg->qb_lo);
+
 	const uint64_t rnk_loc = WD.rank;
-	const uint64_t rnk_rem = paulis_effect(code_hi, rnk_loc, NULL);
+	const uint64_t rnk_rem = paulis_effect(hi, rnk_loc, NULL);
 	qreg_exchbuf_init(reg, rnk_rem);
 
 	/* Compute multiplication factor for the buffer
 	   code_hi acts on the value of rank_remote now
 	   (as if from receiving end). We discard the result. */
 	c64 buf_mul = 1.0;
-	paulis_effect(code_hi, rnk_loc, &buf_mul);
+	paulis_effect(hi, rnk_loc, &buf_mul);
 
 	qreg_exchbuf_waitall(reg);
 

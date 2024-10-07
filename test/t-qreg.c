@@ -206,7 +206,6 @@ static void t_qreg_paulirot_01(size_t tag)
 	for (size_t k = 0; k < NUM_QUBITS; k++)
 		paulis_set(&ps, rand_pauli_op(), k);
 	paulis_split(ps, reg.qb_lo, reg.qb_hi, &ps_lo, &ps_hi);
-	paulis_shr(&ps_hi, reg.qb_lo);
 	angle = rand_double();
 	qreg_paulirot(&reg, ps_hi, &ps_lo, &angle, 1);
 
@@ -257,8 +256,6 @@ static void t_qreg_paulirot_02(size_t tag)
 	paulis_split(ps[1], reg.qb_lo, reg.qb_hi, &ps_lo[1], &ps_hi[1]);
 	TEST_ASSERT(paulis_eq(ps_hi[0], ps_hi[1]),
 		"[%zu] hi codes should be equal", tag);
-	paulis_shr(&ps_hi[0], reg.qb_lo);
-	paulis_shr(&ps_hi[1], reg.qb_lo);
 
 	angle[0] = rand_double();
 	angle[1] = rand_double();
@@ -337,10 +334,8 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 				tag, l);
 
 	}
-	for (size_t l = 0; l < n; l++) {
+	for (size_t l = 0; l < n; l++)
 		angle[l] = rand_double();
-		paulis_shr(&ps_hi[l], reg.qb_lo);
-	}
 	qreg_paulirot(&reg, ps_hi[0], ps_lo, angle, n);
 
 	for (size_t k = 0; k < n; k++) {
