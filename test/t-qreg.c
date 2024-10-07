@@ -381,25 +381,23 @@ static void TEST_MAIN(void)
 	log_info("MPI world size: %d", WD.size);
 
 	xoshiro256ss_init(&RNG, SEED);
-/*
+
 	t_qreg_init();
 	t_qreg_getsetamp_01();
-	for (size_t k = 0; k < 999; k++)
+	for (size_t k = 0; k < 99; k++)
 		t_qreg_getsetamp_02(k);
+
 	t_qreg_zero();
-*/
 
 	t_qreg_paulirot_00();
-	t_qreg_paulirot_01(0);
-/*
-	for (size_t k = 0; k < 999; k++)
+	for (size_t k = 0; k < 99; k++)
 		t_qreg_paulirot_01(k);
-	for (size_t k = 0; k < 999; k++)
+	for (size_t k = 0; k < 99; k++)
 		t_qreg_paulirot_02(k);
 	for (size_t k = 0; k < 9; k++)
 		for (size_t n = 1; n <= 99; n++)
 			t_qreg_paulirot_03(k, n);
 	t_qreg_paulirot_03(1234, 999);
-*/
+
 	world_destroy();
 }

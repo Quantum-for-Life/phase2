@@ -31,7 +31,7 @@ int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 	const uint64_t num_amps = UINT64_C(1) << qb_lo;
 	
 	struct qreg_QuEST *qr = malloc(sizeof *qr);
-	if (!reg)
+	if (!qr)
 		return -1; 
 
 	struct world_QuEST *qe = WD.data;
@@ -85,46 +85,64 @@ static void quest_paulirot(Qureg qureg, int *tar_qb, pauli_op_t *tar_op,
 	int num_tar, double angle)
 {
 	size_t mask = 0;
+	const qreal f = 1/sqrt(2);
+	Complex uRxAlpha = { .real = f, .imag = 0 };
+	Complex uRxBeta = { .real = 0, .imag = f };
+	Complex uRyAlpha = { .real = f, .imag = 0 };
+	Complex uRyBeta = { .real = -f, .imag = 0 };
 
-	const qreal fac = 1/sqrt(2);
-	Complex uRxAlpha = {.real = fac, .imag = 0}; // Rx(pi/2)* rotates Z -> Y
-	Complex uRxBeta = {.real = 0, .imag = -fac};
-	Complex uRyAlpha = {.real = fac, .imag = 0}; // Ry(-pi/2) rotates Z -> X
-	Complex uRyBeta = {.real = -fac, .imag = 0};
-
-	// rotate basis so that exp(Z) will effect exp(Y) and exp(X)
-	for (int t=0; t < num_tar; t++) {
-		if (tar_op[t] == PAULI_I)
+	/* rotate basis so that exp(Z) will effect exp(Y) and exp(X) */
+	for (int i = 0; i < num_tar; i++) {
+		switch (tar_op[i]) {
+		case PAULI_I:
 			continue;
-		if (tar_op[t] == PAULI_X)
-			compactUnitary(qureg, tar_qb[t], uRyAlpha, uRyBeta);
-		if (tar_op[t] == PAULI_Y)
-			compactUnitary(qureg, tar_qb[t], uRxAlpha, uRxBeta);
-		//if (tar_op[t] == PAULI_Z)
-		//	;
-		mask |= UINT64_C(1) << t;
+		case PAULI_X:
+			compactUnitary(qureg, tar_qb[i], uRyAlpha, uRyBeta);
+			break;
+		case PAULI_Y:
+			compactUnitary(qureg, tar_qb[i], uRxAlpha, uRxBeta);
+			break;
+		case PAULI_Z:
+			break;
+		default:
+			__builtin_unreachable();
+		}
+		mask |= UINT64_C(1) << i;
 	}
 
+	/* Apply diagonal operator */
 	_Complex double z, z_ph = cexp(I * angle);
 	for (size_t i = 0; i < qureg.numAmpsPerChunk; i++) {
-		size_t idx = qureg.numAmpsPerChunk * qureg.chunkId + i;
 		z = qureg.stateVec.real[i] + I * qureg.stateVec.imag[i];
+
+		size_t idx = qureg.numAmpsPerChunk * qureg.chunkId + i;
 		if (__builtin_popcountll(mask & idx) % 2 == 0)
 			z *= z_ph;
 		else
 			z *= conj(z_ph);
+
 		qureg.stateVec.real[i] = creal(z);
 		qureg.stateVec.imag[i] = cimag(z);
 	}
 
-	// undo X and Y basis rotations
+	/* undo X and Y basis rotations */
 	uRxBeta.imag *= -1;
 	uRyBeta.real *= -1;
-	for (int t=0; t < num_tar; t++) {
-		if (tar_op[t] == PAULI_X)
-			compactUnitary(qureg, tar_qb[t], uRyAlpha, uRyBeta);
-		if (tar_op[t] == PAULI_Y)
-			compactUnitary(qureg, tar_qb[t], uRxAlpha, uRxBeta);
+	for (int i = 0; i < num_tar; i++) {
+		switch (tar_op[i]) {
+		case PAULI_I:
+			break;
+		case PAULI_X:
+			compactUnitary(qureg, tar_qb[i], uRyAlpha, uRyBeta);
+			break;
+		case PAULI_Y:
+			compactUnitary(qureg, tar_qb[i], uRxAlpha, uRxBeta);
+			break;
+		case PAULI_Z:
+			break;
+		default:
+			__builtin_unreachable();
+		}
 	}
 }
 
@@ -132,14 +150,15 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	const struct paulis *codes_lo, const double *angles,
 	const size_t num_codes)
 {
+	struct paulis code;
 	struct qreg_QuEST *qr = reg->data;
 
 	for (size_t k = 0; k < num_codes; k++) {
-		struct paulis code;
 		paulis_merge(&code, reg->qb_lo, reg->qb_hi,
 			codes_lo[k], code_hi);
 		for (size_t i = 0; i < qr->num_qubits; i++)
 			qr->tar_op[i] = paulis_get(code, i);
+
 		quest_paulirot(qr->reg, qr->tar_qb, qr->tar_op,
 			qr->num_qubits, angles[k]);
 	}
