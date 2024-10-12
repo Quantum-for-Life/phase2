@@ -19,6 +19,8 @@ static struct world WD;
 #define MARGIN (1.0e-14)
 #elif PHASE2_BACKEND == 1 /* QuEST */
 #define MARGIN (1.0e-6)
+#elif PHASE2_BACKEND == 2 /* cuQuantum */
+#define MARGIN (1.0e-14)
 #endif /* PHASE2_BACKEND */
 
 #define WIDTH		(64)

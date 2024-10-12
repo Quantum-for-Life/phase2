@@ -43,12 +43,14 @@ HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcrypto -lcurl -lsz -lz -ldl -lm
 # You can specify which backend the qreg API should use.  Available options
 # are (case-sensitive):
 #
-# 	* qreg	- native engine
-# 	* QuEST	- QuEST library
+# 	* qreg      - native engine
+# 	* QuEST	    - QuEST library
+#	* cuQuantum - NVIDIA's quantum simulator
 #
 # See below for how to specify the dependencies.
 BACKEND		:= qreg
 #BACKEND	:= QuEST
+#BACKEND	:= cuQuantum
 
 BACKEND_OBJS	:=
 BACKEND_CFLAGS	:=
@@ -75,6 +77,19 @@ BACKEND_CFLAGS	+= -I$(QUEST_INCLUDE)
 BACKEND_LDFLAGS	+= -L$(QUEST_LIBDIR) -Wl,-rpath -Wl,$(QUEST_LIBDIR)
 BACKEND_LDLIBS	+= -lQuEST
 $(BACKEND_OBJS): $(PHASE2DIR)/world_QuEST.h
+endif
+
+ifeq ($(BACKEND),cuQuantum)
+CUQUANTUM_PREFIX	:= $(CUQUANTUM_ROOT)
+CUQUANTUM_INCLUDE	:= $(CUQUANTUM_PREFIX)/usr/include/cuquantum
+CUQUANTUM_LIBDIR	:= $(CUQUANTUM_PREFIX)/usr/lib
+BACKEND_N	:= 2
+BACKEND_OBJS	+= $(PHASE2DIR)/qreg_cuQuantum.o			\
+			$(PHASE2DIR)/world_cuQuantum.o
+BACKEND_CFLAGS	+= -I$(CUQUANTUM_INCLUDE)
+BACKEND_LDFLAGS	+= -L$(CUQUANTUM_LIBDIR) -Wl,-rpath -Wl,$(CUQUANTUM_LIBDIR)
+BACKEND_LDLIBS	+= -lcuda -lcudart -lcustatevec
+$(BACKEND_OBJS): $(PHASE2DIR)/world_cuQuantum.h
 endif
 
 BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)

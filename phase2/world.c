@@ -12,7 +12,16 @@ int world_QuEST_destroy(struct world *wd);
 #else
 static int world_QuEST_init(struct world *wd) { (void)wd; return 0; }
 static int world_QuEST_destroy(struct world *wd) { (void)wd; return 0; }
-#endif /* PHASE2_BACKEND */
+#endif /* PHASE2_BACKEND == 1 */
+
+#if PHASE2_BACKEND == 2 /* cuQuantum */
+int world_cuQuantum_init(struct world *wd);
+int world_cuQuantum_destroy(struct world *wd);
+#else
+static int world_cuQuantum_init(struct world *wd) { (void)wd; return 0; }
+static int world_cuQuantum_destroy(struct world *wd) { (void)wd; return 0; }
+#endif /* PHASE2_BACKEND == 1 */
+
 
 static struct world WORLD = {
 	.stat = WORLD_UNDEF,
@@ -51,6 +60,8 @@ int world_init(int *argc, char ***argv, uint64_t seed)
 		xoshiro256ss_longjump(&WORLD.rng);
 
 	if (world_QuEST_init(&WORLD) < 0)
+		goto err;
+	if (world_cuQuantum_init(&WORLD) < 0)
 		goto err;
 
 	return WORLD.stat = WORLD_READY;
