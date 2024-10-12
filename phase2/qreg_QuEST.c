@@ -87,7 +87,7 @@ static void quest_paulirot(Qureg qureg, int *tar_qb, pauli_op_t *tar_op,
 	size_t mask = 0;
 	const qreal f = 1/sqrt(2);
 	Complex uRxAlpha = { .real = f, .imag = 0 };
-	Complex uRxBeta = { .real = 0, .imag = f };
+	Complex uRxBeta = { .real = 0, .imag = -f };
 	Complex uRyAlpha = { .real = f, .imag = 0 };
 	Complex uRyBeta = { .real = -f, .imag = 0 };
 
@@ -117,9 +117,9 @@ static void quest_paulirot(Qureg qureg, int *tar_qb, pauli_op_t *tar_op,
 
 		size_t idx = qureg.numAmpsPerChunk * qureg.chunkId + i;
 		if (__builtin_popcountll(mask & idx) % 2 == 0)
-			z *= conj(z_ph);
-		else
 			z *= z_ph;
+		else
+			z *= conj(z_ph);
 
 		qureg.stateVec.real[i] = creal(z);
 		qureg.stateVec.imag[i] = cimag(z);
