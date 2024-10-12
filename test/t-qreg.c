@@ -180,6 +180,49 @@ static void t_qreg_paulirot_00(void)
 	qreg_destroy(&reg);
 }
 
+static void t_qreg_paulirot_0y_explicit(void)
+{
+	const uint32_t num_qubits = 1;
+	const uint64_t num_amps = 1UL << num_qubits;
+
+	_Complex double z, z_exp;
+	struct qreg reg;
+	struct paulis ps, ps_hi, ps_lo;
+	double angle;
+
+	TEST_ASSERT(qreg_init(&reg, num_qubits) == 0,
+		"cannot initialize qreg");
+	for (size_t i = 0; i < num_amps; i++) {
+		z = 0.0;
+		AMPS[i] = z;
+		qreg_setamp(&reg, i, z);
+	}
+	AMPS[0] = 1.0;
+	qreg_setamp(&reg, 0, 1.0);
+
+	ps = paulis_new();
+	paulis_set(&ps, PAULI_Y, 0);
+	paulis_split(ps, reg.qb_lo, reg.qb_hi, &ps_lo, &ps_hi);
+	angle = 0.11;
+	qreg_paulirot(&reg, ps_hi, &ps_lo, &angle, 1);
+
+
+	z_exp = cos(angle);
+	qreg_getamp(&reg, 0, &z);
+	TEST_ASSERT(cabs(z - z_exp) < MARGIN,
+			"i=%zu, z=%f+%fi, z_exp=%f+%fi", 0,
+			creal(z), cimag(z), creal(z_exp), cimag(z_exp));
+
+	z_exp = -sin(angle);
+	qreg_getamp(&reg, 1, &z);
+	TEST_ASSERT(cabs(z - z_exp) < MARGIN,
+			"i=%zu, z=%f+%fi, z_exp=%f+%fi", 1,
+			creal(z), cimag(z), creal(z_exp), cimag(z_exp));
+
+
+	qreg_destroy(&reg);
+}
+
 /*
 static void print_paulis(struct paulis ps)
 {
@@ -221,7 +264,7 @@ static void t_qreg_paulirot_01(size_t tag)
 		_Complex double u = 1.0;
 
 		size_t j = paulis_effect(ps, i, &u);
-		z_exp = cos(angle) * AMPS[i] + I * u * sin(angle) * AMPS[j];
+		z_exp = cos(angle) * AMPS[i] + I * conj(u) * sin(angle) * AMPS[j];
 
 		qreg_getamp(&reg, i, &z);
 		TEST_ASSERT(cabs(z - z_exp) < MARGIN,
@@ -278,9 +321,9 @@ static void t_qreg_paulirot_02(size_t tag)
 				continue;
 
 			z[0] = cos(angle[k]) * AMPS[i] +
-				I * u * sin(angle[k]) * AMPS[j];
+				I * conj(u) * sin(angle[k]) * AMPS[j];
 			z[1] = cos(angle[k]) * AMPS[j] +
-				I * conj(u) * sin(angle[k]) * AMPS[i];
+				I * u * sin(angle[k]) * AMPS[i];
 			AMPS[i] = z[0];
 			AMPS[j] = z[1];
 		}
@@ -355,9 +398,9 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 				continue;
 
 			z[0] = cos(angle[k]) * AMPS[i] +
-				I * u * sin(angle[k]) * AMPS[j];
+				I * conj(u) * sin(angle[k]) * AMPS[j];
 			z[1] = cos(angle[k]) * AMPS[j] +
-				I * conj(u) * sin(angle[k]) * AMPS[i];
+				I * u * sin(angle[k]) * AMPS[i];
 			AMPS[i] = z[0];
 			AMPS[j] = z[1];
 		}
@@ -384,6 +427,7 @@ static void TEST_MAIN(void)
 
 	xoshiro256ss_init(&RNG, SEED);
 
+
 	t_qreg_init();
 
 	t_qreg_getsetamp_01();
@@ -392,10 +436,11 @@ static void TEST_MAIN(void)
 
 	t_qreg_zero();
 
+
 	t_qreg_paulirot_00();
+	t_qreg_paulirot_0y_explicit();
+
 	t_qreg_paulirot_01(13);
-/*	//t_qreg_paulirot_01(13);
-	log_info("OK");
 	for (size_t k = 0; k < 99; k++)
 		t_qreg_paulirot_01(k);
 	for (size_t k = 0; k < 99; k++)
@@ -404,6 +449,6 @@ static void TEST_MAIN(void)
 		for (size_t n = 1; n <= 99; n++)
 			t_qreg_paulirot_03(k, n);
 	t_qreg_paulirot_03(1234, 999);
-*/
+
 	world_destroy();
 }

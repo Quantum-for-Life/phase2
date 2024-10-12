@@ -112,7 +112,7 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 		 * CUSTATEVEC_PAULI_I = PAULI_I = 0, etc.
 		 */
 		for (size_t i = 0; i < cu->num_qubits; i++)
-			paulis[i] = paulis_get(code, cu->num_qubits);
+			paulis[i] = paulis_get(code, i);
 	
 		// apply exponential
 		custatevecApplyPauliRotation(
