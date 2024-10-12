@@ -117,9 +117,9 @@ static void quest_paulirot(Qureg qureg, int *tar_qb, pauli_op_t *tar_op,
 
 		size_t idx = qureg.numAmpsPerChunk * qureg.chunkId + i;
 		if (__builtin_popcountll(mask & idx) % 2 == 0)
-			z *= z_ph;
-		else
 			z *= conj(z_ph);
+		else
+			z *= z_ph;
 
 		qureg.stateVec.real[i] = creal(z);
 		qureg.stateVec.imag[i] = cimag(z);

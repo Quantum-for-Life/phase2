@@ -136,8 +136,8 @@ static void kernel_rot(c64 *amp, const uint64_t i, const uint64_t j,
 
 	xi = amp[i];
 	xj = amp[j];
-	amp[i] = creal(eip) * xi + I * cimag(eip) * z * xj;
-	amp[j] = creal(eip) * xj + I * cimag(eip) * conj(z) * xi;
+	amp[i] = creal(eip) * xi + I * cimag(eip) * conj(z) * xj;
+	amp[j] = creal(eip) * xj + I * cimag(eip) * z * xi;
 }
 
 void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,

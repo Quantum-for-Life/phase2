@@ -94,9 +94,9 @@ static void trotter_mockup(void)
 				double ph = HAMIL_COEFFS[k] * HAMIL_TIME_FACTOR;
 				_Complex double x, y;
 				x = cos(ph) * AMPS[i]
-					+ I * z * sin(ph) * AMPS[j];
+					+ I * conj(z) * sin(ph) * AMPS[j];
 				y = cos(ph)*AMPS[j]
-					+ I * conj(z) * sin(ph) * AMPS[i];
+					+ I * z * sin(ph) * AMPS[i];
 
 				AMPS[i] = x;
 				AMPS[j] = y;
