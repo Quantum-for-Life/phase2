@@ -53,7 +53,9 @@ if __name__ == "__main__":
     thJ = thetas[J]
     if thJ > math.pi:
         thJ = - (2 * math.pi - thJ)
-    x = 2 ** (-J)
-    E0 = thJ / (norm * time_factor)
-    print(E0 + offset)
+    x = 2**(-J)
+    E0 = math.sqrt(1-x**2)/x / norm * math.tan(x*thJ)
+    #E0 = thJ / (norm * time_factor)
+    E0 = E0 / time_factor
+    print(E0, E0 + offset)
 

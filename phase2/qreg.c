@@ -162,7 +162,7 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 
 	/* Compute permutation from inner qubits */
 	for (uint64_t i = 0; i < reg->num_amps; i++) {
-		reg->buf[i] *= buf_mul;
+		reg->buf[i] *= conj(buf_mul);
 
 		_Complex a = reg->amp[i], b = reg->buf[i];
 		reg->amp[i] = (a + b) / 2.0;

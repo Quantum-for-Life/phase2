@@ -95,7 +95,7 @@ static void trotter_mockup(void)
 				_Complex double x, y;
 				x = cos(ph) * AMPS[i]
 					+ I * conj(z) * sin(ph) * AMPS[j];
-				y = cos(ph)*AMPS[j]
+				y = cos(ph) * AMPS[j]
 					+ I * z * sin(ph) * AMPS[i];
 
 				AMPS[i] = x;

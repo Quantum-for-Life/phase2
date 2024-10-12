@@ -81,6 +81,9 @@ int world_destroy(void)
 
 	if (world_QuEST_destroy(&WORLD) < 0)
 		WORLD.stat = WORLD_ERR;
+	if (world_cuQuantum_destroy(&WORLD) < 0)
+		WORLD.stat = WORLD_ERR;
+
 
 	return WORLD.stat;
 }

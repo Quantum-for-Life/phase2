@@ -183,7 +183,6 @@ static void t_qreg_paulirot_00(void)
 static void t_qreg_paulirot_0y_explicit(void)
 {
 	const uint32_t num_qubits = 1;
-	const uint64_t num_amps = 1UL << num_qubits;
 
 	_Complex double z, z_exp;
 	struct qreg reg;
@@ -192,13 +191,8 @@ static void t_qreg_paulirot_0y_explicit(void)
 
 	TEST_ASSERT(qreg_init(&reg, num_qubits) == 0,
 		"cannot initialize qreg");
-	for (size_t i = 0; i < num_amps; i++) {
-		z = 0.0;
-		AMPS[i] = z;
-		qreg_setamp(&reg, i, z);
-	}
-	AMPS[0] = 1.0;
-	qreg_setamp(&reg, 0, 1.0);
+	qreg_zero(&reg);
+	qreg_setamp(&reg, 0, 2.0);
 
 	ps = paulis_new();
 	paulis_set(&ps, PAULI_Y, 0);
@@ -206,36 +200,58 @@ static void t_qreg_paulirot_0y_explicit(void)
 	angle = 0.11;
 	qreg_paulirot(&reg, ps_hi, &ps_lo, &angle, 1);
 
-
-	z_exp = cos(angle);
+	z_exp = cos(angle) * 2.0;
 	qreg_getamp(&reg, 0, &z);
 	TEST_ASSERT(cabs(z - z_exp) < MARGIN,
-			"i=%zu, z=%f+%fi, z_exp=%f+%fi", 0,
+			"i=%d, z=%f+%fi, z_exp=%f+%fi", 0,
 			creal(z), cimag(z), creal(z_exp), cimag(z_exp));
 
-	z_exp = -sin(angle);
+	z_exp = -sin(angle) * 2.0;
 	qreg_getamp(&reg, 1, &z);
 	TEST_ASSERT(cabs(z - z_exp) < MARGIN,
-			"i=%zu, z=%f+%fi, z_exp=%f+%fi", 1,
+			"i=%d, z=%f+%fi, z_exp=%f+%fi", 1,
 			creal(z), cimag(z), creal(z_exp), cimag(z_exp));
-
 
 	qreg_destroy(&reg);
 }
 
-/*
-static void print_paulis(struct paulis ps)
+
+static void t_qreg_paulirot_0yyy_explicit(void)
 {
-	char buf[WIDTH+1];
-	pauli_op_t op;
-	for (size_t k = 0; k < WIDTH; k++) {
-		op = paulis_get(ps, k);
-		buf[k] = PAULI_LABEL[op];
-	}
-	buf[WIDTH] = '\0';
-	printf("%s", buf);
+	const uint32_t num_qubits = 3;
+
+	_Complex double z, z_exp;
+	struct qreg reg;
+	struct paulis ps, ps_hi, ps_lo;
+	double angle;
+
+	TEST_ASSERT(qreg_init(&reg, num_qubits) == 0,
+		"cannot initialize qreg");
+	qreg_zero(&reg);
+	qreg_setamp(&reg, 0, 2.0);
+
+	ps = paulis_new();
+	paulis_set(&ps, PAULI_Y, 0);
+	paulis_set(&ps, PAULI_Y, 1);
+	paulis_set(&ps, PAULI_Y, 2);
+	paulis_split(ps, reg.qb_lo, reg.qb_hi, &ps_lo, &ps_hi);
+	angle = 0.11;
+	qreg_paulirot(&reg, ps_hi, &ps_lo, &angle, 1);
+
+	z_exp = cos(angle) * 2.0;
+	qreg_getamp(&reg, 0, &z);
+	TEST_ASSERT(cabs(z - z_exp) < MARGIN,
+			"i=%d, z=%f+%fi, z_exp=%f+%fi", 0,
+			creal(z), cimag(z), creal(z_exp), cimag(z_exp));
+
+	z_exp = sin(angle) * 2.0;
+	qreg_getamp(&reg, 7, &z);
+	TEST_ASSERT(cabs(z - z_exp) < MARGIN,
+			"i=%d, z=%f+%fi, z_exp=%f+%fi", 1,
+			creal(z), cimag(z), creal(z_exp), cimag(z_exp));
+
+	qreg_destroy(&reg);
 }
-*/
 
 /* Test rotation by one random Pauli string */
 static void t_qreg_paulirot_01(size_t tag)
@@ -436,11 +452,17 @@ static void TEST_MAIN(void)
 
 	t_qreg_zero();
 
-
 	t_qreg_paulirot_00();
-	t_qreg_paulirot_0y_explicit();
-
+	if (WD.size == 1) {
+		log_info("t_qreg_palirot_0y_explicit()");
+		t_qreg_paulirot_0y_explicit();
+	}
+	if (WD.size <= 4) {
+		log_info("t_qreg_palirot_0yyy_explicit()");
+		t_qreg_paulirot_0yyy_explicit();
+	}
 	t_qreg_paulirot_01(13);
+
 	for (size_t k = 0; k < 99; k++)
 		t_qreg_paulirot_01(k);
 	for (size_t k = 0; k < 99; k++)
