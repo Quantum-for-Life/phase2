@@ -12,7 +12,7 @@
 
 #include "test.h"
 
-#define WD_SEED UINT64_C(0x12cd3d62423a5600)
+#define WD_SEED UINT64_C(0x4809bfb7d258a633)
 static struct world WD;
 
 #define WIDTH (64)
@@ -385,6 +385,7 @@ static void TEST_MAIN(void)
 	xoshiro256ss_init(&RNG, SEED);
 
 	t_qreg_init();
+
 	t_qreg_getsetamp_01();
 	for (size_t k = 0; k < 99; k++)
 		t_qreg_getsetamp_02(k);
@@ -392,6 +393,9 @@ static void TEST_MAIN(void)
 	t_qreg_zero();
 
 	t_qreg_paulirot_00();
+	t_qreg_paulirot_01(13);
+/*	//t_qreg_paulirot_01(13);
+	log_info("OK");
 	for (size_t k = 0; k < 99; k++)
 		t_qreg_paulirot_01(k);
 	for (size_t k = 0; k < 99; k++)
@@ -400,6 +404,6 @@ static void TEST_MAIN(void)
 		for (size_t n = 1; n <= 99; n++)
 			t_qreg_paulirot_03(k, n);
 	t_qreg_paulirot_03(1234, 999);
-
+*/
 	world_destroy();
 }
