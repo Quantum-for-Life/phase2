@@ -46,7 +46,50 @@ __global__ void kernelMix(cuDoubleComplex *a, cuDoubleComplex *b, size_t n)
 	}
 }
 
+__global__ void kernelPauliRot(cuDoubleComplex *a, size_t n, cuDoubleComplex eip,
+		struct paulis code)
+{
+	size_t i = threadIdx.x + blockIdx.x * blockDim.x;
+	if (i >= n)
+		return;
 
+	size_t j = i ^ code.pak[0];
+	if (j < i)
+		return;
+
+	int minus = __popcll(j & code.pak[1]);
+	int root4 = (__popcll(code.pak[0] & code.pak[1]) + 2*minus) & 0x3;
+	cuDoubleComplex z;
+	switch (root4) {
+		case 0:
+			z.x = 1.0;
+			z.y = 0.0;
+			break;
+		case 1:
+			z.x = 0.0;
+			z.y = -1.0;
+			break;
+		case 2:
+			z.x = -1.0;
+			z.y = 0.0;
+			break;
+		case 3:
+			z.x = 0.0;
+			z.y = 1.0;
+			break;
+		default:
+			__builtin_unreachable();
+	}
+
+	cuDoubleComplex zi, zj;
+	zi = a[i];
+	zj = a[j];
+
+	cuDoubleComplex rc = { .x = cuCreal(eip), .y = 0.0 };
+	cuDoubleComplex is = { .x = 0.0, .y = cuCimag(eip) };
+	a[i] = cuCadd(cuCmul(rc, zi), cuCmul(is, cuCmul(cuConj(z), zj)));
+	a[j] = cuCadd(cuCmul(rc, zj), cuCmul(is, cuCmul(z, zi)));
+}
 
 void qreg_paulirot_local(struct qreg *reg, custatevecHandle_t handle,
 	       const struct paulis *codes_lo, const double *angles,
@@ -63,10 +106,13 @@ void qreg_paulirot_local(struct qreg *reg, custatevecHandle_t handle,
 	kernelMul<<<blocks, threadPerBlock>>>(cu->d_buf, b, reg->num_amps);
 	kernelMix<<<blocks, threadPerBlock>>>(cu->d_sv, cu->d_buf, reg->num_amps);
 
+	cudaDeviceSynchronize();
 	for (size_t k = 0; k < num_codes; k++) {
 		/* cuQuantum Paulis are the same as ours:
 		 * CUSTATEVEC_PAULI_I = PAULI_I = 0, etc.
 		 */
+
+		/*
 		for (size_t i = 0; i < cu->num_qubits; i++)
 			paulis[i] = (custatevecPauli_t)paulis_get(codes_lo[k], i);
 
@@ -81,7 +127,17 @@ void qreg_paulirot_local(struct qreg *reg, custatevecHandle_t handle,
 			cu->num_qubits, -angles[k], paulis,
 			cu->targs, cu->num_targs,
 	    		nullptr, nullptr, 0);
+		*/
+		cuDoubleComplex eip = { .x = cos(angles[k]), .y = sin(angles[k]) };
+		kernelPauliRot<<<blocks, threadPerBlock>>>(cu->d_sv, reg->num_amps,
+				eip, codes_lo[k]);
+		kernelPauliRot<<<blocks, threadPerBlock>>>(cu->d_buf, reg->num_amps,
+				cuConj(eip), codes_lo[k]);
+
+		//cudaDeviceSynchronize();
 	}
 
+	/* We mix again d_sv and d_buf. Sync them first. */
+	cudaDeviceSynchronize();
         kernelAdd<<<blocks, threadPerBlock>>>(cu->d_sv, cu->d_buf, reg->num_amps);
 }
