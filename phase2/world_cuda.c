@@ -1,12 +1,11 @@
 #include <stdlib.h>
 
 #include <cuda_runtime_api.h>
-#include "custatevec.h"
 
 #include "mpi.h"
 
 #include "phase2/world.h"
-#include "world_cuQuantum.h"
+#include "world_cuda.h"
 
 int world_cuQuantum_init(struct world *wd)
 {
@@ -25,27 +24,17 @@ int world_cuQuantum_init(struct world *wd)
 	/* Assume one GPU per process. */
 	cudaSetDevice(local_rank % local_size);
 
-	if (custatevecCreate(&cu->handle) != CUSTATEVEC_STATUS_SUCCESS)
-		goto err;
-
  	cu->local_rank = local_rank;
 	cu->local_size = local_size;
 	wd->data = cu;
 
 	return 0;
-	
-err:
-	free(cu);
-	return -1;
 }
 
 int world_cuQuantum_destroy(struct world *wd)
 {
 	struct world_cuQuantum *cu = wd->data;
 	if (!cu)
-		return -1;
-
-	if (custatevecDestroy(cu->handle) != CUSTATEVEC_STATUS_SUCCESS)
 		return -1;
 
 	free(cu);

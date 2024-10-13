@@ -1,14 +1,14 @@
 #include <complex.h>
 #include <stdlib.h>
 
-#include <cuda_runtime_api.h> // cudaMalloc, cudaMemcpy, etc.
-#include <cuComplex.h>        // cuDoubleComplex
+#include <cuda_runtime_api.h>
+#include <cuComplex.h>
 
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 #include "phase2/world.h"
-#include "qreg_cuQuantum.h"
-#include "world_cuQuantum.h"
+#include "qreg_cuda.h"
+#include "world_cuda.h"
 
 typedef _Complex double c64;
 
@@ -195,6 +195,5 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 
 	qreg_exchbuf_waitall(reg);
 
-	struct world_cuQuantum *cu = WD.data;
-	qreg_paulirot_local(reg, cu->handle, codes_lo, angles, num_codes, buf_mul);
+	qreg_paulirot_local(reg, codes_lo, angles, num_codes, buf_mul);
 }

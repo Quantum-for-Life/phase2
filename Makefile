@@ -46,13 +46,13 @@ HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcrypto -lcurl -lsz -lz -ldl -lm
 # are (case-sensitive):
 #
 # 	* qreg      - native engine
-# 	* QuEST	    - QuEST library
-#	* cuQuantum - NVIDIA's quantum simulator
+# 	* quest	    - QuEST library
+#	* cuda      - NVIDIA GPU driver and runtime
 #
 # See below for how to specify the dependencies.
 BACKEND		:= qreg
 #BACKEND	:= QuEST
-#BACKEND	:= cuQuantum
+#BACKEND	:= CUDA
 
 BACKEND_OBJS	:=
 BACKEND_CFLAGS	:=
@@ -67,7 +67,7 @@ BACKEND_LDFLAGS	+=
 BACKEND_LDLIBS	+=
 endif
 
-ifeq ($(BACKEND),QuEST)
+ifeq ($(BACKEND),quest)
 # Specify QUEST_PREFIX, if you have QuEST installed in a nonstandard location.
 QUEST_PREFIX	:=
 QUEST_INCLUDE	:= $(QUEST_PREFIX)/usr/include/QuEST
@@ -81,27 +81,27 @@ BACKEND_LDLIBS	+= -lQuEST
 $(BACKEND_OBJS): $(PHASE2DIR)/world_QuEST.h
 endif
 
-ifeq ($(BACKEND),cuQuantum)
-CUQUANTUM_PREFIX	:=
-CUQUANTUM_INCLUDE	:= $(CUQUANTUM_PREFIX)/usr/include/cuquantum
-CUQUANTUM_LIBDIR	:= $(CUQUANTUM_PREFIX)/usr/lib
+ifeq ($(BACKEND),cuda)
+CUDA_PREFIX	:= /usr/local/cuda
+CUDA_INCLUDE	:= $(CUDA_PREFIX)/include
+CUDA_LIBDIR	:= $(CUDA_PREFIX)/lib64
 BACKEND_N	:= 2
-BACKEND_OBJS	+= $(PHASE2DIR)/qreg_cuQuantum.o			\
-		   	$(PHASE2DIR)/qreg_cuQuantum_dlink.o		\
-		   	$(PHASE2DIR)/qreg_cuQuantum_target.o		\
-			$(PHASE2DIR)/world_cuQuantum.o
-BACKEND_CFLAGS	+= -I$(CUQUANTUM_INCLUDE)
-BACKEND_LDFLAGS	+= -L$(CUQUANTUM_LIBDIR) -Wl,-rpath -Wl,$(CUQUANTUM_LIBDIR)
-BACKEND_LDLIBS	+= -lcudart -lcustatevec -lstdc++
+BACKEND_OBJS	+= $(PHASE2DIR)/qreg_cuda.o				\
+		   	$(PHASE2DIR)/qreg_cuda_dlink.o			\
+		   	$(PHASE2DIR)/qreg_cuda_target.o			\
+			$(PHASE2DIR)/world_cuda.o
+BACKEND_CFLAGS	+= -I$(CUDA_INCLUDE)
+BACKEND_LDFLAGS	+= -L$(CUDA_LIBDIR) -Wl,-rpath -Wl,$(CUDA_LIBDIR)
+BACKEND_LDLIBS	+= -lcudart -lstdc++
 
-$(BACKEND_OBJS): $(PHASE2DIR)/qreg_cuQuantum.h				\
-       			$(PHASE2DIR)/world_cuQuantum.h
+$(BACKEND_OBJS): $(PHASE2DIR)/qreg_cuda.h				\
+       			$(PHASE2DIR)/world_cuda.h
 
-$(PHASE2DIR)/qreg_cuQuantum_target.o: $(PHASE2DIR)/qreg_cuQuantum.cu
+$(PHASE2DIR)/qreg_cuda_target.o: $(PHASE2DIR)/qreg_cuda.cu
 	$(NVCC) $(NVCC_FLAGS) $(MPI_CFLAGS) $(BACKEND_CFLAGS) 		\
-	       -I$(INCLUDE) -c $< -o $@ 
+	       -I$(INCLUDE) -c $< -o $@
 
-$(PHASE2DIR)/qreg_cuQuantum_dlink.o: $(PHASE2DIR)/qreg_cuQuantum_target.o
+$(PHASE2DIR)/qreg_cuda_dlink.o: $(PHASE2DIR)/qreg_cuda_target.o
 	$(NVCC) $(NVCC_FLAGS) $< -o $@ -dlink
 
 endif

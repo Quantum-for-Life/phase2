@@ -4,13 +4,11 @@
 #include <cuda_runtime.h>
 #include <cuComplex.h>
 
-#include "custatevec.h"
-
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 #include "phase2/world.h"
-#include "qreg_cuQuantum.h"
-#include "world_cuQuantum.h"
+#include "qreg_cuda.h"
+#include "world_cuda.h"
 
 const size_t threadPerBlock = 512;
 
@@ -91,15 +89,15 @@ __global__ void kernelPauliRot(cuDoubleComplex *a, size_t n, cuDoubleComplex eip
 	a[j] = cuCadd(cuCmul(rc, zj), cuCmul(is, cuCmul(z, zi)));
 }
 
-void qreg_paulirot_local(struct qreg *reg, custatevecHandle_t handle,
+void qreg_paulirot_local(struct qreg *reg,
 	       const struct paulis *codes_lo, const double *angles,
 	       const size_t num_codes, double _Complex buf_mul)
 {
- 	const size_t blocks = (reg->num_amps + threadPerBlock - 1) / threadPerBlock;
+ 	const size_t blocks = (reg->num_amps + threadPerBlock - 1) / 
+				threadPerBlock;
 
 	const struct qreg_cuQuantum *cu =
 		(const struct qreg_cuQuantum *)reg->data;
-	custatevecPauli_t paulis[QREG_MAX_WIDTH];
 
 	/* Note that we're taking the conjugation of buf_mul. */
 	const cuDoubleComplex b = { .x = creal(buf_mul), .y = -cimag(buf_mul) };
@@ -108,36 +106,19 @@ void qreg_paulirot_local(struct qreg *reg, custatevecHandle_t handle,
 
 	cudaDeviceSynchronize();
 	for (size_t k = 0; k < num_codes; k++) {
-		/* cuQuantum Paulis are the same as ours:
-		 * CUSTATEVEC_PAULI_I = PAULI_I = 0, etc.
-		 */
+		cuDoubleComplex eip = {
+			.x = cos(angles[k]),
+			.y = sin(angles[k])
+		};
+		kernelPauliRot<<<blocks, threadPerBlock>>>
+			(cu->d_sv, reg->num_amps, eip, codes_lo[k]);
+		kernelPauliRot<<<blocks, threadPerBlock>>>
+			(cu->d_buf, reg->num_amps, cuConj(eip), codes_lo[k]);
 
-		/*
-		for (size_t i = 0; i < cu->num_qubits; i++)
-			paulis[i] = (custatevecPauli_t)paulis_get(codes_lo[k], i);
-
-		// apply exponential
-		custatevecApplyPauliRotation(
-			handle, cu->d_sv, CUDA_C_64F,
-			cu->num_qubits, angles[k], paulis,
-			cu->targs, cu->num_targs,
-	    		nullptr, nullptr, 0);
-		custatevecApplyPauliRotation(
-			handle, cu->d_buf, CUDA_C_64F,
-			cu->num_qubits, -angles[k], paulis,
-			cu->targs, cu->num_targs,
-	    		nullptr, nullptr, 0);
-		*/
-		cuDoubleComplex eip = { .x = cos(angles[k]), .y = sin(angles[k]) };
-		kernelPauliRot<<<blocks, threadPerBlock>>>(cu->d_sv, reg->num_amps,
-				eip, codes_lo[k]);
-		kernelPauliRot<<<blocks, threadPerBlock>>>(cu->d_buf, reg->num_amps,
-				cuConj(eip), codes_lo[k]);
-
-		//cudaDeviceSynchronize();
 	}
 
 	/* We mix again d_sv and d_buf. Sync them first. */
 	cudaDeviceSynchronize();
-        kernelAdd<<<blocks, threadPerBlock>>>(cu->d_sv, cu->d_buf, reg->num_amps);
+        kernelAdd<<<blocks, threadPerBlock>>>(cu->d_sv, cu->d_buf,
+			reg->num_amps);
 }
