@@ -7,7 +7,9 @@
 AS		:= nasm
 ASFLAGS		+= -felf64 -w+all -w-reloc-rel-dword -Ox
 CC		?= gcc
-CFLAGS		+= -std=c17 -Wall -Wextra -O2 -march=native -mavx2
+CFLAGS		+= -std=c17 -Wall -Wextra -O3 -march=native -mavx2
+NVCC		?= nvcc
+NVCCFLAGS	+= -O3
 INCLUDE		:= ./include
 LDFLAGS 	+=
 LDLIBS		+= -lm
@@ -85,14 +87,27 @@ CUQUANTUM_INCLUDE	:= $(CUQUANTUM_PREFIX)/usr/include/cuquantum
 CUQUANTUM_LIBDIR	:= $(CUQUANTUM_PREFIX)/usr/lib
 BACKEND_N	:= 2
 BACKEND_OBJS	+= $(PHASE2DIR)/qreg_cuQuantum.o			\
+		   	$(PHASE2DIR)/qreg_cuQuantum_dlink.o		\
+		   	$(PHASE2DIR)/qreg_cuQuantum_target.o		\
 			$(PHASE2DIR)/world_cuQuantum.o
 BACKEND_CFLAGS	+= -I$(CUQUANTUM_INCLUDE)
 BACKEND_LDFLAGS	+= -L$(CUQUANTUM_LIBDIR) -Wl,-rpath -Wl,$(CUQUANTUM_LIBDIR)
-BACKEND_LDLIBS	+= -lcudart -lcustatevec
-$(BACKEND_OBJS): $(PHASE2DIR)/world_cuQuantum.h
+BACKEND_LDLIBS	+= -lcudart -lcustatevec -lstdc++
+
+$(BACKEND_OBJS): $(PHASE2DIR)/qreg_cuQuantum.h				\
+       			$(PHASE2DIR)/world_cuQuantum.h
+
+$(PHASE2DIR)/qreg_cuQuantum_target.o: $(PHASE2DIR)/qreg_cuQuantum.cu
+	$(NVCC) $(NVCC_FLAGS) $(MPI_CFLAGS) $(BACKEND_CFLAGS) 		\
+	       -I$(INCLUDE) -c $< -o $@ 
+
+$(PHASE2DIR)/qreg_cuQuantum_dlink.o: $(PHASE2DIR)/qreg_cuQuantum_target.o
+	$(NVCC) $(NVCC_FLAGS) $< -o $@ -dlink
+
 endif
 
 BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
+
 
 # APIs
 $(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h

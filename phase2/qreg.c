@@ -164,7 +164,7 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	for (uint64_t i = 0; i < reg->num_amps; i++) {
 		reg->buf[i] *= conj(buf_mul);
 
-		_Complex a = reg->amp[i], b = reg->buf[i];
+		_Complex double a = reg->amp[i], b = reg->buf[i];
 		reg->amp[i] = (a + b) / 2.0;
 		reg->buf[i] = (a - b) / 2.0;
 	}

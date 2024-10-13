@@ -1,14 +1,13 @@
-/* qreg implementation using cuQuantum library */
 #include <complex.h>
 #include <stdlib.h>
 
 #include <cuda_runtime_api.h> // cudaMalloc, cudaMemcpy, etc.
 #include <cuComplex.h>        // cuDoubleComplex
-#include "custatevec.h"
 
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 #include "phase2/world.h"
+#include "qreg_cuQuantum.h"
 #include "world_cuQuantum.h"
 
 typedef _Complex double c64;
@@ -17,14 +16,6 @@ typedef _Complex double c64;
 
 /* Local copy of the world info. Initialized by qreg_init() */
 static struct world WD;
-
-struct qreg_cuQuantum {
-	uint32_t num_qubits;
-	cuDoubleComplex *d_sv, *d_buf;
-	int32_t targs[QREG_MAX_WIDTH];
-	uint32_t num_targs;
-};
-
 
 int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 {
@@ -190,50 +181,6 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 
 	qreg_exchbuf_waitall(reg);
 
-	/* Compute permutation from inner qubits */
-	for (uint64_t i = 0; i < reg->num_amps; i++) {
-		reg->buf[i] *= conj(buf_mul);
-
-		_Complex a = reg->amp[i], b = reg->buf[i];
-		reg->amp[i] = (a + b) / 2.0;
-		reg->buf[i] = (a - b) / 2.0;
-	}
-
-
-	const struct world_cuQuantum *w = WD.data;
-	const struct qreg_cuQuantum *cu = reg->data;
-	custatevecPauli_t paulis[QREG_MAX_WIDTH];
-
-	cudaMemcpy(cu->d_sv, reg->amp, sizeof(double) * 2 * reg->num_amps,
-			cudaMemcpyHostToDevice);
-	cudaMemcpy(cu->d_buf, reg->buf, sizeof(double) * 2 * reg->num_amps,
-			cudaMemcpyHostToDevice);
-
-	for (size_t k = 0; k < num_codes; k++) {
-		/* cuQuantum Paulis are the same as ours:
-		 * CUSTATEVEC_PAULI_I = PAULI_I = 0, etc.
-		 */
-		for (size_t i = 0; i < cu->num_qubits; i++)
-			paulis[i] = (int)paulis_get(codes_lo[k], i);
-
-		// apply exponential
-		custatevecApplyPauliRotation(
-			w->handle, cu->d_sv, CUDA_C_64F,
-			cu->num_qubits, angles[k], paulis,
-			cu->targs, cu->num_targs,
-	    		(void *)0, (void *)0, 0);
-		custatevecApplyPauliRotation(
-			w->handle, cu->d_buf, CUDA_C_64F,
-			cu->num_qubits, -angles[k], paulis,
-			cu->targs, cu->num_targs,
-	    		(void *)0, (void *)0, 0);
-	}
-
-	cudaMemcpy(reg->amp, cu->d_sv, sizeof(double) * 2 * reg->num_amps,
-			cudaMemcpyDeviceToHost);
-	cudaMemcpy(reg->buf, cu->d_buf, sizeof(double) * 2 * reg->num_amps,
-			cudaMemcpyDeviceToHost);
-
-	for (uint64_t i = 0; i < reg->num_amps; i++)
-		reg->amp[i] += reg->buf[i];
+	struct world_cuQuantum *cu = WD.data;
+	qreg_paulirot_local(reg, cu->handle, codes_lo, angles, num_codes, buf_mul);
 }

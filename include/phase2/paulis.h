@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if PHASE2_BACKEND == 1 /* QuEST */
 #include "QuEST.h"
 typedef enum pauliOpType pauli_op_t;
@@ -40,5 +44,9 @@ void paulis_split(struct paulis code, uint32_t qb_lo, uint32_t qb_hi,
 
 void paulis_merge(struct paulis *code, uint32_t qb_lo, uint32_t qb_hi,
 	struct paulis lo, struct paulis hi);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PAULIS_H */
