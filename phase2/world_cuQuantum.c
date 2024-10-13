@@ -3,6 +3,8 @@
 #include <cuda_runtime_api.h>
 #include "custatevec.h"
 
+#include "mpi.h"
+
 #include "phase2/world.h"
 #include "world_cuQuantum.h"
 
@@ -12,9 +14,22 @@ int world_cuQuantum_init(struct world *wd)
 	if (!cu)
 		return -1;
 
-	cudaSetDevice(wd->rank);
+	/* Determine the local MPI rank (within the node). */
+	int local_rank, local_size;
+	MPI_Comm local_comm;
+	MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED,
+			wd->rank, MPI_INFO_NULL, &local_comm);
+	MPI_Comm_size(local_comm, &local_size);
+	MPI_Comm_rank(local_comm, &local_rank);
+
+	/* Assume one GPU per process. */
+	cudaSetDevice(local_rank % local_size);
+
 	if (custatevecCreate(&cu->handle) != CUSTATEVEC_STATUS_SUCCESS)
 		goto err;
+
+ 	cu->local_rank = local_rank;
+	cu->local_size = local_size;
 	wd->data = cu;
 
 	return 0;
