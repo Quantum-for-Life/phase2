@@ -60,10 +60,10 @@ int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 		goto err_cuda_malloc_dbuf;
 	cu->d_sv = d_sv;
 	cu->d_buf = d_buf;
-	for (size_t i = 0; i < num_qubits; i++)
+	for (size_t i = 0; i < qb_lo; i++)
 		cu->targs[i] = i;
-	cu->num_targs = num_qubits;
-	cu->num_qubits = num_qubits;
+	cu->num_targs = qb_lo;
+	cu->num_qubits = qb_lo;
 
 	reg->qb_lo = qb_lo;
 	reg->qb_hi = qb_hi;

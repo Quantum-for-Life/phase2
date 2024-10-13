@@ -1,5 +1,6 @@
 #include <stdlib.h>
 
+#include <cuda_runtime_api.h>
 #include "custatevec.h"
 
 #include "phase2/world.h"
@@ -11,6 +12,7 @@ int world_cuQuantum_init(struct world *wd)
 	if (!cu)
 		return -1;
 
+	cudaSetDevice(wd->rank);
 	if (custatevecCreate(&cu->handle) != CUSTATEVEC_STATUS_SUCCESS)
 		goto err;
 	wd->data = cu;
