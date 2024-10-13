@@ -58,11 +58,6 @@ void qreg_paulirot_local(struct qreg *reg, custatevecHandle_t handle,
 		(const struct qreg_cuQuantum *)reg->data;
 	custatevecPauli_t paulis[QREG_MAX_WIDTH];
 
-	cudaMemcpy(cu->d_sv, reg->amp, sizeof(double) * 2 * reg->num_amps,
-			cudaMemcpyHostToDevice);
-	cudaMemcpy(cu->d_buf, reg->buf, sizeof(double) * 2 * reg->num_amps,
-			cudaMemcpyHostToDevice);
-
 	/* Note that we're taking the conjugation of buf_mul. */
 	const cuDoubleComplex b = { .x = creal(buf_mul), .y = -cimag(buf_mul) };
 	kernelMul<<<blocks, threadPerBlock>>>(cu->d_buf, b, reg->num_amps);
@@ -89,10 +84,4 @@ void qreg_paulirot_local(struct qreg *reg, custatevecHandle_t handle,
 	}
 
         kernelAdd<<<blocks, threadPerBlock>>>(cu->d_sv, cu->d_buf, reg->num_amps);
-
-	cudaMemcpy(reg->amp, cu->d_sv, sizeof(double) * 2 * reg->num_amps,
-			cudaMemcpyDeviceToHost);
-	cudaMemcpy(reg->buf, cu->d_buf, sizeof(double) * 2 * reg->num_amps,
-			cudaMemcpyDeviceToHost);
-
 }

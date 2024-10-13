@@ -114,41 +114,55 @@ static void qb_split(uint64_t n, const uint32_t qb_lo, const uint32_t qb_hi,
 void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
 {
 	uint64_t rank, loci;
+	struct qreg_cuQuantum *cu = reg->data;
+
 	qb_split(i, reg->qb_lo, reg->qb_hi, &loci, &rank);
 
+	cudaDeviceSynchronize();
 	if (WD.rank == (int)rank)
-		*z = reg->amp[loci];
+		cudaMemcpy(z, cu->d_sv + loci, sizeof(cuDoubleComplex),
+				cudaMemcpyDeviceToHost);
+
 	MPI_Bcast(z, 2, MPI_DOUBLE, rank, MPI_COMM_WORLD);
 }
 
 void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 {
 	uint64_t rank, loci;
+	struct qreg_cuQuantum *cu = reg->data;
+
 	qb_split(i, reg->qb_lo, reg->qb_hi, &loci, &rank);
 
+	cudaDeviceSynchronize();
 	if (WD.rank == (int)rank)
-		reg->amp[loci] = z;
+		cudaMemcpy(cu->d_sv + loci, &z, sizeof(cuDoubleComplex),
+				cudaMemcpyHostToDevice);
+
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void qreg_zero(struct qreg *reg)
 {
-	c64 *z = reg->amp;
-	while (z < reg->amp + reg->num_amps)
-		*z++ = 0.0;
+	struct qreg_cuQuantum *cu = reg->data;
+
+	/* cuDoubleComplex zero representation is all bits set to zero */
+	cudaMemset(cu->d_sv, 0, reg->num_amps * sizeof(cuDoubleComplex));
+	cudaDeviceSynchronize();
 }
 
 
 static void qreg_exchbuf_init(struct qreg *reg, const int rnk_rem)
 {
+	struct qreg_cuQuantum *cu = reg->data;
+
 	const int nr = reg->num_reqs;
 
 	for (int i = 0; i < nr; i++) {
 		const size_t offset = i * reg->msg_count;
 
-		MPI_Isend(reg->amp + offset, reg->msg_count * 2, MPI_DOUBLE,
+		MPI_Isend(cu->d_sv + offset, reg->msg_count * 2, MPI_DOUBLE,
 			rnk_rem, i, MPI_COMM_WORLD, reg->reqs_snd + i);
-		MPI_Irecv(reg->buf + offset, reg->msg_count * 2, MPI_DOUBLE,
+		MPI_Irecv(cu->d_buf + offset, reg->msg_count * 2, MPI_DOUBLE,
 			rnk_rem, i, MPI_COMM_WORLD, reg->reqs_rcv + i);
 	}
 }

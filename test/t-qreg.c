@@ -443,12 +443,12 @@ static void TEST_MAIN(void)
 
 	xoshiro256ss_init(&RNG, SEED);
 
-
 	t_qreg_init();
 
 	t_qreg_getsetamp_01();
 	for (size_t k = 0; k < 99; k++)
 		t_qreg_getsetamp_02(k);
+
 
 	t_qreg_zero();
 
