@@ -80,7 +80,7 @@ $(BACKEND_OBJS): $(PHASE2DIR)/world_QuEST.h
 endif
 
 ifeq ($(BACKEND),cuQuantum)
-CUQUANTUM_PREFIX	:= $(CUQUANTUM_ROOT)
+CUQUANTUM_PREFIX	:=
 CUQUANTUM_INCLUDE	:= $(CUQUANTUM_PREFIX)/usr/include/cuquantum
 CUQUANTUM_LIBDIR	:= $(CUQUANTUM_PREFIX)/usr/lib
 BACKEND_N	:= 2
@@ -88,7 +88,7 @@ BACKEND_OBJS	+= $(PHASE2DIR)/qreg_cuQuantum.o			\
 			$(PHASE2DIR)/world_cuQuantum.o
 BACKEND_CFLAGS	+= -I$(CUQUANTUM_INCLUDE)
 BACKEND_LDFLAGS	+= -L$(CUQUANTUM_LIBDIR) -Wl,-rpath -Wl,$(CUQUANTUM_LIBDIR)
-BACKEND_LDLIBS	+= -lcuda -lcudart -lcustatevec
+BACKEND_LDLIBS	+= -lcudart -lcustatevec
 $(BACKEND_OBJS): $(PHASE2DIR)/world_cuQuantum.h
 endif
 
@@ -113,7 +113,7 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(BACKEND_OBJS)					\
 			$(PHASE2DIR)/world.o				\
 			$(PHASE2DIR)/world_log.o
-				
+
 UTILSOBJS	:= $(LIBDIR)/xoshiro256ss.o
 
 # Applications

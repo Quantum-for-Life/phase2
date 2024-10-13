@@ -22,7 +22,6 @@ struct qreg_cuQuantum {
 
 int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 {
-	const size_t num_amps = 1UL << num_qubits;
 	struct qreg_cuQuantum *cu;
 	cuDoubleComplex *d_sv;
 	
@@ -34,6 +33,7 @@ int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 	if (qb_hi >= num_qubits)
 		return -1;
 	const uint32_t qb_lo = num_qubits - qb_hi;
+	const size_t num_amps = UINT64_C(1) << num_qubits;
 
 	if (!(cu = malloc(sizeof *cu)))
 		return -1;
@@ -62,14 +62,14 @@ err_cuda_malloc:
 
 void qreg_destroy(struct qreg *reg)
 {
-	const struct qreg_cuQuantum *cu = reg->data;
+	struct qreg_cuQuantum *cu = reg->data;
 	cudaFree(cu->d_sv);
 	free(cu);
 }
 
 void qreg_getamp(const struct qreg *reg, const uint64_t i, _Complex double *z)
 {
-	const struct world_cuQuantum *w = WD.data;
+	// const struct world_cuQuantum *w = WD.data;
 	const struct qreg_cuQuantum *cu = reg->data;
 	
 	cudaDeviceSynchronize();
@@ -78,7 +78,7 @@ void qreg_getamp(const struct qreg *reg, const uint64_t i, _Complex double *z)
 
 void qreg_setamp(struct qreg *reg, const uint64_t i, _Complex double z)
 {
-	const struct world_cuQuantum *w = WD.data;
+	// const struct world_cuQuantum *w = WD.data;
 	const struct qreg_cuQuantum *cu = reg->data;
 	
 	cudaDeviceSynchronize();
@@ -112,7 +112,7 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 		 * CUSTATEVEC_PAULI_I = PAULI_I = 0, etc.
 		 */
 		for (size_t i = 0; i < cu->num_qubits; i++)
-			paulis[i] = paulis_get(code, i);
+			paulis[i] = (int)paulis_get(code, i);
 	
 		// apply exponential
 		custatevecApplyPauliRotation(
