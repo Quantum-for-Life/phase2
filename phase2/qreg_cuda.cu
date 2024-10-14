@@ -6,9 +6,8 @@
 
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
-#include "phase2/world.h"
 #include "qreg_cuda.h"
-#include "world_cuda.h"
+
 
 const size_t threadPerBlock = 512;
 
