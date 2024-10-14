@@ -194,6 +194,7 @@ CFLAGS		+= -I$(BENCHDIR)
 BENCHES		:= $(BENCHDIR)/b-qreg
 
 $(BENCHES):	$(BENCHDIR)/bench.h					\
+		$(BENCHDIR)/bench.o					\
 		$(PHASE2OBJS) $(UTILSOBJS)
 
 build-bench: $(BENCHES)

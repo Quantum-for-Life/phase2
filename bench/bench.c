@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- *
- * bench.h: Simple benchmarking framework.                                    *
+ * bench.c: Simple benchmarking framework.                                    *
  *                                                                            *
  * Copyright 2024 ⧉⧉⧉                                                         *
  *                                                                            *
@@ -16,34 +16,43 @@
  * You should have received a copy of the GNU General Public License along    *
  * with this program.  If not, see <https://www.gnu.org/licenses/>.           *
  * -------------------------------------------------------------------------- */
-#ifndef BENCH_H
-#define BENCH_H
+#define _XOPEN_SOURCE 700
 
 #include <stddef.h>
+#include <time.h>
 
-struct bench {
-	unsigned long nanos;
-	size_t reps;
-};
+#include "bench.h"
 
-/* Measure the performance of the supplied function op and store
- * the results in b.
- *
- * The function op is called repeatedly with the poiter data as its argument.
- * As long as op returns 0, the number of calls is at least reps, but can
- * be larger: the function can be called a few times before the actual time
- * measurement begins to warm the CPU cache up.
- *
- * If at any point the function op returns a number different from 0,
- * the measurement is interrupted and bench_mark returns the same number.
- *
- * After the call, struct bench pointed to by b holds in b->reps the total
- * number of calls to op (excluding the cache warm-up calls), and b->nanos
- * holds the number of nanoseconds (measured by the PROCESS clock) that
- * passed between the first and the last call.
- */
-int bench_mark(struct bench *b, size_t reps, int (*op)(void *), void *data);
+#define REPS_INIT (99)
 
-double bench_msrep(struct bench b);
+int bench_mark(struct bench *b, size_t reps, int (*op)(void *), void *data)
+{
+	int rt = 0;
 
-#endif /* BENCH_H */
+	struct timespec t1, t2;
+	volatile size_t r;
+
+	b->nanos = 0;
+	b->reps = 0;
+	/* First, warm the cache up */
+	for (volatile size_t i = 0; i < REPS_INIT; i++)
+		if ((rt = op(data)) != 0)
+			return rt;
+
+	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t1);
+	for (r = 0; r < reps; r++)
+		if ((rt = op(data)) != 0)
+			break;
+	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t2);
+
+	b->nanos = 1000000000UL * (t2.tv_sec - t1.tv_sec)
+			+ (t2.tv_nsec - t1.tv_nsec);
+	b->reps = r;
+
+	return rt;
+}
+
+double bench_msrep(struct bench b)
+{
+	return (double)b.nanos / b.reps / 1.0e6;
+}
