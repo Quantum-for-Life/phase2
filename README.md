@@ -3,7 +3,7 @@ phase2
 
 [![CI](https://github.com/Quantum-for-Life/phase2/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/Quantum-for-Life/phase2/actions/workflows/CI.yml)
 
-Hamiltonian simulation with Trotter product formula. 🏭
+Hamiltonian simulation on CPU and GPU clusters. 🏭
 
 
 Dependencies
