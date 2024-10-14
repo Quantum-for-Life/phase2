@@ -169,7 +169,7 @@ LDLIBS		+= $(MPI_LDLIBS)					\
 
 all: build build-bench build-test
 
-debug: build build-test
+debug: build build-bench build-test
 debug: ASFLAGS	+= -DDEBUG -Og -Fdwarf
 debug: CFLAGS	+= -DDEBUG -g -Og
 

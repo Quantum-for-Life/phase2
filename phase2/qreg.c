@@ -1,5 +1,6 @@
 #include <complex.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "mpi.h"
 
@@ -102,9 +103,7 @@ void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 
 void qreg_zero(struct qreg *reg)
 {
-	c64 *z = reg->amp;
-	while (z < reg->amp + reg->num_amps)
-		*z++ = 0.0;
+	memset(reg->amp, 0, reg->num_amps * sizeof(_Complex double));
 }
 
 static void qreg_exchbuf_init(struct qreg *reg, const int rnk_rem)
