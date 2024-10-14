@@ -78,6 +78,21 @@ The system can be configured to use the simulator library
 internal engine.  Make sure QuEST is compiled in the `DISTRIBUTED` mode.
 Consult [Makefile](./Makefile) for how to configure the build system.
 
+You can also use the software to perform distributed GPU simulation.  You
+will need a CUDA-aware MPI implementation on your system.  Follow 
+[this tutorial](https://github.com/Quantum-for-Life/cuda-aware-mpi-cluster)
+to see how to set up a CUDA-aware MPI cluster.
+
+To use GPUs instead of CPUs, recompile the sources:
+
+```bash
+make clean
+make BACKEND=cuda
+make BACKEND=cuda check
+```
+
+The software assumes there is one GPU per MPI process available on local nodes.
+
 
 How to use it
 -------------
