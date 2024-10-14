@@ -12,7 +12,7 @@
 
 #define REPS_MAX (9UL)
 
-#define NQB_MAX (27)
+#define NQB_MAX (29)
 static uint32_t NQB_MIN = 1;
 
 #define WD_SEED UINT64_C(0x18c9ee04abeee30c)
@@ -48,13 +48,13 @@ static int b_qreg_init(void *data)
 
 static void measure_b_qreg_init(void)
 {
-	log_info("n_qb,t_ms");
 	for (uint32_t n = NQB_MIN; n <= NQB_MAX; n++) {
 		struct bench b;
 		struct b_qreg_init q = { .n = n };
 
 		bench_mark(&b, REPS_MAX, b_qreg_init, &q);
-		log_info("%02u,%.9f", n, bench_msrep(b));
+		log_info("b_qreg_init [nqb,t_ms]: %2u,%14.9f",
+				n, bench_msrep(b));
 	}
 }
 
@@ -76,7 +76,6 @@ static int b_qreg_get(void *data)
 static void measure_b_qreg_get(void)
 {
 
-	log_info("n_qb,t_ms");
 	for (uint32_t n = NQB_MIN; n <= NQB_MAX; n++) {
 		struct bench b;
 		struct qreg reg;
@@ -90,7 +89,8 @@ static void measure_b_qreg_get(void)
 		q.i = (1 << n) - 1;
 
 		bench_mark(&b, REPS_MAX, b_qreg_get, &q);
-		log_info("%02u,%.9f", n, bench_msrep(b));
+		log_info("b_qreg_get [nqb,t_ms]: %2u,%14.9f",
+				n, bench_msrep(b));
 
 		qreg_destroy(&reg);
 	}
@@ -113,7 +113,6 @@ static void measure_b_qreg_zero(void)
 {
 	struct bench b;
 
-	log_info("n_qb,t_ms");
 	for (uint64_t n = NQB_MIN; n <= NQB_MAX; n++) {
 		struct qreg reg;
 		struct b_qreg_zero q;
@@ -122,7 +121,8 @@ static void measure_b_qreg_zero(void)
 		q.reg = &reg;
 
 		bench_mark(&b, REPS_MAX, b_qreg_zero, &q);
-		log_info("%02u,%.9f", n, bench_msrep(b));
+		log_info("b_qreg_zero [nqb,t_ms]: %2u,%14.9f",
+				n, bench_msrep(b));
 
 		qreg_destroy(&reg);
 	}
@@ -180,9 +180,8 @@ static int b_qreg_paulirot(void *data)
 
 static void measure_b_qreg_paulirot(void)
 {
-	log_info("n_qb,t_ms");
 	for (uint64_t n = NQB_MIN; n <= NQB_MAX; n++) {
-		for (size_t ncodes = 1; ncodes <= 32; ncodes++) {
+		for (size_t ncodes = 1; ncodes <= 100; ncodes *= 10) {
 
 			struct bench b;
 			struct qreg reg;
@@ -193,7 +192,8 @@ static void measure_b_qreg_paulirot(void)
 			b_qreg_paulirot_rand(&q);
 
 			bench_mark(&b, REPS_MAX, b_qreg_paulirot, &q);
-			log_info("%02u,%04u,%u,%.9f",
+			log_info("b_qreg_paulirot [nqb,ncodes,t_ms]: "
+					"%2u,%3u,%14.9f",
 				n, ncodes, bench_msrep(b));
 
 			b_qreg_paulirot_destroy(&q);
@@ -222,16 +222,9 @@ int main(int argc, char **argv)
 	xoshiro256ss_init(&RNG, SEED);
 	log_info("BENCHES >>>");
 
-	log_info("b_qreg_init:");
 	measure_b_qreg_init();
-
-	log_info("b_qreg_get:");
 	measure_b_qreg_get();
-
-	log_info("b_qreg_zero:");
 	measure_b_qreg_zero();
-
-	log_info("b_qreg_paulirot:");
 	measure_b_qreg_paulirot();
 
 	log_info("<<< END BENCHES");
