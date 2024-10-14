@@ -5,6 +5,11 @@
 
 #include "xoshiro256ss.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #define PHASE2_LOG_ENVVAR "PHASE2_LOG"
 
 enum world_log_level {
@@ -32,6 +37,19 @@ enum world_stat {
 	WORLD_DONE	=  1,
 	WORLD_ERR	=  2,
 };
+
+
+#ifndef PHASE2_BACKEND
+#define PHASE2_BAKCEND (0)
+#endif
+
+#if PHASE2_BACKEND == 0
+#define WORLD_BACKEND "qreg"
+#elif PHASE2_BACKEND == 1
+#define WORLD_BACKEND "QuEST"
+#elif PHASE2_BACKEND == 2
+#define WORLD_BACKEND "CUDA"
+#endif /* PHASE2_BACKEND */
 
 /*
  * Global world info stored as static data inside the module.
@@ -85,5 +103,9 @@ int world_destroy(void);
  *	The same value as stored in wd->stat after the call.
  */
 int world_info(struct world *wd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* WORLD_H */

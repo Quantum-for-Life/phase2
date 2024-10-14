@@ -15,6 +15,12 @@ LDFLAGS 	+=
 LDLIBS		+= -lm
 LIB64		:= /usr/lib/x86_64-linux-gnu
 
+MPIRUN		:= mpirun
+MPIFLAGS	:=
+MPIRANKS	?= 2
+
+RM		= rm -fv
+MKDIR		= mkdir -p
 # --------------------------------------------------------------------------- #
 # Build dependencies                                                          #
 # --------------------------------------------------------------------------- #
@@ -152,15 +158,18 @@ LDLIBS		+= $(MPI_LDLIBS)					\
 # --------------------------------------------------------------------------- #
 .DEFAULT_GOAL	:= all
 .PHONY: all			\
-	build build-test 	\
+	bench			\
+	build			\
+	bulid-bench		\
+	build-test 		\
 	clean			\
 	debug			\
 	check			\
 	check-mpi
 
-all: build build-test
+all: build build-bench build-test
 
-debug: build build-test
+debug: build build-bench build-test
 debug: ASFLAGS	+= -DDEBUG -Og -Fdwarf
 debug: CFLAGS	+= -DDEBUG -g -Og
 
@@ -170,9 +179,39 @@ clean:
 	$(RM) $(PHASE2DIR)/*.o $(PHASE2DIR)/*.d
 	$(RM) $(PH2RUNDIR)/*.o $(PH2RUNDIR)/*.d
 	$(RM) $(LIBDIR)/*.o $(LIBDIR)/*.d
-	$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
 	$(RM) $(PROGS)
+	$(RM) $(BENCHDIR)/*.o $(BENCHDIR)/*.d
+	$(RM) $(BENCHES)
+	$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
 	$(RM) $(TESTS)
+
+# --------------------------------------------------------------------------- #
+# Benchmarks                                                                  #
+# --------------------------------------------------------------------------- #
+BENCHDIR	:= ./bench
+CFLAGS		+= -I$(BENCHDIR)
+
+BENCHES		:= $(BENCHDIR)/b-qreg
+
+$(BENCHES):	$(BENCHDIR)/bench.h					\
+		$(BENCHDIR)/bench.o					\
+		$(PHASE2OBJS) $(UTILSOBJS)
+
+build-bench: $(BENCHES)
+
+bench: build-bench
+	@for bb in $(BENCHES); do					\
+		./$$bb &&						\
+			echo "$$bb: OK" ||				\
+ 			( echo "$$bb: FAIL"; exit 1 );			\
+	done
+
+bench-mpi: build-bench
+	@for bb in $(BENCHES); do					\
+		$(MPIRUN) -n $(MPIRANKS) $(MPIFLAGS) ./$$bb && 		\
+			echo "$$bb: OK" ||				\
+			( echo "$$bb: FAIL"; exit 1 );	 		\
+	done
 
 # --------------------------------------------------------------------------- #
 # Testing                                                                     #
@@ -197,16 +236,15 @@ build-test: $(TESTS)
 
 check: build-test
 	@for tt in $(TESTS); do						\
-		./$$tt && echo "$$tt: OK" || ( echo "$$tt: FAIL"; exit 1 ) ; \
+		./$$tt &&						\
+			echo "$$tt: OK" ||				\
+			( echo "$$tt: FAIL"; exit 1 );			\
 	done
-
-MPIRUN		:= mpirun
-MPIFLAGS	:=
-MPIRANKS	?= 2
 
 check-mpi: build-test
 	@for tt in $(TESTS); do						\
 		$(MPIRUN) -n $(MPIRANKS) $(MPIFLAGS) ./$$tt && 		\
-		echo "$$tt: OK" || ( echo "$$tt: FAIL"; exit 1 ) ; 	\
+			echo "$$tt: OK" ||				\
+			( echo "$$tt: FAIL"; exit 1 );			\
 	done
 
