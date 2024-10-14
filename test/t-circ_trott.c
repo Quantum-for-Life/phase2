@@ -19,6 +19,8 @@ static struct world WD;
 #define MARGIN (1.0e-14)
 #elif PHASE2_BACKEND == 1 /* QuEST */
 #define MARGIN (1.0e-6)
+#elif PHASE2_BACKEND == 2 /* cuQuantum */
+#define MARGIN (1.0e-14)
 #endif /* PHASE2_BACKEND */
 
 #define WIDTH		(64)
@@ -92,9 +94,9 @@ static void trotter_mockup(void)
 				double ph = HAMIL_COEFFS[k] * HAMIL_TIME_FACTOR;
 				_Complex double x, y;
 				x = cos(ph) * AMPS[i]
-					+ I * z * sin(ph) * AMPS[j];
-				y = cos(ph)*AMPS[j]
-					+ I * conj(z) * sin(ph) * AMPS[i];
+					+ I * conj(z) * sin(ph) * AMPS[j];
+				y = cos(ph) * AMPS[j]
+					+ I * z * sin(ph) * AMPS[i];
 
 				AMPS[i] = x;
 				AMPS[j] = y;

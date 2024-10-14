@@ -15,6 +15,7 @@
  *
  *	0	- native engine
  *	1	- QuEST
+ *	2	- cuQuantum
  *
  */
 #ifndef PHASE2_BACKEND

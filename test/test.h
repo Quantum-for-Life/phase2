@@ -31,8 +31,11 @@ static _Atomic bool TEST_RT = true;
 
 static void TEST_MAIN(void);
 
-int main(int, char **)
+int main(int argc, char ** argv)
 {
+	(void)argc;
+	(void)argv;
+
 	TEST_MAIN();
 
 	return TEST_RT ? 0 : -1;

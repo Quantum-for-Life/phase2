@@ -87,7 +87,7 @@ static void quest_paulirot(Qureg qureg, int *tar_qb, pauli_op_t *tar_op,
 	size_t mask = 0;
 	const qreal f = 1/sqrt(2);
 	Complex uRxAlpha = { .real = f, .imag = 0 };
-	Complex uRxBeta = { .real = 0, .imag = f };
+	Complex uRxBeta = { .real = 0, .imag = -f };
 	Complex uRyAlpha = { .real = f, .imag = 0 };
 	Complex uRyBeta = { .real = -f, .imag = 0 };
 

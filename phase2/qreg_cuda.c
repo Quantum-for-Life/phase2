@@ -1,11 +1,14 @@
 #include <complex.h>
 #include <stdlib.h>
 
-#include "mpi.h"
+#include <cuda_runtime_api.h>
+#include <cuComplex.h>
 
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 #include "phase2/world.h"
+#include "qreg_cuda.h"
+#include "world_cuda.h"
 
 typedef _Complex double c64;
 
@@ -16,6 +19,9 @@ static struct world WD;
 
 int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 {
+	struct qreg_cuQuantum *cu;
+	cuDoubleComplex *d_sv, *d_buf;
+
 	if (world_info(&WD) != WORLD_READY)
 		return -1;
 
@@ -37,6 +43,19 @@ int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 	if (!amp)
 		goto err_amp_alloc;
 
+	if (!(cu = malloc(sizeof *cu)))
+		goto err_cu_alloc;
+	if (cudaMalloc((void**)&d_sv, num_amps*sizeof *d_sv) != cudaSuccess)
+		goto err_cuda_malloc_dsv;
+	if (cudaMalloc((void**)&d_buf, num_amps*sizeof *d_sv) != cudaSuccess)
+		goto err_cuda_malloc_dbuf;
+	cu->d_sv = d_sv;
+	cu->d_buf = d_buf;
+	for (size_t i = 0; i < qb_lo; i++)
+		cu->targs[i] = i;
+	cu->num_targs = qb_lo;
+	cu->num_qubits = qb_lo;
+
 	reg->qb_lo = qb_lo;
 	reg->qb_hi = qb_hi;
 	reg->amp = amp;
@@ -46,10 +65,17 @@ int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 	reg->reqs_snd = reqs;
 	reg->reqs_rcv = reqs + num_reqs;
 	reg->num_reqs = num_reqs;
+	reg->data = cu;
 
 	return 0;
 
-	// free(amp);
+	cudaFree(d_buf);
+err_cuda_malloc_dbuf:
+	cudaFree(d_sv);
+err_cuda_malloc_dsv:
+	free(cu);
+err_cu_alloc:
+	free(amp);
 err_amp_alloc:
 	free(reqs);
 err_reqs_alloc:
@@ -58,6 +84,11 @@ err_reqs_alloc:
 
 void qreg_destroy(struct qreg *reg)
 {
+	struct qreg_cuQuantum *cu = reg->data;
+	cudaFree(cu->d_buf);
+	cudaFree(cu->d_sv);
+	free(cu);
+
 	if (reg->amp)
 		free(reg->amp);
 	reg->amp = NULL;
@@ -83,40 +114,55 @@ static void qb_split(uint64_t n, const uint32_t qb_lo, const uint32_t qb_hi,
 void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
 {
 	uint64_t rank, loci;
+	struct qreg_cuQuantum *cu = reg->data;
+
 	qb_split(i, reg->qb_lo, reg->qb_hi, &loci, &rank);
 
+	cudaDeviceSynchronize();
 	if (WD.rank == (int)rank)
-		*z = reg->amp[loci];
+		cudaMemcpy(z, cu->d_sv + loci, sizeof(cuDoubleComplex),
+				cudaMemcpyDeviceToHost);
+
 	MPI_Bcast(z, 2, MPI_DOUBLE, rank, MPI_COMM_WORLD);
 }
 
 void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 {
 	uint64_t rank, loci;
+	struct qreg_cuQuantum *cu = reg->data;
+
 	qb_split(i, reg->qb_lo, reg->qb_hi, &loci, &rank);
 
+	cudaDeviceSynchronize();
 	if (WD.rank == (int)rank)
-		reg->amp[loci] = z;
+		cudaMemcpy(cu->d_sv + loci, &z, sizeof(cuDoubleComplex),
+				cudaMemcpyHostToDevice);
+
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void qreg_zero(struct qreg *reg)
 {
-	c64 *z = reg->amp;
-	while (z < reg->amp + reg->num_amps)
-		*z++ = 0.0;
+	struct qreg_cuQuantum *cu = reg->data;
+
+	/* cuDoubleComplex zero representation is all bits set to zero */
+	cudaMemset(cu->d_sv, 0, reg->num_amps * sizeof(cuDoubleComplex));
+	cudaDeviceSynchronize();
 }
+
 
 static void qreg_exchbuf_init(struct qreg *reg, const int rnk_rem)
 {
+	struct qreg_cuQuantum *cu = reg->data;
+
 	const int nr = reg->num_reqs;
 
 	for (int i = 0; i < nr; i++) {
 		const size_t offset = i * reg->msg_count;
 
-		MPI_Isend(reg->amp + offset, reg->msg_count * 2, MPI_DOUBLE,
+		MPI_Isend(cu->d_sv + offset, reg->msg_count * 2, MPI_DOUBLE,
 			rnk_rem, i, MPI_COMM_WORLD, reg->reqs_snd + i);
-		MPI_Irecv(reg->buf + offset, reg->msg_count * 2, MPI_DOUBLE,
+		MPI_Irecv(cu->d_buf + offset, reg->msg_count * 2, MPI_DOUBLE,
 			rnk_rem, i, MPI_COMM_WORLD, reg->reqs_rcv + i);
 	}
 }
@@ -127,17 +173,6 @@ static void qreg_exchbuf_waitall(struct qreg *reg)
 
 	MPI_Waitall(nr, reg->reqs_snd, MPI_STATUSES_IGNORE);
 	MPI_Waitall(nr, reg->reqs_rcv, MPI_STATUSES_IGNORE);
-}
-
-static void kernel_rot(c64 *amp, const uint64_t i, const uint64_t j,
-	const c64 z, const c64 eip)
-{
-	c64 xi, xj;
-
-	xi = amp[i];
-	xj = amp[j];
-	amp[i] = creal(eip) * xi + I * cimag(eip) * conj(z) * xj;
-	amp[j] = creal(eip) * xj + I * cimag(eip) * z * xi;
 }
 
 void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
@@ -160,26 +195,5 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 
 	qreg_exchbuf_waitall(reg);
 
-	/* Compute permutation from inner qubits */
-	for (uint64_t i = 0; i < reg->num_amps; i++) {
-		reg->buf[i] *= conj(buf_mul);
-
-		_Complex double a = reg->amp[i], b = reg->buf[i];
-		reg->amp[i] = (a + b) / 2.0;
-		reg->buf[i] = (a - b) / 2.0;
-	}
-	for (size_t k = 0; k < num_codes; k++) {
-		const c64 eip = cexp(I * angles[k]);
-		for (uint64_t i = 0; i < reg->num_amps; i++) {
-			c64 z = 1.0;
-			const uint64_t j = paulis_effect(codes_lo[k], i, &z);
-			if (j < i)
-				continue;
-
-			kernel_rot(reg->amp, i, j, z, eip);
-			kernel_rot(reg->buf, i, j, z, conj(eip));
-		}
-	}
-	for (uint64_t i = 0; i < reg->num_amps; i++)
-		reg->amp[i] += reg->buf[i];
+	qreg_paulirot_local(reg, codes_lo, angles, num_codes, buf_mul);
 }
