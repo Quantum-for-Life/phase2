@@ -9,7 +9,7 @@ Hamiltonian simulation on CPU and GPU clusters. 🏭
 Dependencies
 ------------
 
-To run a simulation, you will need:
+To run the simulation, you will need:
 
 - CPU supporting AVX2 instruction set extension
 - Linux x86-64 platform, with a C11/C++11 compiler toolchain
@@ -24,16 +24,17 @@ sudo apt install libopenmpi-dev openmpi-common
 sudo apt install libhdf5-dev hdf5-tools libhdf5-mpi-dev libhdf5-openmpi-dev
 ```
 
-If you want to run the simulation on Euler cluster (ETHZ), all you need is to
-load the required modules:
+If you want to run the simulation on Euler cluster (ETHZ), just load these
+modules:
 
 ```bash
 ml load stack/2024-06
+ml load openmpi/4.1.6
+ml load hdf5/1.14.3
+ml load python/3.11.6
 ml load curl/8.4.0-s6dtj75
 ml load libszip/2.1.1-gz5ijo3
-ml load openmpi
-ml load hdf5
-ml load python
+ml load zlib/1.3-mktm5vz
 ```
 
 [hdf5-website]: https://www.hdfgroup.org/solutions/hdf5/
@@ -92,6 +93,12 @@ make BACKEND=cuda check
 ```
 
 The software assumes there is one GPU per MPI process available on local nodes.
+
+On Euler, load the `cuda` module along with those specified above:
+
+```bash
+ml load cuda/12.1.1
+```
 
 
 How to use it

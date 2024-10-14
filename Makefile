@@ -38,7 +38,7 @@ MPI_LDLIBS	:= -lmpi
 #
 HDF5_CFLAGS	:= -I/usr/include/hdf5/openmpi
 HDF5_LDFLAGS	:= -L$(LIB64)/hdf5/openmpi -Wl,-rpath -Wl,$(LIB64)/hdf5/openmpi
-HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcrypto -lcurl -lsz -lz -ldl -lm
+HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcurl -lsz -lz -ldl -lm
 
 # Backends
 #
@@ -51,8 +51,8 @@ HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcrypto -lcurl -lsz -lz -ldl -lm
 #
 # See below for how to specify the dependencies.
 BACKEND		:= qreg
-#BACKEND	:= QuEST
-#BACKEND	:= CUDA
+#BACKEND	:= quest
+#BACKEND	:= cuda
 
 BACKEND_OBJS	:=
 BACKEND_CFLAGS	:=
@@ -98,11 +98,11 @@ $(BACKEND_OBJS): $(PHASE2DIR)/qreg_cuda.h				\
        			$(PHASE2DIR)/world_cuda.h
 
 $(PHASE2DIR)/qreg_cuda_target.o: $(PHASE2DIR)/qreg_cuda.cu
-	$(NVCC) $(NVCC_FLAGS) $(MPI_CFLAGS) $(BACKEND_CFLAGS) 		\
+	$(NVCC) $(NVCCFLAGS) $(MPI_CFLAGS) $(BACKEND_CFLAGS) 		\
 	       -I$(INCLUDE) -c $< -o $@
 
 $(PHASE2DIR)/qreg_cuda_dlink.o: $(PHASE2DIR)/qreg_cuda_target.o
-	$(NVCC) $(NVCC_FLAGS) $< -o $@ -dlink
+	$(NVCC) $(NVCCFLAGS) $< -o $@ -dlink
 
 endif
 
