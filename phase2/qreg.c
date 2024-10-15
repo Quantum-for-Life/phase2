@@ -1,4 +1,5 @@
 #include <complex.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -109,7 +110,7 @@ void qreg_zero(struct qreg *reg)
 	memset(reg->amp, 0, reg->namp * sizeof(c64));
 }
 
-static void exchbuf_init(struct qreg *reg, const int rnk_rem)
+static void exch_init(struct qreg *reg, const int rnk_rem)
 {
 	const int nr = reg->nreqs;
 
@@ -123,86 +124,89 @@ static void exchbuf_init(struct qreg *reg, const int rnk_rem)
 	}
 }
 
-static void exchbuf_waitall(struct qreg *reg)
+static void exch_wait_amp(struct qreg *reg)
 {
-	const int nr = reg->nreqs;
-
-	MPI_Waitall(nr, reg->reqs_snd, MPI_STATUSES_IGNORE);
-	MPI_Waitall(nr, reg->reqs_rcv, MPI_STATUSES_IGNORE);
+	MPI_Waitall(reg->nreqs, reg->reqs_snd, MPI_STATUSES_IGNORE);
 }
 
-/* These kernels can be easily ported to CUDA */
-static __inline__ void kernel_mix(c64 *a, c64 *b, c64 b_mul)
+static void exch_wait_buf(struct qreg *reg)
 {
-	*b *= b_mul;
-
-	const c64 x = *a;
-	const c64 y = *b;
-	*a = (x + y) / 2.0;
-	*b = (x - y) / 2.0;
+	MPI_Waitall(reg->nreqs, reg->reqs_rcv, MPI_STATUSES_IGNORE);
 }
 
-static __inline__ void kernel_rot(c64 *ai, c64 *aj, const c64 cz, const c64 sz)
+/* These kernels can be easily ported to CUDA. */
+static __inline__ void kernel_mul(size_t i, c64 *a, c64 b)
 {
-	c64 xi, xj;
-
-	xi = *ai;
-	xj = *aj;
-	*ai = cz * xi + I * conj(sz) * xj;
-	*aj = cz * xj + I * sz * xi;
+	a[i] *= b;
 }
 
-static __inline__ void kernel_add(c64 *a, c64 *b)
+static __inline__ void kernel_mix(size_t i, c64 *restrict a, c64 *restrict b)
 {
-	*a += *b;
+	const c64 x = a[i];
+	const c64 y = b[i];
+	a[i] = (x + y) / 2.0;
+	b[i] = (x - y) / 2.0;
+}
+
+static __inline__ void kernel_rot(
+	size_t i, c64 *a, struct paulis code, double c, double s)
+{
+	c64 sz = s;
+	const uint64_t j = paulis_effect(code, i, &sz);
+	if (j < i)
+		return;
+
+	const c64 xi = a[i], xj = a[j];
+	a[i] = c * xi + I * conj(sz) * xj;
+	a[j] = c * xj + I * sz * xi;
+}
+
+static __inline__ void kernel_add(size_t i, c64 *restrict a, c64 *restrict b)
+{
+	a[i] += b[i];
+}
+
+static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi)
+{
+	c64 bm = 1.0;
+
+	paulis_shr(&code_hi, reg->nqb_lo);
+	const uint64_t rnk_rem = paulis_effect(code_hi, WD.rank, &bm);
+
+	exch_init(reg, rnk_rem);
+
+	exch_wait_buf(reg);
+	for (size_t i = 0; i < reg->namp; i++)
+		kernel_mul(i, reg->buf, conj(bm));
+
+	exch_wait_amp(reg);
 }
 
 static void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
-	const double *angles, const size_t ncodes, const c64 buf_mul)
+	const double *angles, const size_t ncodes)
 {
 	for (uint64_t i = 0; i < reg->namp; i++)
-		kernel_mix(reg->amp + i, reg->buf + i, buf_mul);
+		kernel_mix(i, reg->amp, reg->buf);
 
 	for (size_t k = 0; k < ncodes; k++) {
-		const c64 eip = cexp(I * angles[k]);
-		for (uint64_t i = 0; i < reg->namp; i++) {
-			c64 cz = creal(eip), sz = cimag(eip);
-
-			const uint64_t j = paulis_effect(codes_lo[k], i, &sz);
-			if (j < i)
-				continue;
-
-			kernel_rot(reg->amp + i, reg->amp + j, cz, sz);
-			kernel_rot(reg->buf + i, reg->buf + j, cz, -sz);
-		}
+		const double c = cos(angles[k]), s = sin(angles[k]);
+		for (size_t i = 0; i < reg->namp; i++)
+			kernel_rot(i, reg->amp, codes_lo[k], c, s);
+		for (size_t i = 0; i < reg->namp; i++)
+			kernel_rot(i, reg->buf, codes_lo[k], c, -s);
 	}
 
 	for (uint64_t i = 0; i < reg->namp; i++)
-		kernel_add(reg->amp + i, reg->buf + i);
-}
-
-static void qreg_paulirot_hi(
-	struct qreg *reg, const struct paulis code_hi, c64 *buf_mul)
-{
-	struct paulis hi = code_hi;
-	paulis_shr(&hi, reg->nqb_lo);
-
-	const uint64_t rnk_loc = WD.rank;
-	const uint64_t rnk_rem = paulis_effect(hi, rnk_loc, nullptr);
-	exchbuf_init(reg, rnk_rem);
-	paulis_effect(hi, rnk_rem, buf_mul);
-	exchbuf_waitall(reg);
+		kernel_add(i, reg->amp, reg->buf);
 }
 
 void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	const struct paulis *codes_lo, const double *angles,
 	const size_t ncodes)
 {
-	c64 buf_mul = 1.0;
+	/* Compute the action on hi qubits. */
+	qreg_paulirot_hi(reg, code_hi);
 
-	/* Compute the action on hi qubits */
-	qreg_paulirot_hi(reg, code_hi, &buf_mul);
-
-	/* Compute the action on low qubits */
-	qreg_paulirot_lo(reg, codes_lo, angles, ncodes, buf_mul);
+	/* Compute the action on lo qubits. */
+	qreg_paulirot_lo(reg, codes_lo, angles, ncodes);
 }
