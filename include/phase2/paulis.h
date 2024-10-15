@@ -1,11 +1,11 @@
 #ifndef PAULIS_H
 #define PAULIS_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdint.h>
 
 #if PHASE2_BACKEND == 1 /* QuEST */
 #include "QuEST.h"

@@ -90,9 +90,9 @@ __global__ void kernelPauliRot(cuDoubleComplex *a, size_t n, cuDoubleComplex eip
 
 void qreg_paulirot_local(struct qreg *reg,
 	       const struct paulis *codes_lo, const double *angles,
-	       const size_t num_codes, double _Complex buf_mul)
+	       const size_t ncodes, double _Complex buf_mul)
 {
- 	const size_t blocks = (reg->num_amps + threadPerBlock - 1) / 
+ 	const size_t blocks = (reg->namp + threadPerBlock - 1) / 
 				threadPerBlock;
 
 	const struct qreg_cuQuantum *cu =
@@ -100,24 +100,24 @@ void qreg_paulirot_local(struct qreg *reg,
 
 	/* Note that we're taking the conjugation of buf_mul. */
 	const cuDoubleComplex b = { .x = creal(buf_mul), .y = -cimag(buf_mul) };
-	kernelMul<<<blocks, threadPerBlock>>>(cu->d_buf, b, reg->num_amps);
-	kernelMix<<<blocks, threadPerBlock>>>(cu->d_sv, cu->d_buf, reg->num_amps);
+	kernelMul<<<blocks, threadPerBlock>>>(cu->d_buf, b, reg->namp);
+	kernelMix<<<blocks, threadPerBlock>>>(cu->d_sv, cu->d_buf, reg->namp);
 
 	cudaDeviceSynchronize();
-	for (size_t k = 0; k < num_codes; k++) {
+	for (size_t k = 0; k < ncodes; k++) {
 		cuDoubleComplex eip = {
 			.x = cos(angles[k]),
 			.y = sin(angles[k])
 		};
 		kernelPauliRot<<<blocks, threadPerBlock>>>
-			(cu->d_sv, reg->num_amps, eip, codes_lo[k]);
+			(cu->d_sv, reg->namp, eip, codes_lo[k]);
 		kernelPauliRot<<<blocks, threadPerBlock>>>
-			(cu->d_buf, reg->num_amps, cuConj(eip), codes_lo[k]);
+			(cu->d_buf, reg->namp, cuConj(eip), codes_lo[k]);
 
 	}
 
 	/* We mix again d_sv and d_buf. Sync them first. */
 	cudaDeviceSynchronize();
         kernelAdd<<<blocks, threadPerBlock>>>(cu->d_sv, cu->d_buf,
-			reg->num_amps);
+			reg->namp);
 }

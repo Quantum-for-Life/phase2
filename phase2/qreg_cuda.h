@@ -17,7 +17,7 @@ struct qreg_cuQuantum {
 };
 
 void qreg_paulirot_local(struct qreg *reg, const struct paulis *codes_lo,
-	const double *angles, const size_t num_codes, _Complex double buf_mul);
+	const double *angles, const size_t ncodes, _Complex double buf_mul);
 
 #ifdef __cplusplus
 }

@@ -1,15 +1,15 @@
 #ifndef QREG_H
 #define QREG_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
 
 #include "mpi.h"
 
 #include "phase2/paulis.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define QREG_MAX_WIDTH (64)
 
