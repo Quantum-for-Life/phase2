@@ -21,12 +21,12 @@ static struct world WD;
 #define SEED UINT64_C(0x2d1da81dc94cf64f)
 static struct xoshiro256ss RNG;
 
-double rand_double(void)
+static double rand_double(void)
 {
 	return (double)(xoshiro256ss_next(&RNG) >> 11) * 0x1.0p-53;
 }
 
-pauli_op_t rand_pauli(void)
+static int rand_pauli(void)
 {
 	return (int)(xoshiro256ss_next(&RNG) % 4);
 }
@@ -53,7 +53,7 @@ static void measure_b_qreg_init(void)
 		struct b_qreg_init q = { .n = n };
 
 		bench_mark(&b, REPS_MAX, b_qreg_init, &q);
-		log_info("b_qreg_init [nqb,t_ms]: %2u,%14.9f",
+		log_info("b_qreg_init [nqb,t_ms]: %2u,%11.6f",
 				n, bench_msrep(b));
 	}
 }
@@ -89,7 +89,7 @@ static void measure_b_qreg_get(void)
 		q.i = (1 << n) - 1;
 
 		bench_mark(&b, REPS_MAX, b_qreg_get, &q);
-		log_info("b_qreg_get [nqb,t_ms]: %2u,%14.9f",
+		log_info("b_qreg_get [nqb,t_ms]: %2u,%11.6f",
 				n, bench_msrep(b));
 
 		qreg_destroy(&reg);
@@ -121,7 +121,7 @@ static void measure_b_qreg_zero(void)
 		q.reg = &reg;
 
 		bench_mark(&b, REPS_MAX, b_qreg_zero, &q);
-		log_info("b_qreg_zero [nqb,t_ms]: %2u,%14.9f",
+		log_info("b_qreg_zero [nqb,t_ms]: %2u,%11.6f",
 				n, bench_msrep(b));
 
 		qreg_destroy(&reg);
@@ -193,7 +193,7 @@ static void measure_b_qreg_paulirot(void)
 
 			bench_mark(&b, REPS_MAX, b_qreg_paulirot, &q);
 			log_info("b_qreg_paulirot [nqb,ncodes,t_ms]: "
-					"%2u,%3u,%14.9f",
+					"%2u,%3u,%11.6f",
 				n, ncodes, bench_msrep(b));
 
 			b_qreg_paulirot_destroy(&q);

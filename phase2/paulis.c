@@ -4,28 +4,31 @@
 
 #include "phase2/paulis.h"
 
-typedef _Complex double c64;
+/* --------------------------------------------------------------------------*/
+/* Remove this section when C23 arrives.                                     */
+#include <stdbool.h>
+#define nullptr (void *)0
+#define stdc_count_ones_ul(v) (__builtin_popcountl(v))
+#define unreachable() (__builtin_unreachable())
+/* --------------------------------------------------------------------------*/
+/* Uncomment this section when C23 arrives.                                  */
+/*
+#include <stdbit.h>
+*/
+/* --------------------------------------------------------------------------*/
 
 struct paulis paulis_new(void)
 {
-	struct paulis code = {
-		.pak = { 0, 0 }
-	};
+	struct paulis code = { .pak = { 0, 0 } };
 
 	return code;
 }
 
-static int paulis_countis(struct paulis code)
-{
-	return __builtin_popcountll(code.pak[0] & code.pak[1]);
-}
-
-void paulis_set(
-	struct paulis *code, const pauli_op_t pauli, const uint32_t n)
+void paulis_set(struct paulis *code, const int op, const uint32_t n)
 {
 	const uint64_t n_mask = UINT64_C(1) << n;
 
-	switch (pauli) {
+	switch (op) {
 	case PAULI_I:
 		code->pak[0] &= ~n_mask;
 		code->pak[1] &= ~n_mask;
@@ -42,14 +45,14 @@ void paulis_set(
 		code->pak[0] &= ~n_mask;
 		code->pak[1] |= n_mask;
 		break;
+	default:
+		break;
 	}
 }
 
-pauli_op_t paulis_get(const struct paulis code, const uint32_t n)
+int paulis_get(const struct paulis code, const uint32_t n)
 {
-	int pa = 0;
-	pa |= code.pak[0] >> n & 1;
-	pa |= (code.pak[1] >> n & 1) << 1;
+	int pa = (code.pak[0] >> n & 1) | ( (code.pak[1] >> n & 1) << 1);
 
 	switch (pa) {
 	case 0:
@@ -61,7 +64,7 @@ pauli_op_t paulis_get(const struct paulis code, const uint32_t n)
 	case 3:
 		return PAULI_Y;
 	default:
-		__builtin_unreachable();
+		unreachable();
 	}
 }
 
@@ -82,31 +85,33 @@ void paulis_shr(struct paulis *code, const uint32_t n)
 	code->pak[1] >>= n;
 }
 
-uint64_t paulis_effect(const struct paulis code, const uint64_t i, c64 *z)
+uint64_t paulis_effect(const struct paulis code,
+			const uint64_t i, _Complex double *z)
 {
-	uint64_t j = i ^ code.pak[0];
-	if (z != NULL) {
-		const int minus = __builtin_popcountll(j & code.pak[1]);
-		const int root4 = (paulis_countis(code) + 2 * minus) & 0x3;
+	if (z == nullptr)
+		goto rt;
 
-		switch (root4) {
-		case 0:
-			break;
-		case 1:
-			*z *= -I;
-			break;
-		case 2:
-			*z *= -1.0;
-			break;
-		case 3:
-			*z *= I;
-			break;
-		default:
-			__builtin_unreachable();
-		}
+	const int mi = stdc_count_ones_ul(i & code.pak[1]);
+	const int is = stdc_count_ones_ul(code.pak[0] & code.pak[1]);
+	const int r4 = (is + 2*mi) & 0x3;
+	switch (r4) {
+	case 0:
+		break;
+	case 1:
+		*z *= I;
+		break;
+	case 2:
+		*z *= -1.0;
+		break;
+	case 3:
+		*z *= -I;
+		break;
+	default:
+		unreachable();
 	}
 
-	return j;
+rt:
+	return i ^ code.pak[0];
 }
 
 void paulis_split(const struct paulis code, const uint32_t qb_lo,
