@@ -5,12 +5,10 @@
 extern "C" {
 #endif
 
-
 struct world_cuQuantum {
 	int local_rank;
 	int local_size;
 };
-
 
 #ifdef __cplusplus
 }

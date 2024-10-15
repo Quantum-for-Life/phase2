@@ -9,7 +9,6 @@
 extern "C" {
 #endif
 
-
 #define PHASE2_LOG_ENVVAR "PHASE2_LOG"
 
 enum world_log_level {
@@ -32,12 +31,11 @@ void world_log(int level, const char *fmt, ...);
 #define log_fatal(...) world_log(LOG_FATAL, __VA_ARGS__)
 
 enum world_stat {
-	WORLD_UNDEF	= -1,
-	WORLD_READY	=  0,
-	WORLD_DONE	=  1,
-	WORLD_ERR	=  2,
+	WORLD_UNDEF = -1,
+	WORLD_READY = 0,
+	WORLD_DONE = 1,
+	WORLD_ERR = 2,
 };
-
 
 #ifndef PHASE2_BACKEND
 #define PHASE2_BAKCEND (0)
@@ -63,7 +61,7 @@ struct world {
 	uint64_t seed;
 	struct xoshiro256ss rng;
 
-	void *data;	/* opaque handle to alternative engine environments */
+	void *data; /* opaque handle to alternative engine environments */
 };
 
 /* Initialize the world with command line parameters and a seed for PRNG.

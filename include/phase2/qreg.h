@@ -32,7 +32,7 @@ struct qreg {
 	MPI_Request *reqs_snd, *reqs_rcv;
 	size_t num_reqs;
 
-	void *data;	/* Handle to e.g. alternative engines. */
+	void *data; /* Handle to e.g. alternative engines. */
 };
 
 int qreg_init(struct qreg *reg, uint32_t num_qubits);
@@ -45,7 +45,7 @@ void qreg_setamp(struct qreg *reg, uint64_t i, _Complex double z);
 
 void qreg_zero(struct qreg *reg);
 
-/* Apply product of Pauli rotations for a list of strings sharing the same 
+/* Apply product of Pauli rotations for a list of strings sharing the same
  * operation on hi qubits.
  *
  */

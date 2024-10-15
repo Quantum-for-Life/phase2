@@ -8,7 +8,6 @@
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 
-
 struct circ_hamil {
 	size_t num_qubits;
 	size_t num_terms;
@@ -22,7 +21,6 @@ int circ_hamil_init(struct circ_hamil *h, size_t num_terms);
 int circ_hamil_init_from_file(struct circ_hamil *h, data_id fid);
 
 void circ_hamil_destroy(struct circ_hamil *h);
-
 
 struct circ_multidet {
 	struct {
@@ -39,7 +37,6 @@ int circ_multidet_init_from_file(struct circ_multidet *md, data_id fid);
 
 void circ_multidet_destroy(struct circ_multidet *md);
 
-
 /* Circuit: trott */
 struct circ_trott_data {
 	struct circ_hamil hamil;
@@ -54,13 +51,12 @@ struct circ_trott_data {
 int circ_trott_data_init(struct circ_trott_data *cd, size_t num_steps);
 
 /* Convenience function. Use instead of circ_trott_data_init. */
-int circ_trott_data_init_from_file(struct circ_trott_data *cd,
-	size_t num_steps, data_id fid);
+int circ_trott_data_init_from_file(
+	struct circ_trott_data *cd, size_t num_steps, data_id fid);
 
 void circ_trott_data_destroy(struct circ_trott_data *cd);
 
 int circ_trott_simulate(const struct circ_trott_data *cd);
-
 
 /* Circuit: qdrift */
 struct circ_qdrift_data {

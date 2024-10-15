@@ -25,7 +25,6 @@
 extern "C" {
 #endif
 
-
 struct bench {
 	unsigned long nanos;
 	size_t reps;
@@ -50,7 +49,6 @@ struct bench {
 int bench_mark(struct bench *b, size_t reps, int (*op)(void *), void *data);
 
 double bench_msrep(struct bench b);
-
 
 #ifdef __cplusplus
 }

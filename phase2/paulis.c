@@ -19,7 +19,9 @@
 
 struct paulis paulis_new(void)
 {
-	struct paulis code = { .pak = { 0, 0 } };
+	struct paulis code = {
+		.pak = { 0, 0 }
+	};
 
 	return code;
 }
@@ -52,7 +54,7 @@ void paulis_set(struct paulis *code, const int op, const uint32_t n)
 
 int paulis_get(const struct paulis code, const uint32_t n)
 {
-	int pa = (code.pak[0] >> n & 1) | ( (code.pak[1] >> n & 1) << 1);
+	int pa = (code.pak[0] >> n & 1) | ((code.pak[1] >> n & 1) << 1);
 
 	switch (pa) {
 	case 0:
@@ -85,15 +87,15 @@ void paulis_shr(struct paulis *code, const uint32_t n)
 	code->pak[1] >>= n;
 }
 
-uint64_t paulis_effect(const struct paulis code,
-			const uint64_t i, _Complex double *z)
+uint64_t paulis_effect(
+	const struct paulis code, const uint64_t i, _Complex double *z)
 {
 	if (z == nullptr)
 		goto rt;
 
 	const int mi = stdc_count_ones_ul(i & code.pak[1]);
 	const int is = stdc_count_ones_ul(code.pak[0] & code.pak[1]);
-	const int r4 = (is + 2*mi) & 0x3;
+	const int r4 = (is + 2 * mi) & 0x3;
 	switch (r4) {
 	case 0:
 		break;
@@ -128,7 +130,6 @@ void paulis_split(const struct paulis code, const uint32_t qb_lo,
 	hi->pak[0] = code.pak[0] & mask_hi;
 	hi->pak[1] = code.pak[1] & mask_hi;
 }
-
 
 void paulis_merge(struct paulis *code, const uint32_t qb_lo,
 	const uint32_t qb_hi, const struct paulis lo, const struct paulis hi)
