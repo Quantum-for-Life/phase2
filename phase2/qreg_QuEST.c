@@ -1,4 +1,3 @@
-/* qreg implementation using QuEST library */
 #include <complex.h>
 #include <stdlib.h>
 
@@ -22,13 +21,13 @@ int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 {
 	if (world_info(&WD) != WORLD_READY)
 		return -1;
-	uint32_t qb_hi = 0, nrk = WD.size;
+	uint32_t nqb_hi = 0, nrk = WD.size;
 	while (nrk >>= 1)
-		qb_hi++;
-	if (qb_hi >= num_qubits)
+		nqb_hi++;
+	if (nqb_hi >= num_qubits)
 		return -1;
-	const uint32_t qb_lo = num_qubits - qb_hi;
-	const uint64_t num_amps = UINT64_C(1) << qb_lo;
+	const uint32_t nqb_lo = num_qubits - nqb_hi;
+	const uint64_t namp = UINT64_C(1) << nqb_lo;
 
 	struct qreg_QuEST *qr = malloc(sizeof *qr);
 	if (!qr)
@@ -42,9 +41,9 @@ int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 		qr->tar_op[i] = PAULI_I;
 	}
 
-	reg->num_amps = num_amps;
-	reg->qb_lo = qb_lo;
-	reg->qb_hi = qb_hi;
+	reg->namp = namp;
+	reg->nqb_lo = nqb_lo;
+	reg->nqb_hi = nqb_hi;
 	reg->data = qr;
 
 	return 0;
@@ -155,7 +154,7 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 
 	for (size_t k = 0; k < num_codes; k++) {
 		paulis_merge(
-			&code, reg->qb_lo, reg->qb_hi, codes_lo[k], code_hi);
+			&code, reg->nqb_lo, reg->nqb_hi, codes_lo[k], code_hi);
 		for (size_t i = 0; i < qr->num_qubits; i++)
 			qr->tar_op[i] = paulis_get(code, i);
 

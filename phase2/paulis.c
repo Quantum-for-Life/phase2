@@ -62,7 +62,7 @@ int paulis_get(const struct paulis code, const uint32_t n)
 	case 1:
 		return PAULI_X;
 	case 2:
-		return PAULI_Z;
+		return PAULI_Z; /* sic! */
 	case 3:
 		return PAULI_Y;
 	default:

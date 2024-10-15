@@ -117,7 +117,7 @@ static void trott_step(struct circ_qdrift *c, const double omega)
 
 		struct paulis code_hi, code_lo;
 		paulis_split(
-			code, c->reg.qb_lo, c->reg.qb_hi, &code_lo, &code_hi);
+			code, c->reg.nqb_lo, c->reg.nqb_hi, &code_lo, &code_hi);
 
 		if (cache.num_codes == 0) {
 			cache.code_hi = code_hi;
