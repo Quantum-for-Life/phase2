@@ -39,11 +39,9 @@ static double rand_double(void)
 	return (x >> 11) * 0x1.0p-53;
 }
 
-static pauli_op_t rand_pauli_op(void)
+static int rand_pauli_op(void)
 {
-	pauli_op_t x = (int)(xoshiro256ss_next(&RNG) % 4);
-
-	return x;
+	return (int)(xoshiro256ss_next(&RNG) % 4);
 }
 
 static void t_qreg_init(void)
@@ -315,7 +313,7 @@ static void t_qreg_paulirot_02(size_t tag)
 		paulis_set(&ps[1], rand_pauli_op(), k);
 	}
 	for (size_t k = reg.qb_lo; k < reg.qb_lo +  reg.qb_hi; k++) {
-		pauli_op_t op = rand_pauli_op();
+		int op = rand_pauli_op();
 		paulis_set(&ps[0], op, k);
 		paulis_set(&ps[1], op, k);
 	}
@@ -388,7 +386,7 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 		for (size_t l = 0; l < n; l++)
 			paulis_set(&ps[l], rand_pauli_op(), k);
 	for (size_t k = reg.qb_lo; k < reg.qb_lo +  reg.qb_hi; k++) {
-		pauli_op_t op = rand_pauli_op();
+		int op = rand_pauli_op();
 		for (size_t l = 0; l < n; l++)
 			paulis_set(&ps[l], op, k);
 	}

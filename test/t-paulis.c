@@ -25,14 +25,14 @@ static void t_paulis_new(void)
 
 static void t_paulis_getset(size_t tag)
 {
-	pauli_op_t op[WIDTH];
+	int op[WIDTH];
 	struct paulis ps = paulis_new();
 
 	for (size_t k = 0; k < WIDTH; k++)
 		paulis_set(&ps, op[k] = (int)(xoshiro256ss_next(&RNG) % 4), k);
 
 	for (size_t k = 0; k < WIDTH; k++) {
-		pauli_op_t p = paulis_get(ps, k);
+		int p = paulis_get(ps, k);
 		TEST_ASSERT(p == op[k],
 			"[%zu] k=%zu, pauli=%d, expected=%d", tag, k, p, op[k]);
 	}
@@ -40,7 +40,7 @@ static void t_paulis_getset(size_t tag)
 
 static void t_paulis_eq(size_t tag)
 {
-	pauli_op_t op;
+	int op;
 	struct paulis ps1, ps2;
 
 	for (size_t k = 0; k < WIDTH; k++) {
@@ -57,7 +57,7 @@ static void t_paulis_eq(size_t tag)
 
 static void t_paulis_shr(size_t n)
 {
-	pauli_op_t op;
+	int op;
 	struct paulis ps1, ps2;
 
 	ps1 = ps2 = paulis_new();
@@ -188,7 +188,7 @@ static void t_paulis_effect_02(size_t tag)
 {
 	uint64_t x, y, y_exp, kk;
 	_Complex double z, z_exp;
-	pauli_op_t op;
+	int op;
 	struct paulis ps = paulis_new();
 
 	x = xoshiro256ss_next(&RNG);
@@ -235,7 +235,7 @@ static void t_paulis_split_01(size_t tag)
 {
 	uint32_t lo, hi;
 	struct paulis ps_lo, ps_hi, ps = paulis_new();
-	pauli_op_t op_lo, op_hi, op_ex;
+	int op_lo, op_hi, op_ex;
 
 	lo = xoshiro256ss_next(&RNG) % (WIDTH - 1);
 	hi = xoshiro256ss_next(&RNG) % (WIDTH - lo);

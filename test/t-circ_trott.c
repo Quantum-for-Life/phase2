@@ -61,9 +61,9 @@ static _Complex double rand_complex(void)
 	return z / cabs(z);
 }
 
-static pauli_op_t rand_pauli_op(void)
+static int rand_pauli(void)
 {
-	pauli_op_t x = (int)(xoshiro256ss_next(&RNG) % 4);
+	int x = (int)(xoshiro256ss_next(&RNG) % 4);
 
 	return x;
 }
@@ -72,7 +72,7 @@ static struct paulis rand_paulis(uint32_t num_qubits)
 {
 	struct paulis ps = paulis_new();
 	for (uint32_t k = 0; k < num_qubits; k++)
-		paulis_set(&ps, rand_pauli_op(), k);
+		paulis_set(&ps, rand_pauli(), k);
 
 	return ps;
 }

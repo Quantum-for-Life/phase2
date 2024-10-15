@@ -15,7 +15,7 @@ struct qreg_QuEST {
 	size_t	num_qubits;
 	Qureg	reg;
 	int tar_qb[QREG_MAX_WIDTH];
-	pauli_op_t tar_op[QREG_MAX_WIDTH];
+	int tar_op[QREG_MAX_WIDTH];
 };
 
 int qreg_init(struct qreg *reg, const uint32_t num_qubits)
@@ -81,8 +81,8 @@ void qreg_zero(struct qreg *reg)
 }
 
 /* This is based on QuEST's implementation of statevec_multiRotatePauli() */
-static void quest_paulirot(Qureg qureg, int *tar_qb, pauli_op_t *tar_op,
-	int num_tar, double angle)
+static void quest_paulirot(Qureg qureg, int *tar_qb, int *tar_op,
+	size_t num_tar,	double angle)
 {
 	size_t mask = 0;
 	const qreal f = 1/sqrt(2);

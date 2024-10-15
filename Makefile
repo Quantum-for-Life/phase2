@@ -7,7 +7,7 @@
 AS		:= nasm
 ASFLAGS		+= -felf64 -w+all -w-reloc-rel-dword -Ox
 CC		?= gcc
-CFLAGS		+= -std=c17 -Wall -Wextra -O3 -march=native -mavx2
+CFLAGS		+= -std=c11 -Wall -Wextra -O3 -march=native -mavx2
 NVCC		?= nvcc
 NVCCFLAGS	+= -O3
 INCLUDE		:= ./include

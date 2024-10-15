@@ -24,15 +24,15 @@ static double rand_double(void)
 	return (double)(xoshiro256ss_next(&RNG) >> 11) * 0x1.0p-53;
 }
 
-static pauli_op_t rand_pauli(void)
+static int rand_pauli(void)
 {
-	return (pauli_op_t)(xoshiro256ss_next(&RNG) % 4);
+	return (int)(xoshiro256ss_next(&RNG) % 4);
 }
 
 struct b_paulis_set
 {
 	struct paulis *p;
-	pauli_op_t op;
+	int op;
 	uint32_t n;
 };
 
