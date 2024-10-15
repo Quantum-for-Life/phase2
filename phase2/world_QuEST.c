@@ -5,8 +5,8 @@
 #include "phase2/world.h"
 #include "world_QuEST.h"
 
-int world_QuEST_init(struct world *wd) {
-
+int world_QuEST_init(struct world *wd)
+{
 	struct world_QuEST *qe = malloc(sizeof *qe);
 	if (!qe)
 		return -1;

@@ -1,8 +1,8 @@
 #include <complex.h>
 #include <stdlib.h>
 
-#include <cuda_runtime_api.h>
 #include <cuComplex.h>
+#include <cuda_runtime_api.h>
 
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
@@ -45,9 +45,9 @@ int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 
 	if (!(cu = malloc(sizeof *cu)))
 		goto err_cu_alloc;
-	if (cudaMalloc((void**)&d_sv, num_amps*sizeof *d_sv) != cudaSuccess)
+	if (cudaMalloc((void **)&d_sv, num_amps * sizeof *d_sv) != cudaSuccess)
 		goto err_cuda_malloc_dsv;
-	if (cudaMalloc((void**)&d_buf, num_amps*sizeof *d_sv) != cudaSuccess)
+	if (cudaMalloc((void **)&d_buf, num_amps * sizeof *d_sv) != cudaSuccess)
 		goto err_cuda_malloc_dbuf;
 	cu->d_sv = d_sv;
 	cu->d_buf = d_buf;
@@ -121,7 +121,7 @@ void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
 	cudaDeviceSynchronize();
 	if (WD.rank == (int)rank)
 		cudaMemcpy(z, cu->d_sv + loci, sizeof(cuDoubleComplex),
-				cudaMemcpyDeviceToHost);
+			cudaMemcpyDeviceToHost);
 
 	MPI_Bcast(z, 2, MPI_DOUBLE, rank, MPI_COMM_WORLD);
 }
@@ -136,7 +136,7 @@ void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 	cudaDeviceSynchronize();
 	if (WD.rank == (int)rank)
 		cudaMemcpy(cu->d_sv + loci, &z, sizeof(cuDoubleComplex),
-				cudaMemcpyHostToDevice);
+			cudaMemcpyHostToDevice);
 
 	MPI_Barrier(MPI_COMM_WORLD);
 }
@@ -149,7 +149,6 @@ void qreg_zero(struct qreg *reg)
 	cudaMemset(cu->d_sv, 0, reg->num_amps * sizeof(cuDoubleComplex));
 	cudaDeviceSynchronize();
 }
-
 
 static void qreg_exchbuf_init(struct qreg *reg, const int rnk_rem)
 {

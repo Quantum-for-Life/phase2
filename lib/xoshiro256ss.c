@@ -90,10 +90,8 @@ uint64_t xoshiro256ss_next(struct xoshiro256ss *rng)
 
 void xoshiro256ss_jump(struct xoshiro256ss *rng)
 {
-	static const uint64_t JUMP[] = {
-		0x180ec6d33cfd0aba, 0xd5a61266f0c9392c,
-		0xa9582618e03fc9aa, 0x39abdc4529b1661c
-	};
+	static const uint64_t JUMP[] = { 0x180ec6d33cfd0aba, 0xd5a61266f0c9392c,
+		0xa9582618e03fc9aa, 0x39abdc4529b1661c };
 
 	uint64_t s0, s1, s2, s3;
 	s0 = s1 = s2 = s3 = 0;
@@ -121,10 +119,8 @@ void xoshiro256ss_jump(struct xoshiro256ss *rng)
 
 void xoshiro256ss_longjump(struct xoshiro256ss *rng)
 {
-	static const uint64_t LONG_JUMP[] = {
-		0x76e15d3efefdcbbf, 0xc5004e441c522fb3,
-		0x77710069854ee241, 0x39109bb02acbe635
-	};
+	static const uint64_t LONG_JUMP[] = { 0x76e15d3efefdcbbf,
+		0xc5004e441c522fb3, 0x77710069854ee241, 0x39109bb02acbe635 };
 
 	uint64_t s0, s1, s2, s3;
 	s0 = s1 = s2 = s3 = 0;

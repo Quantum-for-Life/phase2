@@ -45,8 +45,8 @@ int bench_mark(struct bench *b, size_t reps, int (*op)(void *), void *data)
 			break;
 	clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t2);
 
-	b->nanos = 1000000000UL * (t2.tv_sec - t1.tv_sec)
-			+ (t2.tv_nsec - t1.tv_nsec);
+	b->nanos = 1000000000UL * (t2.tv_sec - t1.tv_sec) +
+		   (t2.tv_nsec - t1.tv_nsec);
 	b->reps = r;
 
 	return rt;

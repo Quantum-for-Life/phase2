@@ -29,8 +29,7 @@ static int rand_pauli(void)
 	return (int)(xoshiro256ss_next(&RNG) % 4);
 }
 
-struct b_paulis_set
-{
+struct b_paulis_set {
 	struct paulis *p;
 	int op;
 	uint32_t n;
@@ -59,9 +58,7 @@ static void measure_b_paulis_set(void)
 	log_info("b_paulis_set [t_ms]: %.6f", bench_msrep(b));
 }
 
-
-struct b_paulis_get
-{
+struct b_paulis_get {
 	struct paulis p;
 	uint32_t n;
 };
@@ -88,8 +85,7 @@ static void measure_b_paulis_get(void)
 	log_info("b_paulis_get [t_ms]: %.6f", bench_msrep(b));
 }
 
-struct b_paulis_effect
-{
+struct b_paulis_effect {
 	struct paulis p;
 	uint64_t i;
 	_Complex double *z;
@@ -120,8 +116,6 @@ static void measure_b_paulis_effect(void)
 	bench_mark(&b, REPS_MAX, b_paulis_effect, &d);
 	log_info("b_paulis_effect [t_ms]: %.6f", bench_msrep(b));
 }
-
-
 
 int main(int argc, char **argv)
 {

@@ -63,8 +63,8 @@ void circ_trott_data_destroy(struct circ_trott_data *cd)
 	free(cd->trott_steps[0]);
 }
 
-int circ_trott_data_init_from_file(struct circ_trott_data *cd,
-	size_t num_steps, data_id fid)
+int circ_trott_data_init_from_file(
+	struct circ_trott_data *cd, size_t num_steps, data_id fid)
 {
 	if (circ_trott_data_init(cd, num_steps) < 0)
 		return -1;
@@ -104,7 +104,7 @@ static void trott_step(struct circ_trott *c, const double omega)
 		struct paulis code_hi, code_lo;
 		paulis_split(
 			code, c->reg.qb_lo, c->reg.qb_hi, &code_lo, &code_hi);
-		
+
 		if (cache.num_codes == 0) {
 			cache.code_hi = code_hi;
 			cache.codes_lo[0] = code_lo;

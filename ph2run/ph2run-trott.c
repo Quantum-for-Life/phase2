@@ -68,9 +68,9 @@ int run_circuit(data_id fid, size_t num_steps)
 exit_trott_write:
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%d,%.3f",
-		rd.hamil.num_qubits, rd.hamil.num_terms,
-		rd.multidet.num_dets, rd.num_trott_steps, WD.size, t_tot);
+	log_info("> %zu,%zu,%zu,%zu,%d,%.3f", rd.hamil.num_qubits,
+		rd.hamil.num_terms, rd.multidet.num_dets, rd.num_trott_steps,
+		WD.size, t_tot);
 
 exit_trott_simulate:
 	circ_trott_data_destroy(&rd);
@@ -91,7 +91,8 @@ int main(int argc, char **argv)
 	unsigned int num_ranks = WD.size;
 	if (num_ranks == 0 || (num_ranks & (num_ranks - 1)) != 0) {
 		log_error("number of MPI ranks (%u) "
-			"must be a power of two.", num_ranks);
+			  "must be a power of two.",
+			num_ranks);
 		goto exit_num_ranks;
 	}
 

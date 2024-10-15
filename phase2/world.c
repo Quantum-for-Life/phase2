@@ -10,18 +10,33 @@ int log_init(void);
 int world_QuEST_init(struct world *wd);
 int world_QuEST_destroy(struct world *wd);
 #else
-static int world_QuEST_init(struct world *wd) { (void)wd; return 0; }
-static int world_QuEST_destroy(struct world *wd) { (void)wd; return 0; }
+static int world_QuEST_init(struct world *wd)
+{
+	(void)wd;
+	return 0;
+}
+static int world_QuEST_destroy(struct world *wd)
+{
+	(void)wd;
+	return 0;
+}
 #endif /* PHASE2_BACKEND == 1 */
 
 #if PHASE2_BACKEND == 2 /* cuQuantum */
 int world_cuQuantum_init(struct world *wd);
 int world_cuQuantum_destroy(struct world *wd);
 #else
-static int world_cuQuantum_init(struct world *wd) { (void)wd; return 0; }
-static int world_cuQuantum_destroy(struct world *wd) { (void)wd; return 0; }
+static int world_cuQuantum_init(struct world *wd)
+{
+	(void)wd;
+	return 0;
+}
+static int world_cuQuantum_destroy(struct world *wd)
+{
+	(void)wd;
+	return 0;
+}
 #endif /* PHASE2_BACKEND == 1 */
-
 
 static struct world WORLD = {
 	.stat = WORLD_UNDEF,
@@ -83,7 +98,6 @@ int world_destroy(void)
 		WORLD.stat = WORLD_ERR;
 	if (world_cuQuantum_destroy(&WORLD) < 0)
 		WORLD.stat = WORLD_ERR;
-
 
 	return WORLD.stat;
 }

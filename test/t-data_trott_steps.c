@@ -4,8 +4,8 @@
  */
 #include <complex.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include <hdf5.h>
 

@@ -53,8 +53,8 @@ static void measure_b_qreg_init(void)
 		struct b_qreg_init q = { .n = n };
 
 		bench_mark(&b, REPS_MAX, b_qreg_init, &q);
-		log_info("b_qreg_init [nqb,t_ms]: %2u,%11.6f",
-				n, bench_msrep(b));
+		log_info("b_qreg_init [nqb,t_ms]: %2u,%11.6f", n,
+			bench_msrep(b));
 	}
 }
 
@@ -75,7 +75,6 @@ static int b_qreg_get(void *data)
 
 static void measure_b_qreg_get(void)
 {
-
 	for (uint32_t n = NQB_MIN; n <= NQB_MAX; n++) {
 		struct bench b;
 		struct qreg reg;
@@ -89,8 +88,8 @@ static void measure_b_qreg_get(void)
 		q.i = (1 << n) - 1;
 
 		bench_mark(&b, REPS_MAX, b_qreg_get, &q);
-		log_info("b_qreg_get [nqb,t_ms]: %2u,%11.6f",
-				n, bench_msrep(b));
+		log_info(
+			"b_qreg_get [nqb,t_ms]: %2u,%11.6f", n, bench_msrep(b));
 
 		qreg_destroy(&reg);
 	}
@@ -121,8 +120,8 @@ static void measure_b_qreg_zero(void)
 		q.reg = &reg;
 
 		bench_mark(&b, REPS_MAX, b_qreg_zero, &q);
-		log_info("b_qreg_zero [nqb,t_ms]: %2u,%11.6f",
-				n, bench_msrep(b));
+		log_info("b_qreg_zero [nqb,t_ms]: %2u,%11.6f", n,
+			bench_msrep(b));
 
 		qreg_destroy(&reg);
 	}
@@ -135,8 +134,8 @@ struct b_qreg_paulirot {
 	size_t ncodes;
 };
 
-static void b_qreg_paulirot_init(struct b_qreg_paulirot *q,
-	struct qreg *reg, size_t ncodes)
+static void b_qreg_paulirot_init(
+	struct b_qreg_paulirot *q, struct qreg *reg, size_t ncodes)
 {
 	q->reg = reg;
 	q->code_hi = paulis_new();
@@ -182,7 +181,6 @@ static void measure_b_qreg_paulirot(void)
 {
 	for (uint64_t n = NQB_MIN; n <= NQB_MAX; n++) {
 		for (size_t ncodes = 1; ncodes <= 100; ncodes *= 10) {
-
 			struct bench b;
 			struct qreg reg;
 			struct b_qreg_paulirot q;
@@ -193,7 +191,7 @@ static void measure_b_qreg_paulirot(void)
 
 			bench_mark(&b, REPS_MAX, b_qreg_paulirot, &q);
 			log_info("b_qreg_paulirot [nqb,ncodes,t_ms]: "
-					"%2u,%3u,%11.6f",
+				 "%2u,%3u,%11.6f",
 				n, ncodes, bench_msrep(b));
 
 			b_qreg_paulirot_destroy(&q);
@@ -214,9 +212,9 @@ int main(int argc, char **argv)
 	log_info("backend: %s", WORLD_BACKEND);
 	log_info("MPI World size: %d", WD.size);
 
-
 	uint64_t siz = WD.size;
-	while (siz >>= 1) NQB_MIN++;
+	while (siz >>= 1)
+		NQB_MIN++;
 	log_info("nqb_min= %u, nqb_max= %u", NQB_MIN, NQB_MAX);
 
 	xoshiro256ss_init(&RNG, SEED);

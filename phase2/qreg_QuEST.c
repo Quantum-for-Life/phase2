@@ -12,8 +12,8 @@
 static struct world WD;
 
 struct qreg_QuEST {
-	size_t	num_qubits;
-	Qureg	reg;
+	size_t num_qubits;
+	Qureg reg;
 	int tar_qb[QREG_MAX_WIDTH];
 	int tar_op[QREG_MAX_WIDTH];
 };
@@ -29,10 +29,10 @@ int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 		return -1;
 	const uint32_t qb_lo = num_qubits - qb_hi;
 	const uint64_t num_amps = UINT64_C(1) << qb_lo;
-	
+
 	struct qreg_QuEST *qr = malloc(sizeof *qr);
 	if (!qr)
-		return -1; 
+		return -1;
 
 	struct world_QuEST *qe = WD.data;
 	qr->reg = createQureg(num_qubits, qe->env);
@@ -42,7 +42,7 @@ int qreg_init(struct qreg *reg, const uint32_t num_qubits)
 		qr->tar_op[i] = PAULI_I;
 	}
 
-	reg->num_amps = num_amps; 
+	reg->num_amps = num_amps;
 	reg->qb_lo = qb_lo;
 	reg->qb_hi = qb_hi;
 	reg->data = qr;
@@ -54,7 +54,7 @@ void qreg_destroy(struct qreg *reg)
 {
 	struct world_QuEST *qe = WD.data;
 	struct qreg_QuEST *qr = reg->data;
-	
+
 	destroyQureg(qr->reg, qe->env);
 }
 
@@ -68,7 +68,7 @@ void qreg_getamp(const struct qreg *reg, const uint64_t i, _Complex double *z)
 void qreg_setamp(struct qreg *reg, const uint64_t i, _Complex double z)
 {
 	struct qreg_QuEST *qr = reg->data;
-	
+
 	double x = creal(z), y = cimag(z);
 	setAmps(qr->reg, i, &x, &y, 1);
 }
@@ -81,11 +81,11 @@ void qreg_zero(struct qreg *reg)
 }
 
 /* This is based on QuEST's implementation of statevec_multiRotatePauli() */
-static void quest_paulirot(Qureg qureg, int *tar_qb, int *tar_op,
-	size_t num_tar,	double angle)
+static void quest_paulirot(
+	Qureg qureg, int *tar_qb, int *tar_op, size_t num_tar, double angle)
 {
 	size_t mask = 0;
-	const qreal f = 1/sqrt(2);
+	const qreal f = 1 / sqrt(2);
 	Complex uRxAlpha = { .real = f, .imag = 0 };
 	Complex uRxBeta = { .real = 0, .imag = -f };
 	Complex uRyAlpha = { .real = f, .imag = 0 };
@@ -154,12 +154,12 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	struct qreg_QuEST *qr = reg->data;
 
 	for (size_t k = 0; k < num_codes; k++) {
-		paulis_merge(&code, reg->qb_lo, reg->qb_hi,
-			codes_lo[k], code_hi);
+		paulis_merge(
+			&code, reg->qb_lo, reg->qb_hi, codes_lo[k], code_hi);
 		for (size_t i = 0; i < qr->num_qubits; i++)
 			qr->tar_op[i] = paulis_get(code, i);
 
-		quest_paulirot(qr->reg, qr->tar_qb, qr->tar_op,
-			qr->num_qubits, angles[k]);
+		quest_paulirot(qr->reg, qr->tar_qb, qr->tar_op, qr->num_qubits,
+			angles[k]);
 	}
 }

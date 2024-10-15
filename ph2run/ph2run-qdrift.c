@@ -19,7 +19,7 @@ static struct opt {
 void opt_help_page(int argc, char **argv)
 {
 	(void)argc;
-	fprintf(stderr,	"usage: %s SIMUL_FILE\n\n",argv[0]);
+	fprintf(stderr, "usage: %s SIMUL_FILE\n\n", argv[0]);
 }
 
 int opt_parse(int argc, char **argv)
@@ -54,7 +54,7 @@ int run_circuit(data_id fid)
 	t_tot = (double)(t2.tv_sec - t1.tv_sec) +
 		(double)(t2.tv_nsec - t1.tv_nsec) * 1.0e-9;
 
-	if(data_circ_qdrift_write_values(fid, rd.samples, rd.num_samples) < 0)
+	if (data_circ_qdrift_write_values(fid, rd.samples, rd.num_samples) < 0)
 		goto exit_qdrift_write;
 
 	rt = 0; /* Success. */
@@ -62,11 +62,10 @@ int run_circuit(data_id fid)
 exit_qdrift_write:
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
-		"n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f",
-		rd.hamil.num_qubits, rd.hamil.num_terms,
-		rd.multidet.num_dets, rd.num_samples, rd.step_size,
-		rd.depth, WD.size, t_tot);
+		 "n_ranks,t_tot");
+	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", rd.hamil.num_qubits,
+		rd.hamil.num_terms, rd.multidet.num_dets, rd.num_samples,
+		rd.step_size, rd.depth, WD.size, t_tot);
 
 exit_qdrift_simulate:
 	circ_qdrift_data_destroy(&rd);
@@ -86,7 +85,8 @@ int main(int argc, char **argv)
 	unsigned int num_ranks = WD.size;
 	if (num_ranks == 0 || (num_ranks & (num_ranks - 1)) != 0) {
 		log_error("number of MPI ranks (%u) "
-			"must be a power of two.", num_ranks);
+			  "must be a power of two.",
+			num_ranks);
 		goto exit_num_ranks;
 	}
 
@@ -124,4 +124,3 @@ exit_world_init:
 
 	return rt;
 }
-
