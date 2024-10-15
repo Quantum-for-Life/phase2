@@ -84,6 +84,7 @@ simul.h5*
 ph2run/ph2run-trott
 ph2run/ph2run-qdrift
 
+bench/b-paulis
 bench/b-qreg
 
 test/t-circ

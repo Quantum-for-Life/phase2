@@ -191,7 +191,8 @@ clean:
 BENCHDIR	:= ./bench
 CFLAGS		+= -I$(BENCHDIR)
 
-BENCHES		:= $(BENCHDIR)/b-qreg
+BENCHES		:= $(BENCHDIR)/b-paulis					\
+			$(BENCHDIR)/b-qreg
 
 $(BENCHES):	$(BENCHDIR)/bench.h					\
 		$(BENCHDIR)/bench.o					\

@@ -4,8 +4,6 @@
 
 #include "phase2/paulis.h"
 
-typedef _Complex double c64;
-
 struct paulis paulis_new(void)
 {
 	struct paulis code = {
@@ -82,7 +80,8 @@ void paulis_shr(struct paulis *code, const uint32_t n)
 	code->pak[1] >>= n;
 }
 
-uint64_t paulis_effect(const struct paulis code, const uint64_t i, c64 *z)
+uint64_t paulis_effect(const struct paulis code,
+			const uint64_t i, _Complex double *z)
 {
 	uint64_t j = i ^ code.pak[0];
 	if (z != NULL) {
