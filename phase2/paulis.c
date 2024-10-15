@@ -86,20 +86,20 @@ uint64_t paulis_effect(const struct paulis code, const uint64_t i, c64 *z)
 {
 	uint64_t j = i ^ code.pak[0];
 	if (z != NULL) {
-		const int minus = __builtin_popcountll(j & code.pak[1]);
+		const int minus = __builtin_popcountll(i & code.pak[1]);
 		const int root4 = (paulis_countis(code) + 2 * minus) & 0x3;
 
 		switch (root4) {
 		case 0:
 			break;
 		case 1:
-			*z *= -I;
+			*z *= I;
 			break;
 		case 2:
 			*z *= -1.0;
 			break;
 		case 3:
-			*z *= I;
+			*z *= -I;
 			break;
 		default:
 			__builtin_unreachable();
