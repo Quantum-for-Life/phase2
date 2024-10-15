@@ -5,10 +5,13 @@
 extern "C" {
 #endif
 
-struct world_cuQuantum {
-	int local_rank;
-	int local_size;
+struct world_cuda {
+	int loc_rank;
+	int loc_size;
 };
+
+int world_cuda_init(struct world *wd);
+int world_cuda_destroy(struct world *wd);
 
 #ifdef __cplusplus
 }

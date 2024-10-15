@@ -7,37 +7,42 @@
 #include "phase2/world.h"
 #include "world_cuda.h"
 
-int world_cuQuantum_init(struct world *wd)
+/* --------------------------------------------------------------------------*/
+/* Remove this section when C23 arrives.                                     */
+#include <stdbool.h>
+#define nullptr (void *)0
+#define unreachable() (__builtin_unreachable())
+/* --------------------------------------------------------------------------*/
+
+int world_cuda_init(struct world *wd)
 {
-	struct world_cuQuantum *cu = malloc(sizeof *cu);
-	if (!cu)
+	struct world_cuda *cu = malloc(sizeof *cu);
+	if (cu == nullptr)
 		return -1;
 
 	/* Determine the local MPI rank (within the node). */
-	int local_rank, local_size;
-	MPI_Comm local_comm;
+	int loc_rank, loc_size;
+	MPI_Comm loc_comm;
 	MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, wd->rank,
-		MPI_INFO_NULL, &local_comm);
-	MPI_Comm_size(local_comm, &local_size);
-	MPI_Comm_rank(local_comm, &local_rank);
+		MPI_INFO_NULL, &loc_comm);
+	MPI_Comm_size(loc_comm, &loc_size);
+	MPI_Comm_rank(loc_comm, &loc_rank);
 
 	/* Assume one GPU per process. */
-	cudaSetDevice(local_rank % local_size);
+	cudaSetDevice(loc_rank % loc_size);
 
-	cu->local_rank = local_rank;
-	cu->local_size = local_size;
+	cu->loc_rank = loc_rank;
+	cu->loc_size = loc_size;
 	wd->data = cu;
 
 	return 0;
 }
 
-int world_cuQuantum_destroy(struct world *wd)
+int world_cuda_destroy(struct world *wd)
 {
-	struct world_cuQuantum *cu = wd->data;
-	if (!cu)
-		return -1;
-
-	free(cu);
+	struct world_cuda *cu = wd->data;
+	if (cu != nullptr)
+		free(cu);
 
 	return 0;
 }

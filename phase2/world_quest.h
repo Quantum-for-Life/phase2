@@ -7,9 +7,12 @@
 extern "C" {
 #endif
 
-struct world_QuEST {
+struct world_quest {
 	QuESTEnv env;
 };
+
+int world_quest_init(struct world *wd);
+int world_quest_destroy(struct world *wd);
 
 #ifdef __cplusplus
 }

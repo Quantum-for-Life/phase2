@@ -1,13 +1,13 @@
 #ifndef WORLD_H
 #define WORLD_H
 
-#include <stdint.h>
-
-#include "xoshiro256ss.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include <stdint.h>
+
+#include "xoshiro256ss.h"
 
 #define PHASE2_LOG_ENVVAR "PHASE2_LOG"
 

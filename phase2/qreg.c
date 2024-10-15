@@ -204,9 +204,6 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	const struct paulis *codes_lo, const double *angles,
 	const size_t ncodes)
 {
-	/* Compute the action on hi qubits. */
 	qreg_paulirot_hi(reg, code_hi);
-
-	/* Compute the action on lo qubits. */
 	qreg_paulirot_lo(reg, codes_lo, angles, ncodes);
 }

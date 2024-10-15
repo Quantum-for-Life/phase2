@@ -79,12 +79,12 @@ QUEST_PREFIX	:=
 QUEST_INCLUDE	:= $(QUEST_PREFIX)/usr/include/QuEST
 QUEST_LIBDIR	:= $(QUEST_PREFIX)/usr/lib
 BACKEND_N	:= 1
-BACKEND_OBJS	+= $(PHASE2DIR)/qreg_QuEST.o				\
-			$(PHASE2DIR)/world_QuEST.o
+BACKEND_OBJS	+= $(PHASE2DIR)/qreg_quest.o				\
+			$(PHASE2DIR)/world_quest.o
 BACKEND_CFLAGS	+= -I$(QUEST_INCLUDE)
 BACKEND_LDFLAGS	+= -L$(QUEST_LIBDIR) -Wl,-rpath -Wl,$(QUEST_LIBDIR)
 BACKEND_LDLIBS	+= -lQuEST
-$(BACKEND_OBJS): $(PHASE2DIR)/world_QuEST.h
+$(BACKEND_OBJS): $(PHASE2DIR)/world_quest.h
 endif
 
 ifeq ($(BACKEND),cuda)

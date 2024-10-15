@@ -4,46 +4,24 @@
 
 #include "phase2/world.h"
 
+/* --------------------------------------------------------------------------*/
+/* Remove this section when C23 arrives.                                     */
+#include <stdbool.h>
+#define nullptr (void *)0
+#define unreachable() (__builtin_unreachable())
+/* --------------------------------------------------------------------------*/
+
 int log_init(void);
 
-#if PHASE2_BACKEND == 1 /* QuEST */
-int world_QuEST_init(struct world *wd);
-int world_QuEST_destroy(struct world *wd);
-#else
-static int world_QuEST_init(struct world *wd)
-{
-	(void)wd;
-	return 0;
-}
-static int world_QuEST_destroy(struct world *wd)
-{
-	(void)wd;
-	return 0;
-}
-#endif /* PHASE2_BACKEND == 1 */
-
-#if PHASE2_BACKEND == 2 /* cuQuantum */
-int world_cuQuantum_init(struct world *wd);
-int world_cuQuantum_destroy(struct world *wd);
-#else
-static int world_cuQuantum_init(struct world *wd)
-{
-	(void)wd;
-	return 0;
-}
-static int world_cuQuantum_destroy(struct world *wd)
-{
-	(void)wd;
-	return 0;
-}
-#endif /* PHASE2_BACKEND == 1 */
+static int world_backend_init(struct world *wd);
+static int world_backend_destroy(struct world *wd);
 
 static struct world WORLD = {
 	.stat = WORLD_UNDEF,
 	.size = 0,
 	.rank = 0,
-	.seed = UINT64_C(1111),
-	.data = (void *)0,
+	.seed = UINT64_C(0x77dd8e60521fb661),
+	.data = nullptr,
 };
 
 int world_init(int *argc, char ***argv, uint64_t seed)
@@ -74,9 +52,7 @@ int world_init(int *argc, char ***argv, uint64_t seed)
 	for (int i = 0; i < WORLD.rank; i++)
 		xoshiro256ss_longjump(&WORLD.rng);
 
-	if (world_QuEST_init(&WORLD) < 0)
-		goto err;
-	if (world_cuQuantum_init(&WORLD) < 0)
+	if (world_backend_init(&WORLD) < 0)
 		goto err;
 
 	return WORLD.stat = WORLD_READY;
@@ -94,9 +70,7 @@ int world_destroy(void)
 			WORLD.stat = WORLD_ERR;
 	}
 
-	if (world_QuEST_destroy(&WORLD) < 0)
-		WORLD.stat = WORLD_ERR;
-	if (world_cuQuantum_destroy(&WORLD) < 0)
+	if (world_backend_destroy(&WORLD) < 0)
 		WORLD.stat = WORLD_ERR;
 
 	return WORLD.stat;
@@ -112,3 +86,49 @@ int world_info(struct world *wd)
 
 	return wd->stat = WORLD.stat;
 }
+
+#if PHASE2_BACKEND == 0 /* qreg */
+
+static __inline__ int world_backend_init(struct world *wd)
+{
+	(void)wd;
+
+	return 0;
+}
+
+static __inline__ int world_backend_destroy(struct world *wd)
+{
+	(void)wd;
+
+	return 0;
+}
+
+#elif PHASE2_BACKEND == 1 /* QuEST */
+
+#include "world_quest.h"
+
+static __inline__ int world_backend_init(struct world *wd)
+{
+	return world_quest_init(wd);
+}
+
+static __inline__ int world_backend_destroy(struct world *wd)
+{
+	return world_quest_destroy(wd);
+}
+
+#elif PHASE2_BACKEND == 2 /* CUDA */
+
+#include "world_cuda.h"
+
+static __inline__ int world_backend_init(struct world *wd)
+{
+	return world_cuda_init(wd);
+}
+
+static __inline__ int world_backend_destroy(struct world *wd)
+{
+	return world_cuda_destroy(wd);
+}
+
+#endif /* PHASE2_BACKEND */
