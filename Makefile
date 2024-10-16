@@ -8,8 +8,6 @@ AS		:= nasm
 ASFLAGS		+= -felf64 -w+all -w-reloc-rel-dword -Ox
 CC		?= gcc
 CFLAGS		+= -std=c11 -Wall -Wextra -O3 -march=native -mavx2
-NVCC		?= nvcc
-NVCCFLAGS	+= -O3
 INCLUDE		:= ./include
 LDFLAGS 	+=
 LDLIBS		+= -lm
@@ -88,12 +86,15 @@ $(BACKEND_OBJS): $(PHASE2DIR)/world_quest.h
 endif
 
 ifeq ($(BACKEND),cuda)
-CUDA_PREFIX	:= /usr/local/cuda
-CUDA_INCLUDE	:= $(CUDA_PREFIX)/include
-CUDA_LIBDIR	:= $(CUDA_PREFIX)/lib64
+NVCC		?= nvcc
+NVCCFLAGS	+= -O3 -dopt=on -arch=native
+CUDA_PREFIX	:=/usr/local/cuda
+CUDA_INCLUDE	:=$(CUDA_PREFIX)/include
+CUDA_LIBDIR	:=$(CUDA_PREFIX)/lib64
 BACKEND_N	:= 2
 BACKEND_OBJS	+= $(PHASE2DIR)/qreg_cuda.o				\
 		   	$(PHASE2DIR)/qreg_cuda_lo.o			\
+			$(PHASE2DIR)/qreg_cuda_lo_dlink.o		\
 			$(PHASE2DIR)/world_cuda.o
 BACKEND_CFLAGS	+= -I$(CUDA_INCLUDE)
 BACKEND_LDFLAGS	+= -L$(CUDA_LIBDIR) -Wl,-rpath -Wl,$(CUDA_LIBDIR)
@@ -103,8 +104,11 @@ $(BACKEND_OBJS): $(PHASE2DIR)/qreg_cuda.h				\
        			$(PHASE2DIR)/world_cuda.h
 
 $(PHASE2DIR)/qreg_cuda_lo.o: $(PHASE2DIR)/qreg_cuda_lo.cu
-	$(NVCC) $(NVCCFLAGS) $(MPI_CFLAGS) $(BACKEND_CFLAGS) 		\
+	$(NVCC) $(NVCCFLAGS) $(BACKEND_CFLAGS) 				\
 	       -I$(INCLUDE) -c $< -o $@
+
+$(PHASE2DIR)/qreg_cuda_lo_dlink.o: $(PHASE2DIR)/qreg_cuda_lo.o
+	$(NVCC) $(NVCCFLAGS) -dlink $< -o $@
 
 endif
 
