@@ -93,8 +93,7 @@ CUDA_INCLUDE	:= $(CUDA_PREFIX)/include
 CUDA_LIBDIR	:= $(CUDA_PREFIX)/lib64
 BACKEND_N	:= 2
 BACKEND_OBJS	+= $(PHASE2DIR)/qreg_cuda.o				\
-		   	$(PHASE2DIR)/qreg_cuda_dlink.o			\
-		   	$(PHASE2DIR)/qreg_cuda_target.o			\
+		   	$(PHASE2DIR)/qreg_cuda_lo.o			\
 			$(PHASE2DIR)/world_cuda.o
 BACKEND_CFLAGS	+= -I$(CUDA_INCLUDE)
 BACKEND_LDFLAGS	+= -L$(CUDA_LIBDIR) -Wl,-rpath -Wl,$(CUDA_LIBDIR)
@@ -103,12 +102,9 @@ BACKEND_LDLIBS	+= -lcudart -lstdc++
 $(BACKEND_OBJS): $(PHASE2DIR)/qreg_cuda.h				\
        			$(PHASE2DIR)/world_cuda.h
 
-$(PHASE2DIR)/qreg_cuda_target.o: $(PHASE2DIR)/qreg_cuda.cu
+$(PHASE2DIR)/qreg_cuda_lo.o: $(PHASE2DIR)/qreg_cuda_lo.cu
 	$(NVCC) $(NVCCFLAGS) $(MPI_CFLAGS) $(BACKEND_CFLAGS) 		\
 	       -I$(INCLUDE) -c $< -o $@
-
-$(PHASE2DIR)/qreg_cuda_dlink.o: $(PHASE2DIR)/qreg_cuda_target.o
-	$(NVCC) $(NVCCFLAGS) $< -o $@ -dlink
 
 endif
 

@@ -13,106 +13,55 @@
 
 typedef _Complex double c64;
 
-#define MAX_COUNT (1 << 29)
+/* Defined in qreg.c */
+uint64_t qreg_getilo(const struct qreg *reg, uint64_t i);
+uint64_t qreg_getihi(const struct qreg *reg, uint64_t i);
 
-/* Local copy of the world info. Initialized by qreg_init() */
-static struct world WD;
-
-int qreg_init(struct qreg *reg, const uint32_t nqb)
+int qreg_cuda_init(struct qreg *reg)
 {
-	struct qreg_cuQuantum *cu;
-	cuDoubleComplex *d_sv, *d_buf;
+	struct qreg_cuda *cu;
+	cuDoubleComplex *damp, *dbuf;
 
-	if (world_info(&WD) != WORLD_READY)
-		return -1;
-
-	uint32_t nqb_hi = 0, nrk = WD.size;
-	while (nrk >>= 1)
-		nqb_hi++;
-	if (nqb_hi >= nqb)
-		return -1;
-	const uint32_t nqb_lo = nqb - nqb_hi;
-	const uint64_t namp = UINT64_C(1) << nqb_lo;
-
-	const int msg_count = namp < MAX_COUNT ? namp : MAX_COUNT;
-	const size_t nreqs = namp / msg_count;
-
-	MPI_Request *reqs = malloc(sizeof *reqs * nreqs * 2);
-	if (!reqs)
-		goto err_reqs_alloc;
-	c64 *amp = malloc(sizeof *amp * namp * 2);
-	if (!amp)
-		goto err_amp_alloc;
-
-	if (!(cu = malloc(sizeof *cu)))
+	if ((cu = malloc(sizeof *cu)) == nullptr)
 		goto err_cu_alloc;
-	if (cudaMalloc((void **)&d_sv, namp * sizeof *d_sv) != cudaSuccess)
-		goto err_cuda_malloc_dsv;
-	if (cudaMalloc((void **)&d_buf, namp * sizeof *d_sv) != cudaSuccess)
+	if (cudaMalloc((void **)&damp, reg->namp * sizeof *damp) != cudaSuccess)
+		goto err_cuda_malloc_damp;
+	if (cudaMalloc((void **)&dbuf, reg->namp * sizeof *dbuf) != cudaSuccess)
 		goto err_cuda_malloc_dbuf;
-	cu->d_sv = d_sv;
-	cu->d_buf = d_buf;
-
-	reg->nqb_lo = nqb_lo;
-	reg->nqb_hi = nqb_hi;
-	reg->amp = amp;
-	reg->buf = amp + namp;
-	reg->namp = namp;
-	reg->msg_count = msg_count;
-	reg->reqs_snd = reqs;
-	reg->reqs_rcv = reqs + nreqs;
-	reg->nreqs = nreqs;
+	cu->damp = damp;
+	cu->dbuf = dbuf;
 	reg->data = cu;
 
 	return 0;
 
-	cudaFree(d_buf);
+	cudaFree(dbuf);
 err_cuda_malloc_dbuf:
-	cudaFree(d_sv);
-err_cuda_malloc_dsv:
+	cudaFree(damp);
+err_cuda_malloc_damp:
 	free(cu);
 err_cu_alloc:
-	free(amp);
-err_amp_alloc:
-	free(reqs);
-err_reqs_alloc:
+
 	return -1;
 }
 
-void qreg_destroy(struct qreg *reg)
+void qreg_cuda_destroy(struct qreg *reg)
 {
-	struct qreg_cuQuantum *cu = reg->data;
-	cudaFree(cu->d_buf);
-	cudaFree(cu->d_sv);
+	struct qreg_cuda *cu = reg->data;
+	cudaFree(cu->dbuf);
+	cudaFree(cu->damp);
 	free(cu);
-
-	if (reg->amp)
-		free(reg->amp);
-	if (reg->reqs_snd)
-		free(reg->reqs_snd);
-}
-
-static void qb_split(uint64_t n, const uint32_t qb_lo, const uint32_t qb_hi,
-	uint64_t *lo, uint64_t *hi)
-{
-	const uint64_t mask_lo = (UINT64_C(1) << qb_lo) - 1;
-	const uint64_t mask_hi = (UINT64_C(1) << qb_hi) - 1;
-
-	*lo = n & mask_lo;
-	n >>= qb_lo;
-	*hi = n & mask_hi;
 }
 
 void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
 {
-	uint64_t rank, loci;
-	struct qreg_cuQuantum *cu = reg->data;
+	struct qreg_cuda *cu = reg->data;
 
-	qb_split(i, reg->nqb_lo, reg->nqb_hi, &loci, &rank);
+	const uint64_t i_lo = qreg_getilo(reg, i);
+	const uint64_t rank = qreg_getihi(reg, i);
 
 	cudaDeviceSynchronize();
-	if (WD.rank == (int)rank)
-		cudaMemcpy(z, cu->d_sv + loci, sizeof(cuDoubleComplex),
+	if (reg->wd.rank == (int)rank)
+		cudaMemcpy(z, cu->damp + i_lo, sizeof(cuDoubleComplex),
 			cudaMemcpyDeviceToHost);
 
 	MPI_Bcast(z, 2, MPI_DOUBLE, rank, MPI_COMM_WORLD);
@@ -120,14 +69,14 @@ void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
 
 void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 {
-	uint64_t rank, loci;
-	struct qreg_cuQuantum *cu = reg->data;
+	struct qreg_cuda *cu = reg->data;
 
-	qb_split(i, reg->nqb_lo, reg->nqb_hi, &loci, &rank);
+	const uint64_t i_lo = qreg_getilo(reg, i);
+	const uint64_t rank = qreg_getihi(reg, i);
 
 	cudaDeviceSynchronize();
-	if (WD.rank == (int)rank)
-		cudaMemcpy(cu->d_sv + loci, &z, sizeof(cuDoubleComplex),
+	if (reg->wd.rank == (int)rank)
+		cudaMemcpy(cu->damp + i_lo, &z, sizeof(cuDoubleComplex),
 			cudaMemcpyHostToDevice);
 
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -135,30 +84,29 @@ void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 
 void qreg_zero(struct qreg *reg)
 {
-	struct qreg_cuQuantum *cu = reg->data;
+	struct qreg_cuda *cu = reg->data;
 
 	/* cuDoubleComplex zero representation is all bits set to zero */
-	cudaMemset(cu->d_sv, 0, reg->namp * sizeof(cuDoubleComplex));
+	cudaMemset(cu->damp, 0, reg->namp * sizeof(cuDoubleComplex));
 	cudaDeviceSynchronize();
 }
 
-static void qreg_exchbuf_init(struct qreg *reg, const int rnk_rem)
+static void exch_init(struct qreg *reg, const int rnk_rem)
 {
-	struct qreg_cuQuantum *cu = reg->data;
+	struct qreg_cuda *cu = reg->data;
 
 	const int nr = reg->nreqs;
-
 	for (int i = 0; i < nr; i++) {
 		const size_t offset = i * reg->msg_count;
 
-		MPI_Isend(cu->d_sv + offset, reg->msg_count * 2, MPI_DOUBLE,
+		MPI_Isend(cu->damp + offset, reg->msg_count * 2, MPI_DOUBLE,
 			rnk_rem, i, MPI_COMM_WORLD, reg->reqs_snd + i);
-		MPI_Irecv(cu->d_buf + offset, reg->msg_count * 2, MPI_DOUBLE,
+		MPI_Irecv(cu->dbuf + offset, reg->msg_count * 2, MPI_DOUBLE,
 			rnk_rem, i, MPI_COMM_WORLD, reg->reqs_rcv + i);
 	}
 }
 
-static void qreg_exchbuf_waitall(struct qreg *reg)
+static void exch_waitall(struct qreg *reg)
 {
 	const int nr = reg->nreqs;
 
@@ -166,25 +114,25 @@ static void qreg_exchbuf_waitall(struct qreg *reg)
 	MPI_Waitall(nr, reg->reqs_rcv, MPI_STATUSES_IGNORE);
 }
 
+static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi, c64 *bm)
+{
+	paulis_shr(&code_hi, reg->nqb_lo);
+	const uint64_t rnk_rem = paulis_effect(code_hi, reg->wd.rank, nullptr);
+
+	exch_init(reg, rnk_rem);
+	paulis_effect(code_hi, rnk_rem, bm);
+	exch_waitall(reg);
+}
+
+/* Defined in qreg_cuda_lo.cu */
+void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
+	const double *angles, const size_t ncodes, c64 bm);
+
 void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	const struct paulis *codes_lo, const double *angles,
 	const size_t ncodes)
 {
-	/* Compute permutation from outer qubits */
-	struct paulis hi = code_hi;
-	paulis_shr(&hi, reg->nqb_lo);
-
-	const uint64_t rnk_loc = WD.rank;
-	const uint64_t rnk_rem = paulis_effect(hi, rnk_loc, NULL);
-	qreg_exchbuf_init(reg, rnk_rem);
-
-	/* Compute multiplication factor for the buffer
-	   code_hi acts on the value of rank_remote now
-	   (as if from receiving end). We discard the result. */
-	c64 buf_mul = 1.0;
-	paulis_effect(hi, rnk_loc, &buf_mul);
-
-	qreg_exchbuf_waitall(reg);
-
-	qreg_paulirot_local(reg, codes_lo, angles, ncodes, buf_mul);
+	c64 bm = 1.0;
+	qreg_paulirot_hi(reg, code_hi, &bm);
+	qreg_paulirot_lo(reg, codes_lo, angles, ncodes, bm);
 }

@@ -10,14 +10,11 @@
 extern "C" {
 #endif
 
-struct qreg_cuQuantum {
-	uint32_t num_qubits;
-	cuDoubleComplex *d_sv, *d_buf;
-	int32_t targs[QREG_MAX_WIDTH];
-	uint32_t num_targs;
+struct qreg_cuda {
+	cuDoubleComplex *damp, *dbuf;
 };
 
-void qreg_paulirot_local(struct qreg *reg, const struct paulis *codes_lo,
+void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
 	const double *angles, const size_t ncodes, _Complex double buf_mul);
 
 #ifdef __cplusplus
