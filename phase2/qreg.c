@@ -68,34 +68,37 @@ void qreg_destroy(struct qreg *reg)
 		free(reg->reqs_snd);
 }
 
-static void qb_split(uint64_t n, const uint32_t nqb_lo, const uint32_t nqb_hi,
-	uint64_t *lo, uint64_t *hi)
+uint64_t qreg_getilo(const struct qreg *reg, uint64_t i)
 {
-	const uint64_t mask_lo = (UINT64_C(1) << nqb_lo) - 1;
-	const uint64_t mask_hi = (UINT64_C(1) << nqb_hi) - 1;
+	const uint64_t mask_lo = (UINT64_C(1) << reg->nqb_lo) - 1;
 
-	*lo = n & mask_lo;
-	n >>= nqb_lo;
-	*hi = n & mask_hi;
+	return i & mask_lo;
+}
+
+uint64_t qreg_getihi(const struct qreg *reg, uint64_t i)
+{
+	const uint64_t mask_hi = (UINT64_C(1) << reg->nqb_hi) - 1;
+
+	return (i >> reg->nqb_lo) & mask_hi;
 }
 
 void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
 {
-	uint64_t rank, loci;
-	qb_split(i, reg->nqb_lo, reg->nqb_hi, &loci, &rank);
+	const uint64_t i_lo = qreg_getilo(reg, i);
+	const uint64_t rank = qreg_getihi(reg, i);
 
 	if (WD.rank == (int)rank)
-		*z = reg->amp[loci];
+		*z = reg->amp[i_lo];
 	MPI_Bcast(z, 2, MPI_DOUBLE, rank, MPI_COMM_WORLD);
 }
 
 void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 {
-	uint64_t rank, loci;
-	qb_split(i, reg->nqb_lo, reg->nqb_hi, &loci, &rank);
+	const uint64_t i_lo = qreg_getilo(reg, i);
+	const uint64_t rank = qreg_getihi(reg, i);
 
 	if (WD.rank == (int)rank)
-		reg->amp[loci] = z;
+		reg->amp[i_lo] = z;
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
