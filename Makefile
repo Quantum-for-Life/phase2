@@ -165,7 +165,8 @@ LDLIBS		+= $(MPI_LDLIBS)					\
 	clean			\
 	debug			\
 	check			\
-	check-mpi
+	check-mpi		\
+	format
 
 all: build build-bench build-test
 
@@ -185,6 +186,12 @@ clean:
 	$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
 	$(RM) $(TESTS)
 
+format:
+	@find ./ -name "*.c" -or -name "*.h" -or -name "*.cpp"		\
+			-or -name "*.cu" | 				\
+		while read f ; do					\
+			clang-format --style=file -i $$f ;		\
+		done
 # --------------------------------------------------------------------------- #
 # Benchmarks                                                                  #
 # --------------------------------------------------------------------------- #
