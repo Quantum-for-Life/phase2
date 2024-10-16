@@ -67,7 +67,7 @@ BACKEND_LDLIBS	:=
 
 ifeq ($(BACKEND),qreg)
 BACKEND_N	:= 0
-BACKEND_OBJS	+= $(PHASE2DIR)/qreg.o
+BACKEND_OBJS	+= $(PHASE2DIR)/qreg_qreg.o
 BACKEND_CFLAGS	+=
 BACKEND_LDFLAGS	+=
 BACKEND_LDLIBS	+=
@@ -131,6 +131,7 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/circ_qdrift.o			\
 			$(PHASE2DIR)/data.o				\
 			$(PHASE2DIR)/paulis.o				\
+			$(PHASE2DIR)/qreg.o				\
 			$(BACKEND_OBJS)					\
 			$(PHASE2DIR)/world.o				\
 			$(PHASE2DIR)/world_log.o

@@ -6,6 +6,7 @@
 #include "mpi.h"
 
 #include "phase2/paulis.h"
+#include "phase2/world.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,6 +15,8 @@ extern "C" {
 #define QREG_MAX_WIDTH (64)
 
 struct qreg {
+	struct world wd;
+
 	uint32_t nqb_lo, nqb_hi;
 
 	_Complex double *amp, *buf;

@@ -9,59 +9,50 @@
 #include "phase2/world.h"
 #include "world_quest.h"
 
-static struct world WD;
-
 struct qreg_quest {
-	Qureg reg;
+	Qureg qureg;
 	int tg_qb[QREG_MAX_WIDTH];
 	int tg_op[QREG_MAX_WIDTH];
 };
 
-int qreg_init(struct qreg *reg, const uint32_t nqb)
+int qreg_quest_init(struct qreg *reg)
 {
-	if (world_info(&WD) != WORLD_READY)
-		return -1;
-
-	uint32_t nqb_hi = 0, nrk = WD.size;
-	while (nrk >>= 1)
-		nqb_hi++;
-	if (nqb_hi >= nqb)
-		return -1;
-	const uint32_t nqb_lo = nqb - nqb_hi;
-	const uint64_t namp = UINT64_C(1) << nqb_lo;
-
 	struct qreg_quest *const q = malloc(sizeof *q);
 	if (q == nullptr)
 		return -1;
 
-	struct world_quest *const w = WD.data;
-	q->reg = createQureg(nqb, w->env);
+	/* QuEST will allocate memory for the entire state.
+	   We need to free the memory allocated by qreg during qreg_init
+	   to make room for QuEST's Qureg. */
+	free(reg->amp);
+	reg->amp = nullptr;
+
+	struct world_quest *const w = reg->wd.data;
+	uint32_t nqb = reg->nqb_lo + reg->nqb_hi;
+	q->qureg = createQureg(nqb, w->env);
 	for (size_t i = 0; i < nqb; i++) {
 		q->tg_qb[i] = i;
 		q->tg_op[i] = PAULI_I;
 	}
 
-	reg->namp = namp;
-	reg->nqb_lo = nqb_lo;
-	reg->nqb_hi = nqb_hi;
 	reg->data = q;
 
 	return 0;
 }
 
-void qreg_destroy(struct qreg *reg)
+void qreg_quest_destroy(struct qreg *reg)
 {
-	struct world_quest *w = WD.data;
+	struct world_quest *w = reg->wd.data;
 	struct qreg_quest *q = reg->data;
 
-	destroyQureg(q->reg, w->env);
+	destroyQureg(q->qureg, w->env);
 }
 
 void qreg_getamp(const struct qreg *reg, const uint64_t i, _Complex double *z)
 {
 	struct qreg_quest *q = reg->data;
 
-	const Complex cz = getAmp(q->reg, i);
+	const Complex cz = getAmp(q->qureg, i);
 	*z = cz.real + I * cz.imag;
 }
 
@@ -70,18 +61,18 @@ void qreg_setamp(struct qreg *reg, const uint64_t i, _Complex double z)
 	struct qreg_quest *q = reg->data;
 
 	double x = creal(z), y = cimag(z);
-	setAmps(q->reg, i, &x, &y, 1);
+	setAmps(q->qureg, i, &x, &y, 1);
 }
 
 void qreg_zero(struct qreg *reg)
 {
 	struct qreg_quest *q = reg->data;
 
-	initBlankState(q->reg);
+	initBlankState(q->qureg);
 }
 
 /* This is based on QuEST's implementation of statevec_multiRotatePauli() */
-static void quest_paulirot(
+static void paulirot_onecode(
 	Qureg qureg, int *tg_qb, int *tg_op, size_t ntg, double angle)
 {
 	size_t mask = 0;
@@ -112,7 +103,7 @@ static void quest_paulirot(
 
 	/* Apply diagonal operator */
 	_Complex double z, z_ph = cexp(I * angle);
-	for (size_t i = 0; i < qureg.numAmpsPerChunk; i++) {
+	for (int64_t i = 0; i < qureg.numAmpsPerChunk; i++) {
 		z = qureg.stateVec.real[i] + I * qureg.stateVec.imag[i];
 
 		size_t idx = qureg.numAmpsPerChunk * qureg.chunkId + i;
@@ -128,7 +119,7 @@ static void quest_paulirot(
 	/* undo X and Y basis rotations */
 	ux_beta.imag *= -1.0;
 	uy_beta.real *= -1.0;
-	for (int i = 0; i < ntg; i++) {
+	for (size_t i = 0; i < ntg; i++) {
 		switch (tg_op[i]) {
 		case PAULI_I:
 			break;
@@ -160,6 +151,6 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 		for (size_t i = 0; i < nqb; i++)
 			q->tg_op[i] = paulis_get(code, i);
 
-		quest_paulirot(q->reg, q->tg_qb, q->tg_op, nqb, angles[k]);
+		paulirot_onecode(q->qureg, q->tg_qb, q->tg_op, nqb, angles[k]);
 	}
 }
