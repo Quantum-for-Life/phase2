@@ -12,8 +12,6 @@
 
 #define MAX_COUNT (1 << 29)
 
-typedef _Complex double c64;
-
 static int qreg_backend_init(struct qreg *reg);
 static int qreg_backend_destroy(struct qreg *reg);
 
@@ -47,10 +45,10 @@ int qreg_init(struct qreg *reg, const uint32_t nqb)
 	const int msg_count = namp < MAX_COUNT ? namp : MAX_COUNT;
 	const size_t nreqs = namp / msg_count;
 
-	MPI_Request *const reqs = malloc(sizeof(MPI_Request) * nreqs * 2);
+	MPI_Request *const reqs = malloc(sizeof *reqs * nreqs * 2);
 	if (reqs == nullptr)
 		goto err_reqs_alloc;
-	c64 *const amp = malloc(sizeof(c64) * namp * 2);
+	_Complex double *const amp = malloc(sizeof *amp * namp * 2);
 	if (amp == nullptr)
 		goto err_amp_alloc;
 

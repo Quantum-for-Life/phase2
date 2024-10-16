@@ -55,24 +55,18 @@ static void exch_init(struct qreg *reg, const int rnk_rem)
 	}
 }
 
-static void exch_wait_amp(struct qreg *reg)
+static void exch_waitall(struct qreg *reg)
 {
 	MPI_Waitall(reg->nreqs, reg->reqs_snd, MPI_STATUSES_IGNORE);
-}
-
-static void exch_wait_buf(struct qreg *reg)
-{
 	MPI_Waitall(reg->nreqs, reg->reqs_rcv, MPI_STATUSES_IGNORE);
 }
 
 /* These kernels can be easily ported to CUDA. */
-static __inline__ void kernel_mul(size_t i, c64 *a, c64 b)
+static __inline__ void kernel_mix(
+	size_t i, c64 *restrict a, c64 *restrict b, c64 bm)
 {
-	a[i] *= b;
-}
+	b[i] *= bm;
 
-static __inline__ void kernel_mix(size_t i, c64 *restrict a, c64 *restrict b)
-{
 	const c64 x = a[i];
 	const c64 y = b[i];
 	a[i] = (x + y) / 2.0;
@@ -97,27 +91,21 @@ static __inline__ void kernel_add(size_t i, c64 *restrict a, c64 *restrict b)
 	a[i] += b[i];
 }
 
-static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi)
+static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi, c64 *bm)
 {
-	c64 bm = 1.0;
-
 	paulis_shr(&code_hi, reg->nqb_lo);
-	const uint64_t rnk_rem = paulis_effect(code_hi, reg->wd.rank, &bm);
+	const uint64_t rnk_rem = paulis_effect(code_hi, reg->wd.rank, nullptr);
 
 	exch_init(reg, rnk_rem);
-
-	exch_wait_buf(reg);
-	for (size_t i = 0; i < reg->namp; i++)
-		kernel_mul(i, reg->buf, conj(bm));
-
-	exch_wait_amp(reg);
+	paulis_effect(code_hi, rnk_rem, bm);
+	exch_waitall(reg);
 }
 
 static void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
-	const double *angles, const size_t ncodes)
+	const double *angles, const size_t ncodes, c64 bm)
 {
-	for (uint64_t i = 0; i < reg->namp; i++)
-		kernel_mix(i, reg->amp, reg->buf);
+	for (size_t i = 0; i < reg->namp; i++)
+		kernel_mix(i, reg->amp, reg->buf, bm);
 
 	for (size_t k = 0; k < ncodes; k++) {
 		const double c = cos(angles[k]), s = sin(angles[k]);
@@ -127,7 +115,7 @@ static void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
 			kernel_rot(i, reg->buf, codes_lo[k], c, -s);
 	}
 
-	for (uint64_t i = 0; i < reg->namp; i++)
+	for (size_t i = 0; i < reg->namp; i++)
 		kernel_add(i, reg->amp, reg->buf);
 }
 
@@ -135,6 +123,8 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	const struct paulis *codes_lo, const double *angles,
 	const size_t ncodes)
 {
-	qreg_paulirot_hi(reg, code_hi);
-	qreg_paulirot_lo(reg, codes_lo, angles, ncodes);
+	c64 bm = 1.0;
+
+	qreg_paulirot_hi(reg, code_hi, &bm);
+	qreg_paulirot_lo(reg, codes_lo, angles, ncodes, bm);
 }
