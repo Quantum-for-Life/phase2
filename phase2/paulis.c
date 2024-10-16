@@ -1,21 +1,9 @@
+#include "c23_compat.h"
 #include <complex.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 #include "phase2/paulis.h"
-
-/* --------------------------------------------------------------------------*/
-/* Remove this section when C23 arrives.                                     */
-#include <stdbool.h>
-#define nullptr (void *)0
-#define stdc_count_ones_ul(v) (__builtin_popcountl(v))
-#define unreachable() (__builtin_unreachable())
-/* --------------------------------------------------------------------------*/
-/* Uncomment this section when C23 arrives.                                  */
-/*
-#include <stdbit.h>
-*/
-/* --------------------------------------------------------------------------*/
 
 struct paulis paulis_new(void)
 {

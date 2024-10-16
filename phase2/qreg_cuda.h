@@ -1,6 +1,7 @@
 #ifndef QREG_CUDA_H
 #define QREG_CUDA_H
 
+#include "c23_compat.h"
 #include <stdint.h>
 
 #include <cuda_runtime_api.h>

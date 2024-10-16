@@ -1,6 +1,8 @@
 #ifndef WORLD_CUDA_H
 #define WORLD_CUDA_H
 
+#include "c23_compat.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

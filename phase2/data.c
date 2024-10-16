@@ -1,3 +1,4 @@
+#include "c23_compat.h"
 #include <stdint.h>
 
 #include "hdf5.h"

@@ -1,3 +1,4 @@
+#include "c23_compat.h"
 #include <complex.h>
 #include <float.h>
 #include <math.h>

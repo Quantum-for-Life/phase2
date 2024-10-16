@@ -1,3 +1,4 @@
+#include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
 #include <stdlib.h>
@@ -8,13 +9,6 @@
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 #include "phase2/world.h"
-
-/* --------------------------------------------------------------------------*/
-/* Remove this section when C23 arrives.                                     */
-#include <stdbool.h>
-#define nullptr (void *)0
-#define unreachable() (__builtin_unreachable())
-/* --------------------------------------------------------------------------*/
 
 #define MAX_COUNT (1 << 29)
 

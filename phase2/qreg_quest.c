@@ -1,3 +1,4 @@
+#include "c23_compat.h"
 #include <complex.h>
 #include <stdlib.h>
 
@@ -7,19 +8,6 @@
 #include "phase2/qreg.h"
 #include "phase2/world.h"
 #include "world_quest.h"
-
-/* --------------------------------------------------------------------------*/
-/* Remove this section when C23 arrives.                                     */
-#include <stdbool.h>
-#define nullptr (void *)0
-#define stdc_count_ones_ul(v) (__builtin_popcountl(v))
-#define unreachable() (__builtin_unreachable())
-/* --------------------------------------------------------------------------*/
-/* Uncomment this section when C23 arrives.                                  */
-/*
-#include <stdbit.h>
-*/
-/* --------------------------------------------------------------------------*/
 
 static struct world WD;
 
