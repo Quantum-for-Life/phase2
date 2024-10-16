@@ -187,8 +187,10 @@ clean:
 	$(RM) $(TESTS)
 
 format:
-	@find ./ -name "*.c" -or -name "*.h" -or -name "*.cpp"		\
-			-or -name "*.cu" | 				\
+	@find ./ -name "*.c" 						\
+		-or -name "*.h"						\
+		-or -name "*.cpp"					\
+		-or -name "*.cu" | 					\
 		while read f ; do					\
 			clang-format --style=file -i $$f ;		\
 		done

@@ -1,13 +1,12 @@
 #include <complex.h>
 #include <stddef.h>
 
-#include <cuda_runtime.h>
 #include <cuComplex.h>
+#include <cuda_runtime.h>
 
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 #include "qreg_cuda.h"
-
 
 const size_t threadPerBlock = 512;
 
@@ -17,7 +16,6 @@ __global__ void kernelAdd(cuDoubleComplex *a, cuDoubleComplex *b, size_t n)
 
 	if (i < n)
 		a[i] = cuCadd(a[i], b[i]);
-
 }
 
 __global__ void kernelMul(cuDoubleComplex *a, cuDoubleComplex b, size_t n)
@@ -43,8 +41,8 @@ __global__ void kernelMix(cuDoubleComplex *a, cuDoubleComplex *b, size_t n)
 	}
 }
 
-__global__ void kernelPauliRot(cuDoubleComplex *a, size_t n, cuDoubleComplex eip,
-		struct paulis code)
+__global__ void kernelPauliRot(
+	cuDoubleComplex *a, size_t n, cuDoubleComplex eip, struct paulis code)
 {
 	size_t i = threadIdx.x + blockIdx.x * blockDim.x;
 	if (i >= n)
@@ -55,27 +53,27 @@ __global__ void kernelPauliRot(cuDoubleComplex *a, size_t n, cuDoubleComplex eip
 		return;
 
 	int minus = __popcll(j & code.pak[1]);
-	int root4 = (__popcll(code.pak[0] & code.pak[1]) + 2*minus) & 0x3;
+	int root4 = (__popcll(code.pak[0] & code.pak[1]) + 2 * minus) & 0x3;
 	cuDoubleComplex z;
 	switch (root4) {
-		case 0:
-			z.x = 1.0;
-			z.y = 0.0;
-			break;
-		case 1:
-			z.x = 0.0;
-			z.y = -1.0;
-			break;
-		case 2:
-			z.x = -1.0;
-			z.y = 0.0;
-			break;
-		case 3:
-			z.x = 0.0;
-			z.y = 1.0;
-			break;
-		default:
-			__builtin_unreachable();
+	case 0:
+		z.x = 1.0;
+		z.y = 0.0;
+		break;
+	case 1:
+		z.x = 0.0;
+		z.y = -1.0;
+		break;
+	case 2:
+		z.x = -1.0;
+		z.y = 0.0;
+		break;
+	case 3:
+		z.x = 0.0;
+		z.y = 1.0;
+		break;
+	default:
+		__builtin_unreachable();
 	}
 
 	cuDoubleComplex zi, zj;
@@ -88,12 +86,10 @@ __global__ void kernelPauliRot(cuDoubleComplex *a, size_t n, cuDoubleComplex eip
 	a[j] = cuCadd(cuCmul(rc, zj), cuCmul(is, cuCmul(z, zi)));
 }
 
-void qreg_paulirot_local(struct qreg *reg,
-	       const struct paulis *codes_lo, const double *angles,
-	       const size_t ncodes, double _Complex buf_mul)
+void qreg_paulirot_local(struct qreg *reg, const struct paulis *codes_lo,
+	const double *angles, const size_t ncodes, double _Complex buf_mul)
 {
- 	const size_t blocks = (reg->namp + threadPerBlock - 1) / 
-				threadPerBlock;
+	const size_t blocks = (reg->namp + threadPerBlock - 1) / threadPerBlock;
 
 	const struct qreg_cuQuantum *cu =
 		(const struct qreg_cuQuantum *)reg->data;
@@ -105,19 +101,15 @@ void qreg_paulirot_local(struct qreg *reg,
 
 	cudaDeviceSynchronize();
 	for (size_t k = 0; k < ncodes; k++) {
-		cuDoubleComplex eip = {
-			.x = cos(angles[k]),
-			.y = sin(angles[k])
-		};
-		kernelPauliRot<<<blocks, threadPerBlock>>>
-			(cu->d_sv, reg->namp, eip, codes_lo[k]);
-		kernelPauliRot<<<blocks, threadPerBlock>>>
-			(cu->d_buf, reg->namp, cuConj(eip), codes_lo[k]);
-
+		cuDoubleComplex eip = { .x = cos(angles[k]),
+			.y = sin(angles[k]) };
+		kernelPauliRot<<<blocks, threadPerBlock>>>(
+			cu->d_sv, reg->namp, eip, codes_lo[k]);
+		kernelPauliRot<<<blocks, threadPerBlock>>>(
+			cu->d_buf, reg->namp, cuConj(eip), codes_lo[k]);
 	}
 
 	/* We mix again d_sv and d_buf. Sync them first. */
 	cudaDeviceSynchronize();
-        kernelAdd<<<blocks, threadPerBlock>>>(cu->d_sv, cu->d_buf,
-			reg->namp);
+	kernelAdd<<<blocks, threadPerBlock>>>(cu->d_sv, cu->d_buf, reg->namp);
 }
