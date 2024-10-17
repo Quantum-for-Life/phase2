@@ -162,21 +162,21 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	/* Initialize data for circ_trott. */
 	struct circ_trott_data td;
 	circ_trott_data_init(&td, TROTT_STEPS);
-	td.time_factor = HAMIL_TIME_FACTOR;
-	td.num_trott_steps = TROTT_STEPS;
+	td.delta = HAMIL_TIME_FACTOR;
+	td.ntsteps = TROTT_STEPS;
 
 	circ_hamil_init(&td.hamil, HAMIL_TERMS);
-	td.hamil.num_qubits = NUM_QUBITS;
+	td.hamil.nqb = NUM_QUBITS;
 	for (size_t k = 0; k < HAMIL_TERMS; k++) {
-		td.hamil.coeffs[k] = HAMIL_COEFFS[k];
-		td.hamil.paulis[k] = HAMIL_PAULIS[k];
+		td.hamil.cfs[k] = HAMIL_COEFFS[k];
+		td.hamil.ops[k] = HAMIL_PAULIS[k];
 	}
 
 	circ_multidet_init(&td.multidet, MULTIDET_DETS);
 	for (size_t m = 0; m < MULTIDET_DETS; m++) {
 		td.multidet.dets[m].idx = MULTIDET_IDX[m];
-		td.multidet.dets[m].coeff[0] = creal(MULTIDET_COEFFS[m]);
-		td.multidet.dets[m].coeff[1] = cimag(MULTIDET_COEFFS[m]);
+		td.multidet.dets[m].cf[0] = creal(MULTIDET_COEFFS[m]);
+		td.multidet.dets[m].cf[1] = cimag(MULTIDET_COEFFS[m]);
 	}
 
 	circ_trott_simulate(&td);
@@ -184,7 +184,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	/* Compare results. */
 	for (size_t s = 0; s < TROTT_STEPS; s++) {
 		_Complex double eval;
-		eval = td.trott_steps[0][s] + I * td.trott_steps[1][s];
+		eval = td.tsteps[0][s] + I * td.tsteps[1][s];
 		TEST_ASSERT(cabs(eval - TROTT_VALS[s]) < MARGIN,
 			"[%zu] ts=%zu, md=%zu, ht=%zu, step=%zu "
 			"eval=%f+%fi, TROTT_VALS=%f+%fi",

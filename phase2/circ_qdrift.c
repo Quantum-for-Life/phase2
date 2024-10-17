@@ -65,7 +65,7 @@ static int circ_qdrift_data_from_file(
 	int rc = circ_hamil_init_from_file(&cd->hamil, fid);
 	rc |= circ_multidet_init_from_file(&cd->multidet, fid);
 	rc |= data_circ_qdrift_getattrs(
-		fid, &cd->num_samples, &cd->step_size, &cd->depth);
+		fid, &cd->nsamples, &cd->step_size, &cd->depth);
 
 	return rc;
 }
@@ -74,10 +74,10 @@ int circ_qdrift_data_init(struct circ_qdrift_data *cd, data_id fid)
 {
 	if (circ_qdrift_data_from_file(cd, fid) < 0)
 		return -1;
-	cd->samples[0] = malloc(sizeof(double) * 2 * cd->num_samples);
+	cd->samples[0] = malloc(sizeof(double) * 2 * cd->nsamples);
 	if (cd->samples[0] == NULL)
 		return -1;
-	cd->samples[1] = cd->samples[0] + cd->num_samples;
+	cd->samples[1] = cd->samples[0] + cd->nsamples;
 
 	return 0;
 }
@@ -95,9 +95,9 @@ static int circuit_prepst(struct circ_qdrift *c)
 	const struct circ_multidet *md = &c->data->multidet;
 
 	qreg_zero(&c->reg);
-	for (size_t i = 0; i < md->num_dets; i++) {
-		const _Complex double coeff = md->dets[i].coeff[0] +
-					      _Complex_I * md->dets[i].coeff[1];
+	for (size_t i = 0; i < md->ndets; i++) {
+		const _Complex double coeff =
+			md->dets[i].cf[0] + _Complex_I * md->dets[i].cf[1];
 		qreg_setamp(&c->reg, md->dets[i].idx, coeff);
 	}
 
@@ -114,7 +114,7 @@ static void trott_step(struct circ_qdrift *c, const double omega)
 	for (size_t i = 0; i < c->data->depth; i++) {
 		const double angle = omega;
 		const size_t i_sampled = c->sampled_idx[i];
-		const struct paulis code = hamil->paulis[i_sampled];
+		const struct paulis code = hamil->ops[i_sampled];
 
 		struct paulis code_hi, code_lo;
 		paulis_split(
@@ -173,12 +173,12 @@ static int circ_measure(struct circ_qdrift *c)
 	const struct circ_multidet *md = &c->data->multidet;
 
 	_Complex double pr = 0.0;
-	for (size_t i = 0; i < md->num_dets; i++) {
+	for (size_t i = 0; i < md->ndets; i++) {
 		_Complex double a;
 		qreg_getamp(&c->reg, md->dets[i].idx, &a);
 
-		const _Complex double damp = md->dets[i].coeff[0] +
-					     _Complex_I * md->dets[i].coeff[1];
+		const _Complex double damp =
+			md->dets[i].cf[0] + _Complex_I * md->dets[i].cf[1];
 		pr += a * conj(damp);
 	}
 	c->prod[0] = creal(pr);
@@ -192,7 +192,7 @@ static size_t circ_sample_invcdf(struct circ_qdrift *c, double x)
 	size_t i = 0;
 	double cdf = 0;
 	while (cdf <= x)
-		cdf += fabs(c->data->hamil.coeffs[i++]);
+		cdf += fabs(c->data->hamil.cfs[i++]);
 	return i - 1; /* Never again make the same off-by-one error! */
 }
 
@@ -210,14 +210,14 @@ int circ_qdrift_simulate(const struct circ_qdrift_data *cd)
 	int rt = -1;
 
 	size_t prog_percent = 0;
-	const size_t num_qb = cd->hamil.num_qubits;
+	const size_t num_qb = cd->hamil.nqb;
 
 	struct circ_qdrift c;
 	if (circ_create(&c, cd, num_qb) < 0)
 		goto exit_circ_create;
 
-	for (size_t i = 0; i < cd->num_samples; i++) {
-		size_t percent = i * 100 / cd->num_samples;
+	for (size_t i = 0; i < cd->nsamples; i++) {
+		size_t percent = i * 100 / cd->nsamples;
 		if (percent > prog_percent) {
 			prog_percent = percent;
 			log_info("Progress: %zu\% (samples: %zu)", percent, i);

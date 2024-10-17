@@ -6,96 +6,99 @@
 #include "phase2/circ.h"
 #include "phase2/paulis.h"
 
-int circ_hamil_init(struct circ_hamil *h, size_t num_terms)
+int circ_hamil_init(struct circ_hamil *h, size_t nterms)
 {
-	double *coeffs = malloc(sizeof *coeffs * num_terms);
-	struct paulis *paulis = malloc(sizeof(struct paulis) * num_terms);
-	if (!(coeffs && paulis))
-		goto err;
+	double *cfs = malloc(sizeof *cfs * nterms);
+	if (cfs == nullptr)
+		goto err_malloc_cfs;
+	struct paulis *ops = malloc(sizeof *ops * nterms);
+	if (ops == nullptr)
+		goto err_malloc_ops;
 
-	h->num_terms = num_terms;
-	h->coeffs = coeffs;
-	h->paulis = paulis;
+	h->nterms = nterms;
+	h->cfs = cfs;
+	h->ops = ops;
 
 	return 0;
-err:
-	free(coeffs);
-	free(paulis);
+
+	free(ops);
+err_malloc_ops:
+	free(cfs);
+err_malloc_cfs:
+
 	return -1;
 }
 
 void circ_hamil_destroy(struct circ_hamil *h)
 {
-	if (h->paulis)
-		free(h->paulis);
-	if (h->coeffs)
-		free(h->coeffs);
+	if (h->ops != nullptr)
+		free(h->ops);
+	if (h->cfs != nullptr)
+		free(h->cfs);
 }
 
 struct hamil_iter_data {
 	size_t idx;
-	size_t num_qubits;
+	size_t nqb;
 	double norm;
-	double *coeffs;
-	struct paulis *paulis;
+	double *cfs;
+	struct paulis *ops;
 };
 
-static int hamil_iter(double coeff, unsigned char *paulis, void *iter_data)
+static int hamil_iter(double cf, unsigned char *ops, void *iter_data)
 {
-	struct hamil_iter_data *idat = iter_data;
-	const size_t i = idat->idx++;
-	const size_t num_qubits = idat->num_qubits;
+	struct hamil_iter_data *id = iter_data;
+	const size_t i = id->idx++;
+	const size_t nqb = id->nqb;
 
-	idat->coeffs[i] = coeff * idat->norm;
+	id->cfs[i] = cf * id->norm;
 	struct paulis p = paulis_new();
-	for (size_t j = 0; j < num_qubits; j++) {
-		paulis_set(&p, paulis[j], j);
+	for (size_t j = 0; j < nqb; j++) {
+		paulis_set(&p, ops[j], j);
 	}
-	idat->paulis[i] = p;
+	id->ops[i] = p;
 
 	return 0;
 }
 
 int circ_hamil_init_from_file(struct circ_hamil *h, const data_id fid)
 {
-	size_t num_qubits, num_terms;
+	size_t nqb, nterms;
 	double norm;
 
-	if (data_hamil_getnums(fid, &num_qubits, &num_terms) < 0)
+	if (data_hamil_getnums(fid, &nqb, &nterms) < 0)
 		return -1;
 	if (data_hamil_getnorm(fid, &norm) < 0)
 		return -1;
 
-	if (circ_hamil_init(h, num_terms) < 0)
+	if (circ_hamil_init(h, nterms) < 0)
 		return -1;
 
-	struct hamil_iter_data idat = { .idx = 0,
-		.num_qubits = num_qubits,
-		.norm = norm,
-		.coeffs = h->coeffs,
-		.paulis = h->paulis };
-	if (data_hamil_foreach(fid, hamil_iter, &idat) != 0)
+	struct hamil_iter_data id = {
+		.idx = 0, .nqb = nqb, .norm = norm, .cfs = h->cfs, .ops = h->ops
+	};
+	if (data_hamil_foreach(fid, hamil_iter, &id) != 0)
 		return -1;
 
-	h->num_qubits = num_qubits;
+	h->nqb = nqb;
 
 	return 0;
 }
 
-int circ_multidet_init(struct circ_multidet *md, size_t num_dets)
+int circ_multidet_init(struct circ_multidet *md, size_t ndets)
 {
-	md->dets = malloc(sizeof *md->dets * num_dets);
-	if (md->dets == NULL)
+	md->dets = malloc(sizeof *md->dets * ndets);
+	if (md->dets == nullptr)
 		return -1;
 
-	md->num_dets = num_dets;
+	md->ndets = ndets;
 
 	return 0;
 }
 
 void circ_multidet_destroy(struct circ_multidet *md)
 {
-	if (md->dets)
+	if (md->dets != nullptr)
 		free(md->dets);
 }
 
@@ -104,31 +107,29 @@ struct iter_multidet_data {
 	struct circ_multidet *md;
 };
 
-static int iter_multidet(double coeff[2], const uint64_t idx, void *op_data)
+static int iter_multidet(double cf[2], const uint64_t idx, void *iter_data)
 {
-	struct iter_multidet_data *imd = op_data;
+	struct iter_multidet_data *id = iter_data;
 
-	imd->md->dets[imd->i].coeff[0] = coeff[0];
-	imd->md->dets[imd->i].coeff[1] = coeff[1];
-	imd->md->dets[imd->i].idx = idx;
-	imd->i++;
+	id->md->dets[id->i].cf[0] = cf[0];
+	id->md->dets[id->i].cf[1] = cf[1];
+	id->md->dets[id->i].idx = idx;
+	id->i++;
 
 	return 0;
 }
 
 int circ_multidet_init_from_file(struct circ_multidet *md, const data_id fid)
 {
-	size_t num_qubits, num_dets;
-	if (data_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
+	size_t nqb, ndets;
+	if (data_multidet_getnums(fid, &nqb, &ndets) < 0)
 		return -1;
 
-	if (circ_multidet_init(md, num_dets) < 0)
+	if (circ_multidet_init(md, ndets) < 0)
 		return -1;
 
-	struct iter_multidet_data imd;
-	imd.i = 0;
-	imd.md = md;
-	if (data_multidet_foreach(fid, iter_multidet, &imd) < 0)
+	struct iter_multidet_data id = { .i = 0, .md = md };
+	if (data_multidet_foreach(fid, iter_multidet, &id) < 0)
 		return -1;
 
 	return 0;

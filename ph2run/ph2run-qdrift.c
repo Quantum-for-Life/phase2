@@ -1,4 +1,5 @@
 #define _XOPEN_SOURCE 600
+#include "c23_compat.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,21 +41,21 @@ int run_circuit(data_id fid)
 	struct timespec t1, t2;
 	double t_tot;
 
-	struct circ_qdrift_data rd;
-	if (circ_qdrift_data_init(&rd, fid) < 0)
+	struct circ_qdrift_data cd;
+	if (circ_qdrift_data_init(&cd, fid) < 0)
 		goto exit_qdrift_data;
-	log_info("num_samples: %zu", rd.num_samples);
-	log_info("step_size: %f", rd.step_size);
-	log_info("depth: %zu", rd.depth);
+	log_info("num_samples: %zu", cd.nsamples);
+	log_info("step_size: %f", cd.step_size);
+	log_info("depth: %zu", cd.depth);
 
 	clock_gettime(CLOCK_REALTIME, &t1);
-	if (circ_qdrift_simulate(&rd) < 0)
+	if (circ_qdrift_simulate(&cd) < 0)
 		goto exit_qdrift_simulate;
 	clock_gettime(CLOCK_REALTIME, &t2);
 	t_tot = (double)(t2.tv_sec - t1.tv_sec) +
 		(double)(t2.tv_nsec - t1.tv_nsec) * 1.0e-9;
 
-	if (data_circ_qdrift_write_values(fid, rd.samples, rd.num_samples) < 0)
+	if (data_circ_qdrift_write_values(fid, cd.samples, cd.nsamples) < 0)
 		goto exit_qdrift_write;
 
 	rt = 0; /* Success. */
@@ -63,12 +64,12 @@ exit_qdrift_write:
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
 		 "n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", rd.hamil.num_qubits,
-		rd.hamil.num_terms, rd.multidet.num_dets, rd.num_samples,
-		rd.step_size, rd.depth, WD.size, t_tot);
+	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", cd.hamil.nqb,
+		cd.hamil.nterms, cd.multidet.ndets, cd.nsamples, cd.step_size,
+		cd.depth, WD.size, t_tot);
 
 exit_qdrift_simulate:
-	circ_qdrift_data_destroy(&rd);
+	circ_qdrift_data_destroy(&cd);
 exit_qdrift_data:
 
 	return rt;
