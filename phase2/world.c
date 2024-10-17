@@ -5,8 +5,7 @@
 
 #include "phase2/world.h"
 
-static int world_backend_init(struct world *wd);
-static int world_backend_destroy(struct world *wd);
+#include "world_impl.h"
 
 static struct world WORLD = {
 	.stat = WORLD_UNDEF,
@@ -62,8 +61,7 @@ int world_destroy(void)
 			WORLD.stat = WORLD_ERR;
 	}
 
-	if (world_backend_destroy(&WORLD) < 0)
-		WORLD.stat = WORLD_ERR;
+	world_backend_destroy(&WORLD);
 
 	return WORLD.stat;
 }
@@ -80,47 +78,15 @@ int world_info(struct world *wd)
 }
 
 #if PHASE2_BACKEND == 0 /* qreg */
-
-static __inline__ int world_backend_init(struct world *wd)
+int world_backend_init(struct world *wd)
 {
-	(void)wd;
+	wd->data = nullptr;
 
 	return 0;
 }
 
-static __inline__ int world_backend_destroy(struct world *wd)
+void world_backend_destroy(struct world *wd)
 {
 	(void)wd;
-
-	return 0;
 }
-
-#elif PHASE2_BACKEND == 1 /* QuEST */
-
-#include "world_quest.h"
-
-static __inline__ int world_backend_init(struct world *wd)
-{
-	return world_quest_init(wd);
-}
-
-static __inline__ int world_backend_destroy(struct world *wd)
-{
-	return world_quest_destroy(wd);
-}
-
-#elif PHASE2_BACKEND == 2 /* CUDA */
-
-#include "world_cuda.h"
-
-static __inline__ int world_backend_init(struct world *wd)
-{
-	return world_cuda_init(wd);
-}
-
-static __inline__ int world_backend_destroy(struct world *wd)
-{
-	return world_cuda_destroy(wd);
-}
-
-#endif /* PHASE2_BACKEND */
+#endif /* PHASE2_BACKEND == 0 */

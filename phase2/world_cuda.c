@@ -6,16 +6,11 @@
 #include "mpi.h"
 
 #include "phase2/world.h"
+
 #include "world_cuda.h"
+#include "world_impl.h"
 
-/* --------------------------------------------------------------------------*/
-/* Remove this section when C23 arrives.                                     */
-#include <stdbool.h>
-#define nullptr (void *)0
-#define unreachable() (__builtin_unreachable())
-/* --------------------------------------------------------------------------*/
-
-int world_cuda_init(struct world *wd)
+int world_backend_init(struct world *wd)
 {
 	struct world_cuda *cu = malloc(sizeof *cu);
 	if (cu == nullptr)
@@ -39,11 +34,8 @@ int world_cuda_init(struct world *wd)
 	return 0;
 }
 
-int world_cuda_destroy(struct world *wd)
+void world_backend_destroy(struct world *wd)
 {
 	struct world_cuda *cu = wd->data;
-	if (cu != nullptr)
-		free(cu);
-
-	return 0;
+	free(cu);
 }
