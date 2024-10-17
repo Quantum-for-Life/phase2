@@ -5,8 +5,6 @@
 
 #include "phase2/world.h"
 
-int log_init(void);
-
 static int world_backend_init(struct world *wd);
 static int world_backend_destroy(struct world *wd);
 

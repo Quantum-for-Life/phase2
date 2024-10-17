@@ -121,9 +121,9 @@ $(PHASE2DIR)/data.o:	$(INCLUDE)/phase2/data.h
 $(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
 $(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h
 $(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h
-$(PHASE2DIR)/world_log.o: $(INCLUDE)/phase2/world.h
 
-$(LIBDIR)/xoshiro256ss.o:	$(INCLUDE)/xoshiro256ss.h
+$(LIBDIR)/log.o:	$(INCLUDE)/log.h
+$(LIBDIR)/xoshiro256ss.o: $(INCLUDE)/xoshiro256ss.h
 
 # Object files
 PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
@@ -134,9 +134,9 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/qreg.o				\
 			$(BACKEND_OBJS)					\
 			$(PHASE2DIR)/world.o				\
-			$(PHASE2DIR)/world_log.o
 
-UTILSOBJS	:= $(LIBDIR)/xoshiro256ss.o
+UTILSOBJS	:= $(LIBDIR)/log.o					\
+			$(LIBDIR)/xoshiro256ss.o
 
 # Applications
 PROGS		:= $(PH2RUNDIR)/ph2run-qdrift				\
