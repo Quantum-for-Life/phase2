@@ -10,10 +10,9 @@
 #include "phase2/qreg.h"
 #include "phase2/world.h"
 
-#define MAX_COUNT (1 << 29)
+#include "qreg_impl.h"
 
-static int qreg_backend_init(struct qreg *reg);
-static int qreg_backend_destroy(struct qreg *reg);
+#define MAX_COUNT (1 << 29)
 
 uint64_t qreg_getilo(const struct qreg *reg, uint64_t i)
 {
@@ -84,48 +83,3 @@ void qreg_destroy(struct qreg *reg)
 	if (reg->reqs_snd != nullptr)
 		free(reg->reqs_snd);
 }
-
-#if PHASE2_BACKEND == 0 /* qreg */
-
-static __inline__ int qreg_backend_init(struct qreg *reg)
-{
-	(void)reg;
-
-	return 0;
-}
-
-static __inline__ int qreg_backend_destroy(struct qreg *reg)
-{
-	(void)reg;
-
-	return 0;
-}
-
-#elif PHASE2_BACKEND == 1 /* QuEST */
-int qreg_quest_init(struct qreg *reg);
-int qreg_quest_destroy(struct qreg *reg);
-
-static __inline__ int qreg_backend_init(struct qreg *reg)
-{
-	return qreg_quest_init(reg);
-}
-
-static __inline__ int qreg_backend_destroy(struct qreg *reg)
-{
-	return qreg_quest_destroy(reg);
-}
-
-#elif PHASE2_BACKEND == 2 /* CUDA */
-int qreg_cuda_init(struct qreg *reg);
-int qreg_cuda_destroy(struct qreg *reg);
-
-static __inline__ int qreg_backend_init(struct qreg *reg)
-{
-	return qreg_cuda_init(reg);
-}
-
-static __inline__ int qreg_backend_destroy(struct qreg *reg)
-{
-	return qreg_cuda_destroy(reg);
-}
-#endif /* PHASE2_BACKEND */
