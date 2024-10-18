@@ -46,10 +46,10 @@ int qreg_init(struct qreg *reg, const uint32_t nqb)
 	const size_t nreqs = namp / msg_count;
 
 	MPI_Request *const reqs = malloc(sizeof *reqs * nreqs * 2);
-	if (reqs == nullptr)
+	if (!reqs)
 		goto err_reqs_alloc;
 	_Complex double *const amp = malloc(sizeof *amp * namp * 2);
-	if (amp == nullptr)
+	if (!amp)
 		goto err_amp_alloc;
 
 	reg->nqb_lo = nqb_lo;

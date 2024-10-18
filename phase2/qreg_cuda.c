@@ -19,10 +19,10 @@ uint64_t qreg_getihi(const struct qreg *reg, uint64_t i);
 
 int qreg_cuda_init(struct qreg *reg)
 {
-	struct qreg_cuda *cu;
 	cuDoubleComplex *damp, *dbuf;
 
-	if ((cu = malloc(sizeof *cu)) == nullptr)
+	struct qreg_cuda *cu = malloc(sizeof *cu);
+	if (!cu)
 		goto err_cu_alloc;
 	if (cudaMalloc((void **)&damp, reg->namp * sizeof *damp) != cudaSuccess)
 		goto err_cuda_malloc_damp;

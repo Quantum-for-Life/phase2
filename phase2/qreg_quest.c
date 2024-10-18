@@ -18,7 +18,7 @@ struct qreg_quest {
 int qreg_quest_init(struct qreg *reg)
 {
 	struct qreg_quest *const q = malloc(sizeof *q);
-	if (q == nullptr)
+	if (!q)
 		return -1;
 
 	/* QuEST will allocate memory for the entire state.

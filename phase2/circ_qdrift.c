@@ -45,7 +45,7 @@ static int circ_create(struct circ_qdrift *c,
 
 	xoshiro256ss_init(&c->rng, PRNG_SEED);
 	size_t *sampled_idx = malloc(sizeof(size_t) * data->depth);
-	if (sampled_idx == NULL)
+	if (!sampled_idx)
 		return -1;
 	c->sampled_idx = sampled_idx;
 
@@ -75,7 +75,7 @@ int circ_qdrift_data_init(struct circ_qdrift_data *cd, data_id fid)
 	if (circ_qdrift_data_from_file(cd, fid) < 0)
 		return -1;
 	cd->samples[0] = malloc(sizeof(double) * 2 * cd->num_samples);
-	if (cd->samples[0] == NULL)
+	if (!cd->samples[0])
 		return -1;
 	cd->samples[1] = cd->samples[0] + cd->num_samples;
 

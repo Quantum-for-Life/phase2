@@ -49,7 +49,7 @@ int circ_trott_data_init(struct circ_trott_data *cd, size_t num_steps)
 {
 	cd->num_trott_steps = num_steps;
 	cd->trott_steps[0] = malloc(sizeof(double) * 2 * num_steps);
-	if (cd->trott_steps[0] == NULL)
+	if (!cd->trott_steps[0])
 		return -1;
 	cd->trott_steps[1] = cd->trott_steps[0] + num_steps;
 

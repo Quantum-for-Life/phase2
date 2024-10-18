@@ -9,7 +9,7 @@
 int world_quest_init(struct world *wd)
 {
 	struct world_quest *w = malloc(sizeof *w);
-	if (w == nullptr)
+	if (!w)
 		return -1;
 
 	w->env = createQuESTEnv();
@@ -23,7 +23,7 @@ int world_quest_init(struct world *wd)
 int world_quest_destroy(struct world *wd)
 {
 	struct world_quest *w = wd->data;
-	if (w == nullptr)
+	if (!w)
 		return -1;
 
 	destroyQuESTEnv(w->env);
