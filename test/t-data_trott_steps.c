@@ -137,13 +137,7 @@ static void TEST_MAIN(void)
 		goto ex;
 	}
 
-	double tst_vals_re[SIZE], tst_vals_im[SIZE];
-	for (size_t i = 0; i < SIZE; i++) {
-		tst_vals_re[i] = creal(tst_vals[i]);
-		tst_vals_im[i] = cimag(tst_vals[i]);
-	}
-	data_circ_trott_write_values(
-		fid, (double *[]){ tst_vals_re, tst_vals_im }, SIZE);
+	data_circ_trott_write_values(fid, tst_vals, SIZE);
 	data_close(fid);
 
 	file_id = H5Fopen(FILENAME, H5F_ACC_RDONLY, H5P_DEFAULT);

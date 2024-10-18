@@ -12,7 +12,7 @@
 
 #include "circ_impl.h"
 
-#define MAX_CACHE_CODES (1024)
+#define MAX_CACHE_CODES UINT64_C(0x10000)
 
 struct trott {
 	struct qreg reg;
@@ -185,13 +185,15 @@ void circ_res_destroy(struct circ *c)
 int circ_res_write(struct circ *c, data_id fid)
 {
 	struct circ_trott_res *res = c->res;
+
 	return data_circ_trott_write_values(fid, res->steps, res->nsteps);
 }
 
 int circ_simulate(struct circ *c)
 {
 	int rt = -1;
-	size_t prog_percent = 0;
+
+	size_t prog_pc = 0;
 
 	struct trott tt;
 	if (trott_init(&tt, c) < 0)
@@ -201,11 +203,10 @@ int circ_simulate(struct circ *c)
 
 	struct circ_trott_res *res = c->res;
 	for (size_t i = 0; i < res->nsteps; i++) {
-		size_t percent = i * 100 / res->nsteps;
-		if (percent > prog_percent) {
-			prog_percent = percent;
-			log_info("Progress: %zu\% (trott_step: %zu)", percent,
-				i);
+		size_t pc = i * 100 / res->nsteps;
+		if (pc > prog_pc) {
+			prog_pc = pc;
+			log_info("Progress: %zu\% (trott_step: %zu)", pc, i);
 		}
 
 		if (trott_effect(&tt, c) < 0)

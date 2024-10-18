@@ -1,3 +1,4 @@
+#include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
 #include <stddef.h>
@@ -6,6 +7,7 @@
 #include <stdlib.h>
 
 #include "phase2/circ.h"
+#include "phase2/circ_trott.h"
 #include "phase2/paulis.h"
 #include "phase2/world.h"
 #include "xoshiro256ss.h"
@@ -159,40 +161,64 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 
 	trotter_mockup();
 
-	/* Initialize data for circ_trott. */
-	struct circ_trott_data td;
-	circ_trott_data_init(&td, TROTT_STEPS);
-	td.delta = HAMIL_TIME_FACTOR;
-	td.ntsteps = TROTT_STEPS;
+	/* Initialize data for circ. */
+	struct circ c;
+	struct circ_trott_data data = { .delta = HAMIL_TIME_FACTOR,
+		.nsteps = TROTT_STEPS };
+	c.data = &data;
 
-	circ_hamil_init(&td.hamil, HAMIL_TERMS);
-	td.hamil.nqb = NUM_QUBITS;
+	struct circ_hamil *h = &c.hamil;
+	h->nqb = NUM_QUBITS;
+	h->nterms = HAMIL_TERMS;
+	h->terms = malloc(sizeof *h->terms * HAMIL_TERMS);
+	if (h->terms == nullptr) {
+		TEST_FAIL("malloc h->terms");
+		goto malloc_hterms;
+	}
 	for (size_t k = 0; k < HAMIL_TERMS; k++) {
-		td.hamil.cfs[k] = HAMIL_COEFFS[k];
-		td.hamil.ops[k] = HAMIL_PAULIS[k];
+		h->terms[k].cf = HAMIL_COEFFS[k];
+		h->terms[k].op = HAMIL_PAULIS[k];
 	}
 
-	circ_multidet_init(&td.multidet, MULTIDET_DETS);
-	for (size_t m = 0; m < MULTIDET_DETS; m++) {
-		td.multidet.dets[m].idx = MULTIDET_IDX[m];
-		td.multidet.dets[m].cf[0] = creal(MULTIDET_COEFFS[m]);
-		td.multidet.dets[m].cf[1] = cimag(MULTIDET_COEFFS[m]);
+	struct circ_muldet *m = &c.muldet;
+	m->ndets = MULTIDET_DETS;
+	m->dets = malloc(sizeof *m->dets * MULTIDET_DETS);
+	if (m->dets == nullptr) {
+		TEST_FAIL("malloc m->dets");
+		goto malloc_mddets;
+	}
+	for (size_t k = 0; k < MULTIDET_DETS; k++) {
+		m->dets[k].idx = MULTIDET_IDX[k];
+		m->dets[k].cf = MULTIDET_COEFFS[k];
 	}
 
-	circ_trott_simulate(&td);
+	struct circ_trott_res res;
+	res.nsteps = TROTT_STEPS;
+	res.steps = malloc(sizeof *res.steps * TROTT_STEPS);
+	if (res.steps == nullptr) {
+		TEST_FAIL("malloc res.steps");
+		goto malloc_ressteps;
+	}
+	c.res = &res;
+
+	circ_simulate(&c);
 
 	/* Compare results. */
 	for (size_t s = 0; s < TROTT_STEPS; s++) {
-		_Complex double eval;
-		eval = td.tsteps[0][s] + I * td.tsteps[1][s];
-		TEST_ASSERT(cabs(eval - TROTT_VALS[s]) < MARGIN,
+		_Complex double eval = res.steps[s];
+		TEST_ASSERT(cabs(res.steps[s] - TROTT_VALS[s]) < MARGIN,
 			"[%zu] ts=%zu, md=%zu, ht=%zu, step=%zu "
 			"eval=%f+%fi, TROTT_VALS=%f+%fi",
 			tag, ts, md, ht, s, creal(eval), cimag(eval),
 			creal(TROTT_VALS[s]), cimag(TROTT_VALS[s]));
 	}
 
-	circ_trott_data_destroy(&td);
+	// free(res.steps);  -- freed by circ_destroy()
+malloc_ressteps:
+	free(m->dets);
+malloc_mddets:
+	free(h->terms);
+malloc_hterms:;
 }
 
 void TEST_MAIN(void)
