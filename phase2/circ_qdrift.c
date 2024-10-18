@@ -13,6 +13,24 @@
 
 #define PRNG_SEED (0x235eac32)
 
+/* Circuit: qdrift */
+struct circ_qdrift_data {
+	struct circ_hamil hamil;
+	struct circ_multidet multidet;
+
+	double step_size;
+	size_t depth;
+
+	double *samples[2];
+	size_t nsamples;
+};
+
+int circ_qdrift_data_init(struct circ_qdrift_data *cd, data_id fid);
+
+void circ_qdrift_data_destroy(struct circ_qdrift_data *cd);
+
+int circ_qdrift_simulate(const struct circ_qdrift_data *cd);
+
 struct circ_qdrift {
 	size_t num_qb;
 	struct qreg reg;

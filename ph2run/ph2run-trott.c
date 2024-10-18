@@ -8,6 +8,7 @@
 #include "mpi.h"
 
 #include "phase2/circ.h"
+#include "phase2/circ_trott.h"
 #include "phase2/world.h"
 
 #define WD_SEED UINT64_C(0xd326119d4859ebb2)
@@ -49,34 +50,34 @@ int run_circuit(data_id fid, size_t nsteps)
 	struct timespec t1, t2;
 	double t_tot;
 
-	struct circ_trott_data cd;
-	if (circ_trott_data_init_from_file(&cd, nsteps, fid) < 0)
-		goto exit_trott_data;
+	double delta;
+	data_circ_trott_getttrs(fid, &delta);
+	struct circ_trott_data data = { .delta = delta, .nsteps = nsteps };
+	struct circ c;
+	if (circ_init(&c, fid, &data) < 0)
+		goto exit_circ_init;
 
 	clock_gettime(CLOCK_REALTIME, &t1);
-	if (circ_trott_simulate(&cd) < 0)
-		goto exit_trott_simulate;
+	if (circ_simulate(&c) < 0)
+		goto exit_circ_simulate;
 
 	clock_gettime(CLOCK_REALTIME, &t2);
 	t_tot = (double)(t2.tv_sec - t1.tv_sec) +
 		(double)(t2.tv_nsec - t1.tv_nsec) * 1.0e-9;
 
-	if (data_circ_trott_write_values(fid, cd.tsteps, nsteps) < 0)
-		goto exit_trott_write;
+	if (circ_res_write(&c, fid) < 0)
+		goto exit_circ_res_write;
 
 	rt = 0; /* Success. */
 
-exit_trott_write:
+exit_circ_res_write:
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%d,%.3f", cd.hamil.nqb, cd.hamil.nterms,
-		cd.multidet.ndets, cd.ntsteps, WD.size, t_tot);
-
-exit_trott_simulate:
-	circ_trott_data_destroy(&cd);
-
-exit_trott_data:
-
+	log_info("> %zu,%zu,%zu,%zu,%d,%.3f", c.hamil.nqb, c.hamil.nterms,
+		c.muldet.ndets, c.res->nsteps, WD.size, t_tot);
+exit_circ_simulate:
+exit_circ_init:
+	
 	return rt;
 }
 

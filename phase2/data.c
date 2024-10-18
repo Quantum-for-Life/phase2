@@ -1,4 +1,5 @@
 #include "c23_compat.h"
+#include <stddef.h>
 #include <stdint.h>
 
 #include "hdf5.h"
@@ -106,7 +107,7 @@ static void multidet_close(struct multidet_handle md)
 	data_group_close(md.state_prep_grpid);
 }
 
-int data_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets)
+int data_multidet_getnums(data_id fid, uint32_t *num_qubits, size_t *num_dets)
 {
 	int rt = -1;
 
@@ -125,7 +126,7 @@ int data_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets)
 		goto exit_dims;
 
 	*num_dets = dsp_dims[0];
-	*num_qubits = dsp_dims[1];
+	*num_qubits = (uint32_t)dsp_dims[1];
 	rt = 0;
 
 exit_dims:
@@ -177,7 +178,8 @@ int data_multidet_foreach(data_id fid,
 	int (*op)(double coeff[2], uint64_t idx, void *), void *op_data)
 {
 	int rt = -1, rc = 0;
-	size_t num_qubits, num_dets;
+	uint32_t num_qubits;	
+	size_t num_dets;
 
 	if (data_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
 		goto exit_getnums;
@@ -220,7 +222,7 @@ exit_getnums:
 	return rt;
 }
 
-int data_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms)
+int data_hamil_getnums(data_id fid, uint32_t *num_qubits, size_t *num_terms)
 {
 	int rt = -1;
 
@@ -238,7 +240,7 @@ int data_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms)
 		goto exit_dims;
 
 	*num_terms = dsp_dims[0];
-	*num_qubits = dsp_dims[1];
+	*num_qubits = (uint32_t)dsp_dims[1];
 	rt = 0;
 
 exit_dims:
@@ -320,7 +322,8 @@ int data_hamil_foreach(const data_id fid,
 	int (*op)(double, unsigned char *, void *), void *op_data)
 {
 	int rt = -1, rc = 0;
-	size_t num_qubits, num_terms;
+	uint32_t num_qubits;
+	size_t num_terms;
 
 	if (data_hamil_getnums(fid, &num_qubits, &num_terms) < 0)
 		return -1;
@@ -357,7 +360,7 @@ exit_coeffs_alloc:
 	return rt;
 }
 
-int data_circ_trott_getttrs(data_id fid, double *factor)
+int data_circ_trott_getttrs(data_id fid, double *delta)
 {
 	int rt = 0;
 
@@ -366,7 +369,7 @@ int data_circ_trott_getttrs(data_id fid, double *factor)
 		return -1;
 
 	rt += data_read_attr(
-		grpid, DATA_CIRCTROTT_TIMEFACTOR, H5T_NATIVE_DOUBLE, factor);
+		grpid, DATA_CIRCTROTT_TIMEFACTOR, H5T_NATIVE_DOUBLE, delta);
 
 	data_group_close(grpid);
 

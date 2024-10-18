@@ -1,4 +1,5 @@
 #include "c23_compat.h"
+#include <complex.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -6,130 +7,125 @@
 #include "phase2/circ.h"
 #include "phase2/paulis.h"
 
-int circ_hamil_init(struct circ_hamil *h, size_t nterms)
-{
-	double *cfs = malloc(sizeof *cfs * nterms);
-	if (cfs == nullptr)
-		goto err_malloc_cfs;
-	struct paulis *ops = malloc(sizeof *ops * nterms);
-	if (ops == nullptr)
-		goto err_malloc_ops;
+#include "circ_impl.h"
 
+static int circ_hamil_init(struct circ_hamil *h, uint32_t nqb, size_t nterms)
+{
+	h->terms = malloc(sizeof *h->terms * nterms);
+	if (h->terms == nullptr)
+		return -1;
 	h->nterms = nterms;
-	h->cfs = cfs;
-	h->ops = ops;
+	h->nqb = nqb;
 
 	return 0;
-
-	free(ops);
-err_malloc_ops:
-	free(cfs);
-err_malloc_cfs:
-
-	return -1;
 }
 
-void circ_hamil_destroy(struct circ_hamil *h)
+static void circ_hamil_destroy(struct circ_hamil *h)
 {
-	if (h->ops != nullptr)
-		free(h->ops);
-	if (h->cfs != nullptr)
-		free(h->cfs);
+	if (h->terms != nullptr)
+		free(h->terms);
 }
 
 struct hamil_iter_data {
-	size_t idx;
-	size_t nqb;
+	size_t i;
 	double norm;
-	double *cfs;
-	struct paulis *ops;
+	struct circ_hamil *hamil;
 };
 
 static int hamil_iter(double cf, unsigned char *ops, void *iter_data)
 {
 	struct hamil_iter_data *id = iter_data;
-	const size_t i = id->idx++;
-	const size_t nqb = id->nqb;
+	struct circ_hamil *h = id->hamil;
+	const size_t i = id->i++;
+	const uint32_t nqb = h->nqb;
 
-	id->cfs[i] = cf * id->norm;
-	struct paulis p = paulis_new();
-	for (size_t j = 0; j < nqb; j++) {
-		paulis_set(&p, ops[j], j);
-	}
-	id->ops[i] = p;
+	h->terms[i].cf = cf * id->norm;
+	struct paulis op = paulis_new();
+	for (uint32_t j = 0; j < nqb; j++)
+		paulis_set(&op, ops[j], j);
+	h->terms[i].op = op;
 
 	return 0;
 }
 
-int circ_hamil_init_from_file(struct circ_hamil *h, const data_id fid)
+static int circ_hamil_from_file(struct circ_hamil *h, const data_id fid)
 {
-	size_t nqb, nterms;
+	uint32_t nqb;
+	size_t nterms;
 	double norm;
 
 	if (data_hamil_getnums(fid, &nqb, &nterms) < 0)
 		return -1;
 	if (data_hamil_getnorm(fid, &norm) < 0)
 		return -1;
-
-	if (circ_hamil_init(h, nterms) < 0)
+	if (circ_hamil_init(h, nqb, nterms) < 0)
 		return -1;
 
-	struct hamil_iter_data id = {
-		.idx = 0, .nqb = nqb, .norm = norm, .cfs = h->cfs, .ops = h->ops
-	};
+	struct hamil_iter_data id = { .i = 0, .norm = norm, .hamil = h };
 	if (data_hamil_foreach(fid, hamil_iter, &id) != 0)
 		return -1;
 
-	h->nqb = nqb;
-
 	return 0;
 }
 
-int circ_multidet_init(struct circ_multidet *md, size_t ndets)
+static int circ_muldet_init(struct circ_muldet *m, size_t ndets)
 {
-	md->dets = malloc(sizeof *md->dets * ndets);
-	if (md->dets == nullptr)
+	m->dets = malloc(sizeof *m->dets * ndets);
+	if (m->dets == nullptr)
 		return -1;
-
-	md->ndets = ndets;
+	m->ndets = ndets;
 
 	return 0;
 }
 
-void circ_multidet_destroy(struct circ_multidet *md)
+static void circ_muldet_destroy(struct circ_muldet *m)
 {
-	if (md->dets != nullptr)
-		free(md->dets);
+	if (m->dets != nullptr)
+		free(m->dets);
 }
 
-struct iter_multidet_data {
+struct iter_muldet_data {
 	size_t i;
-	struct circ_multidet *md;
+	struct circ_muldet *muldet;
 };
 
-static int iter_multidet(double cf[2], const uint64_t idx, void *iter_data)
+static int iter_muldet(double cf[2], const uint64_t idx, void *iter_data)
 {
-	struct iter_multidet_data *id = iter_data;
+	struct iter_muldet_data *id = iter_data;
+	struct circ_muldet *m = id->muldet;
+	const size_t i = id->i++;
 
-	id->md->dets[id->i].cf[0] = cf[0];
-	id->md->dets[id->i].cf[1] = cf[1];
-	id->md->dets[id->i].idx = idx;
-	id->i++;
+	m->dets[i].cf = cf[0] + I * cf[1];
+	m->dets[i].idx = idx;
 
 	return 0;
 }
 
-int circ_multidet_init_from_file(struct circ_multidet *md, const data_id fid)
+static int circ_muldet_from_file(struct circ_muldet *m, const data_id fid)
 {
-	size_t nqb, ndets;
+	uint32_t nqb;
+	size_t ndets;
+
 	if (data_multidet_getnums(fid, &nqb, &ndets) < 0)
 		return -1;
-
-	if (circ_multidet_init(md, ndets) < 0)
+	if (circ_muldet_init(m, ndets) < 0)
 		return -1;
 
-	struct iter_multidet_data id = { .i = 0, .md = md };
-	if (data_multidet_foreach(fid, iter_multidet, &id) < 0)
+	struct iter_muldet_data id = { .i = 0, .muldet = m };
+	if (data_multidet_foreach(fid, iter_muldet, &id) < 0)
+		return -1;
+
+	return 0;
+}
+
+int circ_init(struct circ *c, data_id fid, void *data)
+{
+	if (circ_hamil_from_file(&c->hamil, fid) < 0)
+		return -1;
+	if (circ_muldet_from_file(&c->muldet, fid) < 0)
+		return -1;
+	c->data = data;
+	if (circ_res_init(c) < 0)
 		return -1;
 
 	return 0;

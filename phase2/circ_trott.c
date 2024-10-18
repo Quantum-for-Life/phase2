@@ -8,7 +8,10 @@
 #include "phase2/circ.h"
 #include "phase2/world.h"
 
+#include "circ_impl.h"
+
 #define MAX_CACHE_CODES (1024)
+
 
 struct circ_trott {
 	size_t nqb;
@@ -172,7 +175,7 @@ static int circ_measure(struct circ_trott *c)
 	return 0;
 }
 
-int circ_trott_simulate(const struct circ_trott_data *cd)
+int circ_simulate(struct circ *c)
 {
 	int rt = -1;
 

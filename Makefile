@@ -117,6 +117,7 @@ BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
 
 # APIs
 $(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h
+$(PHASE2DIR)/circ_trott.o: $(INCLUDE)/phase2/circ_trott.h
 $(PHASE2DIR)/data.o:	$(INCLUDE)/phase2/data.h
 $(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
 $(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h
@@ -127,8 +128,6 @@ $(LIBDIR)/xoshiro256ss.o:	$(INCLUDE)/xoshiro256ss.h
 
 # Object files
 PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
-			$(PHASE2DIR)/circ_trott.o			\
-			$(PHASE2DIR)/circ_qdrift.o			\
 			$(PHASE2DIR)/data.o				\
 			$(PHASE2DIR)/paulis.o				\
 			$(PHASE2DIR)/qreg.o				\
@@ -139,9 +138,10 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 UTILSOBJS	:= $(LIBDIR)/xoshiro256ss.o
 
 # Applications
-PROGS		:= $(PH2RUNDIR)/ph2run-qdrift				\
-			$(PH2RUNDIR)/ph2run-trott
-$(PROGS):	$(PHASE2OBJS) $(UTILSOBJS)
+PROGS		:=  $(PH2RUNDIR)/ph2run-trott
+
+$(PROGS): $(PHASE2OBJS) $(UTILSOBJS)
+$(PH2RUNDIR)/ph2run-trott: $(PHASE2DIR)/circ_trott.o
 
 # Update flags
 CFLAGS		+= -I$(INCLUDE)						\
