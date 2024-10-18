@@ -128,6 +128,7 @@ $(LIBDIR)/xoshiro256ss.o:	$(INCLUDE)/xoshiro256ss.h
 
 # Object files
 PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
+			$(PHASE2DIR)/circ_trott.o			\
 			$(PHASE2DIR)/data.o				\
 			$(PHASE2DIR)/paulis.o				\
 			$(PHASE2DIR)/qreg.o				\
@@ -141,7 +142,7 @@ UTILSOBJS	:= $(LIBDIR)/xoshiro256ss.o
 PROGS		:=  $(PH2RUNDIR)/ph2run-trott
 
 $(PROGS): $(PHASE2OBJS) $(UTILSOBJS)
-$(PH2RUNDIR)/ph2run-trott: $(PHASE2DIR)/circ_trott.o
+#$(PH2RUNDIR)/ph2run-trott: $(PHASE2DIR)/circ_trott.o
 
 # Update flags
 CFLAGS		+= -I$(INCLUDE)						\
@@ -171,7 +172,7 @@ LDLIBS		+= $(MPI_LDLIBS)					\
 
 all: build build-bench build-test
 
-debug: build build-bench build-test
+debug: build #build-bench build-test
 debug: ASFLAGS	+= -DDEBUG -Og -Fdwarf
 debug: CFLAGS	+= -DDEBUG -g -Og
 

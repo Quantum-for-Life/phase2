@@ -68,16 +68,18 @@ int run_circuit(data_id fid, size_t nsteps)
 	if (circ_res_write(&c, fid) < 0)
 		goto exit_circ_res_write;
 
+	circ_destroy(&c);
+
 	rt = 0; /* Success. */
 
 exit_circ_res_write:
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_steps,n_ranks,t_tot");
 	log_info("> %zu,%zu,%zu,%zu,%d,%.3f", c.hamil.nqb, c.hamil.nterms,
-		c.muldet.ndets, c.res->nsteps, WD.size, t_tot);
+		c.muldet.ndets, nsteps, WD.size, t_tot);
 exit_circ_simulate:
 exit_circ_init:
-	
+
 	return rt;
 }
 

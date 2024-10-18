@@ -130,3 +130,10 @@ int circ_init(struct circ *c, data_id fid, void *data)
 
 	return 0;
 }
+
+void circ_destroy(struct circ *c)
+{
+	circ_hamil_destroy(&c->hamil);
+	circ_muldet_destroy(&c->muldet);
+	circ_res_destroy(c);
+}

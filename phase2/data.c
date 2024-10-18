@@ -178,7 +178,7 @@ int data_multidet_foreach(data_id fid,
 	int (*op)(double coeff[2], uint64_t idx, void *), void *op_data)
 {
 	int rt = -1, rc = 0;
-	uint32_t num_qubits;	
+	uint32_t num_qubits;
 	size_t num_dets;
 
 	if (data_multidet_getnums(fid, &num_qubits, &num_dets) < 0)
@@ -377,18 +377,11 @@ int data_circ_trott_getttrs(data_id fid, double *delta)
 }
 
 static int data_circ_write_values(const char *grp_name, const char *dset_name,
-	const data_id fid, double *values[2], const size_t num_values)
+	const data_id fid, _Complex double *values, const size_t num_values)
 {
 	int rt = -1;
 
 	hid_t grpid, dspace, dset;
-	double *val_cont = malloc(sizeof(double) * 2 * num_values);
-	if (val_cont == NULL)
-		return -1;
-	for (size_t i = 0; i < num_values; i++) {
-		val_cont[2 * i] = values[0][i];
-		val_cont[2 * i + 1] = values[1][i];
-	}
 
 	if (data_group_open(fid, &grpid, grp_name) < 0)
 		goto exit_open;
@@ -401,7 +394,7 @@ static int data_circ_write_values(const char *grp_name, const char *dset_name,
 		goto exit_dset;
 
 	if (H5Dwrite(dset, H5T_NATIVE_DOUBLE, H5S_ALL, dspace, H5P_DEFAULT,
-		    val_cont) < 0)
+		    values) < 0)
 		goto exit_dset_write;
 
 	rt = 0;
@@ -413,13 +406,12 @@ exit_dset:
 exit_fspace:
 	data_group_close(grpid);
 exit_open:
-	free(val_cont);
 
 	return rt;
 }
 
 int data_circ_trott_write_values(
-	const data_id fid, double *values[2], const size_t num_values)
+	const data_id fid, _Complex double *values, const size_t num_values)
 {
 	return data_circ_write_values(
 		DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES, fid, values, num_values);
@@ -483,7 +475,7 @@ int data_circ_qdrift_getattrs(const data_id fid, size_t *num_samples,
 }
 
 int data_circ_qdrift_write_values(
-	const data_id fid, double *values[2], const size_t num_values)
+	const data_id fid, _Complex double *values, const size_t num_values)
 {
 	return data_circ_write_values(DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_VALUES,
 		fid, values, num_values);
