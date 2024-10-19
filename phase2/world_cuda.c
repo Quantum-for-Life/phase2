@@ -13,7 +13,7 @@
 int world_backend_init(struct world *wd)
 {
 	struct world_cuda *cu = malloc(sizeof *cu);
-	if (cu == nullptr)
+	if (!cu)
 		return -1;
 
 	/* Determine the local MPI rank (within the node). */

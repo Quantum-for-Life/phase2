@@ -17,10 +17,10 @@ typedef _Complex double c64;
 
 int qreg_backend_init(struct qreg *reg)
 {
-	struct qreg_cuda *cu;
 	cuDoubleComplex *damp, *dbuf;
 
-	if ((cu = malloc(sizeof *cu)) == nullptr)
+	struct qreg_cuda *cu = malloc(sizeof *cu);
+	if (!cu)
 		goto err_cu_alloc;
 	if (cudaMalloc((void **)&damp, reg->namp * sizeof *damp) != cudaSuccess)
 		goto err_cuda_malloc_damp;

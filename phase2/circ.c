@@ -85,7 +85,7 @@ int circ_hamil_init_from_file(struct circ_hamil *h, const data_id fid)
 int circ_multidet_init(struct circ_multidet *md, size_t num_dets)
 {
 	md->dets = malloc(sizeof *md->dets * num_dets);
-	if (md->dets == NULL)
+	if (!md->dets)
 		return -1;
 
 	md->num_dets = num_dets;

@@ -167,9 +167,10 @@ LDLIBS		+= $(MPI_LDLIBS)					\
 	bulid-bench		\
 	build-test 		\
 	clean			\
-	debug			\
 	check			\
 	check-mpi		\
+	debug			\
+	distclean		\
 	format
 
 all: build build-bench build-test
@@ -184,11 +185,13 @@ clean:
 	$(RM) $(PHASE2DIR)/*.o $(PHASE2DIR)/*.d
 	$(RM) $(PH2RUNDIR)/*.o $(PH2RUNDIR)/*.d
 	$(RM) $(LIBDIR)/*.o $(LIBDIR)/*.d
-	$(RM) $(PROGS)
 	$(RM) $(BENCHDIR)/*.o $(BENCHDIR)/*.d
-	$(RM) $(BENCHES)
 	$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
+
+distclean: clean
+	$(RM) $(BENCHES)
 	$(RM) $(TESTS)
+	$(RM) $(PROGS)
 
 format:
 	@find ./ -name "*.c" 						\
