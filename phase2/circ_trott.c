@@ -34,10 +34,10 @@ static int trott_init(struct trott *tt, struct circ *c)
 
 	struct paulis *codes_lo =
 		malloc(sizeof(struct paulis) * MAX_CACHE_CODES);
-	if (codes_lo == nullptr)
+	if (!codes_lo)
 		goto malloc_codes_lo;
 	double *angles = malloc(sizeof(double) * MAX_CACHE_CODES);
-	if (angles == nullptr)
+	if (!angles)
 		goto malloc_angles;
 
 	tt->cache.codes_lo = codes_lo;
@@ -155,10 +155,10 @@ int circ_res_init(struct circ *c)
 	size_t nsteps = data->nsteps;
 
 	struct circ_trott_res *res = malloc(sizeof(struct circ_trott_res));
-	if (res == nullptr)
+	if (!res)
 		goto malloc_res;
 	_Complex double *steps = malloc(sizeof(_Complex double) * nsteps);
-	if (steps == nullptr)
+	if (!steps)
 		goto malloc_steps;
 
 	res->steps = steps;
