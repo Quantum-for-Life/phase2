@@ -71,7 +71,7 @@ static int circ_hamil_from_file(struct circ_hamil *h, const data_id fid)
 static int circ_muldet_init(struct circ_muldet *m, size_t ndets)
 {
 	m->dets = malloc(sizeof *m->dets * ndets);
-	if (m->dets == nullptr)
+	if (!m->dets)
 		return -1;
 	m->ndets = ndets;
 

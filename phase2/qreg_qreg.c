@@ -10,11 +10,21 @@
 #include "phase2/qreg.h"
 #include "phase2/world.h"
 
+#include "qreg_impl.h"
+
 typedef _Complex double c64;
 
-/* Defined in qreg.c */
-uint64_t qreg_getilo(const struct qreg *reg, uint64_t i);
-uint64_t qreg_getihi(const struct qreg *reg, uint64_t i);
+int qreg_backend_init(struct qreg *reg)
+{
+	reg->data = nullptr;
+
+	return 0;
+}
+
+void qreg_backend_destroy(struct qreg *reg)
+{
+	(void)reg;
+}
 
 void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
 {

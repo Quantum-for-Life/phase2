@@ -112,6 +112,9 @@ $(PHASE2DIR)/qreg_cuda_lo_dlink.o: $(PHASE2DIR)/qreg_cuda_lo.o
 
 endif
 
+$(BACKEND_OBJS): $(PHASE2DIR)/qreg_impl.h				\
+			$(PHASE2DIR)/world_impl.h
+
 BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
 
 
@@ -120,11 +123,11 @@ $(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h
 $(PHASE2DIR)/circ_trott.o: $(INCLUDE)/phase2/circ_trott.h
 $(PHASE2DIR)/data.o:	$(INCLUDE)/phase2/data.h
 $(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
-$(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h
-$(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h
-$(PHASE2DIR)/world_log.o: $(INCLUDE)/phase2/world.h
+$(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h $(PHASE2DIR)/qreg_impl.h
+$(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h $(PHASE2DIR)/world_impl.h
 
-$(LIBDIR)/xoshiro256ss.o:	$(INCLUDE)/xoshiro256ss.h
+$(LIBDIR)/log.o:	$(INCLUDE)/log.h
+$(LIBDIR)/xoshiro256ss.o: $(INCLUDE)/xoshiro256ss.h
 
 # Object files
 PHASE2OBJS	:= $(PHASE2DIR)/data.o					\
@@ -132,9 +135,9 @@ PHASE2OBJS	:= $(PHASE2DIR)/data.o					\
 			$(PHASE2DIR)/qreg.o				\
 			$(BACKEND_OBJS)					\
 			$(PHASE2DIR)/world.o				\
-			$(PHASE2DIR)/world_log.o
 
-UTILSOBJS	:= $(LIBDIR)/xoshiro256ss.o
+UTILSOBJS	:= $(LIBDIR)/log.o					\
+			$(LIBDIR)/xoshiro256ss.o
 
 # Applications
 PROGS		:=  $(PH2RUNDIR)/ph2run-trott				\
@@ -166,9 +169,10 @@ LDLIBS		+= $(MPI_LDLIBS)					\
 	bulid-bench		\
 	build-test 		\
 	clean			\
-	debug			\
 	check			\
 	check-mpi		\
+	debug			\
+	distclean		\
 	format
 
 all: build build-bench build-test
@@ -183,11 +187,13 @@ clean:
 	$(RM) $(PHASE2DIR)/*.o $(PHASE2DIR)/*.d
 	$(RM) $(PH2RUNDIR)/*.o $(PH2RUNDIR)/*.d
 	$(RM) $(LIBDIR)/*.o $(LIBDIR)/*.d
-	$(RM) $(PROGS)
 	$(RM) $(BENCHDIR)/*.o $(BENCHDIR)/*.d
-	$(RM) $(BENCHES)
 	$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
+
+distclean: clean
+	$(RM) $(BENCHES)
 	$(RM) $(TESTS)
+	$(RM) $(PROGS)
 
 format:
 	@find ./ -name "*.c" 						\

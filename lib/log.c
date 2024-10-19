@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "log.h"
 #include "phase2/world.h"
 
 #define MAX_CALLBACKS (32)
@@ -60,7 +61,7 @@ const char *log_level_string(const int level)
 	return level_strings[level];
 }
 
-int log_level_from_lowercase(enum world_log_level *level, const char *name)
+int log_level_from_lowercase(enum log_level *level, const char *name)
 {
 	if (!name)
 		return -1;
@@ -142,7 +143,7 @@ void log_vlog(const int level, const char *fmt, va_list ap)
 	}
 }
 
-void world_log(const int level, const char *fmt, ...)
+void log_log(const int level, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -169,7 +170,7 @@ void log_callback(struct log_event *ev)
 
 int log_init(void)
 {
-	enum world_log_level lvl;
+	enum log_level lvl;
 	const char *lvl_str = getenv(PHASE2_LOG_ENVVAR);
 	if (!lvl_str || log_level_from_lowercase(&lvl, lvl_str) < 0)
 		lvl = LOG_ERROR;

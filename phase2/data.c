@@ -185,11 +185,11 @@ int data_multidet_foreach(data_id fid,
 		goto exit_getnums;
 
 	double *coeffs_buf = malloc(sizeof *coeffs_buf * 2 * num_dets);
-	if (coeffs_buf == NULL)
+	if (!coeffs_buf)
 		goto exit_alloc_coeffs;
 	unsigned char *dets_buf =
 		malloc(sizeof *dets_buf * num_dets * num_qubits);
-	if (dets_buf == NULL)
+	if (!dets_buf)
 		goto exit_alloc_dets;
 
 	/* Read the content of the data file */
@@ -329,16 +329,16 @@ int data_hamil_foreach(const data_id fid,
 		return -1;
 
 	double *coeffs = malloc(sizeof *coeffs * num_terms);
-	if (coeffs == NULL)
+	if (!coeffs)
 		goto exit_coeffs_alloc;
 
 	unsigned char *paulis = malloc(sizeof *paulis * num_qubits * num_terms);
-	if (paulis == NULL)
+	if (!paulis)
 		goto exit_paulis_alloc;
 	if (hamil_read_data(fid, coeffs, paulis) < 0)
 		goto exit_hamil_read;
 	unsigned char *paustr = malloc(sizeof *paustr * num_qubits);
-	if (paustr == NULL)
+	if (!paustr)
 		goto exit_paustr_alloc;
 
 	for (size_t i = 0; i < num_terms; i++) {
@@ -382,7 +382,6 @@ static int data_circ_write_values(const char *grp_name, const char *dset_name,
 	int rt = -1;
 
 	hid_t grpid, dspace, dset;
-
 	if (data_group_open(fid, &grpid, grp_name) < 0)
 		goto exit_open;
 	if ((dspace = H5Screate_simple(
@@ -424,7 +423,7 @@ int data_circ_trott_read_values_test(
 
 	hid_t grpid;
 	double *val_cont = malloc(sizeof(double) * 2 * num_values);
-	if (val_cont == NULL)
+	if (!val_cont)
 		return -1;
 
 	if (data_group_open(fid, &grpid, DATA_CIRCTROTT) < 0)
