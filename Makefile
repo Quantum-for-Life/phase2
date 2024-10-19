@@ -127,9 +127,7 @@ $(PHASE2DIR)/world_log.o: $(INCLUDE)/phase2/world.h
 $(LIBDIR)/xoshiro256ss.o:	$(INCLUDE)/xoshiro256ss.h
 
 # Object files
-PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
-			$(PHASE2DIR)/circ_trott.o			\
-			$(PHASE2DIR)/data.o				\
+PHASE2OBJS	:= $(PHASE2DIR)/data.o					\
 			$(PHASE2DIR)/paulis.o				\
 			$(PHASE2DIR)/qreg.o				\
 			$(BACKEND_OBJS)					\
@@ -139,10 +137,13 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 UTILSOBJS	:= $(LIBDIR)/xoshiro256ss.o
 
 # Applications
-PROGS		:=  $(PH2RUNDIR)/ph2run-trott
+PROGS		:=  $(PH2RUNDIR)/ph2run-trott				\
+			$(PH2RUNDIR)/ph2run-qdrift.o
+
+$(PH2RUNDIR)/ph2run-trott: $(PHASE2DIR)/circ.o $(PHASE2DIR)/circ_trott.o
+$(PH2RUNDIR)/ph2run-qdrift: $(PHASE2DIR)/circ.o  $(PHASE2DIR)/circ_qdrift.o
 
 $(PROGS): $(PHASE2OBJS) $(UTILSOBJS)
-#$(PH2RUNDIR)/ph2run-trott: $(PHASE2DIR)/circ_trott.o
 
 # Update flags
 CFLAGS		+= -I$(INCLUDE)						\
@@ -243,6 +244,7 @@ TESTS		:= $(TESTDIR)/t-circ_trott				\
 $(TESTS):	$(TESTDIR)/test.h					\
 		$(TESTDIR)/t-data.h					\
 		$(PHASE2OBJS) $(UTILSOBJS)
+$(TESTDIR)/t-circ_trott: $(PHASE2DIR)/circ.o $(PHASE2DIR)/circ_trott.o
 
 build-test: $(TESTS)
 

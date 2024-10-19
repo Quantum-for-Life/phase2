@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "mpi.h"
-
 #include "phase2/circ.h"
 #include "phase2/world.h"
 

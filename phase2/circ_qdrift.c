@@ -6,44 +6,22 @@
 #include <stdlib.h>
 
 #include "phase2/circ.h"
+#include "phase2/circ_qdrift.h"
 #include "phase2/world.h"
 #include "xoshiro256ss.h"
 
-#define MAX_CACHE_CODES (1024)
+#define MAX_CACHE_CODES UINT64_C(0x10000)
 
-#define PRNG_SEED (0x235eac32)
-
-/* Circuit: qdrift */
-struct circ_qdrift_data {
-	struct circ_hamil hamil;
-	struct circ_multidet multidet;
-
-	double step_size;
-	size_t depth;
-
-	double *samples[2];
-	size_t nsamples;
-};
-
-int circ_qdrift_data_init(struct circ_qdrift_data *cd, data_id fid);
-
-void circ_qdrift_data_destroy(struct circ_qdrift_data *cd);
-
-int circ_qdrift_simulate(const struct circ_qdrift_data *cd);
-
-struct circ_qdrift {
-	size_t num_qb;
+struct qdrift {
 	struct qreg reg;
 
-	const struct circ_qdrift_data *data;
-
-	double prod[2];
+	_Complex double prod;
 
 	struct code_cache {
 		struct paulis code_hi;
-		struct paulis codes_lo[MAX_CACHE_CODES];
-		double angles[MAX_CACHE_CODES];
-		size_t num_codes;
+		struct paulis *codes_lo;
+		double *angles;
+		size_t ncodes;
 	} cache;
 
 	struct xoshiro256ss rng;
