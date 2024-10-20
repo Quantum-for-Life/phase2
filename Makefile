@@ -141,7 +141,7 @@ UTILSOBJS	:= $(LIBDIR)/log.o					\
 
 # Applications
 PROGS		:=  $(PH2RUNDIR)/ph2run-trott				\
-			$(PH2RUNDIR)/ph2run-qdrift.o
+			$(PH2RUNDIR)/ph2run-qdrift
 
 $(PH2RUNDIR)/ph2run-trott: $(PHASE2DIR)/circ.o $(PHASE2DIR)/circ_trott.o
 $(PH2RUNDIR)/ph2run-qdrift: $(PHASE2DIR)/circ.o  $(PHASE2DIR)/circ_qdrift.o

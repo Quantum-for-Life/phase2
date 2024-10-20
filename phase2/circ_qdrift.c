@@ -7,6 +7,7 @@
 
 #include "phase2/circ.h"
 #include "phase2/circ_qdrift.h"
+#include "phase2/qreg.h"
 #include "phase2/world.h"
 #include "xoshiro256ss.h"
 
@@ -30,7 +31,7 @@ struct qdrift {
 	size_t *smpl;
 };
 
-static int qdrift_init(struct qdrift qd, struct circ *c)
+static int qdrift_init(struct qdrift *qd, struct circ *c)
 {
 	if (qreg_init(&qd->reg, c->hamil.nqb) < 0)
 		goto err_qreg_init;
@@ -62,15 +63,15 @@ err_angles:
 	free(codes_lo);
 err_codes_lo:
 err_qreg_init:
-	return 1;
+	return -1;
 }
 
 static void qdrift_destroy(struct qdrift *qd)
 {
 	qreg_destroy(&qd->reg);
 	free(qd->smpl);
-	free(qd->angles);
-	free(qd->codes_lo);
+	free(qd->cache.angles);
+	free(qd->cache.codes_lo);
 }
 
 static int qdrift_prepst(struct qdrift *qd, struct circ *c)
@@ -79,7 +80,7 @@ static int qdrift_prepst(struct qdrift *qd, struct circ *c)
 
 	qreg_zero(&qd->reg);
 	for (size_t i = 0; i < md->ndets; i++)
-		qreg_setamp(&c->reg, md->dets[i].idx, md->dets[i].cf);
+		qreg_setamp(&qd->reg, md->dets[i].idx, md->dets[i].cf);
 
 	return 0;
 }
@@ -100,11 +101,11 @@ static void qdrift_step(struct qdrift *qd, struct circ *c, const double omega)
 		paulis_split(code, qd->reg.nqb_lo, qd->reg.nqb_hi, &code_lo,
 			&code_hi);
 
-		if (cache.num_codes == 0) {
+		if (cache->ncodes == 0) {
 			cache->code_hi = code_hi;
 			cache->codes_lo[0] = code_lo;
 			cache->angles[0] = angle;
-			cache->num_codes++;
+			cache->ncodes++;
 			continue;
 		}
 
@@ -144,7 +145,7 @@ static int qdrift_effect(struct qdrift *qd, struct circ *c)
 		return 0;
 
 	const double theta = asin(t);
-	qdrift_step(c, theta);
+	qdrift_step(qd, c, theta);
 
 	return 0;
 }
@@ -156,7 +157,7 @@ static int qdrift_measure(struct qdrift *qd, struct circ *c)
 	_Complex double pr = 0.0;
 	for (size_t i = 0; i < md->ndets; i++) {
 		_Complex double a;
-		qreg_getamp(&c->reg, md->dets[i].idx, &a);
+		qreg_getamp(&qd->reg, md->dets[i].idx, &a);
 		pr += a * conj(md->dets[i].cf);
 	}
 	qd->prod = pr;
@@ -166,6 +167,7 @@ static int qdrift_measure(struct qdrift *qd, struct circ *c)
 
 static size_t sample_invcdf(struct qdrift *qd, struct circ *c, double x)
 {
+	(void)qd;
 	size_t i = 0;
 	double cdf = 0;
 	while (cdf <= x)
@@ -180,8 +182,8 @@ static void sample_terms(struct qdrift *qd, struct circ *c)
 {
 	const struct circ_qdrift_data *data = c->data;
 	for (size_t i = 0; i < data->depth; i++) {
-		double x = rand_dbl01(&qd->rng)
-				   c->smpl[i] = sample_invcdf(qd, c, x);
+		double x = rand_dbl01(&qd->rng);
+		qd->smpl[i] = sample_invcdf(qd, c, x);
 	}
 }
 
@@ -244,11 +246,11 @@ int circ_simulate(struct circ *c)
 			log_info("Progress: %zu\% (samples: %zu)", pc, i);
 		}
 
-		sample_terms(&qd, &c);
-		qdrift_prepst(&qd, &c);
-		if (qdrift_effect(&qd, &c) < 0)
+		sample_terms(&qd, c);
+		qdrift_prepst(&qd, c);
+		if (qdrift_effect(&qd, c) < 0)
 			goto ex_qdrift_effect;
-		qdrift_measure(&qd, &c);
+		qdrift_measure(&qd, c);
 		res->samples[i] = qd.prod;
 	}
 

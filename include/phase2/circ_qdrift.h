@@ -13,7 +13,7 @@ struct circ_qdrift_data {
 	size_t nsamples;
 };
 
-struct circ_drift_res {
+struct circ_qdrift_res {
 	_Complex double *samples;
 	size_t nsamples;
 };
