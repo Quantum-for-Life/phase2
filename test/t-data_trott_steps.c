@@ -137,7 +137,8 @@ static void TEST_MAIN(void)
 		goto ex;
 	}
 
-	data_circ_trott_write_values(fid, tst_vals, SIZE);
+	data_write_vals(
+		fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES, tst_vals, SIZE);
 	data_close(fid);
 
 	file_id = H5Fopen(FILENAME, H5F_ACC_RDONLY, H5P_DEFAULT);

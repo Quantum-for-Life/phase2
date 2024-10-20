@@ -6,27 +6,6 @@
 
 #include "phase2/data.h"
 
-/* Group, dataset names */
-#define DATA_STPREP "state_prep"
-#define DATA_STPREP_MULTIDET "multidet"
-#define DATA_STPREP_MULTIDET_COEFFS "coeffs"
-#define DATA_STPREP_MULTIDET_DETS "dets"
-
-#define DATA_HAMIL "pauli_hamil"
-#define DATA_HAMIL_COEFFS "coeffs"
-#define DATA_HAMIL_PAULIS "paulis"
-#define DATA_HAMIL_NORM "normalization"
-
-#define DATA_CIRCTROTT "circ_trott"
-#define DATA_CIRCTROTT_TIMEFACTOR "time_factor"
-#define DATA_CIRCTROTT_VALUES "values"
-
-#define DATA_CIRCQDRIFT "circ_qdrift"
-#define DATA_CIRCQDRIFT_STEPSIZE "step_size"
-#define DATA_CIRCQDRIFT_NUMSAMPLES "num_samples"
-#define DATA_CIRCQDRIFT_DEPTH "depth"
-#define DATA_CIRCQDRIFT_VALUES "values"
-
 /* Open, close data file */
 data_id data_open(const char *filename)
 {
@@ -376,44 +355,36 @@ int data_circ_trott_getttrs(data_id fid, double *delta)
 	return rt;
 }
 
-static int data_circ_write_values(const char *grp_name, const char *dset_name,
-	const data_id fid, _Complex double *values, const size_t num_values)
+int data_write_vals(data_id fid, char *grp_name, char *dset_name,
+	_Complex double *vals, size_t nvals)
 {
 	int rt = -1;
 
 	hid_t grpid, dspace, dset;
 	if (data_group_open(fid, &grpid, grp_name) < 0)
-		goto exit_open;
-	if ((dspace = H5Screate_simple(
-		     2, (hsize_t[]){ num_values, 2 }, NULL)) == H5I_INVALID_HID)
-		goto exit_fspace;
+		goto ex_open;
+	if ((dspace = H5Screate_simple(2, (hsize_t[]){ nvals, 2 }, NULL)) ==
+		H5I_INVALID_HID)
+		goto ex_fspace;
 
 	if ((dset = H5Dcreate2(grpid, dset_name, H5T_IEEE_F64LE, dspace,
 		     H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) == H5I_INVALID_HID)
-		goto exit_dset;
+		goto ex_dset;
 
 	if (H5Dwrite(dset, H5T_NATIVE_DOUBLE, H5S_ALL, dspace, H5P_DEFAULT,
-		    values) < 0)
-		goto exit_dset_write;
+		    vals) < 0)
+		goto ex_dset_write;
 
 	rt = 0;
 
-exit_dset_write:
+ex_dset_write:
 	H5Dclose(dset);
-exit_dset:
+ex_dset:
 	H5Sclose(dspace);
-exit_fspace:
+ex_fspace:
 	data_group_close(grpid);
-exit_open:
-
+ex_open:
 	return rt;
-}
-
-int data_circ_trott_write_values(
-	const data_id fid, _Complex double *values, const size_t num_values)
-{
-	return data_circ_write_values(
-		DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES, fid, values, num_values);
 }
 
 int data_circ_trott_read_values_test(
@@ -471,11 +442,4 @@ int data_circ_qdrift_getattrs(const data_id fid, size_t *num_samples,
 	data_group_close(grpid);
 
 	return rt;
-}
-
-int data_circ_qdrift_write_values(
-	const data_id fid, _Complex double *values, const size_t num_values)
-{
-	return data_circ_write_values(DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_VALUES,
-		fid, values, num_values);
 }

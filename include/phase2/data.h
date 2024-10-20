@@ -6,6 +6,27 @@
 
 #define DATA_INVALID_FID (-1)
 
+/* Group, dataset names */
+#define DATA_STPREP "state_prep"
+#define DATA_STPREP_MULTIDET "multidet"
+#define DATA_STPREP_MULTIDET_COEFFS "coeffs"
+#define DATA_STPREP_MULTIDET_DETS "dets"
+
+#define DATA_HAMIL "pauli_hamil"
+#define DATA_HAMIL_COEFFS "coeffs"
+#define DATA_HAMIL_PAULIS "paulis"
+#define DATA_HAMIL_NORM "normalization"
+
+#define DATA_CIRCTROTT "circ_trott"
+#define DATA_CIRCTROTT_TIMEFACTOR "time_factor"
+#define DATA_CIRCTROTT_VALUES "values"
+
+#define DATA_CIRCQDRIFT "circ_qdrift"
+#define DATA_CIRCQDRIFT_STEPSIZE "step_size"
+#define DATA_CIRCQDRIFT_NUMSAMPLES "num_samples"
+#define DATA_CIRCQDRIFT_DEPTH "depth"
+#define DATA_CIRCQDRIFT_VALUES "values"
+
 /**
  * Handle to a data file
  */
@@ -155,15 +176,12 @@ int data_hamil_getnorm(data_id fid, double *norm);
 int data_hamil_foreach(
 	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
 
-int data_circ_trott_getttrs(data_id fid, double *factor);
+int data_write_vals(data_id fid, char *grp_name, char *dset_name,
+	_Complex double *vals, size_t nvals);
 
-int data_circ_trott_write_values(
-	data_id fid, _Complex double *values, size_t num_values);
+int data_circ_trott_getttrs(data_id fid, double *factor);
 
 int data_circ_qdrift_getattrs(
 	data_id fid, size_t *num_samples, double *step_size, size_t *depth);
-
-int data_circ_qdrift_write_values(
-	data_id fid, _Complex double *values, size_t num_values);
 
 #endif // PHASE2_DATA_H

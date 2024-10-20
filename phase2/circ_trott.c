@@ -186,7 +186,8 @@ int circ_res_write(struct circ *c, data_id fid)
 {
 	struct circ_trott_res *res = c->res;
 
-	return data_circ_trott_write_values(fid, res->steps, res->nsteps);
+	return data_write_vals(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES,
+		res->steps, res->nsteps);
 }
 
 int circ_simulate(struct circ *c)
