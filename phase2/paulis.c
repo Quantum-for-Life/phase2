@@ -78,7 +78,7 @@ void paulis_shr(struct paulis *code, const uint32_t n)
 uint64_t paulis_effect(
 	const struct paulis code, const uint64_t i, _Complex double *z)
 {
-	if (z == nullptr)
+	if (!z)
 		goto rt;
 
 	const int mi = stdc_count_ones_ul(i & code.pak[1]);

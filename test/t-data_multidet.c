@@ -26,14 +26,15 @@ static int t_get_nums(void)
 			break;
 		}
 
-		size_t num_qubits = 0, num_dets = 0;
+		uint32_t num_qubits = 0;
+		size_t num_dets = 0;
 		if (data_multidet_getnums(fid, &num_qubits, &num_dets) < 0) {
 			TEST_FAIL("read multidet getnums()");
 			rc = -1;
 			break;
 		}
 		if (num_qubits != td.num_qubits) {
-			TEST_FAIL("wrong number of qubits: %zu", num_qubits);
+			TEST_FAIL("wrong number of qubits: %u", num_qubits);
 			rc = -1;
 		}
 		if (num_dets != td.num_dets) {
@@ -97,7 +98,8 @@ static int t_iter0(void)
 		return -1;
 	}
 
-	size_t num_qubits, num_dets;
+	uint32_t num_qubits;
+	size_t num_dets;
 	data_multidet_getnums(fid, &num_qubits, &num_dets);
 
 	int count = 0;
@@ -135,7 +137,8 @@ static int t_iter1(void)
 		return -1;
 	}
 
-	size_t num_qubits, num_dets;
+	uint32_t num_qubits;
+	size_t num_dets;
 	data_multidet_getnums(fid, &num_qubits, &num_dets);
 
 	int count = 0;

@@ -6,204 +6,220 @@
 #include <stdlib.h>
 
 #include "phase2/circ.h"
+#include "phase2/circ_trott.h"
+#include "phase2/qreg.h"
 #include "phase2/world.h"
 
-#define MAX_CACHE_CODES (1024)
+#include "circ_impl.h"
 
-struct circ_trott {
-	size_t num_qb;
+#define MAX_CACHE_CODES UINT64_C(0x10000)
+
+struct trott {
 	struct qreg reg;
 
-	const struct circ_trott_data *data;
-
-	double prod[2];
+	_Complex double prod;
 
 	struct code_cache {
 		struct paulis code_hi;
-		struct paulis codes_lo[MAX_CACHE_CODES];
-		double angles[MAX_CACHE_CODES];
-		size_t num_codes;
+		struct paulis *codes_lo;
+		double *angles;
+		size_t ncodes;
 	} cache;
 };
 
-static int circ_create(struct circ_trott *c, const struct circ_trott_data *data,
-	const size_t num_qubits)
+static int trott_init(struct trott *tt, struct circ *c)
 {
-	struct qreg reg;
-	if (qreg_init(&reg, num_qubits) < 0)
-		return -1;
+	if (qreg_init(&tt->reg, c->hamil.nqb) < 0)
+		goto qreg_init;
 
-	c->num_qb = num_qubits;
-	c->data = data;
-	c->reg = reg;
+	struct paulis *codes_lo =
+		malloc(sizeof(struct paulis) * MAX_CACHE_CODES);
+	if (!codes_lo)
+		goto malloc_codes_lo;
+	double *angles = malloc(sizeof(double) * MAX_CACHE_CODES);
+	if (!angles)
+		goto malloc_angles;
+
+	tt->cache.codes_lo = codes_lo;
+	tt->cache.angles = angles;
+
+	return 0;
+
+	// free(angles);
+malloc_angles:
+	free(codes_lo);
+malloc_codes_lo:
+	qreg_destroy(&tt->reg);
+qreg_init:
+	return -1;
+}
+
+static void trott_destroy(struct trott *tt)
+{
+	qreg_destroy(&tt->reg);
+	free(tt->cache.codes_lo);
+	free(tt->cache.angles);
+}
+
+static int trott_prepst(struct trott *tt, struct circ *c)
+{
+	const struct circ_muldet *md = &c->muldet;
+
+	qreg_zero(&tt->reg);
+	for (size_t i = 0; i < md->ndets; i++)
+		qreg_setamp(&tt->reg, md->dets[i].idx, md->dets[i].cf);
 
 	return 0;
 }
 
-static void circ_destroy(struct circ_trott *c)
+static void trott_step(struct trott *tt, struct circ *c, const double omega)
 {
-	qreg_destroy(&c->reg);
-}
+	const struct circ_hamil *hamil = &c->hamil;
 
-int circ_trott_data_init(struct circ_trott_data *cd, size_t num_steps)
-{
-	cd->num_trott_steps = num_steps;
-	cd->trott_steps[0] = malloc(sizeof(double) * 2 * num_steps);
-	if (cd->trott_steps[0] == NULL)
-		return -1;
-	cd->trott_steps[1] = cd->trott_steps[0] + num_steps;
-
-	return 0;
-}
-
-void circ_trott_data_destroy(struct circ_trott_data *cd)
-{
-	circ_multidet_destroy(&cd->multidet);
-	circ_hamil_destroy(&cd->hamil);
-
-	free(cd->trott_steps[0]);
-}
-
-int circ_trott_data_init_from_file(
-	struct circ_trott_data *cd, size_t num_steps, data_id fid)
-{
-	if (circ_trott_data_init(cd, num_steps) < 0)
-		return -1;
-
-	int rc = circ_hamil_init_from_file(&cd->hamil, fid);
-	rc |= circ_multidet_init_from_file(&cd->multidet, fid);
-	data_circ_trott_getttrs(fid, &cd->time_factor);
-
-	return rc;
-}
-
-static int circuit_prepst(struct circ_trott *c)
-{
-	const struct circ_multidet *md = &c->data->multidet;
-
-	qreg_zero(&c->reg);
-	for (size_t i = 0; i < md->num_dets; i++) {
-		const _Complex double coeff = md->dets[i].coeff[0] +
-					      _Complex_I * md->dets[i].coeff[1];
-		qreg_setamp(&c->reg, md->dets[i].idx, coeff);
-	}
-
-	return 0;
-}
-
-static void trott_step(struct circ_trott *c, const double omega)
-{
-	const struct circ_hamil *hamil = &c->data->hamil;
-
-	struct code_cache cache = c->cache;
-	cache.num_codes = 0;
-
-	for (size_t i = 0; i < hamil->num_terms; i++) {
-		const double angle = omega * hamil->coeffs[i];
-		const struct paulis code = hamil->paulis[i];
+	struct code_cache *cache = &tt->cache;
+	cache->ncodes = 0;
+	for (size_t i = 0; i < hamil->nterms; i++) {
+		const double angle = omega * hamil->terms[i].cf;
+		const struct paulis code = hamil->terms[i].op;
 
 		struct paulis code_hi, code_lo;
-		paulis_split(
-			code, c->reg.nqb_lo, c->reg.nqb_hi, &code_lo, &code_hi);
+		paulis_split(code, tt->reg.nqb_lo, tt->reg.nqb_hi, &code_lo,
+			&code_hi);
 
-		if (cache.num_codes == 0) {
-			cache.code_hi = code_hi;
-			cache.codes_lo[0] = code_lo;
-			cache.angles[0] = angle;
-			cache.num_codes++;
+		if (cache->ncodes == 0) {
+			cache->code_hi = code_hi;
+			cache->codes_lo[0] = code_lo;
+			cache->angles[0] = angle;
+			cache->ncodes++;
 			continue;
 		}
 
-		if (paulis_eq(cache.code_hi, code_hi) &&
-			cache.num_codes < MAX_CACHE_CODES) {
-			const size_t k = cache.num_codes++;
-			cache.codes_lo[k] = code_lo;
-			cache.angles[k] = angle;
+		if (paulis_eq(cache->code_hi, code_hi) &&
+			cache->ncodes < MAX_CACHE_CODES) {
+			const size_t k = cache->ncodes++;
+			cache->codes_lo[k] = code_lo;
+			cache->angles[k] = angle;
 			continue;
 		}
 
+		/* Flush the cache. */
 		log_trace("paulirot, term: %zu, num_codes: %zu", i,
-			cache.num_codes);
-		qreg_paulirot(&c->reg, cache.code_hi, cache.codes_lo,
-			cache.angles, cache.num_codes);
+			cache->ncodes);
+		qreg_paulirot(&tt->reg, cache->code_hi, cache->codes_lo,
+			cache->angles, cache->ncodes);
 
-		cache.num_codes = 1;
-		cache.code_hi = code_hi;
-		cache.codes_lo[0] = code_lo;
-		cache.angles[0] = angle;
+		cache->ncodes = 1;
+		cache->code_hi = code_hi;
+		cache->codes_lo[0] = code_lo;
+		cache->angles[0] = angle;
 	}
 
-	log_trace("paulirot, last term group, num_codes: %zu", cache.num_codes);
+	log_trace("paulirot, last term group, num_codes: %zu", cache->ncodes);
 
-	if (cache.num_codes > 0)
-		qreg_paulirot(&c->reg, cache.code_hi, cache.codes_lo,
-			cache.angles, cache.num_codes);
+	if (cache->ncodes > 0)
+		qreg_paulirot(&tt->reg, cache->code_hi, cache->codes_lo,
+			cache->angles, cache->ncodes);
 }
 
-static int circ_effect(struct circ_trott *c)
+static int trott_effect(struct trott *tt, struct circ *c)
 {
-	const double t = c->data->time_factor;
-	if (isnan(t))
+	const struct circ_trott_data *data = c->data;
+	const double delta = data->delta;
+	if (isnan(delta))
 		return -1;
-	if (fabs(t) < DBL_EPSILON)
+	if (fabs(delta) < DBL_EPSILON)
 		return 0;
-
-	trott_step(c, t);
+	trott_step(tt, c, delta);
 
 	return 0;
 }
 
-static int circ_measure(struct circ_trott *c)
+static int trott_measure(struct trott *tt, struct circ *c)
 {
-	const struct circ_multidet *md = &c->data->multidet;
+	const struct circ_muldet *md = &c->muldet;
 
 	_Complex double pr = 0.0;
-	for (size_t i = 0; i < md->num_dets; i++) {
+	for (size_t i = 0; i < md->ndets; i++) {
 		_Complex double a;
-		qreg_getamp(&c->reg, md->dets[i].idx, &a);
-
-		const _Complex double damp = md->dets[i].coeff[0] +
-					     _Complex_I * md->dets[i].coeff[1];
-		pr += a * conj(damp);
+		qreg_getamp(&tt->reg, md->dets[i].idx, &a);
+		pr += a * conj(md->dets[i].cf);
 	}
-	c->prod[0] = creal(pr);
-	c->prod[1] = cimag(pr);
+	tt->prod = pr;
 
 	return 0;
 }
 
-int circ_trott_simulate(const struct circ_trott_data *cd)
+int circ_res_init(struct circ *c)
+{
+	struct circ_trott_data *data = c->data;
+	size_t nsteps = data->nsteps;
+
+	struct circ_trott_res *res = malloc(sizeof(struct circ_trott_res));
+	if (!res)
+		goto malloc_res;
+	_Complex double *steps = malloc(sizeof(_Complex double) * nsteps);
+	if (!steps)
+		goto malloc_steps;
+
+	res->steps = steps;
+	res->nsteps = nsteps;
+	c->res = res;
+
+	return 0;
+
+	// free(steps);
+malloc_steps:
+	free(res);
+malloc_res:
+	return -1;
+}
+
+void circ_res_destroy(struct circ *c)
+{
+	struct circ_trott_res *res = c->res;
+
+	free(res->steps);
+	free(c->res);
+}
+
+int circ_res_write(struct circ *c, data_id fid)
+{
+	struct circ_trott_res *res = c->res;
+
+	return data_circ_trott_write_values(fid, res->steps, res->nsteps);
+}
+
+int circ_simulate(struct circ *c)
 {
 	int rt = -1;
 
-	size_t prog_percent = 0;
-	const size_t num_qb = cd->hamil.num_qubits;
+	size_t prog_pc = 0;
 
-	struct circ_trott c;
-	if (circ_create(&c, cd, num_qb) < 0)
-		goto exit_circ_create;
-	circuit_prepst(&c);
+	struct trott tt;
+	if (trott_init(&tt, c) < 0)
+		goto trott_init;
 
-	for (size_t i = 0; i < cd->num_trott_steps; i++) {
-		size_t percent = i * 100 / cd->num_trott_steps;
-		if (percent > prog_percent) {
-			prog_percent = percent;
-			log_info("Progress: %zu\% (trott_step: %zu)", percent,
-				i);
+	trott_prepst(&tt, c);
+
+	struct circ_trott_res *res = c->res;
+	for (size_t i = 0; i < res->nsteps; i++) {
+		size_t pc = i * 100 / res->nsteps;
+		if (pc > prog_pc) {
+			prog_pc = pc;
+			log_info("Progress: %zu\% (trott_step: %zu)", pc, i);
 		}
 
-		if (circ_effect(&c) < 0)
-			goto exit_circ_effect;
-		circ_measure(&c);
-		cd->trott_steps[0][i] = c.prod[0];
-		cd->trott_steps[1][i] = c.prod[1];
+		if (trott_effect(&tt, c) < 0)
+			goto trott_effect;
+		trott_measure(&tt, c);
+		res->steps[i] = tt.prod;
 	}
 
 	rt = 0; /* Success. */
 
-exit_circ_effect:
-	circ_destroy(&c);
-exit_circ_create:
+trott_effect:
+	trott_destroy(&tt);
+trott_init:
 
 	return rt;
 }

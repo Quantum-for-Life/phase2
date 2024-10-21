@@ -27,14 +27,15 @@ static int t_getnums(void)
 			break;
 		}
 
-		size_t num_qubits = 0, num_terms = 0;
+		uint32_t num_qubits = 0;
+		size_t num_terms = 0;
 		if (data_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
 			TEST_FAIL("read hamil getnums()");
 			rc = -1;
 			break;
 		}
 		if (num_qubits != td.num_qubits) {
-			TEST_FAIL("wrong number of qubits in hamil: %zu",
+			TEST_FAIL("wrong number of qubits in hamil: %u",
 				num_qubits);
 			rc = -1;
 		}
@@ -137,9 +138,10 @@ static int t_iter0(void)
 		return -1;
 	}
 
-	size_t num_qubits, num_terms;
+	uint32_t num_qubits;
+	size_t num_terms;
 	if (data_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
-		TEST_FAIL("wron number of qubits and terms: %zu, %zu",
+		TEST_FAIL("wron number of qubits and terms: %u, %zu",
 			num_qubits, num_terms);
 		goto err;
 	}
@@ -179,9 +181,10 @@ static int t_iter1(void)
 		return -1;
 	}
 
-	size_t num_qubits, num_terms;
+	uint32_t num_qubits;
+	size_t num_terms;
 	if (data_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
-		TEST_FAIL("wron number of qubits and terms: %zu, %zu",
+		TEST_FAIL("wron number of qubits and terms: %u, %zu",
 			num_qubits, num_terms);
 		goto err;
 	}

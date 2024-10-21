@@ -52,7 +52,7 @@ void data_close(data_id);
  *   0			if the value was successfully retrieved
  *  -1			in case of error
  */
-int data_multidet_getnums(data_id fid, size_t *num_qubits, size_t *num_dets);
+int data_multidet_getnums(data_id fid, uint32_t *num_qubits, size_t *num_dets);
 
 /**
  * Perform action "op" on each determinant in "multidet" group.
@@ -99,7 +99,7 @@ int data_multidet_foreach(data_id fid,
  *   0			if the value was successfully retrieved
  *  -1			in case of error
  */
-int data_hamil_getnums(data_id fid, size_t *num_qubits, size_t *num_terms);
+int data_hamil_getnums(data_id fid, uint32_t *num_qubits, size_t *num_terms);
 
 /**
  * Get the normalization factor for the "hamil" group.
@@ -158,12 +158,12 @@ int data_hamil_foreach(
 int data_circ_trott_getttrs(data_id fid, double *factor);
 
 int data_circ_trott_write_values(
-	data_id fid, double *values[2], size_t num_values);
+	data_id fid, _Complex double *values, size_t num_values);
 
 int data_circ_qdrift_getattrs(
 	data_id fid, size_t *num_samples, double *step_size, size_t *depth);
 
 int data_circ_qdrift_write_values(
-	data_id fid, double *values[2], size_t num_values);
+	data_id fid, _Complex double *values, size_t num_values);
 
 #endif // PHASE2_DATA_H

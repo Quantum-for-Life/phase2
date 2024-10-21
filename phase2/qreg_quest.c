@@ -7,6 +7,8 @@
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 #include "phase2/world.h"
+
+#include "qreg_impl.h"
 #include "world_quest.h"
 
 struct qreg_quest {
@@ -15,10 +17,10 @@ struct qreg_quest {
 	int tg_op[QREG_MAX_WIDTH];
 };
 
-int qreg_quest_init(struct qreg *reg)
+int qreg_backend_init(struct qreg *reg)
 {
 	struct qreg_quest *const q = malloc(sizeof *q);
-	if (q == nullptr)
+	if (!q)
 		return -1;
 
 	/* QuEST will allocate memory for the entire state.
@@ -40,7 +42,7 @@ int qreg_quest_init(struct qreg *reg)
 	return 0;
 }
 
-void qreg_quest_destroy(struct qreg *reg)
+void qreg_backend_destroy(struct qreg *reg)
 {
 	struct world_quest *w = reg->wd.data;
 	struct qreg_quest *q = reg->data;

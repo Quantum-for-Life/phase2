@@ -6,237 +6,259 @@
 #include <stdlib.h>
 
 #include "phase2/circ.h"
+#include "phase2/circ_qdrift.h"
+#include "phase2/qreg.h"
 #include "phase2/world.h"
 #include "xoshiro256ss.h"
 
-#define MAX_CACHE_CODES (1024)
+#define SEED UINT64_C(0xeccd9dcc749fcdca)
 
-#define PRNG_SEED (0x235eac32)
+#define MAX_CACHE_CODES UINT64_C(0x10000)
 
-struct circ_qdrift {
-	size_t num_qb;
+struct qdrift {
 	struct qreg reg;
 
-	const struct circ_qdrift_data *data;
-
-	double prod[2];
+	_Complex double prod;
 
 	struct code_cache {
 		struct paulis code_hi;
-		struct paulis codes_lo[MAX_CACHE_CODES];
-		double angles[MAX_CACHE_CODES];
-		size_t num_codes;
+		struct paulis *codes_lo;
+		double *angles;
+		size_t ncodes;
 	} cache;
 
 	struct xoshiro256ss rng;
-	size_t *sampled_idx;
+	size_t *smpl;
 };
 
-static int circ_create(struct circ_qdrift *c,
-	const struct circ_qdrift_data *data, const size_t num_qubits)
+static int qdrift_init(struct qdrift *qd, struct circ *c)
 {
-	struct qreg reg;
-	if (qreg_init(&reg, num_qubits) < 0)
-		return -1;
+	if (qreg_init(&qd->reg, c->hamil.nqb) < 0)
+		goto err_qreg_init;
 
-	c->num_qb = num_qubits;
-	c->data = data;
-	c->reg = reg;
+	struct paulis *codes_lo =
+		malloc(sizeof(struct paulis) * MAX_CACHE_CODES);
+	if (!codes_lo)
+		goto err_codes_lo;
+	double *angles = malloc(sizeof(double) * MAX_CACHE_CODES);
+	if (!angles)
+		goto err_angles;
+	qd->cache.codes_lo = codes_lo;
+	qd->cache.angles = angles;
 
-	xoshiro256ss_init(&c->rng, PRNG_SEED);
-	size_t *sampled_idx = malloc(sizeof(size_t) * data->depth);
-	if (sampled_idx == NULL)
-		return -1;
-	c->sampled_idx = sampled_idx;
+	xoshiro256ss_init(&qd->rng, SEED);
+
+	struct circ_qdrift_data *data = c->data;
+	size_t *smpl = malloc(sizeof(size_t) * data->depth);
+	if (!smpl)
+		goto err_smpl;
+	qd->smpl = smpl;
+
+	return 0;
+
+	// free(smpl);
+err_smpl:
+	free(angles);
+err_angles:
+	free(codes_lo);
+err_codes_lo:
+err_qreg_init:
+	return -1;
+}
+
+static void qdrift_destroy(struct qdrift *qd)
+{
+	qreg_destroy(&qd->reg);
+	free(qd->smpl);
+	free(qd->cache.angles);
+	free(qd->cache.codes_lo);
+}
+
+static int qdrift_prepst(struct qdrift *qd, struct circ *c)
+{
+	const struct circ_muldet *md = &c->muldet;
+
+	qreg_zero(&qd->reg);
+	for (size_t i = 0; i < md->ndets; i++)
+		qreg_setamp(&qd->reg, md->dets[i].idx, md->dets[i].cf);
 
 	return 0;
 }
 
-static void circ_destroy(struct circ_qdrift *c)
+static void qdrift_step(struct qdrift *qd, struct circ *c, const double omega)
 {
-	qreg_destroy(&c->reg);
-	if (c->sampled_idx)
-		free(c->sampled_idx);
-}
+	const struct circ_hamil *hamil = &c->hamil;
+	const struct circ_qdrift_data *data = c->data;
 
-static int circ_qdrift_data_from_file(
-	struct circ_qdrift_data *cd, const data_id fid)
-{
-	int rc = circ_hamil_init_from_file(&cd->hamil, fid);
-	rc |= circ_multidet_init_from_file(&cd->multidet, fid);
-	rc |= data_circ_qdrift_getattrs(
-		fid, &cd->num_samples, &cd->step_size, &cd->depth);
-
-	return rc;
-}
-
-int circ_qdrift_data_init(struct circ_qdrift_data *cd, data_id fid)
-{
-	if (circ_qdrift_data_from_file(cd, fid) < 0)
-		return -1;
-	cd->samples[0] = malloc(sizeof(double) * 2 * cd->num_samples);
-	if (cd->samples[0] == NULL)
-		return -1;
-	cd->samples[1] = cd->samples[0] + cd->num_samples;
-
-	return 0;
-}
-
-void circ_qdrift_data_destroy(struct circ_qdrift_data *cd)
-{
-	circ_multidet_destroy(&cd->multidet);
-	circ_hamil_destroy(&cd->hamil);
-
-	free(cd->samples[0]);
-}
-
-static int circuit_prepst(struct circ_qdrift *c)
-{
-	const struct circ_multidet *md = &c->data->multidet;
-
-	qreg_zero(&c->reg);
-	for (size_t i = 0; i < md->num_dets; i++) {
-		const _Complex double coeff = md->dets[i].coeff[0] +
-					      _Complex_I * md->dets[i].coeff[1];
-		qreg_setamp(&c->reg, md->dets[i].idx, coeff);
-	}
-
-	return 0;
-}
-
-static void trott_step(struct circ_qdrift *c, const double omega)
-{
-	const struct circ_hamil *hamil = &c->data->hamil;
-
-	struct code_cache cache = c->cache;
-	cache.num_codes = 0;
-
-	for (size_t i = 0; i < c->data->depth; i++) {
+	struct code_cache *cache = &qd->cache;
+	cache->ncodes = 0;
+	for (size_t i = 0; i < data->depth; i++) {
 		const double angle = omega;
-		const size_t i_sampled = c->sampled_idx[i];
-		const struct paulis code = hamil->paulis[i_sampled];
+		const size_t i_smpl = qd->smpl[i];
+		const struct paulis code = hamil->terms[i_smpl].op;
 
 		struct paulis code_hi, code_lo;
-		paulis_split(
-			code, c->reg.nqb_lo, c->reg.nqb_hi, &code_lo, &code_hi);
+		paulis_split(code, qd->reg.nqb_lo, qd->reg.nqb_hi, &code_lo,
+			&code_hi);
 
-		if (cache.num_codes == 0) {
-			cache.code_hi = code_hi;
-			cache.codes_lo[0] = code_lo;
-			cache.angles[0] = angle;
-			cache.num_codes++;
+		if (cache->ncodes == 0) {
+			cache->code_hi = code_hi;
+			cache->codes_lo[0] = code_lo;
+			cache->angles[0] = angle;
+			cache->ncodes++;
 			continue;
 		}
 
-		if (paulis_eq(cache.code_hi, code_hi) &&
-			cache.num_codes < MAX_CACHE_CODES) {
-			const size_t k = cache.num_codes++;
-			cache.codes_lo[k] = code_lo;
-			cache.angles[k] = angle;
+		if (paulis_eq(cache->code_hi, code_hi) &&
+			cache->ncodes < MAX_CACHE_CODES) {
+			const size_t k = cache->ncodes++;
+			cache->codes_lo[k] = code_lo;
+			cache->angles[k] = angle;
 			continue;
 		}
 
 		log_trace("paulirot, term: %zu, num_codes: %zu", i,
-			cache.num_codes);
-		qreg_paulirot(&c->reg, cache.code_hi, cache.codes_lo,
-			cache.angles, cache.num_codes);
+			cache->ncodes);
+		qreg_paulirot(&qd->reg, cache->code_hi, cache->codes_lo,
+			cache->angles, cache->ncodes);
 
-		cache.num_codes = 1;
-		cache.code_hi = code_hi;
-		cache.codes_lo[0] = code_lo;
-		cache.angles[0] = angle;
+		cache->ncodes = 1;
+		cache->code_hi = code_hi;
+		cache->codes_lo[0] = code_lo;
+		cache->angles[0] = angle;
 	}
 
-	log_trace("paulirot, last term group, num_codes: %zu", cache.num_codes);
+	log_trace("paulirot, last term group, num_codes: %zu", cache->ncodes);
 
-	if (cache.num_codes > 0)
-		qreg_paulirot(&c->reg, cache.code_hi, cache.codes_lo,
-			cache.angles, cache.num_codes);
+	if (cache->ncodes > 0)
+		qreg_paulirot(&qd->reg, cache->code_hi, cache->codes_lo,
+			cache->angles, cache->ncodes);
 }
 
-static int circ_effect(struct circ_qdrift *c)
+static int qdrift_effect(struct qdrift *qd, struct circ *c)
 {
-	const double t = c->data->step_size;
+	const struct circ_qdrift_data *data = c->data;
+	const double t = data->step_size;
 	if (isnan(t))
 		return -1;
 	if (fabs(t) < DBL_EPSILON)
 		return 0;
 
 	const double theta = asin(t);
-	trott_step(c, theta);
+	qdrift_step(qd, c, theta);
 
 	return 0;
 }
 
-static int circ_measure(struct circ_qdrift *c)
+static int qdrift_measure(struct qdrift *qd, struct circ *c)
 {
-	const struct circ_multidet *md = &c->data->multidet;
+	const struct circ_muldet *md = &c->muldet;
 
 	_Complex double pr = 0.0;
-	for (size_t i = 0; i < md->num_dets; i++) {
+	for (size_t i = 0; i < md->ndets; i++) {
 		_Complex double a;
-		qreg_getamp(&c->reg, md->dets[i].idx, &a);
-
-		const _Complex double damp = md->dets[i].coeff[0] +
-					     _Complex_I * md->dets[i].coeff[1];
-		pr += a * conj(damp);
+		qreg_getamp(&qd->reg, md->dets[i].idx, &a);
+		pr += a * conj(md->dets[i].cf);
 	}
-	c->prod[0] = creal(pr);
-	c->prod[1] = cimag(pr);
+	qd->prod = pr;
 
 	return 0;
 }
 
-static size_t circ_sample_invcdf(struct circ_qdrift *c, double x)
+static size_t sample_invcdf(struct qdrift *qd, struct circ *c, double x)
 {
+	(void)qd;
 	size_t i = 0;
 	double cdf = 0;
 	while (cdf <= x)
-		cdf += fabs(c->data->hamil.coeffs[i++]);
+		cdf += fabs(c->hamil.terms[i++].cf);
 	return i - 1; /* Never again make the same off-by-one error! */
 }
 
-static void circ_sample_terms(struct circ_qdrift *c)
+/* TODO: Move to xoshiro256ss.h and document. */
+#define rand_dbl01(rng) ((double)(xoshiro256ss_next(rng) >> 11) * 0x1.0p-53)
+
+static void sample_terms(struct qdrift *qd, struct circ *c)
 {
-	for (size_t i = 0; i < c->data->depth; i++) {
-		double x =
-			(double)(xoshiro256ss_next(&c->rng) >> 11) * 0x1.0p-53;
-		c->sampled_idx[i] = circ_sample_invcdf(c, x);
+	const struct circ_qdrift_data *data = c->data;
+	for (size_t i = 0; i < data->depth; i++) {
+		double x = rand_dbl01(&qd->rng);
+		qd->smpl[i] = sample_invcdf(qd, c, x);
 	}
 }
 
-int circ_qdrift_simulate(const struct circ_qdrift_data *cd)
+int circ_res_init(struct circ *c)
+{
+	struct circ_qdrift_data *data = c->data;
+	size_t nsamples = data->nsamples;
+
+	struct circ_qdrift_res *res = malloc(sizeof(struct circ_qdrift_res));
+	if (!res)
+		goto err_res;
+
+	_Complex double *samples = malloc(sizeof(_Complex double) * nsamples);
+	if (!samples)
+		goto err_samples;
+
+	res->samples = samples;
+	res->nsamples = nsamples;
+	c->res = res;
+
+	return 0;
+
+	// free(samples);
+err_samples:
+	free(res);
+err_res:
+	return -1;
+}
+
+void circ_res_destroy(struct circ *c)
+{
+	struct circ_qdrift_res *res = c->res;
+
+	free(res->samples);
+	free(c->res);
+}
+
+int circ_res_write(struct circ *c, data_id fid)
+{
+	struct circ_qdrift_res *res = c->res;
+
+	return data_circ_qdrift_write_values(fid, res->samples, res->nsamples);
+}
+
+int circ_simulate(struct circ *c)
 {
 	int rt = -1;
 
-	size_t prog_percent = 0;
-	const size_t num_qb = cd->hamil.num_qubits;
+	size_t prog_pc = 0;
 
-	struct circ_qdrift c;
-	if (circ_create(&c, cd, num_qb) < 0)
-		goto exit_circ_create;
+	struct qdrift qd;
+	if (qdrift_init(&qd, c) < 0)
+		goto ex_qdrift_init;
 
-	for (size_t i = 0; i < cd->num_samples; i++) {
-		size_t percent = i * 100 / cd->num_samples;
-		if (percent > prog_percent) {
-			prog_percent = percent;
-			log_info("Progress: %zu\% (samples: %zu)", percent, i);
+	struct circ_qdrift_res *res = c->res;
+	for (size_t i = 0; i < res->nsamples; i++) {
+		size_t pc = i * 100 / res->nsamples;
+		if (pc > prog_pc) {
+			prog_pc = pc;
+			log_info("Progress: %zu\% (samples: %zu)", pc, i);
 		}
 
-		circ_sample_terms(&c);
-		circuit_prepst(&c);
-		if (circ_effect(&c) < 0)
-			goto exit_circ_effect;
-		circ_measure(&c);
-		cd->samples[0][i] = c.prod[0];
-		cd->samples[1][i] = c.prod[1];
+		sample_terms(&qd, c);
+		qdrift_prepst(&qd, c);
+		if (qdrift_effect(&qd, c) < 0)
+			goto ex_qdrift_effect;
+		qdrift_measure(&qd, c);
+		res->samples[i] = qd.prod;
 	}
 
 	rt = 0; /* Success. */
 
-exit_circ_effect:
-	circ_destroy(&c);
-exit_circ_create:
+ex_qdrift_effect:
+	qdrift_destroy(&qd);
+ex_qdrift_init:
 
 	return rt;
 }
