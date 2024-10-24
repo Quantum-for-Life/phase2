@@ -1,8 +1,8 @@
 #ifndef PHASE2_DATA_H
 #define PHASE2_DATA_H
 
+#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #define DATA_INVALID_FID (-1)
 
@@ -176,8 +176,8 @@ int data_hamil_getnorm(data_id fid, double *norm);
 int data_hamil_foreach(
 	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
 
-int data_write_vals(data_id fid, char *grp_name, char *dset_name,
-	_Complex double *vals, size_t nvals);
+int data_write_vals(data_id fid, const char *grp_name, const char *dset_name,
+ const _Complex double *vals, size_t nvals);
 
 int data_circ_trott_getttrs(data_id fid, double *factor);
 

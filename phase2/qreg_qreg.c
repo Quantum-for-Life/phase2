@@ -10,7 +10,7 @@
 #include "phase2/qreg.h"
 #include "phase2/world.h"
 
-#include "qreg_impl.h"
+#include "qreg.h"
 
 typedef _Complex double c64;
 

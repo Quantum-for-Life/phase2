@@ -1,6 +1,7 @@
 #include "c23_compat.h"
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "hdf5.h"
 
@@ -359,8 +360,8 @@ ex_data_group_open:
 	return rt;
 }
 
-int data_write_vals(data_id fid, char *grp_name, char *dset_name,
-	_Complex double *vals, size_t nvals)
+int data_write_vals(data_id fid, const char *grp_name, const char *dset_name,
+	const _Complex double *vals, const size_t nvals)
 {
 	int rt = -1;
 
@@ -430,7 +431,7 @@ ex_malloc:
 int data_circ_qdrift_getattrs(
 	const data_id fid, size_t *nsamples, double *step_size, size_t *depth)
 {
-	int rt = 0;
+	int rt = -1;
 
 	hid_t grp_id;
 	if (data_group_open(fid, &grp_id, DATA_CIRCQDRIFT) < 0)

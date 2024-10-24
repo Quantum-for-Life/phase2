@@ -10,7 +10,7 @@
 #include "phase2/qreg.h"
 #include "phase2/world.h"
 
-#include "circ_impl.h"
+#include "circ.h"
 
 #define MAX_CACHE_CODES UINT64_C(0x10000)
 

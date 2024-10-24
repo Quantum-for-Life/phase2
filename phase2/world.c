@@ -5,7 +5,7 @@
 
 #include "phase2/world.h"
 
-#include "world_impl.h"
+#include "world.h"
 
 static struct world WORLD = {
 	.stat = WORLD_UNDEF,
