@@ -1,3 +1,4 @@
+#include "c23_compat.h"
 #include <complex.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -47,9 +48,9 @@ static int t_get_nums(void)
 	return rc;
 }
 
-static int iter_count_dets(double coeff[2], size_t idx, void *op_data)
+static int iter_count_dets(_Complex double cf, size_t idx, void *op_data)
 {
-	(void)coeff;
+	(void)cf;
 	(void)idx;
 
 	int *count = op_data;
@@ -58,9 +59,10 @@ static int iter_count_dets(double coeff[2], size_t idx, void *op_data)
 	return 0;
 }
 
-static int iter_count_dets_onlytwo(double coeff[2], size_t idx, void *op_data)
+static int iter_count_dets_onlytwo(
+	_Complex double cf, size_t idx, void *op_data)
 {
-	(void)coeff;
+	(void)cf;
 	(void)idx;
 
 	int *count = op_data;
@@ -78,11 +80,11 @@ struct iter_store {
 	size_t idx[128];
 };
 
-static int iter_store_dets(double coeff[2], const size_t idx, void *op_data)
+static int iter_store_dets(_Complex double cf, const size_t idx, void *op_data)
 {
 	struct iter_store *is = op_data;
 
-	is->coeff[is->index] = coeff[0] + _Complex_I * coeff[1];
+	is->coeff[is->index] = cf;
 	is->idx[is->index] = idx;
 	is->index++;
 
@@ -162,8 +164,8 @@ static int t_iter1(void)
 
 	struct iter_store is;
 	size_t exp_idx[] = { 4, 5, 6 };
-	_Complex double exp_coeff[] = { 0.108292 + I * 0.333811,
-		0.0491404 + I * 0.613936, 0.565802 + I * 0.421163 };
+	_Complex double exp_coeff[] = { CMPLX(0.108292, 0.333811),
+		CMPLX(0.0491404, 0.613936), CMPLX(0.565802, 0.421163) };
 
 	is.index = 0;
 	if (data_multidet_foreach(fid, iter_store_dets, &is) != 0) {
@@ -198,7 +200,7 @@ err:
 
 static void TEST_MAIN(void)
 {
-	world_init((void *)0, (void *)0, WD_SEED);
+	world_init(nullptr, nullptr, WD_SEED);
 
 	if (t_get_nums() < 0) {
 		TEST_FAIL("getnums");

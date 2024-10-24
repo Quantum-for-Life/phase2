@@ -89,13 +89,13 @@ struct iter_muldet_data {
 	struct circ_muldet *muldet;
 };
 
-static int iter_muldet(double cf[2], const uint64_t idx, void *iter_data)
+static int iter_muldet(_Complex double cf, const uint64_t idx, void *iter_data)
 {
 	struct iter_muldet_data *id = iter_data;
 	struct circ_muldet *m = id->muldet;
 	const size_t i = id->i++;
 
-	m->dets[i].cf = cf[0] + I * cf[1];
+	m->dets[i].cf = cf;
 	m->dets[i].idx = idx;
 
 	return 0;
