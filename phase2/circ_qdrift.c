@@ -11,21 +11,14 @@
 #include "phase2/world.h"
 #include "xoshiro256ss.h"
 
-#define SEED UINT64_C(0xeccd9dcc749fcdca)
+#include "circ.h"
 
-#define MAX_CACHE_CODES UINT64_C(0x10000)
+#define SEED UINT64_C(0xeccd9dcc749fcdca)
 
 struct qdrift {
 	struct qreg reg;
-
 	_Complex double prod;
-
-	struct code_cache {
-		struct paulis code_hi;
-		struct paulis *codes_lo;
-		double *angles;
-		size_t ncodes;
-	} cache;
+	struct circ_cache cache;
 
 	struct xoshiro256ss rng;
 	size_t *smpl;
@@ -35,16 +28,8 @@ static int qdrift_init(struct qdrift *qd, struct circ *c)
 {
 	if (qreg_init(&qd->reg, c->hamil.nqb) < 0)
 		goto err_qreg_init;
-
-	struct paulis *codes_lo =
-		malloc(sizeof(struct paulis) * MAX_CACHE_CODES);
-	if (!codes_lo)
-		goto err_codes_lo;
-	double *angles = malloc(sizeof(double) * MAX_CACHE_CODES);
-	if (!angles)
-		goto err_angles;
-	qd->cache.codes_lo = codes_lo;
-	qd->cache.angles = angles;
+	if (circ_cache_init(&qd->cache, qd->reg.qb_lo, qd->reg.qb_hi) < 0)
+		goto err_circ_cache_init;
 
 	xoshiro256ss_init(&qd->rng, SEED);
 
@@ -58,10 +43,9 @@ static int qdrift_init(struct qdrift *qd, struct circ *c)
 
 	// free(smpl);
 err_smpl:
-	free(angles);
-err_angles:
-	free(codes_lo);
-err_codes_lo:
+	circ_cache_destroy(&qd->cache);
+err_circ_cache_init:
+	qreg_destroy(&qd->reg);
 err_qreg_init:
 	return -1;
 }
@@ -69,9 +53,7 @@ err_qreg_init:
 static void qdrift_destroy(struct qdrift *qd)
 {
 	qreg_destroy(&qd->reg);
-	free(qd->smpl);
-	free(qd->cache.angles);
-	free(qd->cache.codes_lo);
+	circ_cache_destroy(&qd->cache);
 }
 
 static int qdrift_prepst(struct qdrift *qd, struct circ *c)
@@ -85,54 +67,36 @@ static int qdrift_prepst(struct qdrift *qd, struct circ *c)
 	return 0;
 }
 
-static void qdrift_step(struct qdrift *qd, struct circ *c, const double omega)
+static void qdrift_flush(struct paulis code_hi, struct paulis *codes_lo,
+	double *phis, size_t ncodes, void *data)
+{
+	struct qdrift *qd = data;
+	qreg_paulirot(&qd->reg, code_hi, codes_lo, phis, ncodes);
+}
+
+static int qdrift_step(struct qdrift *qd, struct circ *c, const double omega)
 {
 	const struct circ_hamil *hamil = &c->hamil;
 	const struct circ_qdrift_data *data = c->data;
+	struct circ_cache *cache = &qd->cache;
 
-	struct code_cache *cache = &qd->cache;
-	cache->ncodes = 0;
 	for (size_t i = 0; i < data->depth; i++) {
-		const double angle = omega;
+		const double phi = omega;
 		const size_t i_smpl = qd->smpl[i];
 		const struct paulis code = hamil->terms[i_smpl].op;
 
-		struct paulis code_hi, code_lo;
-		paulis_split(code, qd->reg.qb_lo, qd->reg.qb_hi, &code_lo,
-			&code_hi);
-
-		if (cache->ncodes == 0) {
-			cache->code_hi = code_hi;
-			cache->codes_lo[0] = code_lo;
-			cache->angles[0] = angle;
-			cache->ncodes++;
+		if (circ_cache_insert(cache, code, phi) == 0)
 			continue;
-		}
 
-		if (paulis_eq(cache->code_hi, code_hi) &&
-			cache->ncodes < MAX_CACHE_CODES) {
-			const size_t k = cache->ncodes++;
-			cache->codes_lo[k] = code_lo;
-			cache->angles[k] = angle;
-			continue;
-		}
-
-		log_trace("paulirot, term: %zu, num_codes: %zu", i,
-			cache->ncodes);
-		qreg_paulirot(&qd->reg, cache->code_hi, cache->codes_lo,
-			cache->angles, cache->ncodes);
-
-		cache->ncodes = 1;
-		cache->code_hi = code_hi;
-		cache->codes_lo[0] = code_lo;
-		cache->angles[0] = angle;
+		log_trace("paulirot, term: %zu, num_codes: %zu", i, cache->n);
+		circ_cache_flush(cache, qdrift_flush, qd);
+		if (circ_cache_insert(cache, code, phi) < 0)
+			return -1;
 	}
+	log_trace("paulirot, last term group, num_codes: %zu", cache->n);
+	circ_cache_flush(cache, qdrift_flush, qd);
 
-	log_trace("paulirot, last term group, num_codes: %zu", cache->ncodes);
-
-	if (cache->ncodes > 0)
-		qreg_paulirot(&qd->reg, cache->code_hi, cache->codes_lo,
-			cache->angles, cache->ncodes);
+	return 0;
 }
 
 static int qdrift_effect(struct qdrift *qd, struct circ *c)
@@ -143,11 +107,9 @@ static int qdrift_effect(struct qdrift *qd, struct circ *c)
 		return -1;
 	if (fabs(t) < DBL_EPSILON)
 		return 0;
-
 	const double theta = asin(t);
-	qdrift_step(qd, c, theta);
 
-	return 0;
+	return qdrift_step(qd, c, theta);
 }
 
 static int qdrift_measure(struct qdrift *qd, struct circ *c)

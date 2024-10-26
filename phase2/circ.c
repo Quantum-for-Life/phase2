@@ -138,7 +138,6 @@ void circ_destroy(struct circ *c)
 	circ_res_destroy(c);
 }
 
-#define MAX_CACHE_CODES UINT64_C(0x0400)
 
 int circ_cache_init(struct circ_cache *ch, size_t qb_lo, size_t qb_hi)
 {
