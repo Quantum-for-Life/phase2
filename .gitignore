@@ -81,6 +81,8 @@ simul.h5*
 
 *.swp
 
+*.log
+
 ph2run/ph2run-trott
 ph2run/ph2run-qdrift
 

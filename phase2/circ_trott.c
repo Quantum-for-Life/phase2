@@ -12,77 +12,6 @@
 
 #include "circ.h"
 
-#define MAX_CACHE_CODES UINT64_C(0x0400)
-
-struct circ_cache {
-	uint32_t qb_lo, qb_hi;
-	struct paulis *codes_lo, code_hi;
-	double *phis;
-	size_t n;
-};
-
-int circ_cache_init(struct circ_cache *ch, size_t qb_lo, size_t qb_hi)
-{
-	struct paulis *lo =
-		malloc(sizeof(struct paulis) * MAX_CACHE_CODES);
-	if (!lo)
-		goto err_lo;
-	double *angles = malloc(sizeof(double) * MAX_CACHE_CODES);
-	if (!angles)
-		goto err_angles;
-
-	ch->codes_lo = lo;
-	ch->phis = angles;
-	ch->qb_lo = qb_lo;
-	ch->qb_hi = qb_hi;
-	ch->n = 0;
-
-	return 0;
-
-	// free(phs);
-err_angles:
-	free(lo);
-err_lo:
-	return -1;
-}
-
-void circ_cache_destroy(struct circ_cache *ch)
-{
-	free(ch->codes_lo);
-	free(ch->phis);
-}
-
-int circ_cache_insert(struct circ_cache *ch, struct paulis code, double angle)
-{
-	struct paulis lo, hi;
-	paulis_split(code, ch->qb_lo, ch->qb_hi, &lo, &hi);
-	if (ch->n == 0) {
-		ch->code_hi = hi;
-		ch->codes_lo[0] = lo;
-		ch->phis[0] = angle;
-		ch->n = 1;
-		return 0;
-	}
-
-	if (ch->n < MAX_CACHE_CODES && paulis_eq(ch->code_hi, hi)) {
-		const size_t k = ch->n++;
-		ch->codes_lo[k] = lo;
-		ch->phis[k] = angle;
-		return 0;
-	}
-
-	return -1;
-}
-
-void circ_cache_flush(struct circ_cache *ch,
-	void (*op)(struct paulis, struct paulis *, double *, size_t, void *),
-	void *data)
-{
-	if (ch->n > 0 && op)
-		op(ch->code_hi, ch->codes_lo, ch->phis, ch->n, data);
-	ch->n = 0;
-}
-
 struct trott {
 	struct qreg reg;
 	_Complex double prod;
@@ -134,7 +63,6 @@ static int trott_step(struct trott *tt, struct circ *c, const double omega)
 	const struct circ_hamil *hamil = &c->hamil;
 	struct circ_cache *cache = &tt->cache;
 
-	circ_cache_flush(cache, nullptr, nullptr);
 	for (size_t i = 0; i < hamil->nterms; i++) {
 		const double phi = omega * hamil->terms[i].cf;
 		const struct paulis code = hamil->terms[i].op;
@@ -142,18 +70,14 @@ static int trott_step(struct trott *tt, struct circ *c, const double omega)
 		if (circ_cache_insert(cache, code, phi) == 0)
 			continue;
 
-		/* Flush the cache. */
-		log_trace("paulirot, term: %zu, num_codes: %zu", i,
-			cache->n);
+		log_trace("paulirot, term: %zu, num_codes: %zu", i, cache->n);
 		circ_cache_flush(cache, trott_flush, tt);
-
 		if (circ_cache_insert(cache, code, phi) < 0)
 			return -1;
 	}
-
 	log_trace("paulirot, last term group, num_codes: %zu", cache->n);
-
 	circ_cache_flush(cache, trott_flush, tt);
+
 	return 0;
 }
 
