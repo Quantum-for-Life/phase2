@@ -12,53 +12,103 @@
 
 #include "circ.h"
 
-#define MAX_CACHE_CODES UINT64_C(0x10000)
+#define MAX_CACHE_CODES UINT64_C(0x0400)
+
+struct circ_cache {
+	uint32_t qb_lo, qb_hi;
+	struct paulis *codes_lo, code_hi;
+	double *phis;
+	size_t n;
+};
+
+int circ_cache_init(struct circ_cache *ch, size_t qb_lo, size_t qb_hi)
+{
+	struct paulis *lo =
+		malloc(sizeof(struct paulis) * MAX_CACHE_CODES);
+	if (!lo)
+		goto err_lo;
+	double *angles = malloc(sizeof(double) * MAX_CACHE_CODES);
+	if (!angles)
+		goto err_angles;
+
+	ch->codes_lo = lo;
+	ch->phis = angles;
+	ch->qb_lo = qb_lo;
+	ch->qb_hi = qb_hi;
+	ch->n = 0;
+
+	return 0;
+
+	// free(phs);
+err_angles:
+	free(lo);
+err_lo:
+	return -1;
+}
+
+void circ_cache_destroy(struct circ_cache *ch)
+{
+	free(ch->codes_lo);
+	free(ch->phis);
+}
+
+int circ_cache_insert(struct circ_cache *ch, struct paulis code, double angle)
+{
+	struct paulis lo, hi;
+	paulis_split(code, ch->qb_lo, ch->qb_hi, &lo, &hi);
+	if (ch->n == 0) {
+		ch->code_hi = hi;
+		ch->codes_lo[0] = lo;
+		ch->phis[0] = angle;
+		ch->n = 1;
+		return 0;
+	}
+
+	if (ch->n < MAX_CACHE_CODES && paulis_eq(ch->code_hi, hi)) {
+		const size_t k = ch->n++;
+		ch->codes_lo[k] = lo;
+		ch->phis[k] = angle;
+		return 0;
+	}
+
+	return -1;
+}
+
+void circ_cache_flush(struct circ_cache *ch,
+	void (*op)(struct paulis, struct paulis *, double *, size_t, void *),
+	void *data)
+{
+	if (ch->n > 0 && op)
+		op(ch->code_hi, ch->codes_lo, ch->phis, ch->n, data);
+	ch->n = 0;
+}
 
 struct trott {
 	struct qreg reg;
-
 	_Complex double prod;
-
-	struct code_cache {
-		struct paulis code_hi;
-		struct paulis *codes_lo;
-		double *angles;
-		size_t ncodes;
-	} cache;
+	struct circ_cache cache;
 };
 
 static int trott_init(struct trott *tt, struct circ *c)
 {
 	if (qreg_init(&tt->reg, c->hamil.nqb) < 0)
-		goto qreg_init;
-
-	struct paulis *codes_lo =
-		malloc(sizeof(struct paulis) * MAX_CACHE_CODES);
-	if (!codes_lo)
-		goto malloc_codes_lo;
-	double *angles = malloc(sizeof(double) * MAX_CACHE_CODES);
-	if (!angles)
-		goto malloc_angles;
-
-	tt->cache.codes_lo = codes_lo;
-	tt->cache.angles = angles;
+		goto err_qreg_init;
+	if (circ_cache_init(&tt->cache, tt->reg.qb_lo, tt->reg.qb_hi) < 0)
+		goto err_circ_cache_init;
 
 	return 0;
 
-	// free(angles);
-malloc_angles:
-	free(codes_lo);
-malloc_codes_lo:
+	// circ_cache_destroy(&tt->cache);
+err_circ_cache_init:
 	qreg_destroy(&tt->reg);
-qreg_init:
+err_qreg_init:
 	return -1;
 }
 
 static void trott_destroy(struct trott *tt)
 {
 	qreg_destroy(&tt->reg);
-	free(tt->cache.codes_lo);
-	free(tt->cache.angles);
+	circ_cache_destroy(&tt->cache);
 }
 
 static int trott_prepst(struct trott *tt, struct circ *c)
@@ -72,53 +122,39 @@ static int trott_prepst(struct trott *tt, struct circ *c)
 	return 0;
 }
 
-static void trott_step(struct trott *tt, struct circ *c, const double omega)
+static void trott_flush(struct paulis code_hi, struct paulis *codes_lo,
+	double *phis, size_t ncodes, void *data)
+{
+	struct trott *tt = data;
+	qreg_paulirot(&tt->reg, code_hi, codes_lo, phis, ncodes);
+}
+
+static int trott_step(struct trott *tt, struct circ *c, const double omega)
 {
 	const struct circ_hamil *hamil = &c->hamil;
+	struct circ_cache *cache = &tt->cache;
 
-	struct code_cache *cache = &tt->cache;
-	cache->ncodes = 0;
+	circ_cache_flush(cache, nullptr, nullptr);
 	for (size_t i = 0; i < hamil->nterms; i++) {
-		const double angle = omega * hamil->terms[i].cf;
+		const double phi = omega * hamil->terms[i].cf;
 		const struct paulis code = hamil->terms[i].op;
 
-		struct paulis code_hi, code_lo;
-		paulis_split(code, tt->reg.nqb_lo, tt->reg.nqb_hi, &code_lo,
-			&code_hi);
-
-		if (cache->ncodes == 0) {
-			cache->code_hi = code_hi;
-			cache->codes_lo[0] = code_lo;
-			cache->angles[0] = angle;
-			cache->ncodes++;
+		if (circ_cache_insert(cache, code, phi) == 0)
 			continue;
-		}
-
-		if (paulis_eq(cache->code_hi, code_hi) &&
-			cache->ncodes < MAX_CACHE_CODES) {
-			const size_t k = cache->ncodes++;
-			cache->codes_lo[k] = code_lo;
-			cache->angles[k] = angle;
-			continue;
-		}
 
 		/* Flush the cache. */
 		log_trace("paulirot, term: %zu, num_codes: %zu", i,
-			cache->ncodes);
-		qreg_paulirot(&tt->reg, cache->code_hi, cache->codes_lo,
-			cache->angles, cache->ncodes);
+			cache->n);
+		circ_cache_flush(cache, trott_flush, tt);
 
-		cache->ncodes = 1;
-		cache->code_hi = code_hi;
-		cache->codes_lo[0] = code_lo;
-		cache->angles[0] = angle;
+		if (circ_cache_insert(cache, code, phi) < 0)
+			return -1;
 	}
 
-	log_trace("paulirot, last term group, num_codes: %zu", cache->ncodes);
+	log_trace("paulirot, last term group, num_codes: %zu", cache->n);
 
-	if (cache->ncodes > 0)
-		qreg_paulirot(&tt->reg, cache->code_hi, cache->codes_lo,
-			cache->angles, cache->ncodes);
+	circ_cache_flush(cache, trott_flush, tt);
+	return 0;
 }
 
 static int trott_effect(struct trott *tt, struct circ *c)
@@ -129,9 +165,8 @@ static int trott_effect(struct trott *tt, struct circ *c)
 		return -1;
 	if (fabs(delta) < DBL_EPSILON)
 		return 0;
-	trott_step(tt, c, delta);
 
-	return 0;
+	return trott_step(tt, c, delta);
 }
 
 static int trott_measure(struct trott *tt, struct circ *c)
@@ -198,7 +233,7 @@ int circ_simulate(struct circ *c)
 
 	struct trott tt;
 	if (trott_init(&tt, c) < 0)
-		goto trott_init;
+		goto ex_trott_init;
 
 	trott_prepst(&tt, c);
 
@@ -211,16 +246,14 @@ int circ_simulate(struct circ *c)
 		}
 
 		if (trott_effect(&tt, c) < 0)
-			goto trott_effect;
+			goto ex_trott_effect;
 		trott_measure(&tt, c);
 		res->steps[i] = tt.prod;
 	}
 
 	rt = 0; /* Success. */
-
-trott_effect:
+ex_trott_effect:
 	trott_destroy(&tt);
-trott_init:
-
+ex_trott_init:
 	return rt;
 }

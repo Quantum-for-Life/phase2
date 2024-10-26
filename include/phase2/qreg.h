@@ -17,7 +17,7 @@ extern "C" {
 struct qreg {
 	struct world wd;
 
-	uint32_t nqb_lo, nqb_hi;
+	uint32_t qb_lo, qb_hi;
 
 	_Complex double *amp, *buf;
 	uint64_t namp;
@@ -43,7 +43,7 @@ void qreg_zero(struct qreg *reg);
  * operation on hi qubits.
  */
 void qreg_paulirot(struct qreg *reg, struct paulis code_hi,
-	const struct paulis *codes_lo, const double *angles, size_t ncodes);
+	const struct paulis *codes_lo, const double *phis, size_t ncodes);
 
 #ifdef __cplusplus
 }
