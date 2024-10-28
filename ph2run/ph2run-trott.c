@@ -23,8 +23,6 @@
 #define WD_SEED UINT64_C(0xd326119d4859ebb2)
 static struct world WD;
 
-static int run_circuit(data_id fid, size_t nsteps, double delta);
-
 static struct args {
 	const char *progname;
 	bool opt_help;
@@ -104,10 +102,6 @@ static int args_parse_longopt(int *argc, char ***argv)
 		ARGS.opt_help = true;
 		return 0;
 	}
-	if (strncmp(o, "--version", 9) == 0) {
-		ARGS.opt_version = true;
-		return 0;
-	}
 	if (strncmp(o, "--steps=", 8) == 0) {
 		unsigned long n = strtoull(o + 8, nullptr, 10);
 		if (n == 0) {
@@ -118,6 +112,10 @@ static int args_parse_longopt(int *argc, char ***argv)
 		ARGS.opt_steps = true;
 		ARGS.steps = n;
 
+		return 0;
+	}
+	if (strncmp(o, "--version", 9) == 0) {
+		ARGS.opt_version = true;
 		return 0;
 	}
 
@@ -185,6 +183,55 @@ static void args_validate(void)
 	}
 }
 
+static int run_circuit(
+	const char *filename, const size_t nsteps, const double delta)
+{
+	int rt = -1; /* Return value */
+
+	data_id fid;
+	struct timespec t1, t2;
+	struct circ c;
+	struct circ_trott_data data = { .delta = delta, .nsteps = nsteps };
+
+	log_info("open data file: %s", filename);
+	if ((fid = data_open(filename)) == DATA_INVALID_FID) {
+		log_error("open file: %s", ARGS.filename);
+		goto ex_circ_init;
+	}
+	if (circ_init(&c, fid, &data) < 0)
+		goto ex_circ_init;
+	log_info("close data file: %s", filename);
+	data_close(fid);
+
+	clock_gettime(CLOCK_REALTIME, &t1);
+	if (circ_simulate(&c) < 0)
+		goto ex_circ_simulate;
+	clock_gettime(CLOCK_REALTIME, &t2);
+	const double t_tot = (double)(t2.tv_sec - t1.tv_sec) +
+			     (double)(t2.tv_nsec - t1.tv_nsec) * 1.0e-9;
+
+	log_info("open data file: %s", filename);
+	if ((fid = data_open(filename)) == DATA_INVALID_FID) {
+		log_error("open file: %s", ARGS.filename);
+		goto ex_circ_res_write;
+	}
+	if (circ_res_write(&c, fid) < 0)
+		goto ex_circ_res_write;
+	log_info("close data file: %s", filename);
+	data_close(fid);
+
+	rt = 0; /* Success. */
+ex_circ_res_write:
+	circ_destroy(&c);
+	log_info("> Simulation summary (CSV):");
+	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
+	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", c.hamil.nqb, c.hamil.nterms,
+		c.muldet.ndets, delta, nsteps, WD.size, t_tot);
+ex_circ_simulate:
+ex_circ_init:
+	return rt;
+}
+
 int main(int argc, char **argv)
 {
 	int rt = -1; /* Return value. */
@@ -211,12 +258,7 @@ int main(int argc, char **argv)
 	log_info("*** Circuit: trott ***");
 	log_info("delta: %f", ARGS.delta);
 	log_info("num_steps: %zu", ARGS.steps);
-	const data_id fid = data_open(ARGS.filename);
-	if (fid == DATA_INVALID_FID) {
-		log_error("cannot process input data");
-		goto ex_data_open;
-	}
-	if (run_circuit(fid, ARGS.steps, ARGS.delta) < 0) {
+	if (run_circuit(ARGS.filename, ARGS.steps, ARGS.delta) < 0) {
 		log_error("Failure: simulation error");
 		goto ex_run_circuit;
 	}
@@ -225,45 +267,9 @@ int main(int argc, char **argv)
 
 ex_run_circuit:
 	log_info("Shut down simulation environment");
-	data_close(fid);
-ex_data_open:
 ex_nranks:
 ex_world_init:
 	world_destroy();
 
-	return rt;
-}
-
-static int run_circuit(data_id fid, size_t nsteps, double delta)
-{
-	int rt = -1; /* Return value */
-
-	struct timespec t1, t2;
-	double t_tot;
-
-	struct circ_trott_data data = { .delta = delta, .nsteps = nsteps };
-	struct circ c;
-	if (circ_init(&c, fid, &data) < 0)
-		goto ex_circ_init;
-
-	clock_gettime(CLOCK_REALTIME, &t1);
-	if (circ_simulate(&c) < 0)
-		goto ex_circ_simulate;
-	clock_gettime(CLOCK_REALTIME, &t2);
-	t_tot = (double)(t2.tv_sec - t1.tv_sec) +
-		(double)(t2.tv_nsec - t1.tv_nsec) * 1.0e-9;
-
-	if (circ_res_write(&c, fid) < 0)
-		goto ex_circ_res_write;
-	circ_destroy(&c);
-
-	rt = 0; /* Success. */
-ex_circ_res_write:
-	log_info("> Simulation summary (CSV):");
-	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", c.hamil.nqb, c.hamil.nterms,
-		c.muldet.ndets, delta, nsteps, WD.size, t_tot);
-ex_circ_simulate:
-ex_circ_init:
 	return rt;
 }
