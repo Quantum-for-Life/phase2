@@ -30,35 +30,90 @@ void data_close(const data_id fid)
 	H5Fclose(fid);
 }
 
-static int data_group_open(const hid_t fid, hid_t *grp_id, const char *name)
-{
-	const hid_t hid = H5Gopen2(fid, name, H5P_DEFAULT);
-	if (hid == H5I_INVALID_HID)
-		return -1;
-	*grp_id = hid;
-
-	return 0;
-}
-
-static void data_group_close(const hid_t grp_id)
-{
-	H5Gclose(grp_id);
-}
-
-static int data_read_attr(hid_t fid, const char *name, hid_t type_id, void *buf)
+int data_grp_create(data_id fid, const char *grp_name)
 {
 	int rt = -1;
 
-	const hid_t attr_id = H5Aopen(fid, name, H5P_DEFAULT);
+	const hid_t lcpl = H5Pcreate(H5P_LINK_CREATE);
+	if (lcpl == H5I_INVALID_HID)
+		goto ex_lcpl;
+	// ensure that intermediate groups are created automatically
+	if (H5Pset_create_intermediate_group(lcpl, 1) < 0)
+		goto ex_prop;
+	// use UTF-8 encoding for link names
+	if (H5Pset_char_encoding(lcpl, H5T_CSET_UTF8) < 0)
+		goto ex_prop;
+	const hid_t group =
+		H5Gcreate(fid, grp_name, lcpl, H5P_DEFAULT, H5P_DEFAULT);
+	if (group == H5I_INVALID_HID)
+		goto ex_group;
+
+	rt = 0;
+	H5Gclose(group);
+ex_group:
+ex_prop:
+	H5Pclose(lcpl);
+ex_lcpl:
+	return rt;
+}
+
+int data_attr_read_dbl(
+	data_id fid, const char *grp_name, const char *attr_name, double *a)
+{
+	int rt = -1;
+
+	const hid_t grp_id = H5Gopen(fid, grp_name, H5P_DEFAULT);
+	if (grp_id == H5I_INVALID_HID)
+		goto ex_grp_id;
+	const hid_t attr_id = H5Aopen(grp_id, attr_name, H5P_DEFAULT);
 	if (attr_id == H5I_INVALID_HID)
 		goto ex_attr_id;
-	if (H5Aread(attr_id, type_id, buf) < 0)
+	if (H5Aread(attr_id, H5T_NATIVE_DOUBLE, a) < 0)
 		goto ex_h5aread;
 
 	rt = 0;
 ex_h5aread:
 	H5Aclose(attr_id);
 ex_attr_id:
+	H5Gclose(grp_id);
+ex_grp_id:
+	return rt;
+}
+
+int data_attr_write_dbl(
+	data_id fid, const char *grp_name, const char *attr_name, double a)
+{
+	int rt = -1;
+
+	const hid_t grp_id = H5Gopen(fid, grp_name, H5P_DEFAULT);
+	if (grp_id == H5I_INVALID_HID)
+		goto ex_group;
+	const hid_t acpl = H5Pcreate(H5P_ATTRIBUTE_CREATE);
+	if (acpl == H5I_INVALID_HID)
+		goto ex_acpl;
+	// use UTF-8 encoding for the attribute name
+	if (H5Pset_char_encoding(acpl, H5T_CSET_UTF8) < 0)
+		goto ex_fspace;
+	const hid_t fspace = H5Screate(H5S_SCALAR);
+	if (fspace == H5I_INVALID_HID)
+		goto ex_fspace;
+	const hid_t attr_id = H5Acreate2(
+		grp_id, attr_name, H5T_IEEE_F64LE, fspace, acpl, H5P_DEFAULT);
+	if (attr_id == H5I_INVALID_HID)
+		goto ex_attr;
+	if (H5Awrite(attr_id, H5T_NATIVE_DOUBLE, &a) < 0)
+		goto ex_write;
+
+	rt = 0;
+ex_write:
+	H5Aclose(attr_id);
+ex_attr:
+	H5Sclose(fspace);
+ex_fspace:
+	H5Pclose(acpl);
+ex_acpl:
+	H5Gclose(grp_id);
+ex_group:
 	return rt;
 }
 
@@ -69,28 +124,28 @@ struct muldet_handle {
 
 static int multidet_open(const data_id fid, struct muldet_handle *md)
 {
-	hid_t sp_id, md_id;
-
-	if (data_group_open(fid, &sp_id, DATA_STPREP) < 0)
-		goto err_grp_open_stprep;
-	if (data_group_open(sp_id, &md_id, DATA_STPREP_MULTIDET) < 0)
-		goto err_grp_open_muldet;
+	const hid_t sp_id = H5Gopen(fid, DATA_STPREP, H5P_DEFAULT);
+	if (sp_id == H5I_INVALID_HID)
+		goto err_stprep;
+	const hid_t md_id = H5Gopen(sp_id, DATA_STPREP_MULTIDET, H5P_DEFAULT);
+	if (md_id == H5I_INVALID_HID)
+		goto err_muldet;
 
 	md->stprep_grp_id = sp_id;
 	md->muldet_grp_id = md_id;
 
 	return 0;
 
-err_grp_open_muldet:
-	data_group_close(sp_id);
-err_grp_open_stprep:
+err_muldet:
+	H5Gclose(sp_id);
+err_stprep:
 	return -1;
 }
 
 static void multidet_close(struct muldet_handle md)
 {
-	data_group_close(md.muldet_grp_id);
-	data_group_close(md.stprep_grp_id);
+	H5Gclose(md.muldet_grp_id);
+	H5Gclose(md.stprep_grp_id);
 }
 
 int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets)
@@ -208,14 +263,12 @@ int data_hamil_getnums(data_id fid, uint32_t *nqb, size_t *nterms)
 {
 	int rt = -1;
 
-	hid_t grp_id;
-	if (data_group_open(fid, &grp_id, DATA_HAMIL) < 0)
-		goto ex_open;
-
+	const hid_t grp_id = H5Gopen(fid, DATA_HAMIL, H5P_DEFAULT);
+	if (grp_id == H5I_INVALID_HID)
+		goto ex_grp;
 	const hid_t dset_id = H5Dopen2(grp_id, DATA_HAMIL_PAULIS, H5P_DEFAULT);
 	if (dset_id == H5I_INVALID_HID)
-		goto ex_read;
-
+		goto ex_dset;
 	const hid_t dsp_id = H5Dget_space(dset_id);
 	hsize_t dsp_dims[2];
 	if (H5Sget_simple_extent_dims(dsp_id, dsp_dims, NULL) != 2)
@@ -228,52 +281,28 @@ int data_hamil_getnums(data_id fid, uint32_t *nqb, size_t *nterms)
 ex_dims:
 	H5Sclose(dsp_id);
 	H5Dclose(dset_id);
-ex_read:
-	data_group_close(grp_id);
-ex_open:
+ex_dset:
+	H5Gclose(grp_id);
+ex_grp:
 	return rt;
 }
 
 int data_hamil_getnorm(data_id fid, double *norm)
 {
-	int rt = -1;
-
-	hid_t grp_id;
-	if (data_group_open(fid, &grp_id, DATA_HAMIL) < 0)
-		goto ex_open;
-
-	const hid_t attr_norm_id =
-		H5Aopen(grp_id, DATA_HAMIL_NORM, H5P_DEFAULT);
-	if (attr_norm_id == H5I_INVALID_HID)
-		goto ex_attr_open;
-
-	double n;
-	if (H5Aread(attr_norm_id, H5T_NATIVE_DOUBLE, &n) < 0)
-		goto ex_attr_read;
-	*norm = n;
-
-	rt = 0;
-ex_attr_read:
-	H5Aclose(attr_norm_id);
-ex_attr_open:
-	data_group_close(grp_id);
-ex_open:
-	return rt;
+	return data_attr_read_dbl(fid, DATA_HAMIL, DATA_HAMIL_NORM, norm);
 }
 
 static int hamil_read_data(data_id fid, double *cfs, unsigned char *paulis)
 {
 	int rt = -1;
 
-	hid_t grp_id;
-	if (data_group_open(fid, &grp_id, DATA_HAMIL) < 0)
-		goto ex_data_group_open;
-
+	const hid_t grp_id = H5Gopen(fid, DATA_HAMIL, H5P_DEFAULT);
+	if (grp_id == H5I_INVALID_HID)
+		goto ex_grp;
 	const hid_t dset_coeffs_id =
 		H5Dopen2(grp_id, DATA_HAMIL_COEFFS, H5P_DEFAULT);
 	if (dset_coeffs_id == H5I_INVALID_HID)
-		goto ex_coeffs_open;
-
+		goto ex_coeffs;
 	if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
 		    H5P_DEFAULT, cfs) < 0)
 		goto ex_coeffs_read;
@@ -281,8 +310,7 @@ static int hamil_read_data(data_id fid, double *cfs, unsigned char *paulis)
 	const hid_t dset_paulis_id =
 		H5Dopen2(grp_id, DATA_HAMIL_PAULIS, H5P_DEFAULT);
 	if (dset_paulis_id == H5I_INVALID_HID)
-		goto ex_paulis_open;
-
+		goto ex_paulis;
 	if (H5Dread(dset_paulis_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
 		    H5P_DEFAULT, paulis) < 0)
 		goto ex_pauli_read;
@@ -290,12 +318,12 @@ static int hamil_read_data(data_id fid, double *cfs, unsigned char *paulis)
 	rt = 0;
 ex_pauli_read:
 	H5Dclose(dset_paulis_id);
-ex_paulis_open:
+ex_paulis:
 ex_coeffs_read:
 	H5Dclose(dset_coeffs_id);
-ex_coeffs_open:
-	data_group_close(grp_id);
-ex_data_group_open:
+ex_coeffs:
+	H5Gclose(grp_id);
+ex_grp:
 	return rt;
 }
 
@@ -341,41 +369,23 @@ ex_coeffs_alloc:
 	return rt;
 }
 
-int data_circ_trott_getttrs(data_id fid, double *delta)
-{
-	int rt = -1;
-
-	hid_t grp_id;
-	if (data_group_open(fid, &grp_id, DATA_CIRCTROTT) < 0)
-		goto ex_data_group_open;
-
-	if (data_read_attr(grp_id, DATA_CIRCTROTT_TIMEFACTOR, H5T_NATIVE_DOUBLE,
-		    delta) < 0)
-		goto ex_data_read_attr;
-
-	rt = 0;
-ex_data_read_attr:
-	data_group_close(grp_id);
-ex_data_group_open:
-	return rt;
-}
-
-int data_write_vals(data_id fid, const char *grp_name, const char *dset_name,
+int data_res_write(data_id fid, const char *grp_name, const char *dset_name,
 	const _Complex double *vals, const size_t nvals)
 {
 	int rt = -1;
 
-	hid_t grp_id, dspace_id, dset_id;
-	if (data_group_open(fid, &grp_id, grp_name) < 0)
+	const hid_t grp_id = H5Gopen(fid, grp_name, H5P_DEFAULT);
+	if (grp_id == H5I_INVALID_HID)
 		goto ex_open;
-	if ((dspace_id = H5Screate_simple(2, (hsize_t[]){ nvals, 2 }, NULL)) ==
-		H5I_INVALID_HID)
+	const hid_t dspace_id =
+		H5Screate_simple(2, (hsize_t[]){ nvals, 2 }, NULL);
+	if (dspace_id == H5I_INVALID_HID)
 		goto ex_fspace;
 
-	if ((dset_id = H5Dcreate2(grp_id, dset_name, H5T_IEEE_F64LE, dspace_id,
-		     H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)) == H5I_INVALID_HID)
+	const hid_t dset_id = H5Dcreate2(grp_id, dset_name, H5T_IEEE_F64LE,
+		dspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+	if (dset_id == H5I_INVALID_HID)
 		goto ex_dset;
-
 	if (H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, H5S_ALL, dspace_id,
 		    H5P_DEFAULT, vals) < 0)
 		goto ex_dset_write;
@@ -386,7 +396,7 @@ ex_dset_write:
 ex_dset:
 	H5Sclose(dspace_id);
 ex_fspace:
-	data_group_close(grp_id);
+	H5Gclose(grp_id);
 ex_open:
 	return rt;
 }
@@ -396,12 +406,12 @@ int data_circ_trott_read_values_test(
 {
 	int rt = -1;
 
-	hid_t grp_id;
 	double *v = malloc(sizeof(double) * 2 * nvals);
 	if (!v)
 		goto ex_malloc;
 
-	if (data_group_open(fid, &grp_id, DATA_CIRCTROTT) < 0)
+	const hid_t grp_id = H5Gopen(fid, DATA_CIRCTROTT, H5P_DEFAULT);
+	if (grp_id == H5I_INVALID_HID)
 		goto ex_open;
 	const hid_t dset = H5Dopen2(grp_id, DATA_CIRCTROTT_VALUES, H5P_DEFAULT);
 	if (dset == H5I_INVALID_HID)
@@ -421,35 +431,9 @@ int data_circ_trott_read_values_test(
 ex_read:
 	H5Dclose(dset);
 ex_dset:
-	data_group_close(grp_id);
+	H5Gclose(grp_id);
 ex_open:
 	free(v);
 ex_malloc:
-	return rt;
-}
-
-int data_circ_qdrift_getattrs(
-	const data_id fid, size_t *nsamples, double *step_size, size_t *depth)
-{
-	int rt = -1;
-
-	hid_t grp_id;
-	if (data_group_open(fid, &grp_id, DATA_CIRCQDRIFT) < 0)
-		goto ex_data_group_open;
-
-	if (data_read_attr(grp_id, DATA_CIRCQDRIFT_NUMSAMPLES,
-		    H5T_NATIVE_UINT64, nsamples) < 0)
-		goto ex_data_read_attr;
-	if (data_read_attr(grp_id, DATA_CIRCQDRIFT_STEPSIZE, H5T_NATIVE_DOUBLE,
-		    step_size) < 0)
-		goto ex_data_read_attr;
-	if (data_read_attr(grp_id, DATA_CIRCQDRIFT_DEPTH, H5T_NATIVE_UINT64,
-		    depth) < 0)
-		goto ex_data_read_attr;
-
-	rt = 0;
-ex_data_read_attr:
-	data_group_close(grp_id);
-ex_data_group_open:
 	return rt;
 }

@@ -23,13 +23,14 @@
 #define WD_SEED UINT64_C(0xd326119d4859ebb2)
 static struct world WD;
 
-static int run_circuit(data_id fid, size_t nsteps);
+static int run_circuit(data_id fid, size_t nsteps, double delta);
 
 static struct args {
 	const char *progname;
 	bool opt_help;
 	bool opt_version;
 	bool opt_steps;
+	double delta;
 	size_t steps;
 	const char *filename;
 } ARGS = {
@@ -37,6 +38,7 @@ static struct args {
 	.opt_help = false,
 	.opt_steps = false,
 	.opt_version = false,
+	.delta = 1.0,
 	.steps = 0,
 	.filename = nullptr,
 };
@@ -45,10 +47,12 @@ static void print_help(const char *progname)
 {
 	fprintf(stderr, "%s: Simulate \"trott\" circuit.\n\n", progname);
 	fprintf(stderr, "  usage: %s [OPTIONS] --steps=n FILENAME\n", progname);
-	fprintf(stderr, "\nOptions:\n"
-			"  -h, --help          Show this help.\n"
-			"  -v, --version       Print version number.\n"
-			"\n");
+	fprintf(stderr,
+		"\nOptions:\n"
+		"  -h, --help          Show this help.\n"
+		"  -v, --version       Print version number.\n"
+		"  --delta=D           Time scale (floating point value)\n"
+		"\n");
 	fprintf(stderr, "FILENAME is a HDF5 simulation worksheet.\n");
 }
 
@@ -86,6 +90,16 @@ static int args_parse_longopt(int *argc, char ***argv)
 	(void)argc;
 
 	char *o = **argv;
+	if (strncmp(o, "--delta=", 8) == 0) {
+		double delta = strtod(o + 8, nullptr);
+		if (delta == 0) {
+			fprintf(stderr, "Option: --delta=, wrong value.\n");
+			return -1;
+		}
+		ARGS.delta = delta;
+
+		return 0;
+	}
 	if (strncmp(o, "--help", 6) == 0) {
 		ARGS.opt_help = true;
 		return 0;
@@ -182,7 +196,7 @@ int main(int argc, char **argv)
 		goto ex_world_init;
 	world_info(&WD);
 
-	unsigned int nranks = WD.size;
+	const unsigned int nranks = WD.size;
 	if (nranks == 0 || (nranks & (nranks - 1)) != 0) {
 		log_error("number of MPI ranks (%u) "
 			  "must be a power of two.",
@@ -192,17 +206,17 @@ int main(int argc, char **argv)
 
 	log_info("*** Init ***");
 	log_info("MPI nranks: %d", nranks);
-	log_info("This is rank no. %d", WD.rank);
+	log_info("world_backend: %s", WORLD_BACKEND);
 
-	data_id fid = data_open(ARGS.filename);
+	log_info("*** Circuit: trott ***");
+	log_info("delta: %f", ARGS.delta);
+	log_info("num_steps: %zu", ARGS.steps);
+	const data_id fid = data_open(ARGS.filename);
 	if (fid == DATA_INVALID_FID) {
 		log_error("cannot process input data");
 		goto ex_data_open;
 	}
-
-	log_info("*** Circuit: trott ***");
-	log_info("Num_steps: %zu", ARGS.steps);
-	if (run_circuit(fid, ARGS.steps) < 0) {
+	if (run_circuit(fid, ARGS.steps, ARGS.delta) < 0) {
 		log_error("Failure: simulation error");
 		goto ex_run_circuit;
 	}
@@ -220,15 +234,13 @@ ex_world_init:
 	return rt;
 }
 
-static int run_circuit(data_id fid, size_t nsteps)
+static int run_circuit(data_id fid, size_t nsteps, double delta)
 {
 	int rt = -1; /* Return value */
 
 	struct timespec t1, t2;
 	double t_tot;
 
-	double delta;
-	data_circ_trott_getttrs(fid, &delta);
 	struct circ_trott_data data = { .delta = delta, .nsteps = nsteps };
 	struct circ c;
 	if (circ_init(&c, fid, &data) < 0)
@@ -237,25 +249,21 @@ static int run_circuit(data_id fid, size_t nsteps)
 	clock_gettime(CLOCK_REALTIME, &t1);
 	if (circ_simulate(&c) < 0)
 		goto ex_circ_simulate;
-
 	clock_gettime(CLOCK_REALTIME, &t2);
 	t_tot = (double)(t2.tv_sec - t1.tv_sec) +
 		(double)(t2.tv_nsec - t1.tv_nsec) * 1.0e-9;
 
 	if (circ_res_write(&c, fid) < 0)
 		goto ex_circ_res_write;
-
 	circ_destroy(&c);
 
 	rt = 0; /* Success. */
-
 ex_circ_res_write:
 	log_info("> Simulation summary (CSV):");
-	log_info("> n_qb,n_terms,n_dets,n_steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%d,%.3f", c.hamil.nqb, c.hamil.nterms,
-		c.muldet.ndets, nsteps, WD.size, t_tot);
+	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
+	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", c.hamil.nqb, c.hamil.nterms,
+		c.muldet.ndets, delta, nsteps, WD.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:
-
 	return rt;
 }

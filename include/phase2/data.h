@@ -18,7 +18,7 @@
 #define DATA_HAMIL_NORM "normalization"
 
 #define DATA_CIRCTROTT "circ_trott"
-#define DATA_CIRCTROTT_TIMEFACTOR "time_factor"
+#define DATA_CIRCTROTT_DELTA "delta"
 #define DATA_CIRCTROTT_VALUES "values"
 
 #define DATA_CIRCQDRIFT "circ_qdrift"
@@ -52,6 +52,23 @@ data_id data_open(const char *filename);
  * resources.
  */
 void data_close(data_id);
+
+int data_grp_create(data_id fid, const char *grp_name);
+
+#define data_attr_read(fid, grp_name, attr_name, attr_buf)                     \
+	_Generic((attr_buf), double *: data_attr_read_dbl)(                    \
+		fid, grp_name, attr_name, attr_buf)
+
+#define data_attr_write(fid, grp_name, attr_name, attr)                        \
+	_Generic((attr), double: data_attr_write_dbl)(                         \
+		fid, grp_name, attr_name, attr)
+
+int data_attr_read_dbl(
+	data_id fid, const char *grp_name, const char *attr_name, double *a);
+
+/* Create an attribute and write the value of 'a' to it. */
+int data_attr_write_dbl(
+	data_id fid, const char *grp_name, const char *attr_name, double a);
 
 /**
  * Get the number of qubits and terms for the "multidet" group.
@@ -176,12 +193,7 @@ int data_hamil_getnorm(data_id fid, double *norm);
 int data_hamil_foreach(
 	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
 
-int data_write_vals(data_id fid, const char *grp_name, const char *dset_name,
- const _Complex double *vals, size_t nvals);
-
-int data_circ_trott_getttrs(data_id fid, double *factor);
-
-int data_circ_qdrift_getattrs(
-	data_id fid, size_t *nsamples, double *step_size, size_t *depth);
+int data_res_write(data_id fid, const char *grp_name, const char *dset_name,
+	const _Complex double *vals, size_t nvals);
 
 #endif // PHASE2_DATA_H

@@ -225,7 +225,7 @@ int circ_res_write(struct circ *c, data_id fid)
 {
 	struct circ_qdrift_res *res = c->res;
 
-	return data_write_vals(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_VALUES,
+	return data_res_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_VALUES,
 		res->samples, res->nsamples);
 }
 

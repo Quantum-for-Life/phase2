@@ -72,14 +72,14 @@ static int trott_prepst(struct trott *tt, struct circ *c)
 	return 0;
 }
 
-static void trott_step(struct trott *tt, struct circ *c, const double omega)
+static void trott_step(struct trott *tt, struct circ *c, const double delta)
 {
 	const struct circ_hamil *hamil = &c->hamil;
 
 	struct code_cache *cache = &tt->cache;
 	cache->ncodes = 0;
 	for (size_t i = 0; i < hamil->nterms; i++) {
-		const double angle = omega * hamil->terms[i].cf;
+		const double angle = delta * hamil->terms[i].cf;
 		const struct paulis code = hamil->terms[i].op;
 
 		struct paulis code_hi, code_lo;
@@ -161,6 +161,7 @@ int circ_res_init(struct circ *c)
 	if (!steps)
 		goto malloc_steps;
 
+	res->delta = data->delta;
 	res->steps = steps;
 	res->nsteps = nsteps;
 	c->res = res;
@@ -184,10 +185,24 @@ void circ_res_destroy(struct circ *c)
 
 int circ_res_write(struct circ *c, data_id fid)
 {
+	int rt = -1;
+
 	struct circ_trott_res *res = c->res;
 
-	return data_write_vals(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES,
-		res->steps, res->nsteps);
+	if (data_grp_create(fid, DATA_CIRCTROTT) < 0)
+		goto data_grp_create;
+	if (data_attr_write_dbl(
+		    fid, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA, res->delta) < 0)
+		goto data_attr_write;
+	if (data_res_write(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES,
+		    res->steps, res->nsteps) < 0)
+		goto data_res_write;
+
+	rt = 0;
+data_res_write:
+data_attr_write:
+data_grp_create:
+	return rt;
 }
 
 int circ_simulate(struct circ *c)
