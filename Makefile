@@ -4,6 +4,10 @@
 # Specify compile flags and the path to both MPI and HDF5 dynamic libraries   #
 # and headers.                                                                #
 # ----------------------------------------------------------------------------#
+VERSION_MAJOR	:= 0
+VERSION_MINOR	:= 9
+VERSION_PATCH	:= 0
+
 AS		:= nasm
 ASFLAGS		+= -felf64 -w+all -w-reloc-rel-dword -Ox
 CC		?= gcc
@@ -152,7 +156,10 @@ $(PROGS): $(PHASE2OBJS) $(UTILSOBJS)
 CFLAGS		+= -I$(INCLUDE)						\
 			$(MPI_CFLAGS)					\
 			$(HDF5_CFLAGS)					\
-			$(BACKEND_CFLAGS)
+			$(BACKEND_CFLAGS)				\
+			-DPHASE2_VER_MAJOR=$(VERSION_MAJOR)		\
+			-DPHASE2_VER_MINOR=$(VERSION_MINOR)		\
+			-DPHASE2_VER_PATCH=$(VERSION_PATCH)
 LDFLAGS		+= $(MPI_LDFLAGS)					\
 			$(HDF5_LDFLAGS)					\
 			$(BACKEND_LDFLAGS)
