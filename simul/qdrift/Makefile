@@ -35,7 +35,7 @@ QDRIFT_RPE_FLAGS	= --delta=$(DELTA) --epsilon=$(EPSILON) \
 				--num-samples=$(NUM_SAMPLES)
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
 PH2RUN_FLAGS		=
-PR2RUN_LOGLVL		= info
+PHASE2_LOG		?= info
 
 .DEFAULT_GOAL := all
 .PHONY: all clean rpe simulate
@@ -54,7 +54,7 @@ simulate: $(SIMUL_H5)
 	find . -iname "$(SIMUL_H5)-*"				\
 		-exec echo {} \;				\
 		-exec $(MPIRUN) $(MPIRUN_FLAGS)			\
-			-x PHASE2_LOG=$(PR2RUN_LOGLVL)		\
+			-x PHASE2_LOG=$(PHASE2_LOG)		\
 			$(PH2RUN) {} $(PH2RUN_FLAGS) \;
 
 rpe:
