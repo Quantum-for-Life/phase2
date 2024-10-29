@@ -14,8 +14,8 @@ struct circ_qdrift_data {
 };
 
 struct circ_qdrift_res {
-	_Complex double *samples;
 	size_t nsamples;
+	_Complex double *samples;
 };
 
 #ifdef __cplusplus

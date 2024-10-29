@@ -101,9 +101,9 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
 
 ## Group: `/circ_trott`
 
-- Attribute: `time_factor`
+- Attribute: `delta`
     - *Type*: `double`
-    - *Comment*: Coefficient multiplying the time parameter for Hamiltonian
+  - *Comment*: Coefficient multiplying the time parameter in Hamiltonian
       simulation.
 
 - Dataset: `values`

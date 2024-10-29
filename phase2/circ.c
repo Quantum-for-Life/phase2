@@ -7,8 +7,6 @@
 #include "phase2/circ.h"
 #include "phase2/paulis.h"
 
-#include "circ.h"
-
 static int circ_hamil_init(struct circ_hamil *h, uint32_t nqb, size_t nterms)
 {
 	h->terms = malloc(sizeof *h->terms * nterms);

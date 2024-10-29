@@ -8,7 +8,7 @@
 #include "phase2/qreg.h"
 #include "phase2/world.h"
 
-#include "qreg_impl.h"
+#include "qreg.h"
 #include "world_quest.h"
 
 struct qreg_quest {

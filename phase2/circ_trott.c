@@ -10,8 +10,6 @@
 #include "phase2/qreg.h"
 #include "phase2/world.h"
 
-#include "circ.h"
-
 struct trott {
 	struct qreg reg;
 	_Complex double prod;
@@ -143,10 +141,25 @@ void circ_res_destroy(struct circ *c)
 
 int circ_res_write(struct circ *c, data_id fid)
 {
+	int rt = -1;
+
+	struct circ_trott_data *data = c->data;
 	struct circ_trott_res *res = c->res;
 
-	return data_write_vals(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES,
-		res->steps, res->nsteps);
+	if (data_grp_create(fid, DATA_CIRCTROTT) < 0)
+		goto data_grp_create;
+	if (data_attr_write_dbl(
+		    fid, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA, data->delta) < 0)
+		goto data_attr_write;
+	if (data_res_write(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES,
+		    res->steps, res->nsteps) < 0)
+		goto data_res_write;
+
+	rt = 0;
+data_res_write:
+data_attr_write:
+data_grp_create:
+	return rt;
 }
 
 int circ_simulate(struct circ *c)

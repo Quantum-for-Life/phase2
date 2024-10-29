@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # Simulation parameters:
-TIME_FACT	= 0.01
+DELTA		= 0.01
 TROTT_STEPS	= 1024
 MPI_RANKS	= 2
 # -----------------------------------------------------------------------------
@@ -31,8 +31,8 @@ PARSE_INPUTST_FLAGS	=
 TROTT_PREP_FLAGS	= --time-factor=$(TIME_FACT)
 TROTT_RPE_FLAGS		=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
-PH2RUN_FLAGS		= $(TROTT_STEPS)
-PH2RUN_LOGLVL		= error
+PH2RUN_FLAGS		= --steps=$(TROTT_STEPS) --delta=$(DELTA)
+PHASE2_LOG		?= info
 
 
 .DEFAULT_GOAL: all
@@ -43,12 +43,11 @@ all: $(SIMUL_PROC)
 $(SIMUL_ORIG): $(FCIDUMP) $(INPUTST)
 	$(PARSE_FCIDUMP) $(PARSE_FCIDUMP_FLAGS) -o $@ $(FCIDUMP)
 	$(PARSE_INPUTST) $(PARSE_INPUTST_FLAGS) -o $@ $(INPUTST)
-	$(TROTT_PREP) $(TROTT_PREP_FLAGS) -o $@
 
 $(SIMUL_H5): $(SIMUL_ORIG)
 	cp $< $@
-	$(MPIRUN) $(MPIRUN_FLAGS) -x PHASE2_LOG=$(PH2RUN_LOGLVL) \
-		$(PH2RUN) $(SIMUL_H5) $(PH2RUN_FLAGS)
+	$(MPIRUN) $(MPIRUN_FLAGS) -x PHASE2_LOG=$(PHASE2_LOG) \
+		$(PH2RUN) $(PH2RUN_FLAGS) $(SIMUL_H5) 
 
 $(SIMUL_PROC): $(SIMUL_H5)
 	@echo -n "$(TIME_FACT),$(TROTT_STEPS)," >> $@
