@@ -245,7 +245,8 @@ bench-mpi: build-bench
 TESTDIR		:= ./test
 CFLAGS		+= -I$(TESTDIR) -DPH2_TESTDIR=\"$(TESTDIR)\"
 
-TESTS		:= $(TESTDIR)/t-circ_trott				\
+TESTS		:= $(TESTDIR)/t-circ_cache				\
+			$(TESTDIR)/t-circ_trott				\
 			$(TESTDIR)/t-data_hamil				\
 			$(TESTDIR)/t-data_multidet			\
 			$(TESTDIR)/t-data_open				\
@@ -257,6 +258,8 @@ TESTS		:= $(TESTDIR)/t-circ_trott				\
 $(TESTS):	$(TESTDIR)/test.h					\
 		$(TESTDIR)/t-data.h					\
 		$(PHASE2OBJS) $(UTILSOBJS)
+
+$(TESTDIR)/t-circ_cache: $(PHASE2DIR)/circ.o $(PHASE2DIR)/circ_trott.o
 $(TESTDIR)/t-circ_trott: $(PHASE2DIR)/circ.o $(PHASE2DIR)/circ_trott.o
 
 build-test: $(TESTS)

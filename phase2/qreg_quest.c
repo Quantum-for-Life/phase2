@@ -140,7 +140,7 @@ static void paulirot_onecode(
 }
 
 void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
-	const struct paulis *codes_lo, const double *angles,
+	const struct paulis *codes_lo, const double *phis,
 	const size_t ncodes)
 {
 	const size_t nqb = reg->nqb_lo + reg->nqb_hi;
@@ -153,6 +153,6 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 		for (size_t i = 0; i < nqb; i++)
 			q->tg_op[i] = paulis_get(code, i);
 
-		paulirot_onecode(q->qureg, q->tg_qb, q->tg_op, nqb, angles[k]);
+		paulirot_onecode(q->qureg, q->tg_qb, q->tg_op, nqb, phis[k]);
 	}
 }
