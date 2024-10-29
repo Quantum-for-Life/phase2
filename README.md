@@ -105,7 +105,7 @@ How to use it
 -------------
 
 Prepare an input file for the simulation according to the
-[specification](./simul/simul-h5-specs.md). Then run:
+[specification](doc/simul-h5-specs.md). Then run:
 
 ```bash
 mpirun -n [NUM_CPUS] ./ph2run/ph2run-trott [SIMUL_FILE] [NUM_STEPS]
