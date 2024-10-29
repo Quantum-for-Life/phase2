@@ -16,16 +16,16 @@
 
 uint64_t qreg_getilo(const struct qreg *reg, uint64_t i)
 {
-	const uint64_t mask_lo = (UINT64_C(1) << reg->nqb_lo) - 1;
+	const uint64_t mask_lo = (UINT64_C(1) << reg->qb_lo) - 1;
 
 	return i & mask_lo;
 }
 
 uint64_t qreg_getihi(const struct qreg *reg, uint64_t i)
 {
-	const uint64_t mask_hi = (UINT64_C(1) << reg->nqb_hi) - 1;
+	const uint64_t mask_hi = (UINT64_C(1) << reg->qb_hi) - 1;
 
-	return (i >> reg->nqb_lo) & mask_hi;
+	return (i >> reg->qb_lo) & mask_hi;
 }
 
 int qreg_init(struct qreg *reg, const uint32_t nqb)
@@ -51,8 +51,8 @@ int qreg_init(struct qreg *reg, const uint32_t nqb)
 	if (!amp)
 		goto err_amp_alloc;
 
-	reg->nqb_lo = nqb_lo;
-	reg->nqb_hi = nqb_hi;
+	reg->qb_lo = nqb_lo;
+	reg->qb_hi = nqb_hi;
 	reg->amp = amp;
 	reg->buf = amp + namp;
 	reg->namp = namp;

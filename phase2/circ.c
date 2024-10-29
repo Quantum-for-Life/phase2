@@ -137,3 +137,65 @@ void circ_destroy(struct circ *c)
 	circ_muldet_destroy(&c->muldet);
 	circ_res_destroy(c);
 }
+
+
+int circ_cache_init(struct circ_cache *ch, size_t qb_lo, size_t qb_hi)
+{
+	struct paulis *lo = malloc(sizeof(struct paulis) * MAX_CACHE_CODES);
+	if (!lo)
+		goto err_lo;
+	double *angles = malloc(sizeof(double) * MAX_CACHE_CODES);
+	if (!angles)
+		goto err_angles;
+
+	ch->codes_lo = lo;
+	ch->phis = angles;
+	ch->qb_lo = qb_lo;
+	ch->qb_hi = qb_hi;
+	ch->n = 0;
+
+	return 0;
+
+// free(phs);
+err_angles:
+	free(lo);
+err_lo:
+	return -1;
+}
+
+void circ_cache_destroy(struct circ_cache *ch)
+{
+	free(ch->codes_lo);
+	free(ch->phis);
+}
+
+int circ_cache_insert(struct circ_cache *ch, struct paulis code, double phi)
+{
+	struct paulis lo, hi;
+	paulis_split(code, ch->qb_lo, ch->qb_hi, &lo, &hi);
+	if (ch->n == 0) {
+		ch->code_hi = hi;
+		ch->codes_lo[0] = lo;
+		ch->phis[0] = phi;
+		ch->n = 1;
+		return 0;
+	}
+
+	if (ch->n < MAX_CACHE_CODES && paulis_eq(ch->code_hi, hi)) {
+		const size_t k = ch->n++;
+		ch->codes_lo[k] = lo;
+		ch->phis[k] = phi;
+		return 0;
+	}
+
+	return -1;
+}
+
+void circ_cache_flush(struct circ_cache *ch,
+	void (*op)(struct paulis, struct paulis *, double *, size_t, void *),
+	void *data)
+{
+	if (ch->n > 0 && op)
+		op(ch->code_hi, ch->codes_lo, ch->phis, ch->n, data);
+	ch->n = 0;
+}
