@@ -57,65 +57,74 @@ ex_lcpl:
 	return rt;
 }
 
-int data_attr_read_dbl(
-	data_id fid, const char *grp_name, const char *attr_name, double *a)
-{
-	int rt = -1;
+#define DEFINE_DATA_ATTR_READ(suff, type, h5_type)                             \
+	int data_attr_read_##suff(data_id fid, const char *grp_name,           \
+		const char *attr_name, type *a)                                \
+	{                                                                      \
+		int rt = -1;                                                   \
+                                                                               \
+		const hid_t grp_id = H5Gopen(fid, grp_name, H5P_DEFAULT);      \
+		if (grp_id == H5I_INVALID_HID)                                 \
+			goto ex_grp_id;                                        \
+		const hid_t attr_id = H5Aopen(grp_id, attr_name, H5P_DEFAULT); \
+		if (attr_id == H5I_INVALID_HID)                                \
+			goto ex_attr_id;                                       \
+		if (H5Aread(attr_id, h5_type, a) < 0)                          \
+			goto ex_h5aread;                                       \
+                                                                               \
+		rt = 0;                                                        \
+ex_h5aread:                                                                    \
+		H5Aclose(attr_id);                                             \
+ex_attr_id:                                                                    \
+		H5Gclose(grp_id);                                              \
+ex_grp_id:                                                                     \
+		return rt;                                                     \
+	}
 
-	const hid_t grp_id = H5Gopen(fid, grp_name, H5P_DEFAULT);
-	if (grp_id == H5I_INVALID_HID)
-		goto ex_grp_id;
-	const hid_t attr_id = H5Aopen(grp_id, attr_name, H5P_DEFAULT);
-	if (attr_id == H5I_INVALID_HID)
-		goto ex_attr_id;
-	if (H5Aread(attr_id, H5T_NATIVE_DOUBLE, a) < 0)
-		goto ex_h5aread;
+DEFINE_DATA_ATTR_READ(i, int, H5T_NATIVE_INT);
+DEFINE_DATA_ATTR_READ(ul, unsigned long, H5T_NATIVE_ULONG);
+DEFINE_DATA_ATTR_READ(dbl, double, H5T_NATIVE_DOUBLE);
 
-	rt = 0;
-ex_h5aread:
-	H5Aclose(attr_id);
-ex_attr_id:
-	H5Gclose(grp_id);
-ex_grp_id:
-	return rt;
-}
+#define DEFINE_DATA_ATTR_WRITE(suff, type, h5_type)                            \
+	int data_attr_write_##suff(data_id fid, const char *grp_name,          \
+		const char *attr_name, type a)                                 \
+	{                                                                      \
+		int rt = -1;                                                   \
+                                                                               \
+		const hid_t grp_id = H5Gopen(fid, grp_name, H5P_DEFAULT);      \
+		if (grp_id == H5I_INVALID_HID)                                 \
+			goto ex_group;                                         \
+		const hid_t acpl = H5Pcreate(H5P_ATTRIBUTE_CREATE);            \
+		if (acpl == H5I_INVALID_HID)                                   \
+			goto ex_acpl;                                          \
+		if (H5Pset_char_encoding(acpl, H5T_CSET_UTF8) < 0)             \
+			goto ex_fspace;                                        \
+		const hid_t fspace = H5Screate(H5S_SCALAR);                    \
+		if (fspace == H5I_INVALID_HID)                                 \
+			goto ex_fspace;                                        \
+		const hid_t attr_id = H5Acreate2(grp_id, attr_name, h5_type,   \
+			fspace, acpl, H5P_DEFAULT);                            \
+		if (attr_id == H5I_INVALID_HID)                                \
+			goto ex_attr;                                          \
+		if (H5Awrite(attr_id, h5_type, &a) < 0)                        \
+			goto ex_write;                                         \
+                                                                               \
+		rt = 0;                                                        \
+ex_write:                                                                      \
+		H5Aclose(attr_id);                                             \
+ex_attr:                                                                       \
+		H5Sclose(fspace);                                              \
+ex_fspace:                                                                     \
+		H5Pclose(acpl);                                                \
+ex_acpl:                                                                       \
+		H5Gclose(grp_id);                                              \
+ex_group:                                                                      \
+		return rt;                                                     \
+	}
 
-int data_attr_write_dbl(
-	data_id fid, const char *grp_name, const char *attr_name, double a)
-{
-	int rt = -1;
-
-	const hid_t grp_id = H5Gopen(fid, grp_name, H5P_DEFAULT);
-	if (grp_id == H5I_INVALID_HID)
-		goto ex_group;
-	const hid_t acpl = H5Pcreate(H5P_ATTRIBUTE_CREATE);
-	if (acpl == H5I_INVALID_HID)
-		goto ex_acpl;
-	// use UTF-8 encoding for the attribute name
-	if (H5Pset_char_encoding(acpl, H5T_CSET_UTF8) < 0)
-		goto ex_fspace;
-	const hid_t fspace = H5Screate(H5S_SCALAR);
-	if (fspace == H5I_INVALID_HID)
-		goto ex_fspace;
-	const hid_t attr_id = H5Acreate2(
-		grp_id, attr_name, H5T_IEEE_F64LE, fspace, acpl, H5P_DEFAULT);
-	if (attr_id == H5I_INVALID_HID)
-		goto ex_attr;
-	if (H5Awrite(attr_id, H5T_NATIVE_DOUBLE, &a) < 0)
-		goto ex_write;
-
-	rt = 0;
-ex_write:
-	H5Aclose(attr_id);
-ex_attr:
-	H5Sclose(fspace);
-ex_fspace:
-	H5Pclose(acpl);
-ex_acpl:
-	H5Gclose(grp_id);
-ex_group:
-	return rt;
-}
+DEFINE_DATA_ATTR_WRITE(i, int, H5T_NATIVE_INT);
+DEFINE_DATA_ATTR_WRITE(ul, unsigned long, H5T_NATIVE_ULONG);
+DEFINE_DATA_ATTR_WRITE(dbl, double, H5T_NATIVE_DOUBLE);
 
 struct muldet_handle {
 	hid_t stprep_grp_id;

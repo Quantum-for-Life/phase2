@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 
 import argparse
-import h5py
-import math
 import cmath
+import math
+
+import h5py
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        prog="qdrift_sample",
-        description="Sample Hamiltonian for QDRIFT",
+        prog="qdrift-rpe",
+        description="Robust phase estimation for QDrift",
         epilog="Quantum-for-Life",
     )
 
@@ -36,11 +37,11 @@ if __name__ == "__main__":
 
     thetas = [0.0]
     for i in range(0, J + 1):
-        filename = args.filename + f"-{i:04}"
+        filename = args.filename + f".{i}"
         with h5py.File(filename, "a") as f:
             grp = f["circ_qdrift"]
             depth = grp.attrs["depth"]
-            num_samples = grp.attrs["num_samples"]
+            num_samples = len(grp["values"])
             z_re = sum(x[0] for x in grp["values"]) / num_samples
             z_im = sum(x[1] for x in grp["values"]) / num_samples
         z = z_re + 1j * z_im

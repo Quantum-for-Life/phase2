@@ -159,7 +159,6 @@ int circ_res_init(struct circ *c)
 	if (!steps)
 		goto malloc_steps;
 
-	res->delta = data->delta;
 	res->steps = steps;
 	res->nsteps = nsteps;
 	c->res = res;
@@ -185,12 +184,13 @@ int circ_res_write(struct circ *c, data_id fid)
 {
 	int rt = -1;
 
+	struct circ_trott_data *data = c->data;
 	struct circ_trott_res *res = c->res;
 
 	if (data_grp_create(fid, DATA_CIRCTROTT) < 0)
 		goto data_grp_create;
 	if (data_attr_write_dbl(
-		    fid, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA, res->delta) < 0)
+		    fid, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA, data->delta) < 0)
 		goto data_attr_write;
 	if (data_res_write(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES,
 		    res->steps, res->nsteps) < 0)

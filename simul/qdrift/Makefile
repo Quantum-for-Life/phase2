@@ -1,9 +1,9 @@
 # -----------------------------------------------------------------------------
 # Simulation parameters:
-DELTA		= 1.0
-EPSILON		= 0.01
-NUM_SAMPLES 	= 256
-MPI_RANKS	= 4
+DEPTH		:= 256
+SAMPLES 	:= 64
+STEP_SIZE	:= 0.0625
+MPI_RANKS	?= 2
 # -----------------------------------------------------------------------------
 
 # System
@@ -23,42 +23,29 @@ PH2RUN		?= $(BUILD)/ph2run-qdrift
 
 PARSE_FCIDUMP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
 PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
-QDRIFT_SAMPLE	= $(PYTHON) $(SCRIPTS)/qdrift_sample.py
-QDRIFT_RPE	= $(PYTHON) $(SCRIPTS)/qdrift_rpe.py
 
 # Application flags
 PARSE_FCIDUMP_FLAGS	=
 PARSE_INPUTST_FLAGS	=
-QDRIFT_SAMPLE_FLAGS	= --delta=$(DELTA) --epsilon=$(EPSILON) \
-				--num-samples=$(NUM_SAMPLES)
-QDRIFT_RPE_FLAGS	= --delta=$(DELTA) --epsilon=$(EPSILON) \
-				--num-samples=$(NUM_SAMPLES)
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
-PH2RUN_FLAGS		=
+PH2RUN_FLAGS		= --depth=$(DEPTH) 			\
+				--samples=$(SAMPLES)		\
+				--step-size=$(STEP_SIZE)
 PHASE2_LOG		?= info
 
 .DEFAULT_GOAL := all
-.PHONY: all clean rpe simulate
+.PHONY: all clean rpe
 
-all: simulate
+all: $(SIMUL_H5)
 
 $(SIMUL_ORIG): $(FCIDUMP) $(INPUTST)
 	$(PARSE_FCIDUMP) $(PARSE_FCIDUMP_FLAGS) -o $@ $(FCIDUMP)
 	$(PARSE_INPUTST) $(PARSE_INPUTST_FLAGS) -o $@ $(INPUTST)
 
 $(SIMUL_H5): $(SIMUL_ORIG)
-	cp $(SIMUL_ORIG) $(SIMUL_H5)
-	$(QDRIFT_SAMPLE) $(QDRIFT_SAMPLE_FLAGS) $(SIMUL_H5)
-
-simulate: $(SIMUL_H5)
-	find . -iname "$(SIMUL_H5)-*"				\
-		-exec echo {} \;				\
-		-exec $(MPIRUN) $(MPIRUN_FLAGS)			\
-			-x PHASE2_LOG=$(PHASE2_LOG)		\
-			$(PH2RUN) {} $(PH2RUN_FLAGS) \;
-
-rpe:
-	$(QDRIFT_RPE) $(QDRIFT_RPE_FLAGS) $(SIMUL_H5) | tee -a $(SIMUL_PROC)
+	cp $< $@
+	$(MPIRUN) $(MPIRUN_FLAGS) -x PHASE2_LOG=$(PHASE2_LOG)	\
+		$(PH2RUN) $(PH2RUN_FLAGS) $@
 
 clean:
 	$(RM) $(SIMUL_ORIG) $(SIMUL_H5)*

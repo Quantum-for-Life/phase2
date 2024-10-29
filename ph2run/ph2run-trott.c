@@ -49,7 +49,8 @@ static void print_help(const char *progname)
 		"\nOptions:\n"
 		"  -h, --help          Show this help.\n"
 		"  -v, --version       Print version number.\n"
-		"  --delta=D           Time scale (floating point value)\n"
+		"  --delta=D           Time scale\n"
+		"                      (positive real number, default: 1.0).\n"
 		"\n");
 	fprintf(stderr, "FILENAME is a HDF5 simulation worksheet.\n");
 }
@@ -60,7 +61,7 @@ static void print_version(const char *progname)
 		PHASE2_VER_MINOR, PHASE2_VER_PATCH);
 }
 
-static int args_parse_shortopt(int *argc, char ***argv)
+static int args_parse_shortopt(const int *argc, char ***argv)
 {
 	(void)argc;
 
@@ -83,7 +84,7 @@ static int args_parse_shortopt(int *argc, char ***argv)
 	return 0;
 }
 
-static int args_parse_longopt(int *argc, char ***argv)
+static int args_parse_longopt(const int *argc, char ***argv)
 {
 	(void)argc;
 
@@ -183,24 +184,24 @@ static void args_validate(void)
 	}
 }
 
-static int run_circuit(
-	const char *filename, const size_t nsteps, const double delta)
+static int run_circuit(const struct args *args)
 {
 	int rt = -1; /* Return value */
 
 	data_id fid;
 	struct timespec t1, t2;
 	struct circ c;
-	struct circ_trott_data data = { .delta = delta, .nsteps = nsteps };
+	struct circ_trott_data data = { .delta = args->delta,
+		.nsteps = args->steps };
 
-	log_info("open data file: %s", filename);
-	if ((fid = data_open(filename)) == DATA_INVALID_FID) {
-		log_error("open file: %s", ARGS.filename);
+	log_info("open data file: %s", args->filename);
+	if ((fid = data_open(args->filename)) == DATA_INVALID_FID) {
+		log_error("open file: %s", args->filename);
 		goto ex_circ_init;
 	}
 	if (circ_init(&c, fid, &data) < 0)
 		goto ex_circ_init;
-	log_info("close data file: %s", filename);
+	log_info("close data file: %s", args->filename);
 	data_close(fid);
 
 	clock_gettime(CLOCK_REALTIME, &t1);
@@ -210,14 +211,14 @@ static int run_circuit(
 	const double t_tot = (double)(t2.tv_sec - t1.tv_sec) +
 			     (double)(t2.tv_nsec - t1.tv_nsec) * 1.0e-9;
 
-	log_info("open data file: %s", filename);
-	if ((fid = data_open(filename)) == DATA_INVALID_FID) {
-		log_error("open file: %s", ARGS.filename);
+	log_info("open data file: %s", args->filename);
+	if ((fid = data_open(args->filename)) == DATA_INVALID_FID) {
+		log_error("open file: %s", args->filename);
 		goto ex_circ_res_write;
 	}
 	if (circ_res_write(&c, fid) < 0)
 		goto ex_circ_res_write;
-	log_info("close data file: %s", filename);
+	log_info("close data file: %s", args->filename);
 	data_close(fid);
 
 	rt = 0; /* Success. */
@@ -226,7 +227,7 @@ ex_circ_res_write:
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
 	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", c.hamil.nqb, c.hamil.nterms,
-		c.muldet.ndets, delta, nsteps, WD.size, t_tot);
+		c.muldet.ndets, args->delta, args->steps, WD.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:
 	return rt;
@@ -258,7 +259,7 @@ int main(int argc, char **argv)
 	log_info("*** Circuit: trott ***");
 	log_info("delta: %f", ARGS.delta);
 	log_info("num_steps: %zu", ARGS.steps);
-	if (run_circuit(ARGS.filename, ARGS.steps, ARGS.delta) < 0) {
+	if (run_circuit(&ARGS) < 0) {
 		log_error("Failure: simulation error");
 		goto ex_run_circuit;
 	}

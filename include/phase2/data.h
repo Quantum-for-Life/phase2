@@ -55,29 +55,46 @@ void data_close(data_id);
 
 int data_grp_create(data_id fid, const char *grp_name);
 
+#define DECL_DATA_ATTR_READ(suff, type)                                        \
+	int data_attr_read_##suff(data_id fid, const char *grp_name,           \
+		const char *attr_name, type *a);
+
+DECL_DATA_ATTR_READ(i, int);
+DECL_DATA_ATTR_READ(ul, unsigned long);
+DECL_DATA_ATTR_READ(dbl, double);
+
 #define data_attr_read(fid, grp_name, attr_name, attr_buf)                     \
-	_Generic((attr_buf), double *: data_attr_read_dbl)(                    \
+	_Generic((attr_buf),                                                   \
+		int *: data_attr_read_i,                                       \
+		unsigned long *: data_attr_read_ul,                            \
+		double *: data_attr_read_dbl)(                                 \
 		fid, grp_name, attr_name, attr_buf)
 
-#define data_attr_write(fid, grp_name, attr_name, attr)                        \
-	_Generic((attr), double: data_attr_write_dbl)(                         \
-		fid, grp_name, attr_name, attr)
-
-int data_attr_read_dbl(
-	data_id fid, const char *grp_name, const char *attr_name, double *a);
-
 /* Create an attribute and write the value of 'a' to it. */
-int data_attr_write_dbl(
-	data_id fid, const char *grp_name, const char *attr_name, double a);
+#define DECL_DATA_ATTR_WRITE(suff, type)                                       \
+	int data_attr_write_##suff(data_id fid, const char *grp_name,          \
+		const char *attr_name, type a)
+
+DECL_DATA_ATTR_WRITE(i, int);
+DECL_DATA_ATTR_WRITE(ul, unsigned long);
+DECL_DATA_ATTR_WRITE(dbl, double);
+
+#define data_attr_write(fid, grp_name, attr_name, attr)                        \
+	_Generic((attr),                                                       \
+		int: data_attr_write_i,                                        \
+		double: data_attr_write_dbl,                                   \
+		unsigned long: data_attr_write_ul)(                            \
+		fid, grp_name, attr_name, attr)
 
 /**
  * Get the number of qubits and terms for the "multidet" group.
  *
- * After a successful call, the value pointed to by the argument "num_qubits"
- * stores the number of qubits saved for the "multidet" group.  Similarly, the
- * argument "num_dets" stores the number of terms in the multidet
- * representation.  If the value cannot be read, the function returns '-1', and
- * the value of the variables poited to remains unchanged.
+ * After a successful call, the value pointed to by the argument
+ * "num_qubits" stores the number of qubits saved for the "multidet"
+ * group.  Similarly, the argument "num_dets" stores the number of terms
+ * in the multidet representation.  If the value cannot be read, the
+ * function returns '-1', and the value of the variables poited to
+ * remains unchanged.
  *
  * Arguments:
  *
@@ -97,16 +114,17 @@ int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets);
  *
  * Call user-supplied "op" function on each Slater determinant in the
  * "multidet" group.  The operator "op" takes as arguments a complex
- * coeffitient and the "index" of the determinant (given the qubit values in the
- * binary reresentation, the least significant bit represented by qubit 0); and
- * a generic pointer to the data specified by the user.
+ * coeffitient and the "index" of the determinant (given the qubit
+ * values in the binary reresentation, the least significant bit
+ * represented by qubit 0); and a generic pointer to the data specified
+ * by the user.
  *
- * The return value of the operator "op" controls the iteration.  If "op"
- * returns "0", the iteration will continue with the next element.  If the
- * return value is non-zero, the iteration will stop and the value is returned
- * to the caller.  By convention, a negative value should indicate an error,
- * whereas a positive value means that the iteration simply terminated early no
- * error.
+ * The return value of the operator "op" controls the iteration.  If
+ * "op" returns "0", the iteration will continue with the next element.
+ * If the return value is non-zero, the iteration will stop and the
+ * value is returned to the caller.  By convention, a negative value
+ * should indicate an error, whereas a positive value means that the
+ * iteration simply terminated early no error.
  *
  * Return value:
  *
@@ -120,11 +138,11 @@ int data_multidet_foreach(data_id fid,
 /**
  * Get the number of qubits and terms for the "hamil" group.
  *
- * After a successful call, the value pointed to by the argument "num_qubits"
- * stores the number of qubits saved for the "hamil" group.  Similarly, the
- * argument "num_terms" stores the number of terms of the hamiltonian.  If the
- * values cannot be read, the function returns '-1', and the value of the
- * variables poited to remains unchanged.
+ * After a successful call, the value pointed to by the argument
+ * "num_qubits" stores the number of qubits saved for the "hamil" group.
+ * Similarly, the argument "num_terms" stores the number of terms of the
+ * hamiltonian.  If the values cannot be read, the function returns
+ * '-1', and the value of the variables poited to remains unchanged.
  *
  * Arguments:
  *
@@ -142,15 +160,16 @@ int data_hamil_getnums(data_id fid, uint32_t *nqb, size_t *nterms);
 /**
  * Get the normalization factor for the "hamil" group.
  *
- * After a successful call, the value pointed to by the argument "norm" stores
- * the normalization factor for the "hamil" group.  If the value cannot be read,
- * the function returns '-1', and the value of the variable poited to remains
- * unchanged.
+ * After a successful call, the value pointed to by the argument "norm"
+ * stores the normalization factor for the "hamil" group.  If the value
+ * cannot be read, the function returns '-1', and the value of the
+ * variable poited to remains unchanged.
  *
  * Arguments:
  *
  *  fid			Open file id obtained from data_open()
- *  norm		Pointer to a variable where the result will be stored.
+ *  norm		Pointer to a variable where the result will be
+ * stored.
  *
  * Return value:
  *
@@ -160,29 +179,30 @@ int data_hamil_getnums(data_id fid, uint32_t *nqb, size_t *nterms);
 int data_hamil_getnorm(data_id fid, double *norm);
 
 /**
- * Perform action "op" on each term of the Hamiltonian in "pauli_hamil" group.
+ * Perform action "op" on each term of the Hamiltonian in "pauli_hamil"
+ *group.
  *
  * Call user-supplied "op" function on each term of the Hamiltonian. The
- * operator "op" takes as arguments a real coeffitient and the array of length
- * num_qubits (see function data_hamil_getnums()) filled with values
- * representing Pauli operators:
+ * operator "op" takes as arguments a real coeffitient and the array of
+ *length num_qubits (see function data_hamil_getnums()) filled with
+ *values representing Pauli operators:
  *
  *	0 - I (identity)
  *	1 - Pauli X
  *	2 - Pauli Y
  *	3 - Pauli Z
  *
- * and a generic pointer to the data specified by the user.  The value of the
- * array will change with each iteration.  After the iteration finished, the
- * pointer to the array no longer refers to valid memory.  Any attempt to store
- * and use it later is undefined behaviour.
+ * and a generic pointer to the data specified by the user.  The value
+ *of the array will change with each iteration.  After the iteration
+ *finished, the pointer to the array no longer refers to valid memory.
+ *Any attempt to store and use it later is undefined behaviour.
  *
- * The return value of the operator "op" controls the iteration.  If "op"
- * returns "0", the iteration will continue with the next element.  If the
- * return value is non-zero, the iteration will stop and the value is returned
- * to the caller.  By convention, a negative value should indicate an error,
- * whereas a positive value means that the iteration simply terminated early no
- * error.
+ * The return value of the operator "op" controls the iteration.  If
+ *"op" returns "0", the iteration will continue with the next element.
+ *If the return value is non-zero, the iteration will stop and the value
+ *is returned to the caller.  By convention, a negative value should
+ *indicate an error, whereas a positive value means that the iteration
+ *simply terminated early no error.
  *
  * Return value:
  *

@@ -11,7 +11,6 @@ struct circ_trott_data {
 };
 
 struct circ_trott_res {
-	double delta;
 	_Complex double *steps;
 	size_t nsteps;
 };

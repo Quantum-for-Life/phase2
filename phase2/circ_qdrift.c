@@ -3,6 +3,7 @@
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "phase2/circ.h"
@@ -215,7 +216,7 @@ err_res:
 
 void circ_res_destroy(struct circ *c)
 {
-	struct circ_qdrift_res *res = c->res;
+	const struct circ_qdrift_res *res = c->res;
 
 	free(res->samples);
 	free(c->res);
@@ -223,10 +224,27 @@ void circ_res_destroy(struct circ *c)
 
 int circ_res_write(struct circ *c, data_id fid)
 {
-	struct circ_qdrift_res *res = c->res;
+	int rt = -1;
 
-	return data_res_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_VALUES,
-		res->samples, res->nsamples);
+	const struct circ_qdrift_data *data = c->data;
+	const struct circ_qdrift_res *res = c->res;
+
+	if (data_grp_create(fid, DATA_CIRCQDRIFT) < 0)
+		goto data_res_write;
+	if (data_attr_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_STEPSIZE,
+		    data->step_size) < 0)
+		goto data_res_write;
+	if (data_attr_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_DEPTH,
+		    data->depth) < 0)
+		goto data_res_write;
+	if (data_res_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_VALUES,
+		    res->samples, res->nsamples) < 0)
+		goto data_res_write;
+
+	rt = 0;
+
+data_res_write:
+	return rt;
 }
 
 int circ_simulate(struct circ *c)
