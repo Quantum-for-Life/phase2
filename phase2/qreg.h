@@ -1,5 +1,5 @@
-#ifndef QREG_IMPL_H
-#define QREG_IMPL_H
+#ifndef QREG_H_INTERNAL
+#define QREG_H_INTERNAL
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,4 +17,4 @@ void qreg_backend_destroy(struct qreg *reg);
 }
 #endif
 
-#endif /* QREG_IMPL_H */
+#endif /* QREG_H_INTERNAL */

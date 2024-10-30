@@ -65,7 +65,7 @@ void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
 	MPI_Bcast(z, 2, MPI_DOUBLE, rank, MPI_COMM_WORLD);
 }
 
-void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
+void qreg_setamp(const struct qreg *reg, const uint64_t i, c64 z)
 {
 	struct qreg_cuda *cu = reg->data;
 
