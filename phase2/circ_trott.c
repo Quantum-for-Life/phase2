@@ -83,8 +83,8 @@ static void trott_step(struct trott *tt, struct circ *c, const double omega)
 		const struct paulis code = hamil->terms[i].op;
 
 		struct paulis code_hi, code_lo;
-		paulis_split(code, tt->reg.nqb_lo, tt->reg.nqb_hi, &code_lo,
-			&code_hi);
+		paulis_split(
+			code, tt->reg.qb_lo, tt->reg.qb_hi, &code_lo, &code_hi);
 
 		if (cache->ncodes == 0) {
 			cache->code_hi = code_hi;

@@ -98,8 +98,8 @@ static void qdrift_step(struct qdrift *qd, struct circ *c, const double omega)
 		const struct paulis code = hamil->terms[i_smpl].op;
 
 		struct paulis code_hi, code_lo;
-		paulis_split(code, qd->reg.nqb_lo, qd->reg.nqb_hi, &code_lo,
-			&code_hi);
+		paulis_split(
+			code, qd->reg.qb_lo, qd->reg.qb_hi, &code_lo, &code_hi);
 
 		if (cache->ncodes == 0) {
 			cache->code_hi = code_hi;

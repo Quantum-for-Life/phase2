@@ -1,5 +1,8 @@
 #include "c23_compat.h"
 #include <complex.h>
+#include <math.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "QuEST.h"
@@ -8,8 +11,10 @@
 #include "phase2/qreg.h"
 #include "phase2/world.h"
 
-#include "qreg_impl.h"
+#include "qreg.h"
 #include "world_quest.h"
+
+typedef _Complex double c64;
 
 struct qreg_quest {
 	Qureg qureg;
@@ -30,9 +35,9 @@ int qreg_backend_init(struct qreg *reg)
 	reg->amp = nullptr;
 
 	struct world_quest *const w = reg->wd.data;
-	uint32_t nqb = reg->nqb_lo + reg->nqb_hi;
-	q->qureg = createQureg(nqb, w->env);
-	for (size_t i = 0; i < nqb; i++) {
+	uint32_t qb = reg->qb_lo + reg->qb_hi;
+	q->qureg = createQureg(qb, w->env);
+	for (size_t i = 0; i < qb; i++) {
 		q->tg_qb[i] = i;
 		q->tg_op[i] = PAULI_I;
 	}
@@ -50,7 +55,7 @@ void qreg_backend_destroy(struct qreg *reg)
 	destroyQureg(q->qureg, w->env);
 }
 
-void qreg_getamp(const struct qreg *reg, const uint64_t i, _Complex double *z)
+void qreg_getamp(struct qreg *reg, const uint64_t i, c64 *z)
 {
 	struct qreg_quest *q = reg->data;
 
@@ -58,7 +63,7 @@ void qreg_getamp(const struct qreg *reg, const uint64_t i, _Complex double *z)
 	*z = cz.real + I * cz.imag;
 }
 
-void qreg_setamp(struct qreg *reg, const uint64_t i, _Complex double z)
+void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 {
 	struct qreg_quest *q = reg->data;
 
@@ -104,7 +109,7 @@ static void paulirot_onecode(
 	}
 
 	/* Apply diagonal operator */
-	_Complex double z, z_ph = cexp(I * angle);
+	c64 z, z_ph = cexp(I * angle);
 	for (int64_t i = 0; i < qureg.numAmpsPerChunk; i++) {
 		z = qureg.stateVec.real[i] + I * qureg.stateVec.imag[i];
 
@@ -143,16 +148,16 @@ void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	const struct paulis *codes_lo, const double *angles,
 	const size_t ncodes)
 {
-	const size_t nqb = reg->nqb_lo + reg->nqb_hi;
+	const size_t qb = reg->qb_lo + reg->qb_hi;
 	struct qreg_quest *q = reg->data;
 
 	struct paulis code;
 	for (size_t k = 0; k < ncodes; k++) {
 		paulis_merge(
-			&code, reg->nqb_lo, reg->nqb_hi, codes_lo[k], code_hi);
-		for (size_t i = 0; i < nqb; i++)
+			&code, reg->qb_lo, reg->qb_hi, codes_lo[k], code_hi);
+		for (size_t i = 0; i < qb; i++)
 			q->tg_op[i] = paulis_get(code, i);
 
-		paulirot_onecode(q->qureg, q->tg_qb, q->tg_op, nqb, angles[k]);
+		paulirot_onecode(q->qureg, q->tg_qb, q->tg_op, qb, angles[k]);
 	}
 }

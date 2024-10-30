@@ -17,7 +17,7 @@ extern "C" {
 struct qreg {
 	struct world wd;
 
-	uint32_t nqb_lo, nqb_hi;
+	uint32_t qb_lo, qb_hi;
 
 	_Complex double *amp, *buf;
 	uint64_t namp;
@@ -29,11 +29,11 @@ struct qreg {
 	void *data; /* Handle to e.g. alternative engines. */
 };
 
-int qreg_init(struct qreg *reg, uint32_t nqb);
+int qreg_init(struct qreg *reg, uint32_t qb);
 
 void qreg_destroy(struct qreg *reg);
 
-void qreg_getamp(const struct qreg *reg, uint64_t i, _Complex double *z);
+void qreg_getamp(struct qreg *reg, uint64_t i, _Complex double *z);
 
 void qreg_setamp(struct qreg *reg, uint64_t i, _Complex double z);
 

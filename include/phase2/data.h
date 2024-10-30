@@ -177,7 +177,7 @@ int data_hamil_foreach(
 	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
 
 int data_write_vals(data_id fid, const char *grp_name, const char *dset_name,
- const _Complex double *vals, size_t nvals);
+	const _Complex double *vals, size_t nvals);
 
 int data_circ_trott_getttrs(data_id fid, double *factor);
 

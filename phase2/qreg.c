@@ -1,8 +1,6 @@
 #include "c23_compat.h"
-#include <complex.h>
 #include <math.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "mpi.h"
 
@@ -12,34 +10,34 @@
 
 #include "qreg.h"
 
-#define MAX_COUNT (1 << 29)
+#define MAX_COUNT (1UL << 29)
 
-uint64_t qreg_getilo(const struct qreg *reg, uint64_t i)
+uint64_t qreg_getilo(const struct qreg *reg, const uint64_t i)
 {
-	const uint64_t mask_lo = (UINT64_C(1) << reg->nqb_lo) - 1;
+	const uint64_t mask_lo = (UINT64_C(1) << reg->qb_lo) - 1;
 
 	return i & mask_lo;
 }
 
-uint64_t qreg_getihi(const struct qreg *reg, uint64_t i)
+uint64_t qreg_getihi(const struct qreg *reg, const uint64_t i)
 {
-	const uint64_t mask_hi = (UINT64_C(1) << reg->nqb_hi) - 1;
+	const uint64_t mask_hi = (UINT64_C(1) << reg->qb_hi) - 1;
 
-	return (i >> reg->nqb_lo) & mask_hi;
+	return (i >> reg->qb_lo) & mask_hi;
 }
 
-int qreg_init(struct qreg *reg, const uint32_t nqb)
+int qreg_init(struct qreg *reg, const uint32_t qb)
 {
 	if (world_info(&reg->wd) != WORLD_READY)
 		return -1;
 
-	uint32_t nqb_hi = 0, nrk = reg->wd.size;
-	while (nrk >>= 1) /* nqb_hi = log2(nrk) */
-		nqb_hi++;
-	if (nqb_hi >= nqb)
+	uint32_t qb_hi = 0, nrk = reg->wd.size;
+	while (nrk >>= 1) /* qb_hi = log2(nrk) */
+		qb_hi++;
+	if (qb_hi >= qb)
 		return -1;
-	const uint32_t nqb_lo = nqb - nqb_hi;
-	const uint64_t namp = UINT64_C(1) << nqb_lo;
+	const uint32_t qb_lo = qb - qb_hi;
+	const uint64_t namp = UINT64_C(1) << qb_lo;
 
 	const int msg_count = namp < MAX_COUNT ? namp : MAX_COUNT;
 	const size_t nreqs = namp / msg_count;
@@ -51,8 +49,8 @@ int qreg_init(struct qreg *reg, const uint32_t nqb)
 	if (!amp)
 		goto err_amp_alloc;
 
-	reg->nqb_lo = nqb_lo;
-	reg->nqb_hi = nqb_hi;
+	reg->qb_lo = qb_lo;
+	reg->qb_hi = qb_hi;
 	reg->amp = amp;
 	reg->buf = amp + namp;
 	reg->namp = namp;

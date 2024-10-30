@@ -59,8 +59,8 @@ static void t_qreg_init(void)
 	nqb_lo = NUM_QUBITS - nqb_hi;
 	namp = 1UL << nqb_lo;
 
-	TEST_EQ(nqb_lo, reg.nqb_lo);
-	TEST_EQ(nqb_hi, reg.nqb_hi);
+	TEST_EQ(nqb_lo, reg.qb_lo);
+	TEST_EQ(nqb_hi, reg.qb_hi);
 	TEST_EQ(namp, reg.namp);
 
 	qreg_destroy(&reg);
@@ -185,7 +185,7 @@ static void t_qreg_paulirot_0y_explicit(void)
 
 	ps = paulis_new();
 	paulis_set(&ps, PAULI_Y, 0);
-	paulis_split(ps, reg.nqb_lo, reg.nqb_hi, &ps_lo, &ps_hi);
+	paulis_split(ps, reg.qb_lo, reg.qb_hi, &ps_lo, &ps_hi);
 	angle = 0.11;
 	qreg_paulirot(&reg, ps_hi, &ps_lo, &angle, 1);
 
@@ -219,7 +219,7 @@ static void t_qreg_paulirot_0yyy_explicit(void)
 	paulis_set(&ps, PAULI_Y, 0);
 	paulis_set(&ps, PAULI_Y, 1);
 	paulis_set(&ps, PAULI_Y, 2);
-	paulis_split(ps, reg.nqb_lo, reg.nqb_hi, &ps_lo, &ps_hi);
+	paulis_split(ps, reg.qb_lo, reg.qb_hi, &ps_lo, &ps_hi);
 	angle = 0.11;
 	qreg_paulirot(&reg, ps_hi, &ps_lo, &angle, 1);
 
@@ -254,7 +254,7 @@ static void t_qreg_paulirot_01(size_t tag)
 	ps = ps_hi = ps_lo = paulis_new();
 	for (size_t k = 0; k < NUM_QUBITS; k++)
 		paulis_set(&ps, rand_pauli_op(), k);
-	paulis_split(ps, reg.nqb_lo, reg.nqb_hi, &ps_lo, &ps_hi);
+	paulis_split(ps, reg.qb_lo, reg.qb_hi, &ps_lo, &ps_hi);
 	angle = rand_double();
 	qreg_paulirot(&reg, ps_hi, &ps_lo, &angle, 1);
 
@@ -291,17 +291,17 @@ static void t_qreg_paulirot_02(size_t tag)
 
 	ps[0] = ps_lo[0] = ps_hi[1] = paulis_new();
 	ps[1] = ps_lo[1] = ps_hi[1] = paulis_new();
-	for (size_t k = 0; k < reg.nqb_lo; k++) {
+	for (size_t k = 0; k < reg.qb_lo; k++) {
 		paulis_set(&ps[0], rand_pauli_op(), k);
 		paulis_set(&ps[1], rand_pauli_op(), k);
 	}
-	for (size_t k = reg.nqb_lo; k < reg.nqb_lo + reg.nqb_hi; k++) {
+	for (size_t k = reg.qb_lo; k < reg.qb_lo + reg.qb_hi; k++) {
 		int op = rand_pauli_op();
 		paulis_set(&ps[0], op, k);
 		paulis_set(&ps[1], op, k);
 	}
-	paulis_split(ps[0], reg.nqb_lo, reg.nqb_hi, &ps_lo[0], &ps_hi[0]);
-	paulis_split(ps[1], reg.nqb_lo, reg.nqb_hi, &ps_lo[1], &ps_hi[1]);
+	paulis_split(ps[0], reg.qb_lo, reg.qb_hi, &ps_lo[0], &ps_hi[0]);
+	paulis_split(ps[1], reg.qb_lo, reg.qb_hi, &ps_lo[1], &ps_hi[1]);
 	TEST_ASSERT(paulis_eq(ps_hi[0], ps_hi[1]),
 		"[%zu] hi codes should be equal", tag);
 
@@ -363,17 +363,16 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 
 	for (size_t l = 0; l < n; l++)
 		ps[l] = ps_lo[l] = ps_hi[l] = paulis_new();
-	for (size_t k = 0; k < reg.nqb_lo; k++)
+	for (size_t k = 0; k < reg.qb_lo; k++)
 		for (size_t l = 0; l < n; l++)
 			paulis_set(&ps[l], rand_pauli_op(), k);
-	for (size_t k = reg.nqb_lo; k < reg.nqb_lo + reg.nqb_hi; k++) {
+	for (size_t k = reg.qb_lo; k < reg.qb_lo + reg.qb_hi; k++) {
 		int op = rand_pauli_op();
 		for (size_t l = 0; l < n; l++)
 			paulis_set(&ps[l], op, k);
 	}
 	for (size_t l = 0; l < n; l++) {
-		paulis_split(
-			ps[l], reg.nqb_lo, reg.nqb_hi, &ps_lo[l], &ps_hi[l]);
+		paulis_split(ps[l], reg.qb_lo, reg.qb_hi, &ps_lo[l], &ps_hi[l]);
 		if (l > 0)
 			TEST_ASSERT(paulis_eq(ps_hi[0], ps_hi[l]),
 				"[%zu] l=%zu hi codes should be equal", tag, l);
