@@ -5,42 +5,76 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "phase2/circ.h"
+#include "phase2.h"
 #include "phase2/circ_trott.h"
-#include "phase2/qreg.h"
-#include "phase2/world.h"
 
-struct trott {
-	struct qreg reg;
-	_Complex double prod;
-	struct circ_cache cache;
-};
+int trott_write_res(struct circ *c, data_id fid);
+int trott_simulate(struct circ *c);
 
-static int trott_init(struct trott *tt, struct circ *c)
+static int trott_res_init(struct circ_trott *tt, size_t nsteps)
 {
-	if (qreg_init(&tt->reg, c->hamil.nqb) < 0)
+	_Complex double *steps = malloc(sizeof(_Complex double) * nsteps);
+	if (!steps)
+		goto malloc_steps;
+
+	tt->res.steps = steps;
+	tt->res.nsteps = nsteps;
+
+	return 0;
+
+	// free(steps);
+malloc_steps:
+	return -1;
+}
+
+static void trott_res_destroy(struct circ_trott *tt)
+{
+	free(tt->res.steps);
+}
+
+int circ_trott_init(
+	struct circ_trott *tt, struct circ_trott_data *data, data_id fid)
+{
+	struct circ *c = &tt->circ;
+	if (circ_init(c, fid) < 0)
+		goto err_circ_init;
+	c->simulate = trott_simulate;
+	c->write_res = trott_write_res;
+
+	if (qreg_init(&tt->reg, tt->circ.hamil.nqb) < 0)
 		goto err_qreg_init;
 	if (circ_cache_init(&tt->cache, tt->reg.qb_lo, tt->reg.qb_hi) < 0)
 		goto err_circ_cache_init;
 
+
+	tt->delta = data->delta;
+	if (trott_res_init(tt, data->nsteps) < 0)
+		goto err_trott_res_init;
+
 	return 0;
 
-	// circ_cache_destroy(&tt->cache);
+	// trott_res_destroy(tt);
+err_trott_res_init:
+	circ_destroy(&tt->circ);
+err_circ_init:
+	circ_cache_destroy(&tt->cache);
 err_circ_cache_init:
 	qreg_destroy(&tt->reg);
 err_qreg_init:
 	return -1;
 }
 
-static void trott_destroy(struct trott *tt)
+void circ_trott_destroy(struct circ_trott *tt)
 {
 	qreg_destroy(&tt->reg);
 	circ_cache_destroy(&tt->cache);
+	circ_destroy(&tt->circ);
+	trott_res_destroy(tt);
 }
 
-static int trott_prepst(struct trott *tt, struct circ *c)
+static int trott_prepst(struct circ_trott *tt)
 {
-	const struct circ_muldet *md = &c->muldet;
+	const struct circ_muldet *md = &tt->circ.muldet;
 
 	qreg_zero(&tt->reg);
 	for (size_t i = 0; i < md->ndets; i++)
@@ -52,13 +86,13 @@ static int trott_prepst(struct trott *tt, struct circ *c)
 static void trott_flush(struct paulis code_hi, struct paulis *codes_lo,
 	double *phis, size_t ncodes, void *data)
 {
-	struct trott *tt = data;
+	struct circ_trott *tt = data;
 	qreg_paulirot(&tt->reg, code_hi, codes_lo, phis, ncodes);
 }
 
-static int trott_step(struct trott *tt, struct circ *c, const double omega)
+static int trott_step(struct circ_trott *tt, const double omega)
 {
-	const struct circ_hamil *hamil = &c->hamil;
+	const struct circ_hamil *hamil = &tt->circ.hamil;
 	struct circ_cache *cache = &tt->cache;
 
 	for (size_t i = 0; i < hamil->nterms; i++) {
@@ -79,21 +113,20 @@ static int trott_step(struct trott *tt, struct circ *c, const double omega)
 	return 0;
 }
 
-static int trott_effect(struct trott *tt, struct circ *c)
+static int trott_effect(struct circ_trott *tt)
 {
-	const struct circ_trott_data *data = c->data;
-	const double delta = data->delta;
+	const double delta = tt->delta;
 	if (isnan(delta))
 		return -1;
 	if (fabs(delta) < DBL_EPSILON)
 		return 0;
 
-	return trott_step(tt, c, delta);
+	return trott_step(tt, delta);
 }
 
-static int trott_measure(struct trott *tt, struct circ *c)
+static _Complex double trott_measure(struct circ_trott *tt)
 {
-	const struct circ_muldet *md = &c->muldet;
+	const struct circ_muldet *md = &tt->circ.muldet;
 
 	_Complex double pr = 0.0;
 	for (size_t i = 0; i < md->ndets; i++) {
@@ -101,58 +134,22 @@ static int trott_measure(struct trott *tt, struct circ *c)
 		qreg_getamp(&tt->reg, md->dets[i].idx, &a);
 		pr += a * conj(md->dets[i].cf);
 	}
-	tt->prod = pr;
 
-	return 0;
+	return pr;
 }
 
-int circ_res_init(struct circ *c)
-{
-	struct circ_trott_data *data = c->data;
-	size_t nsteps = data->nsteps;
-
-	struct circ_trott_res *res = malloc(sizeof(struct circ_trott_res));
-	if (!res)
-		goto malloc_res;
-	_Complex double *steps = malloc(sizeof(_Complex double) * nsteps);
-	if (!steps)
-		goto malloc_steps;
-
-	res->steps = steps;
-	res->nsteps = nsteps;
-	c->res = res;
-
-	return 0;
-
-	// free(steps);
-malloc_steps:
-	free(res);
-malloc_res:
-	return -1;
-}
-
-void circ_res_destroy(struct circ *c)
-{
-	struct circ_trott_res *res = c->res;
-
-	free(res->steps);
-	free(c->res);
-}
-
-int circ_res_write(struct circ *c, data_id fid)
+int trott_write_res(struct circ *c, data_id fid)
 {
 	int rt = -1;
-
-	struct circ_trott_data *data = c->data;
-	struct circ_trott_res *res = c->res;
+	struct circ_trott *tt = container_of(c, struct circ_trott, circ);
 
 	if (data_grp_create(fid, DATA_CIRCTROTT) < 0)
 		goto data_grp_create;
 	if (data_attr_write_dbl(
-		    fid, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA, data->delta) < 0)
+		    fid, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA, tt->delta) < 0)
 		goto data_attr_write;
 	if (data_res_write(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES,
-		    res->steps, res->nsteps) < 0)
+		    tt->res.steps, tt->res.nsteps) < 0)
 		goto data_res_write;
 
 	rt = 0;
@@ -162,35 +159,27 @@ data_grp_create:
 	return rt;
 }
 
-int circ_simulate(struct circ *c)
+int trott_simulate(struct circ *c)
 {
 	int rt = -1;
 
 	size_t prog_pc = 0;
+	struct circ_trott *tt = container_of(c, struct circ_trott, circ);
 
-	struct trott tt;
-	if (trott_init(&tt, c) < 0)
-		goto ex_trott_init;
-
-	trott_prepst(&tt, c);
-
-	struct circ_trott_res *res = c->res;
-	for (size_t i = 0; i < res->nsteps; i++) {
-		size_t pc = i * 100 / res->nsteps;
+	trott_prepst(tt);
+	for (size_t i = 0; i < tt->res.nsteps; i++) {
+		size_t pc = i * 100 / tt->res.nsteps;
 		if (pc > prog_pc) {
 			prog_pc = pc;
 			log_info("Progress: %zu\% (trott_step: %zu)", pc, i);
 		}
 
-		if (trott_effect(&tt, c) < 0)
+		if (trott_effect(tt) < 0)
 			goto ex_trott_effect;
-		trott_measure(&tt, c);
-		res->steps[i] = tt.prod;
+		tt->res.steps[i] = trott_measure(tt);
 	}
 
 	rt = 0; /* Success. */
 ex_trott_effect:
-	trott_destroy(&tt);
-ex_trott_init:
 	return rt;
 }

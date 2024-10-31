@@ -18,36 +18,6 @@ static struct world WD;
 #define SEED UINT64_C(0x334b06fc8c7b40ea)
 static struct xoshiro256ss RNG;
 
-static double rand_double(void)
-{
-	const uint64_t x = xoshiro256ss_next(&RNG);
-
-	return (x >> 11) * 0x1.0p-53;
-}
-
-static _Complex double rand_complex(void)
-{
-	const _Complex double z = CMPLX(rand_double(), rand_double());
-
-	return z / cabs(z);
-}
-
-static int rand_pauli(void)
-{
-	const int x = xoshiro256ss_next(&RNG) % 4;
-
-	return x;
-}
-
-static struct paulis rand_paulis(uint32_t qb)
-{
-	struct paulis ps = paulis_new();
-	for (uint32_t k = 0; k < qb; k++)
-		paulis_set(&ps, rand_pauli(), k);
-
-	return ps;
-}
-
 void t_cache_00(void)
 {
 	struct paulis p = paulis_new();

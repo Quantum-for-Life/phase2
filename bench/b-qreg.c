@@ -158,8 +158,7 @@ static void b_qreg_paulirot_destroy(struct b_qreg_paulirot *q)
 
 static void b_qreg_paulirot_rand(struct b_qreg_paulirot *q)
 {
-	for (size_t k = q->reg->qb_lo; k < q->reg->qb_lo + q->reg->qb_hi;
-		k++) {
+	for (size_t k = q->reg->qb_lo; k < q->reg->qb_lo + q->reg->qb_hi; k++) {
 		paulis_set(&q->code_hi, rand_pauli(), k);
 	}
 	for (size_t i = 0; i < q->ncodes; i++) {

@@ -372,8 +372,7 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 			paulis_set(&ps[l], op, k);
 	}
 	for (size_t l = 0; l < n; l++) {
-		paulis_split(
-			ps[l], reg.qb_lo, reg.qb_hi, &ps_lo[l], &ps_hi[l]);
+		paulis_split(ps[l], reg.qb_lo, reg.qb_hi, &ps_lo[l], &ps_hi[l]);
 		if (l > 0)
 			TEST_ASSERT(paulis_eq(ps_hi[0], ps_hi[l]),
 				"[%zu] l=%zu hi codes should be equal", tag, l);

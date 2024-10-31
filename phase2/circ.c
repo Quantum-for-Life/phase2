@@ -116,14 +116,11 @@ static int circ_muldet_from_file(struct circ_muldet *m, const data_id fid)
 	return 0;
 }
 
-int circ_init(struct circ *c, data_id fid, void *data)
+int circ_init(struct circ *c, const data_id fid)
 {
 	if (circ_hamil_from_file(&c->hamil, fid) < 0)
 		return -1;
 	if (circ_muldet_from_file(&c->muldet, fid) < 0)
-		return -1;
-	c->data = data;
-	if (circ_res_init(c) < 0)
 		return -1;
 
 	return 0;
@@ -133,9 +130,17 @@ void circ_destroy(struct circ *c)
 {
 	circ_hamil_destroy(&c->hamil);
 	circ_muldet_destroy(&c->muldet);
-	circ_res_destroy(c);
 }
 
+int __inline__ circ_simulate(struct circ *c)
+{
+	return c->simulate(c);
+}
+
+int __inline__ circ_write_res(struct circ *c, data_id fid)
+{
+	c->write_res(c, fid);
+}
 
 int circ_cache_init(struct circ_cache *ch, size_t qb_lo, size_t qb_hi)
 {

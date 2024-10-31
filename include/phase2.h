@@ -1,0 +1,15 @@
+#ifndef PHASE2_H
+#define PHASE2_H
+
+#include <stddef.h>
+
+#include "phase2/circ.h"
+#include "phase2/data.h"
+#include "phase2/paulis.h"
+#include "phase2/qreg.h"
+#include "phase2/world.h"
+
+#define container_of(ptr, type, membr)                                         \
+	((type *)((void *)(ptr) - offsetof(type, membr)))
+
+#endif // PHASE2_H

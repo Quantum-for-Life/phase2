@@ -140,8 +140,7 @@ static void paulirot_onecode(
 }
 
 void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
-	const struct paulis *codes_lo, const double *phis,
-	const size_t ncodes)
+	const struct paulis *codes_lo, const double *phis, const size_t ncodes)
 {
 	const size_t nqb = reg->nqb_lo + reg->nqb_hi;
 	struct qreg_quest *q = reg->data;

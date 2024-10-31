@@ -138,14 +138,15 @@ PHASE2OBJS	:= $(PHASE2DIR)/data.o					\
 			$(PHASE2DIR)/paulis.o				\
 			$(PHASE2DIR)/qreg.o				\
 			$(BACKEND_OBJS)					\
-			$(PHASE2DIR)/world.o				\
+			$(PHASE2DIR)/world.o
+$(PHASE2OBJS): $(INCLUDE)/phase2.h
 
 UTILSOBJS	:= $(LIBDIR)/log.o					\
 			$(LIBDIR)/xoshiro256ss.o
 
 # Applications
-PROGS		:=  $(PH2RUNDIR)/ph2run-trott				\
-			$(PH2RUNDIR)/ph2run-qdrift
+PROGS		:=  $(PH2RUNDIR)/ph2run-trott
+			#$(PH2RUNDIR)/ph2run-qdrift
 
 $(PH2RUNDIR)/ph2run-trott: $(PHASE2DIR)/circ.o $(PHASE2DIR)/circ_trott.o
 $(PH2RUNDIR)/ph2run-qdrift: $(PHASE2DIR)/circ.o  $(PHASE2DIR)/circ_qdrift.o

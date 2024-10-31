@@ -49,6 +49,8 @@ static size_t MULTIDET_IDX[MULTIDET_DETS_MAX];
 #define SEED UINT64_C(0xd3b9268b8737ddc0)
 static struct xoshiro256ss RNG;
 
+extern int trott_simulate(struct circ *c);
+
 static double rand_double(void)
 {
 	uint64_t x = xoshiro256ss_next(&RNG);
@@ -162,13 +164,15 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 
 	trotter_mockup();
 
-	/* Initialize data for circ. */
-	struct circ c;
-	struct circ_trott_data data = { .delta = HAMIL_DELTA,
-		.nsteps = TROTT_STEPS };
-	c.data = &data;
+	/* Initialize circ_trott manually, because we don't have a
+	 * handle to an open data file. */
+	struct circ_trott tt;
+	tt.circ.simulate = trott_simulate;
+	qreg_init(&tt.reg, NUM_QUBITS);
+	circ_cache_init(&tt.cache, tt.reg.qb_lo, tt.reg.qb_hi);
+	tt.delta = HAMIL_DELTA;
 
-	struct circ_hamil *h = &c.hamil;
+	struct circ_hamil *h = &tt.circ.hamil;
 	h->nqb = NUM_QUBITS;
 	h->nterms = HAMIL_TERMS;
 	h->terms = malloc(sizeof *h->terms * HAMIL_TERMS);
@@ -181,7 +185,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 		h->terms[k].op = HAMIL_PAULIS[k];
 	}
 
-	struct circ_muldet *m = &c.muldet;
+	struct circ_muldet *m = &tt.circ.muldet;
 	m->ndets = MULTIDET_DETS;
 	m->dets = malloc(sizeof *m->dets * MULTIDET_DETS);
 	if (!m->dets) {
@@ -193,21 +197,19 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 		m->dets[k].cf = MULTIDET_COEFFS[k];
 	}
 
-	struct circ_trott_res res;
-	res.nsteps = TROTT_STEPS;
-	res.steps = malloc(sizeof *res.steps * TROTT_STEPS);
-	if (!res.steps) {
+	tt.res.nsteps = TROTT_STEPS;
+	tt.res.steps = malloc(sizeof *tt.res.steps * TROTT_STEPS);
+	if (!tt.res.steps) {
 		TEST_FAIL("malloc res.steps");
 		goto malloc_ressteps;
 	}
-	c.res = &res;
 
-	circ_simulate(&c);
+	circ_simulate(&tt.circ);
 
 	/* Compare results. */
 	for (size_t s = 0; s < TROTT_STEPS; s++) {
-		_Complex double eval = res.steps[s];
-		TEST_ASSERT(cabs(res.steps[s] - TROTT_VALS[s]) < MARGIN,
+		_Complex double eval = tt.res.steps[s];
+		TEST_ASSERT(cabs(tt.res.steps[s] - TROTT_VALS[s]) < MARGIN,
 			"[%zu] ts=%zu, md=%zu, ht=%zu, step=%zu "
 			"eval=%f+%fi, TROTT_VALS=%f+%fi",
 			tag, ts, md, ht, s, creal(eval), cimag(eval),
