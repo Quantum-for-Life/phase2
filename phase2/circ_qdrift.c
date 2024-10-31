@@ -10,6 +10,8 @@
 #include "phase2/circ_qdrift.h"
 #include "xoshiro256ss.h"
 
+#include "container_of.h"
+
 #define SEED UINT64_C(0xeccd9dcc749fcdca)
 
 int qdrift_write_res(struct circ *c, data_id fid);

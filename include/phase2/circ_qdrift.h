@@ -7,8 +7,6 @@
 extern "C" {
 #endif
 
-#include "phase2/qreg.h"
-
 struct circ_qdrift_data {
 	size_t depth;
 	double step_size;

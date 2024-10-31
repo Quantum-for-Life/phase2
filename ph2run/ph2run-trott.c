@@ -6,19 +6,8 @@
 #include <string.h>
 #include <time.h>
 
-#include "phase2/circ.h"
+#include "phase2.h"
 #include "phase2/circ_trott.h"
-#include "phase2/world.h"
-
-#ifndef PHASE2_VER_MAJOR
-#define PHASE2_VER_MAJOR 0
-#endif
-#ifndef PHASE2_VER_MINOR
-#define PHASE2_VER_MINOR 0
-#endif
-#ifndef PHASE2_VER_PATCH
-#define PHASE2_VER_PATCH 0
-#endif
 
 #define WD_SEED UINT64_C(0xd326119d4859ebb2)
 static struct world WD;

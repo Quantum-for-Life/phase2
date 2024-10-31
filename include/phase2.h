@@ -9,7 +9,4 @@
 #include "phase2/qreg.h"
 #include "phase2/world.h"
 
-#define container_of(ptr, type, membr)                                         \
-	((type *)((void *)(ptr) - offsetof(type, membr)))
-
 #endif // PHASE2_H

@@ -5,8 +5,6 @@
 extern "C" {
 #endif
 
-#include "phase2/qreg.h"
-
 struct circ_trott_data {
 	double delta;
 	size_t nsteps;
