@@ -41,11 +41,6 @@ int circ_trott_init(
 	c->simulate = trott_simulate;
 	c->write_res = trott_write_res;
 
-	if (qreg_init(&tt->reg, tt->circ.hamil.nqb) < 0)
-		goto err_qreg_init;
-	if (circ_cache_init(&tt->cache, tt->reg.qb_lo, tt->reg.qb_hi) < 0)
-		goto err_circ_cache_init;
-
 	tt->delta = data->delta;
 	if (trott_res_init(tt, data->nsteps) < 0)
 		goto err_trott_res_init;
@@ -54,10 +49,6 @@ int circ_trott_init(
 
 	// trott_res_destroy(tt);
 err_trott_res_init:
-	circ_cache_destroy(&tt->cache);
-err_circ_cache_init:
-	qreg_destroy(&tt->reg);
-err_qreg_init:
 	circ_destroy(&tt->circ);
 err_circ_init:
 	return -1;
@@ -65,8 +56,6 @@ err_circ_init:
 
 void circ_trott_destroy(struct circ_trott *tt)
 {
-	qreg_destroy(&tt->reg);
-	circ_cache_destroy(&tt->cache);
 	circ_destroy(&tt->circ);
 	trott_res_destroy(tt);
 }
@@ -75,9 +64,9 @@ static int trott_prepst(struct circ_trott *tt)
 {
 	const struct circ_muldet *md = &tt->circ.muldet;
 
-	qreg_zero(&tt->reg);
+	qreg_zero(&tt->circ.reg);
 	for (size_t i = 0; i < md->ndets; i++)
-		qreg_setamp(&tt->reg, md->dets[i].idx, md->dets[i].cf);
+		qreg_setamp(&tt->circ.reg, md->dets[i].idx, md->dets[i].cf);
 
 	return 0;
 }
@@ -86,13 +75,13 @@ static void trott_flush(struct paulis code_hi, struct paulis *codes_lo,
 	double *phis, size_t ncodes, void *data)
 {
 	struct circ_trott *tt = data;
-	qreg_paulirot(&tt->reg, code_hi, codes_lo, phis, ncodes);
+	qreg_paulirot(&tt->circ.reg, code_hi, codes_lo, phis, ncodes);
 }
 
 static int trott_step(struct circ_trott *tt, const double omega)
 {
 	const struct circ_hamil *hamil = &tt->circ.hamil;
-	struct circ_cache *cache = &tt->cache;
+	struct circ_cache *cache = &tt->circ.cache;
 
 	for (size_t i = 0; i < hamil->nterms; i++) {
 		const double phi = omega * hamil->terms[i].cf;
@@ -130,7 +119,7 @@ static _Complex double trott_measure(struct circ_trott *tt)
 	_Complex double pr = 0.0;
 	for (size_t i = 0; i < md->ndets; i++) {
 		_Complex double a;
-		qreg_getamp(&tt->reg, md->dets[i].idx, &a);
+		qreg_getamp(&tt->circ.reg, md->dets[i].idx, &a);
 		pr += a * conj(md->dets[i].cf);
 	}
 

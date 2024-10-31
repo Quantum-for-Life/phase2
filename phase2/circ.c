@@ -6,6 +6,7 @@
 
 #include "phase2/circ.h"
 #include "phase2/paulis.h"
+#include "phase2/world.h"
 
 static int circ_hamil_init(struct circ_hamil *h, uint32_t nqb, size_t nterms)
 {
@@ -119,17 +120,33 @@ static int circ_muldet_from_file(struct circ_muldet *m, const data_id fid)
 int circ_init(struct circ *c, const data_id fid)
 {
 	if (circ_hamil_from_file(&c->hamil, fid) < 0)
-		return -1;
+		goto err_hamil_init;
 	if (circ_muldet_from_file(&c->muldet, fid) < 0)
-		return -1;
+		goto err_muldet_init;
+	if (qreg_init(&c->reg, c->hamil.nqb) < 0)
+		goto err_qreg_init;
+	if (circ_cache_init(&c->cache, c->reg.qb_lo, c->reg.qb_hi) < 0)
+		goto err_cache_init;
 
 	return 0;
+
+	// circ_cache_destroy(&c->cache);
+err_cache_init:
+	qreg_destroy(&c->reg);
+err_qreg_init:
+	circ_muldet_destroy(&c->muldet);
+err_muldet_init:
+	circ_hamil_destroy(&c->hamil);
+err_hamil_init:
+	return -1;
 }
 
 void circ_destroy(struct circ *c)
 {
 	circ_hamil_destroy(&c->hamil);
 	circ_muldet_destroy(&c->muldet);
+	circ_cache_destroy(&c->cache);
+	qreg_destroy(&c->reg);
 }
 
 int __inline__ circ_simulate(struct circ *c)

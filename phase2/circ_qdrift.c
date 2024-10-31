@@ -44,11 +44,6 @@ int circ_qdrift_init(
 	c->simulate = qdrift_simulate;
 	c->write_res = qdrift_write_res;
 
-	if (qreg_init(&qd->reg, c->hamil.nqb) < 0)
-		goto err_qreg_init;
-	if (circ_cache_init(&qd->cache, qd->reg.qb_lo, qd->reg.qb_hi) < 0)
-		goto err_circ_cache_init;
-
 	xoshiro256ss_init(&qd->rng, SEED);
 	size_t *smpl = malloc(sizeof(size_t) * data->depth);
 	if (!smpl)
@@ -66,10 +61,6 @@ int circ_qdrift_init(
 err_res_init:
 	free(smpl);
 err_smpl:
-	circ_cache_destroy(&qd->cache);
-err_circ_cache_init:
-	qreg_destroy(&qd->reg);
-err_qreg_init:
 	circ_destroy(c);
 err_circ_init:
 	return -1;
@@ -77,8 +68,6 @@ err_circ_init:
 
 void circ_qdrift_destroy(struct circ_qdrift *qd)
 {
-	qreg_destroy(&qd->reg);
-	circ_cache_destroy(&qd->cache);
 	circ_destroy(&qd->circ);
 	qdrift_res_destroy(qd);
 }
@@ -87,9 +76,9 @@ static int qdrift_prepst(struct circ_qdrift *qd)
 {
 	const struct circ_muldet *md = &qd->circ.muldet;
 
-	qreg_zero(&qd->reg);
+	qreg_zero(&qd->circ.reg);
 	for (size_t i = 0; i < md->ndets; i++)
-		qreg_setamp(&qd->reg, md->dets[i].idx, md->dets[i].cf);
+		qreg_setamp(&qd->circ.reg, md->dets[i].idx, md->dets[i].cf);
 
 	return 0;
 }
@@ -98,13 +87,13 @@ static void qdrift_flush(struct paulis code_hi, struct paulis *codes_lo,
 	double *phis, size_t ncodes, void *data)
 {
 	struct circ_qdrift *qd = data;
-	qreg_paulirot(&qd->reg, code_hi, codes_lo, phis, ncodes);
+	qreg_paulirot(&qd->circ.reg, code_hi, codes_lo, phis, ncodes);
 }
 
 static int qdrift_step(struct circ_qdrift *qd, const double omega)
 {
 	const struct circ_hamil *hamil = &qd->circ.hamil;
-	struct circ_cache *cache = &qd->cache;
+	struct circ_cache *cache = &qd->circ.cache;
 
 	for (size_t i = 0; i < qd->depth; i++) {
 		const double phi = omega;
@@ -144,7 +133,7 @@ static _Complex double qdrift_measure(struct circ_qdrift *qd)
 	_Complex double pr = 0.0;
 	for (size_t i = 0; i < md->ndets; i++) {
 		_Complex double a;
-		qreg_getamp(&qd->reg, md->dets[i].idx, &a);
+		qreg_getamp(&qd->circ.reg, md->dets[i].idx, &a);
 		pr += a * conj(md->dets[i].cf);
 	}
 

@@ -6,6 +6,7 @@
 
 #include "phase2/data.h"
 #include "phase2/paulis.h"
+#include "phase2/qreg.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,6 +54,8 @@ struct circ_muldet {
 struct circ {
 	struct circ_hamil hamil;
 	struct circ_muldet muldet;
+	struct circ_cache cache;
+	struct qreg reg;
 
 	int (*simulate)(struct circ *);
 	int (*write_res)(struct circ *, data_id);

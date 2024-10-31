@@ -13,9 +13,7 @@ struct circ_trott_data {
 };
 
 struct circ_trott {
-	struct qreg reg;
 	struct circ circ;
-	struct circ_cache cache;
 
 	double delta;
 

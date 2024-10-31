@@ -16,9 +16,7 @@ struct circ_qdrift_data {
 };
 
 struct circ_qdrift {
-	struct qreg reg;
 	struct circ circ;
-	struct circ_cache cache;
 
 	size_t depth;
 	double step_size;
