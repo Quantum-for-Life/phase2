@@ -23,9 +23,12 @@ MPIRANKS	?= 2
 
 RM		= rm -fv
 MKDIR		= mkdir -p
+
+
 # --------------------------------------------------------------------------- #
 # Build dependencies                                                          #
 # --------------------------------------------------------------------------- #
+CIRCDIR		:= ./circ
 PHASE2DIR	:= ./phase2
 PH2RUNDIR	:= ./ph2run
 LIBDIR		:= ./lib
@@ -122,36 +125,39 @@ $(BACKEND_OBJS): $(PHASE2DIR)/qreg.h					\
 BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
 
 
-# APIs
+# phase2 API
 $(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h
-$(PHASE2DIR)/circ_trott.o: $(INCLUDE)/phase2/circ_trott.h
 $(PHASE2DIR)/data.o:	$(INCLUDE)/phase2/data.h
 $(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
 $(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h $(PHASE2DIR)/qreg.h
 $(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h $(PHASE2DIR)/world.h
 
-$(LIBDIR)/log.o:	$(INCLUDE)/log.h
-$(LIBDIR)/xoshiro256ss.o: $(INCLUDE)/xoshiro256ss.h
-
-# Object files
-PHASE2OBJS	:= $(PHASE2DIR)/data.o					\
+PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
+			$(PHASE2DIR)/data.o				\
 			$(PHASE2DIR)/paulis.o				\
 			$(PHASE2DIR)/qreg.o				\
 			$(BACKEND_OBJS)					\
 			$(PHASE2DIR)/world.o
-$(PHASE2OBJS): $(INCLUDE)/phase2.h
+$(PHASE2OBJS):	$(INCLUDE)/phase2.h
 
-UTILSOBJS	:= $(LIBDIR)/log.o					\
+# Circuits
+$(CIRCDIR)/trott.o: $(INCLUDE)/circ/trott.h
+$(CIRCDIR)/qdrift.o: $(INCLUDE)/circ/qdrift.h
+CIRCOBJS	:= $(CIRCDIR)/trott.o $(CIRCDIR)/qdrift.o
+
+# Library / utilities
+$(LIBDIR)/log.o:	$(INCLUDE)/log.h
+$(LIBDIR)/xoshiro256ss.o: $(INCLUDE)/xoshiro256ss.h
+LIBOBJS		:= $(LIBDIR)/log.o					\
 			$(LIBDIR)/xoshiro256ss.o
 
 # Applications
 PROGS		:=  $(PH2RUNDIR)/ph2run-trott				\
 			$(PH2RUNDIR)/ph2run-qdrift
 
-$(PH2RUNDIR)/ph2run-trott: $(PHASE2DIR)/circ.o $(PHASE2DIR)/circ_trott.o
-$(PH2RUNDIR)/ph2run-qdrift: $(PHASE2DIR)/circ.o  $(PHASE2DIR)/circ_qdrift.o
-
-$(PROGS): $(PHASE2OBJS) $(UTILSOBJS)
+$(PH2RUNDIR)/ph2run-trott: $(CIRCDIR)/trott.o
+$(PH2RUNDIR)/ph2run-qdrift: $(CIRCDIR)/qdrift.o
+$(PROGS): 	$(PHASE2OBJS) $(LIBOBJS)
 
 # Update flags
 CFLAGS		+= -I$(INCLUDE)						\
@@ -222,7 +228,7 @@ BENCHES		:= $(BENCHDIR)/b-paulis					\
 
 $(BENCHES):	$(BENCHDIR)/bench.h					\
 		$(BENCHDIR)/bench.o					\
-		$(PHASE2OBJS) $(UTILSOBJS)
+		$(PHASE2OBJS) $(LIBOBJS)
 
 build-bench: $(BENCHES)
 
@@ -258,10 +264,10 @@ TESTS		:= $(TESTDIR)/t-circ_cache				\
 
 $(TESTS):	$(TESTDIR)/test.h					\
 		$(TESTDIR)/t-data.h					\
-		$(PHASE2OBJS) $(UTILSOBJS)
+		$(PHASE2OBJS) $(LIBOBJS)
 
-$(TESTDIR)/t-circ_cache: $(PHASE2DIR)/circ.o $(PHASE2DIR)/circ_trott.o
-$(TESTDIR)/t-circ_trott: $(PHASE2DIR)/circ.o $(PHASE2DIR)/circ_trott.o
+$(TESTDIR)/t-circ_cache: $(CIRCDIR)/trott.o
+$(TESTDIR)/t-circ_trott: $(CIRCDIR)/trott.o
 
 build-test: $(TESTS)
 

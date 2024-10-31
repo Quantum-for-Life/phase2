@@ -6,10 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "phase2/circ.h"
-#include "phase2/circ_trott.h"
-#include "phase2/paulis.h"
-#include "phase2/world.h"
+#include "circ/trott.h"
+#include "phase2.h"
 #include "xoshiro256ss.h"
 
 #include "test.h"

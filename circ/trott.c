@@ -5,10 +5,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "phase2.h"
-#include "phase2/circ_trott.h"
-
+#include "circ/trott.h"
 #include "container_of.h"
+#include "phase2.h"
 
 int trott_write_res(struct circ *c, data_id fid);
 int trott_simulate(struct circ *c);

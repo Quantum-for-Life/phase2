@@ -6,8 +6,8 @@
 #include <string.h>
 #include <time.h>
 
+#include "circ/trott.h"
 #include "phase2.h"
-#include "phase2/circ_trott.h"
 
 #define WD_SEED UINT64_C(0xd326119d4859ebb2)
 static struct world WD;

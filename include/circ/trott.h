@@ -5,6 +5,9 @@
 extern "C" {
 #endif
 
+#include "phase2/circ.h"
+#include "phase2/data.h"
+
 struct circ_trott_data {
 	double delta;
 	size_t nsteps;

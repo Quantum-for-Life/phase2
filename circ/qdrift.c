@@ -6,11 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "phase2.h"
-#include "phase2/circ_qdrift.h"
-#include "xoshiro256ss.h"
-
+#include "circ/qdrift.h"
 #include "container_of.h"
+#include "phase2.h"
+#include "xoshiro256ss.h"
 
 #define SEED UINT64_C(0xeccd9dcc749fcdca)
 
