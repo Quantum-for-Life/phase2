@@ -46,7 +46,6 @@ int circ_trott_init(
 	if (circ_cache_init(&tt->cache, tt->reg.qb_lo, tt->reg.qb_hi) < 0)
 		goto err_circ_cache_init;
 
-
 	tt->delta = data->delta;
 	if (trott_res_init(tt, data->nsteps) < 0)
 		goto err_trott_res_init;
@@ -55,12 +54,12 @@ int circ_trott_init(
 
 	// trott_res_destroy(tt);
 err_trott_res_init:
-	circ_destroy(&tt->circ);
-err_circ_init:
 	circ_cache_destroy(&tt->cache);
 err_circ_cache_init:
 	qreg_destroy(&tt->reg);
 err_qreg_init:
+	circ_destroy(&tt->circ);
+err_circ_init:
 	return -1;
 }
 

@@ -184,8 +184,8 @@ int run_circuit(const struct args *args)
 
 	data_id fid;
 	struct timespec t1, t2;
-	struct circ c;
 
+	struct circ_qdrift qd;
 	struct circ_qdrift_data data = { .depth = args->depth,
 		.nsamples = args->nsamples,
 		.step_size = args->step_size };
@@ -195,13 +195,13 @@ int run_circuit(const struct args *args)
 		log_error("open file: %s", args->filename);
 		goto ex_circ_init;
 	}
-	if (circ_init(&c, fid, &data) < 0)
+	if (circ_qdrift_init(&qd, &data, fid) < 0)
 		goto ex_circ_init;
 	log_info("close data file: %s", args->filename);
 	data_close(fid);
 
 	clock_gettime(CLOCK_REALTIME, &t1);
-	if (circ_simulate(&c) < 0)
+	if (circ_simulate(&qd.circ) < 0)
 		goto ex_circ_simulate;
 	clock_gettime(CLOCK_REALTIME, &t2);
 	const double t_tot = (double)(t2.tv_sec - t1.tv_sec) +
@@ -212,20 +212,20 @@ int run_circuit(const struct args *args)
 		log_error("open file: %s", args->filename);
 		goto ex_circ_res_write;
 	}
-	if (circ_res_write(&c, fid) < 0)
+	if (circ_write_res(&qd.circ, fid) < 0)
 		goto ex_circ_res_write;
 	log_info("close data file: %s", args->filename);
 	data_close(fid);
 
 	rt = 0; /* Success. */
 ex_circ_res_write:
-	circ_destroy(&c);
+	circ_qdrift_destroy(&qd);
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
 		 "n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", c.hamil.nqb,
-		c.hamil.nterms, c.muldet.ndets, data.nsamples, data.step_size,
-		data.depth, WD.size, t_tot);
+	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", qd.circ.hamil.nqb,
+		qd.circ.hamil.nterms, qd.circ.muldet.ndets, data.nsamples,
+		data.step_size, data.depth, WD.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:
 	return rt;
