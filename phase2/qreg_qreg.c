@@ -26,7 +26,7 @@ void qreg_backend_destroy(struct qreg *reg)
 	(void)reg;
 }
 
-void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
+void qreg_getamp(struct qreg *reg, const uint64_t i, c64 *z)
 {
 	const uint64_t i_lo = qreg_getilo(reg, i);
 	const uint64_t rank = qreg_getihi(reg, i);
@@ -73,7 +73,7 @@ static void exch_waitall(struct qreg *reg)
 
 /* These kernels can be easily ported to CUDA. */
 static __inline__ void kernel_mix(
-	size_t i, c64 *restrict a, c64 *restrict b, c64 bm)
+	const size_t i, c64 *restrict a, c64 *restrict b, const c64 bm)
 {
 	b[i] *= bm;
 
@@ -83,8 +83,8 @@ static __inline__ void kernel_mix(
 	b[i] = (x - y) / 2.0;
 }
 
-static __inline__ void kernel_rot(
-	size_t i, c64 *a, struct paulis code, double c, double s)
+static __inline__ void kernel_rot(const size_t i, c64 *a,
+	const struct paulis code, const double c, const double s)
 {
 	c64 sz = s;
 	const uint64_t j = paulis_effect(code, i, &sz);
@@ -92,11 +92,12 @@ static __inline__ void kernel_rot(
 		return;
 
 	const c64 xi = a[i], xj = a[j];
-	a[i] = c * xi + I * conj(sz) * xj;
-	a[j] = c * xj + I * sz * xi;
+	a[i] = c * xi + _Complex_I * conj(sz) * xj;
+	a[j] = c * xj + _Complex_I * sz * xi;
 }
 
-static __inline__ void kernel_add(size_t i, c64 *restrict a, c64 *restrict b)
+static __inline__ void kernel_add(
+	const size_t i, c64 *restrict a, const c64 *restrict b)
 {
 	a[i] += b[i];
 }
@@ -112,7 +113,7 @@ static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi, c64 *bm)
 }
 
 static void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
-	const double *angles, const size_t ncodes, c64 bm)
+	const double *angles, const size_t ncodes, const c64 bm)
 {
 	for (size_t i = 0; i < reg->namp; i++)
 		kernel_mix(i, reg->amp, reg->buf, bm);
