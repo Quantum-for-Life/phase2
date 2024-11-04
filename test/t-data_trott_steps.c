@@ -19,77 +19,43 @@
 #define SIZE (5)
 #define MARGIN (1.0e-6)
 
-#define H5_GRP_NAME "circ_trott"
-#define H5_GRP_TIME_FACTOR "time_factor"
-#define H5_GRP_VALUES "values"
-
 _Complex double tst_vals[SIZE] = {
-	0.0 + _Complex_I * 000.01,
-	1.8 + _Complex_I * 000.11,
-	2.7 + _Complex_I * 001.11,
-	3.6 + _Complex_I * 011.11,
-	4.5 + _Complex_I * 111.11,
+	CMPLX(0.0, 000.01),
+	CMPLX(1.8, 000.11),
+	CMPLX(2.7, 001.11),
+	CMPLX(3.6, 011.11),
+	CMPLX(4.5, 111.11),
 };
 
-static double time_factor = 0.3224;
+static double delta = 0.3224;
 
 static char *FILENAME = "/tmp/G1w1Clar2ZLovBir2cGYUbCxgIaV4";
 
-enum ret_code {
-	ERR = INT_MIN,
-	ERR_PREP,
-	ERR_CREATEFILE,
-	ERR_DELFILE,
-	ERR_H5ATTR,
-	ERR_H5WRITE,
-	ERR_H5READ,
-	ERR_DAT2,
-	ERR_OK = 0
-};
-
 static int prepare_test_file(hid_t file_id)
 {
-	enum ret_code rc = ERR_OK;
-
-	hid_t grp_id, fspace, attr;
+	int rt = -1;
 
 	/* Create main group */
-	grp_id = H5Gcreate(
-		file_id, H5_GRP_NAME, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-	if (grp_id == H5I_INVALID_HID) {
-		rc = ERR_CREATEFILE;
+	const hid_t grp_id = H5Gcreate(
+		file_id, DATA_CIRCTROTT, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+	if (grp_id == H5I_INVALID_HID)
 		goto ex_create;
-	}
 
 	// create a scalar (singleton) attribute
-	if ((fspace = H5Screate(H5S_SCALAR)) == H5I_INVALID_HID) {
-		rc = ERR_H5ATTR;
-		goto ex_fspace;
-	}
-	if ((attr = H5Acreate2(grp_id, H5_GRP_TIME_FACTOR, H5T_IEEE_F64LE,
-		     fspace, H5P_DEFAULT, H5P_DEFAULT)) == H5I_INVALID_HID) {
-		rc = ERR_H5WRITE;
+	if (data_attr_write(
+		    file_id, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA, delta) < 0)
 		goto ex_attr;
-	}
-	if (H5Awrite(attr, H5T_NATIVE_DOUBLE, &time_factor) < 0) {
-		rc = ERR_H5WRITE;
-		goto ex_attr_write;
-	}
 
-ex_attr_write:
-	H5Aclose(attr);
+	rt = 0;
+
 ex_attr:
-	H5Sclose(fspace);
-ex_fspace:
 	H5Gclose(grp_id);
 ex_create:
-	return rc;
+	return rt;
 }
 
 static void TEST_MAIN(void)
 {
-	enum ret_code rc;
-
 	struct world wd;
 	world_init((void *)0, (void *)0, WD_SEED);
 	world_info(&wd);
@@ -107,53 +73,43 @@ static void TEST_MAIN(void)
 		H5Fcreate(FILENAME, H5F_ACC_EXCL, H5P_DEFAULT, plist_id);
 	if (file_id == H5I_INVALID_HID) {
 		TEST_FAIL("create H5 file");
-		rc = ERR_CREATEFILE;
 		goto ex_create;
 	}
-	rc = prepare_test_file(file_id);
-	H5Fclose(file_id);
-	if (rc < ERR_OK) {
+
+	if (prepare_test_file(file_id) < 0) {
 		TEST_FAIL("prepare test file");
-		rc = ERR_PREP;
 		goto ex_prepare;
-	}
+	};
+	H5Fclose(file_id);
 
 	data_id fid = data_open(FILENAME);
 	if (fid == DATA_INVALID_FID) {
 		TEST_FAIL("data: reopen file");
-		rc = ERR_DAT2;
 		goto ex_dat2_open;
 	}
 
-	double tf;
-	if (data_circ_trott_getttrs(fid, &tf) < 0) {
-		TEST_FAIL("data: read time_factor attribute");
-		rc = ERR_DAT2;
-		goto ex;
-	}
-	if (fabs(tf - time_factor) > MARGIN) {
-		TEST_FAIL("data: wrong value of the attribute read");
-		rc = ERR_DAT2;
-		goto ex;
-	}
-
-	data_write_vals(
+	data_res_write(
 		fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES, tst_vals, SIZE);
 	data_close(fid);
 
 	file_id = H5Fopen(FILENAME, H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (file_id == H5I_INVALID_HID) {
 		TEST_FAIL("open H5 file");
-		rc = ERR_CREATEFILE;
 		goto ex_create;
 	}
 
-	hid_t grp_id = H5Gopen(file_id, H5_GRP_NAME, H5P_DEFAULT);
-	hid_t dset = H5Dopen2(grp_id, H5_GRP_VALUES, H5P_DEFAULT);
+	double d;
+	if (data_attr_read(file_id, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA, &d) <
+		0)
+		TEST_FAIL("read delta");
+	if (fabs(d - delta) > MARGIN)
+		TEST_FAIL("wrong value of delta: %f", d);
+
+	hid_t grp_id = H5Gopen(file_id, DATA_CIRCTROTT, H5P_DEFAULT);
+	hid_t dset = H5Dopen2(grp_id, DATA_CIRCTROTT_VALUES, H5P_DEFAULT);
 	_Complex double val_read[SIZE];
 	if (H5Dread(dset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
 		    val_read) < 0) {
-		rc = ERR_H5READ;
 		goto ex_readh5;
 	}
 
@@ -162,7 +118,6 @@ static void TEST_MAIN(void)
 			TEST_FAIL("wrong value: %f+%fi (expected: %f+%fi)",
 				creal(val_read[i]), cimag(val_read[i]),
 				creal(tst_vals[i]), cimag(tst_vals[i]));
-			rc = ERR_H5READ;
 			goto ex_readh5;
 		}
 	}
@@ -172,18 +127,12 @@ ex_readh5:
 	H5Gclose(grp_id);
 	H5Fclose(file_id);
 	fid = data_open(FILENAME);
-ex:
 	data_close(fid);
 ex_dat2_open:
 ex_prepare:
 	/* Delete temporary file */
-	if (wd.rank == 0 && remove(FILENAME) != 0) {
+	if (wd.rank == 0 && remove(FILENAME) != 0)
 		TEST_FAIL("remove temp file");
-		rc = ERR_DELFILE;
-		goto ex_create;
-	}
 ex_create:
 	world_destroy();
-
-	return;
 }

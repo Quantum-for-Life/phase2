@@ -6,10 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "phase2/circ.h"
-#include "phase2/circ_trott.h"
-#include "phase2/paulis.h"
-#include "phase2/world.h"
+#include "circ/trott.h"
+#include "phase2.h"
 #include "xoshiro256ss.h"
 
 #include "test.h"
@@ -39,7 +37,7 @@ static _Complex double TROTT_VALS[TROTT_STEPS_MAX];
 static size_t HAMIL_TERMS;
 static double HAMIL_COEFFS[HAMIL_TERMS_MAX];
 static struct paulis HAMIL_PAULIS[HAMIL_TERMS_MAX];
-static double HAMIL_TIME_FACTOR = 1.0;
+static double HAMIL_DELTA = 1.0;
 
 #define MULTIDET_DETS_MAX (99UL)
 static size_t MULTIDET_DETS;
@@ -48,6 +46,8 @@ static size_t MULTIDET_IDX[MULTIDET_DETS_MAX];
 
 #define SEED UINT64_C(0xd3b9268b8737ddc0)
 static struct xoshiro256ss RNG;
+
+extern int trott_simulate(struct circ *c);
 
 static double rand_double(void)
 {
@@ -58,7 +58,7 @@ static double rand_double(void)
 
 static _Complex double rand_complex(void)
 {
-	_Complex double z = rand_double() + I * rand_double();
+	_Complex double z = CMPLX(rand_double(), rand_double());
 
 	return z / cabs(z);
 }
@@ -94,7 +94,7 @@ static void trotter_mockup(void)
 				if (j < i)
 					continue;
 
-				double ph = HAMIL_COEFFS[k] * HAMIL_TIME_FACTOR;
+				double ph = HAMIL_COEFFS[k] * HAMIL_DELTA;
 				_Complex double x, y;
 				x = cos(ph) * AMPS[i] +
 				    I * conj(z) * sin(ph) * AMPS[j];
@@ -120,14 +120,15 @@ static void t_trotter_mockup_sanity_check(void)
 
 	TROTT_STEPS = 1;
 
-	HAMIL_TIME_FACTOR = 1.0;
+	HAMIL_DELTA = 1.0;
 	HAMIL_TERMS = 1;
 	HAMIL_PAULIS[0] = paulis_new();
 	HAMIL_COEFFS[0] = 1.0;
 
 	trotter_mockup();
 
-	TEST_ASSERT(TROTT_VALS[0] == cexp(I), "trotter circuit sanity check");
+	TEST_ASSERT(TROTT_VALS[0] == cexp(CMPLX(0.0, 1.0)),
+		"trotter circuit sanity check");
 }
 
 static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
@@ -135,7 +136,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	TROTT_STEPS = ts;
 	MULTIDET_DETS = md;
 	HAMIL_TERMS = ht;
-	HAMIL_TIME_FACTOR = rand_double() * 0.5 + 0.5;
+	HAMIL_DELTA = rand_double() * 0.5 + 0.5;
 
 	/* Generate random multidet / hamiltonian */
 	double norm = 0.0;
@@ -161,13 +162,15 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 
 	trotter_mockup();
 
-	/* Initialize data for circ. */
-	struct circ c;
-	struct circ_trott_data data = { .delta = HAMIL_TIME_FACTOR,
-		.nsteps = TROTT_STEPS };
-	c.data = &data;
+	/* Initialize circ_trott manually, because we don't have a
+	 * handle to an open data file. */
+	struct circ_trott tt;
+	tt.circ.simulate = trott_simulate;
+	qreg_init(&tt.circ.reg, NUM_QUBITS);
+	circ_cache_init(&tt.circ.cache, tt.circ.reg.qb_lo, tt.circ.reg.qb_hi);
+	tt.delta = HAMIL_DELTA;
 
-	struct circ_hamil *h = &c.hamil;
+	struct circ_hamil *h = &tt.circ.hamil;
 	h->nqb = NUM_QUBITS;
 	h->nterms = HAMIL_TERMS;
 	h->terms = malloc(sizeof *h->terms * HAMIL_TERMS);
@@ -180,7 +183,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 		h->terms[k].op = HAMIL_PAULIS[k];
 	}
 
-	struct circ_muldet *m = &c.muldet;
+	struct circ_muldet *m = &tt.circ.muldet;
 	m->ndets = MULTIDET_DETS;
 	m->dets = malloc(sizeof *m->dets * MULTIDET_DETS);
 	if (!m->dets) {
@@ -192,21 +195,19 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 		m->dets[k].cf = MULTIDET_COEFFS[k];
 	}
 
-	struct circ_trott_res res;
-	res.nsteps = TROTT_STEPS;
-	res.steps = malloc(sizeof *res.steps * TROTT_STEPS);
-	if (!res.steps) {
+	tt.res.nsteps = TROTT_STEPS;
+	tt.res.steps = malloc(sizeof *tt.res.steps * TROTT_STEPS);
+	if (!tt.res.steps) {
 		TEST_FAIL("malloc res.steps");
 		goto malloc_ressteps;
 	}
-	c.res = &res;
 
-	circ_simulate(&c);
+	circ_simulate(&tt.circ);
 
 	/* Compare results. */
 	for (size_t s = 0; s < TROTT_STEPS; s++) {
-		_Complex double eval = res.steps[s];
-		TEST_ASSERT(cabs(res.steps[s] - TROTT_VALS[s]) < MARGIN,
+		_Complex double eval = tt.res.steps[s];
+		TEST_ASSERT(cabs(tt.res.steps[s] - TROTT_VALS[s]) < MARGIN,
 			"[%zu] ts=%zu, md=%zu, ht=%zu, step=%zu "
 			"eval=%f+%fi, TROTT_VALS=%f+%fi",
 			tag, ts, md, ht, s, creal(eval), cimag(eval),
@@ -223,7 +224,7 @@ malloc_hterms:;
 
 void TEST_MAIN(void)
 {
-	world_init((void *)0, (void *)0, WD_SEED);
+	world_init(nullptr, nullptr, WD_SEED);
 	world_info(&WD);
 	log_info("MPI world size: %d", WD.size);
 

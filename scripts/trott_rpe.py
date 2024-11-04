@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-import math
-import cmath
-
 import argparse
-
+import cmath
 import h5py
+import math
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -28,7 +27,7 @@ if __name__ == "__main__":
             val = dset_values[2 ** i - 1]
             samples.append(complex(val[0], val[1]))
 
-        time_factor = f["circ_trott"].attrs["time_factor"]
+        delta = f["circ_trott"].attrs["delta"]
         ph = f["pauli_hamil"]
         norm = ph.attrs["normalization"]
         offset = ph.attrs["offset"]
@@ -56,6 +55,6 @@ if __name__ == "__main__":
     x = 2**(-J)
     E0 = math.sqrt(1-x**2)/x / norm * math.tan(x*thJ)
     #E0 = thJ / (norm * time_factor)
-    E0 = E0 / time_factor
+    E0 = E0 / delta
     print(E0, E0 + offset)
 

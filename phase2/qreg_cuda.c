@@ -127,10 +127,9 @@ void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
 	const double *angles, const size_t ncodes, c64 bm);
 
 void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
-	const struct paulis *codes_lo, const double *angles,
-	const size_t ncodes)
+	const struct paulis *codes_lo, const double *phis, const size_t ncodes)
 {
 	c64 bm = 1.0;
 	qreg_paulirot_hi(reg, code_hi, &bm);
-	qreg_paulirot_lo(reg, codes_lo, angles, ncodes, bm);
+	qreg_paulirot_lo(reg, codes_lo, phis, ncodes, bm);
 }

@@ -3,133 +3,265 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
-#include "mpi.h"
-
-#include "phase2/circ.h"
-#include "phase2/circ_trott.h"
-#include "phase2/world.h"
+#include "circ/trott.h"
+#include "phase2.h"
 
 #define WD_SEED UINT64_C(0xd326119d4859ebb2)
 static struct world WD;
 
-static struct opt {
+static struct args {
+	const char *progname;
+	bool opt_help;
+	bool opt_version;
+	bool opt_steps;
+	double delta;
+	size_t steps;
 	const char *filename;
-	size_t nsteps;
-} OPT;
+} ARGS = {
+	.progname = nullptr,
+	.opt_help = false,
+	.opt_steps = false,
+	.opt_version = false,
+	.delta = 1.0,
+	.steps = 0,
+	.filename = nullptr,
+};
 
-void opt_help_page(int argc, char **argv)
+static void print_help(const char *progname)
 {
-	(void)argc;
-	fprintf(stderr, "usage: %s [SIMUL_FILE] [NUM_STEPS]\n\n", argv[0]);
+	fprintf(stderr, "%s: Simulate \"trott\" circuit.\n\n", progname);
+	fprintf(stderr, "  usage: %s [OPTIONS] --steps=n FILENAME\n", progname);
+	fprintf(stderr,
+		"\nOptions:\n"
+		"  -h, --help          Show this help.\n"
+		"  -v, --version       Print version number.\n"
+		"  --delta=D           Time scale\n"
+		"                      (positive real number, default: 1.0).\n"
+		"\n");
+	fprintf(stderr, "FILENAME is a HDF5 simulation worksheet.\n");
 }
 
-int opt_parse(int argc, char **argv)
+static void print_version(const char *progname)
 {
-	if (argc < 3) {
-		opt_help_page(argc, argv);
-		return -1;
-	}
+	fprintf(stderr, "%s-v%d.%d.%d\n", progname, PHASE2_VER_MAJOR,
+		PHASE2_VER_MINOR, PHASE2_VER_PATCH);
+}
 
-	OPT.filename = argv[1];
-	size_t nsteps = strtoull(argv[2], NULL, 10);
-	if (nsteps == 0) {
-		fprintf(stderr, "Wrong number of Trotter steps\n");
-		return -1;
+static int args_parse_shortopt(const int *argc, char ***argv)
+{
+	(void)argc;
+
+	char *o = **argv + 1;
+	while (*o != '\0') {
+		switch (*o) {
+		case ('h'):
+			ARGS.opt_help = true;
+			break;
+		case ('v'):
+			ARGS.opt_version = true;
+			break;
+		default:
+			fprintf(stderr, "Unrecognized option: -%c\n", *o);
+			return -1;
+		}
+		o++;
 	}
-	OPT.nsteps = nsteps;
 
 	return 0;
 }
 
-int run_circuit(data_id fid, size_t nsteps)
+static int args_parse_longopt(const int *argc, char ***argv)
+{
+	(void)argc;
+
+	char *o = **argv;
+	if (strncmp(o, "--delta=", 8) == 0) {
+		double delta = strtod(o + 8, nullptr);
+		if (delta == 0) {
+			fprintf(stderr, "Option: --delta=, wrong value.\n");
+			return -1;
+		}
+		ARGS.delta = delta;
+
+		return 0;
+	}
+	if (strncmp(o, "--help", 6) == 0) {
+		ARGS.opt_help = true;
+		return 0;
+	}
+	if (strncmp(o, "--steps=", 8) == 0) {
+		unsigned long n = strtoull(o + 8, nullptr, 10);
+		if (n == 0) {
+			fprintf(stderr,
+				"Option: --steps=n, wrong no. of steps.\n");
+			return -1;
+		}
+		ARGS.opt_steps = true;
+		ARGS.steps = n;
+
+		return 0;
+	}
+	if (strncmp(o, "--version", 9) == 0) {
+		ARGS.opt_version = true;
+		return 0;
+	}
+
+	fprintf(stderr, "Unrecognized option: %s (no option argument?)\n", o);
+	return -1;
+}
+
+static int args_parse(int argc, char **argv)
+{
+	const char *prog;
+	ARGS.progname = prog = *argv;
+	while (*prog != '\0') {
+		if (*prog == '/')
+			ARGS.progname = prog + 1;
+		prog++;
+	}
+
+	while (++argv, --argc) {
+		switch (argv[0][0]) {
+		case ('-'):
+			if (argv[0][1] != '-' &&
+				args_parse_shortopt(&argc, &argv) < 0)
+				return -1;
+			if (argv[0][1] == '-' &&
+				args_parse_longopt(&argc, &argv) < 0)
+				return -1;
+			break;
+		default:
+			if (!ARGS.filename)
+				ARGS.filename = argv[0];
+			else {
+				fprintf(stderr, "Unrecognized argument: %s\n",
+					argv[0]);
+				return -1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static void args_validate(void)
+{
+	if (ARGS.opt_help) {
+		print_help(ARGS.progname);
+		exit(0);
+	}
+	if (ARGS.opt_version) {
+		print_version(ARGS.progname);
+		exit(0);
+	}
+	if (!ARGS.opt_steps) {
+		fprintf(stderr,
+			"No --steps=n option specified.\n"
+			"See '%s -h' for more detail.\n",
+			ARGS.progname);
+		exit(-1);
+	}
+	if (!ARGS.filename) {
+		fprintf(stderr,
+			"No simulation file specified.  "
+			"See '%s -h' for more detail.\n",
+			ARGS.progname);
+		exit(-1);
+	}
+}
+
+static int run_circuit(const struct args *args)
 {
 	int rt = -1; /* Return value */
 
+	data_id fid;
 	struct timespec t1, t2;
-	double t_tot;
 
-	double delta;
-	data_circ_trott_getttrs(fid, &delta);
-	struct circ_trott_data data = { .delta = delta, .nsteps = nsteps };
-	struct circ c;
-	if (circ_init(&c, fid, &data) < 0)
-		goto exit_circ_init;
+	struct circ_trott tt;
+	struct circ_trott_data tt_dat;
+	tt_dat.delta = args->delta;
+	tt_dat.nsteps = args->steps;
+
+	log_info("open data file: %s", args->filename);
+	if ((fid = data_open(args->filename)) == DATA_INVALID_FID) {
+		log_error("open file: %s", args->filename);
+		goto ex_circ_init;
+	}
+	if (circ_trott_init(&tt, &tt_dat, fid) < 0)
+		goto ex_circ_init;
+	log_info("close data file: %s", args->filename);
+	data_close(fid);
 
 	clock_gettime(CLOCK_REALTIME, &t1);
-	if (circ_simulate(&c) < 0)
-		goto exit_circ_simulate;
-
+	if (circ_simulate(&tt.circ) < 0)
+		goto ex_circ_simulate;
 	clock_gettime(CLOCK_REALTIME, &t2);
-	t_tot = (double)(t2.tv_sec - t1.tv_sec) +
-		(double)(t2.tv_nsec - t1.tv_nsec) * 1.0e-9;
+	const double t_tot = (double)(t2.tv_sec - t1.tv_sec) +
+			     (double)(t2.tv_nsec - t1.tv_nsec) * 1.0e-9;
 
-	if (circ_res_write(&c, fid) < 0)
-		goto exit_circ_res_write;
-
-	circ_destroy(&c);
+	log_info("open data file: %s", args->filename);
+	if ((fid = data_open(args->filename)) == DATA_INVALID_FID) {
+		log_error("open file: %s", args->filename);
+		goto ex_circ_write_res;
+	}
+	if (circ_write_res(&tt.circ, fid) < 0)
+		goto ex_circ_write_res;
+	log_info("close data file: %s", args->filename);
+	data_close(fid);
 
 	rt = 0; /* Success. */
-
-exit_circ_res_write:
+ex_circ_write_res:
+	circ_trott_destroy(&tt);
 	log_info("> Simulation summary (CSV):");
-	log_info("> n_qb,n_terms,n_dets,n_steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%d,%.3f", c.hamil.nqb, c.hamil.nterms,
-		c.muldet.ndets, nsteps, WD.size, t_tot);
-exit_circ_simulate:
-exit_circ_init:
-
+	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
+	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt.circ.hamil.nqb,
+		tt.circ.hamil.nterms, tt.circ.muldet.ndets, args->delta,
+		args->steps, WD.size, t_tot);
+ex_circ_simulate:
+ex_circ_init:
 	return rt;
 }
 
 int main(int argc, char **argv)
 {
 	int rt = -1; /* Return value. */
+	if (args_parse(argc, argv) < 0)
+		return -1;
+	args_validate();
 
 	if (world_init(&argc, &argv, WD_SEED) != WORLD_READY)
-		goto exit_world_init;
+		goto ex_world_init;
 	world_info(&WD);
 
-	unsigned int nranks = WD.size;
+	const unsigned int nranks = WD.size;
 	if (nranks == 0 || (nranks & (nranks - 1)) != 0) {
 		log_error("number of MPI ranks (%u) "
 			  "must be a power of two.",
 			nranks);
-		goto exit_nranks;
+		goto ex_nranks;
 	}
 
 	log_info("*** Init ***");
 	log_info("MPI nranks: %d", nranks);
-	log_info("This is rank no. %d", WD.rank);
-
-	if (opt_parse(argc, argv) < 0) {
-		log_error("can't parse program arguments");
-		goto exit_opt_parse;
-	}
-
-	data_id fid = data_open(OPT.filename);
-	if (fid == DATA_INVALID_FID) {
-		log_error("cannot process input data");
-		goto exit_data_open;
-	}
+	log_info("world_backend: %s", WORLD_BACKEND);
 
 	log_info("*** Circuit: trott ***");
-	log_info("Num_steps: %zu", OPT.nsteps);
-	if (run_circuit(fid, OPT.nsteps) < 0) {
+	log_info("delta: %f", ARGS.delta);
+	log_info("num_steps: %zu", ARGS.steps);
+	if (run_circuit(&ARGS) < 0) {
 		log_error("Failure: simulation error");
-		goto exit_run_circuit;
+		goto ex_run_circuit;
 	}
 
 	rt = 0; /* Success. */
 
-exit_run_circuit:
+ex_run_circuit:
 	log_info("Shut down simulation environment");
-	data_close(fid);
-exit_data_open:
-exit_opt_parse:
-exit_nranks:
-exit_world_init:
+ex_nranks:
+ex_world_init:
 	world_destroy();
 
 	return rt;

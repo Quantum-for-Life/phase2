@@ -5,7 +5,7 @@
 
 #include "phase2/world.h"
 
-#include "world_impl.h"
+#include "world.h"
 #include "world_quest.h"
 
 int world_backend_init(struct world *wd)
@@ -25,9 +25,8 @@ int world_backend_init(struct world *wd)
 void world_backend_destroy(struct world *wd)
 {
 	struct world_quest *w = wd->data;
-	if (!w)
-		return -1;
-
-	destroyQuESTEnv(w->env);
-	free(w);
+	if (w) {
+		destroyQuESTEnv(w->env);
+		free(w);
+	}
 }

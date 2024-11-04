@@ -103,7 +103,7 @@ static __inline__ void kernel_add(size_t i, c64 *restrict a, c64 *restrict b)
 
 static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi, c64 *bm)
 {
-	paulis_shr(&code_hi, reg->nqb_lo);
+	paulis_shr(&code_hi, reg->qb_lo);
 	const uint64_t rnk_rem = paulis_effect(code_hi, reg->wd.rank, nullptr);
 
 	exch_init(reg, rnk_rem);
@@ -130,11 +130,10 @@ static void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
 }
 
 void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
-	const struct paulis *codes_lo, const double *angles,
-	const size_t ncodes)
+	const struct paulis *codes_lo, const double *phis, const size_t ncodes)
 {
 	c64 bm = 1.0;
 
 	qreg_paulirot_hi(reg, code_hi, &bm);
-	qreg_paulirot_lo(reg, codes_lo, angles, ncodes, bm);
+	qreg_paulirot_lo(reg, codes_lo, phis, ncodes, bm);
 }
