@@ -3,28 +3,39 @@
 
 #include <stddef.h>
 
+#include "phase2.h"
+#include "xoshiro256ss.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "phase2/circ.h"
-#include "phase2/data.h"
-#include "xoshiro256ss.h"
+#define CIRC_CMPSIT_TRUNC_DIST (16UL)
 
-struct circ_qdrift_data {
+struct circ_cmpsit_data {
 	size_t depth;
+	size_t length;
+	size_t samples;
 	double step_size;
-	size_t nsamples;
+	size_t steps;
 };
 
-struct circ_qdrift {
+struct circ_cmpsit {
 	struct circ circ;
 
 	size_t depth;
+	size_t length;
 	double step_size;
+	size_t steps;
 
 	struct xoshiro256ss rng;
-	size_t *smpl;
+
+	/* Sampled circuit. */
+	struct {
+		double cf;
+		struct paulis op;
+	} *smpl_ct;
+	size_t nsmpl_ct;
 
 	struct {
 		_Complex double *samples;
@@ -32,10 +43,10 @@ struct circ_qdrift {
 	} res;
 };
 
-int circ_qdrift_init(
-	struct circ_qdrift *qd, struct circ_qdrift_data *data, data_id fid);
+int circ_cmpsit_init(
+	struct circ_cmpsit *ct, struct circ_cmpsit_data *data, data_id fid);
 
-void circ_qdrift_destroy(struct circ_qdrift *qd);
+void circ_cmpsit_destroy(struct circ_cmpsit *ct);
 
 #ifdef __cplusplus
 }
