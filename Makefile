@@ -136,28 +136,43 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/data.o				\
 			$(PHASE2DIR)/paulis.o				\
 			$(PHASE2DIR)/qreg.o				\
-			$(BACKEND_OBJS)					\
-			$(PHASE2DIR)/world.o
+			$(PHASE2DIR)/world.o				\
+			$(BACKEND_OBJS)
+
 $(PHASE2OBJS):	$(INCLUDE)/phase2.h
 
+
 # Circuits
-$(CIRCDIR)/trott.o: $(INCLUDE)/circ/trott.h
+$(CIRCDIR)/cmpsit.o: $(INCLUDE)/circ/cmpsit.h
 $(CIRCDIR)/qdrift.o: $(INCLUDE)/circ/qdrift.h
-CIRCOBJS	:= $(CIRCDIR)/trott.o $(CIRCDIR)/qdrift.o
+$(CIRCDIR)/trott.o: $(INCLUDE)/circ/trott.h
+
+CIRCOBJS	:= $(CIRCDIR)/cmpsit.o					\
+			$(CIRCDIR)/qdrift.o				\
+			$(CIRCDIR)/trott.o
+
 
 # Library / utilities
 $(LIBDIR)/log.o:	$(INCLUDE)/log.h
 $(LIBDIR)/xoshiro256ss.o: $(INCLUDE)/xoshiro256ss.h
+
 LIBOBJS		:= $(LIBDIR)/log.o					\
 			$(LIBDIR)/xoshiro256ss.o
 
+
 # Applications
-PROGS		:=  $(PH2RUNDIR)/ph2run-trott				\
+PROGS		:=  $(PH2RUNDIR)/ph2run-cmpsit				\
+			$(PH2RUNDIR)/ph2run-trott			\
 			$(PH2RUNDIR)/ph2run-qdrift
 
+$(PROGS): 	$(PH2RUNDIR)/ph2run.h					\
+			$(PHASE2OBJS)					\
+			$(LIBOBJS)
+
+$(PH2RUNDIR)/ph2run-cmpsit: $(CIRCDIR)/cmpsit.o
 $(PH2RUNDIR)/ph2run-trott: $(CIRCDIR)/trott.o
 $(PH2RUNDIR)/ph2run-qdrift: $(CIRCDIR)/qdrift.o
-$(PROGS): 	$(PHASE2OBJS) $(LIBOBJS)
+
 
 # Update flags
 CFLAGS		+= -I$(INCLUDE)						\
@@ -198,16 +213,17 @@ debug: CFLAGS	+= -DDEBUG -g -Og
 build: $(PROGS)
 
 clean:
-	$(RM) $(PHASE2DIR)/*.o $(PHASE2DIR)/*.d
-	$(RM) $(PH2RUNDIR)/*.o $(PH2RUNDIR)/*.d
-	$(RM) $(LIBDIR)/*.o $(LIBDIR)/*.d
-	$(RM) $(BENCHDIR)/*.o $(BENCHDIR)/*.d
-	$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
+	@$(RM) $(CIRCDIR)/*.o $(CIRCDIR)/*.d
+	@$(RM) $(BENCHDIR)/*.o $(BENCHDIR)/*.d
+	@$(RM) $(LIBDIR)/*.o $(LIBDIR)/*.d
+	@$(RM) $(PH2RUNDIR)/*.o $(PH2RUNDIR)/*.d
+	@$(RM) $(PHASE2DIR)/*.o $(PHASE2DIR)/*.d
+	@$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
 
 distclean: clean
-	$(RM) $(BENCHES)
-	$(RM) $(TESTS)
-	$(RM) $(PROGS)
+	@$(RM) $(BENCHES)
+	@$(RM) $(TESTS)
+	@$(RM) $(PROGS)
 
 format:
 	@find ./ -name "*.c" 						\
