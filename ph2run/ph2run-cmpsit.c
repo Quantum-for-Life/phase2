@@ -42,11 +42,11 @@ static void print_help(const char *progname)
 		"\nOptions:\n"
 		"  -h, --help          Show this help.\n"
 		"  -v, --version       Print version number.\n"
-		"  --depth=64          Depth of the sampled sub-circuit\n"
-		"  --length=1          Length of the deterministic Hamiltonian\n"
-		"  --samples=1         Number of samples\n"
-		"  --step-size=1.0     Time evolution step size\n"
-		"  --steps=1           Number of Trotter steps\n"
+		"  --depth=64          Depth of the sampled sub-circuit.\n"
+		"  --length=1          Length of the deterministic Hamiltonian.\n"
+		"  --samples=1         Number of samples.\n"
+		"  --step-size=1.0     Time evolution step size.\n"
+		"  --steps=1           Number of Trotter steps.\n"
 		"\n");
 	fprintf(stderr, "FILENAME is a HDF5 simulation worksheet.\n");
 }

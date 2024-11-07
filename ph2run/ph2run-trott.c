@@ -16,31 +16,28 @@ static struct args {
 	const char *progname;
 	bool opt_help;
 	bool opt_version;
-	bool opt_steps;
 	double delta;
 	size_t steps;
 	const char *filename;
 } ARGS = {
 	.progname = nullptr,
 	.opt_help = false,
-	.opt_steps = false,
 	.opt_version = false,
 	.delta = 1.0,
-	.steps = 0,
+	.steps = 1,
 	.filename = nullptr,
 };
 
 static void print_help(const char *progname)
 {
 	fprintf(stderr, "%s: Simulate \"trott\" circuit.\n\n", progname);
-	fprintf(stderr, "  usage: %s [OPTIONS] --steps=n FILENAME\n", progname);
-	fprintf(stderr,
-		"\nOptions:\n"
-		"  -h, --help          Show this help.\n"
-		"  -v, --version       Print version number.\n"
-		"  --delta=D           Time scale\n"
-		"                      (positive real number, default: 1.0).\n"
-		"\n");
+	fprintf(stderr, "  usage: %s [OPTIONS] FILENAME\n", progname);
+	fprintf(stderr, "\nOptions:\n"
+			"  -h, --help          Show this help.\n"
+			"  -v, --version       Print version number.\n"
+			"  --delta=1.0         Time scale.\n"
+			"  --steps=1           Number of Trotter steps.\n"
+			"\n");
 	fprintf(stderr, "FILENAME is a HDF5 simulation worksheet.\n");
 }
 
@@ -99,7 +96,6 @@ static int args_parse_longopt(const int *argc, char ***argv)
 				"Option: --steps=n, wrong no. of steps.\n");
 			return -1;
 		}
-		ARGS.opt_steps = true;
 		ARGS.steps = n;
 
 		return 0;
@@ -156,13 +152,6 @@ static void args_validate(void)
 	if (ARGS.opt_version) {
 		print_version(ARGS.progname);
 		exit(0);
-	}
-	if (!ARGS.opt_steps) {
-		fprintf(stderr,
-			"No --steps=n option specified.\n"
-			"See '%s -h' for more detail.\n",
-			ARGS.progname);
-		exit(-1);
 	}
 	if (!ARGS.filename) {
 		fprintf(stderr,

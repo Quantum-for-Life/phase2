@@ -33,14 +33,13 @@ static void print_help(const char *progname)
 {
 	fprintf(stderr, "%s: Simulate \"qdrift\" circuit.\n\n", progname);
 	fprintf(stderr, "  usage: %s [OPTIONS] FILENAME\n", progname);
-	fprintf(stderr,
-		"\nOptions:\n"
-		"  -h, --help          Show this help.\n"
-		"  -v, --version       Print version number.\n"
-		"  --depth=64          Depth of the sampled circuit\n"
-		"  --samples=1         Number of samples\n"
-		"  --step-size=1.0     Time evolution step size\n"
-		"\n");
+	fprintf(stderr, "\nOptions:\n"
+			"  -h, --help          Show this help.\n"
+			"  -v, --version       Print version number.\n"
+			"  --depth=64          Depth of the sampled circuit.\n"
+			"  --samples=1         Number of samples.\n"
+			"  --step-size=1.0     Time evolution step size.\n"
+			"\n");
 	fprintf(stderr, "FILENAME is a HDF5 simulation worksheet.\n");
 }
 
