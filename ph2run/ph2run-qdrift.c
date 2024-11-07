@@ -37,12 +37,9 @@ static void print_help(const char *progname)
 		"\nOptions:\n"
 		"  -h, --help          Show this help.\n"
 		"  -v, --version       Print version number.\n"
-		"  --depth=N           Depth of the sampled circuit\n"
-		"                      (positive integer, default: 64).\n"
-		"  --samples=N         Number of samples\n"
-		"                      (positive integer, default: 1).\n"
-		"  --step-size=D       Time evolution step size\n"
-		"                      (positive real number, default: 1.0).\n"
+		"  --depth=64          Depth of the sampled circuit\n"
+		"  --samples=1         Number of samples\n"
+		"  --step-size=1.0     Time evolution step size\n"
 		"\n");
 	fprintf(stderr, "FILENAME is a HDF5 simulation worksheet.\n");
 }
