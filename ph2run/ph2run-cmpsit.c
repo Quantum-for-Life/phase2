@@ -7,8 +7,8 @@
 #include <time.h>
 
 #include "circ/qdrift.h"
-#include "phase2.h"
 #include "ph2run.h"
+#include "phase2.h"
 
 #define WD_SEED UINT64_C(0xd871e5d39fc0222d)
 static struct world WD;
@@ -18,7 +18,9 @@ static struct args {
 	bool opt_help;
 	bool opt_version;
 	size_t depth;
-	size_t nsamples;
+	size_t length;
+	size_t samples;
+	size_t steps;
 	double step_size;
 	const char *filename;
 } ARGS = {
@@ -26,24 +28,25 @@ static struct args {
 	.opt_help = false,
 	.opt_version = false,
 	.depth = 64,
-	.nsamples = 1,
+	.length = 1,
+	.samples = 1,
 	.step_size = 1.0,
+	.steps = 1,
 	.filename = nullptr,
 };
 static void print_help(const char *progname)
 {
-	fprintf(stderr, "%s: Simulate \"qdrift\" circuit.\n\n", progname);
+	fprintf(stderr, "%s: Simulate \"composite\" circuit.\n\n", progname);
 	fprintf(stderr, "  usage: %s [OPTIONS] FILENAME\n", progname);
 	fprintf(stderr,
 		"\nOptions:\n"
 		"  -h, --help          Show this help.\n"
 		"  -v, --version       Print version number.\n"
-		"  --depth=N           Depth of the sampled circuit\n"
-		"                      (positive integer, default: 64).\n"
-		"  --samples=N         Number of samples\n"
-		"                      (positive integer, default: 1).\n"
-		"  --step-size=D       Time evolution step size\n"
-		"                      (positive real number, default: 1.0).\n"
+		"  --depth=64          Depth of the sampled sub-circuit\n"
+		"  --length=1          Length of the deterministic Hamiltonian\n"
+		"  --samples=1         Number of samples\n"
+		"  --step-size=1.0     Time evolution step size\n"
+		"  --steps=1           Number of Trotter steps\n"
 		"\n");
 	fprintf(stderr, "FILENAME is a HDF5 simulation worksheet.\n");
 }
@@ -96,13 +99,23 @@ static int args_parse_longopt(const int *argc, char ***argv)
 		ARGS.opt_help = true;
 		return 0;
 	}
+	if (strncmp(o, "--length=", 9) == 0) {
+		size_t length = strtoul(o + 9, nullptr, 10);
+		if (length == 0) {
+			fprintf(stderr, "Option: --length=, wrong value.\n");
+			return -1;
+		}
+		ARGS.length = length;
+
+		return 0;
+	}
 	if (strncmp(o, "--samples=", 10) == 0) {
 		size_t samples = strtoul(o + 10, nullptr, 10);
 		if (samples == 0) {
 			fprintf(stderr, "Option: --samples=, wrong value.\n");
 			return -1;
 		}
-		ARGS.nsamples = samples;
+		ARGS.samples = samples;
 
 		return 0;
 	}
@@ -113,6 +126,17 @@ static int args_parse_longopt(const int *argc, char ***argv)
 			return -1;
 		}
 		ARGS.step_size = ss;
+
+		return 0;
+	}
+	if (strncmp(o, "--steps=", 8) == 0) {
+		unsigned long n = strtoull(o + 8, nullptr, 10);
+		if (n == 0) {
+			fprintf(stderr,
+				"Option: --steps=n, wrong no. of steps.\n");
+			return -1;
+		}
+		ARGS.steps = n;
 
 		return 0;
 	}
@@ -187,7 +211,7 @@ int run_circuit(const struct args *args)
 
 	struct circ_qdrift qd;
 	struct circ_qdrift_data data = { .depth = args->depth,
-		.nsamples = args->nsamples,
+		.nsamples = args->samples,
 		.step_size = args->step_size };
 
 	log_info("open data file: %s", args->filename);
@@ -254,10 +278,12 @@ int main(int argc, char **argv)
 	log_info("MPI num_ranks: %d", nranks);
 	log_info("world_backend: %s", WORLD_BACKEND);
 
-	log_info("*** Circuit: qDRIFT >>> ***");
+	log_info("*** Circuit: cmpsit >>> ***");
 	log_info("depth: %zu", ARGS.depth);
-	log_info("samples: %zu", ARGS.nsamples);
+	log_info("length: %zu", ARGS.length);
+	log_info("samples: %zu", ARGS.samples);
 	log_info("step_size: %f", ARGS.step_size);
+	log_info("steps: %zu", ARGS.steps);
 
 	if (run_circuit(&ARGS) < 0) {
 		log_error("Failure: simulation error");
