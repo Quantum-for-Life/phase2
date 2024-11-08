@@ -119,8 +119,7 @@ $(PHASE2DIR)/qreg_cuda_lo_dlink.o: $(PHASE2DIR)/qreg_cuda_lo.o
 
 endif
 
-$(BACKEND_OBJS): $(PHASE2DIR)/qreg.h					\
-			$(PHASE2DIR)/world.h
+$(BACKEND_OBJS): $(PHASE2DIR)/qreg.h
 
 BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
 
@@ -130,7 +129,7 @@ $(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h
 $(PHASE2DIR)/data.o:	$(INCLUDE)/phase2/data.h
 $(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
 $(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h $(PHASE2DIR)/qreg.h
-$(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h $(PHASE2DIR)/world.h
+$(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h
 
 PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/data.o				\
