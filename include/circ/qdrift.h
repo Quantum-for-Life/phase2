@@ -13,6 +13,11 @@ struct qdrift_data {
 	size_t samples;
 };
 
+struct qdrift_rct {
+	size_t *idx;
+	size_t len;
+};
+
 struct qdrift_samples {
 	_Complex double *z;
 	size_t len;
@@ -21,10 +26,9 @@ struct qdrift_samples {
 struct qdrift {
 	struct circ ct;
 	struct qdrift_data dt;
+	struct qdrift_rct rct;
 	struct qdrift_samples smp;
-
 	struct xoshiro256ss rng;
-	size_t *smpl;
 };
 
 int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt, data_id fid);
