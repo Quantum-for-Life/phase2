@@ -1,18 +1,14 @@
-#ifndef CIRC_CMPSIT_H
-#define CIRC_CMPSIT_H
+#ifndef CMPSIT_H
+#define CMPSIT_H
 
 #include <stddef.h>
 
 #include "phase2.h"
 #include "xoshiro256ss.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#define CMPSIT_TRUNC_DIST (16UL)
 
-#define CIRC_CMPSIT_TRUNC_DIST (16UL)
-
-struct circ_cmpsit_data {
+struct cmpsit_data {
 	size_t depth;
 	size_t length;
 	size_t samples;
@@ -21,40 +17,35 @@ struct circ_cmpsit_data {
 };
 
 /* Probability distribution to sample from */
-struct circ_cmpsit_pd {
+struct cmpsit_pd {
 	double *x;
 	size_t len;
 	double lambda_r;
 };
 
 /* Sampled circuit. */
-struct circ_cmpsit_rct {
+struct cmpsit_rct {
 	struct circ_hamil_term *trm;
 	size_t len;
 };
 
 /* Results */
-struct circ_cmpsit_samples {
+struct cmpsit_samples {
 	_Complex double *a;
 	size_t len;
 };
 
-struct circ_cmpsit {
+struct cmpsit {
 	struct circ circ;
-	struct circ_cmpsit_data data;
-	struct circ_cmpsit_pd pd;
-	struct circ_cmpsit_rct rct;
-	struct circ_cmpsit_samples samples;
+	struct cmpsit_data data;
+	struct cmpsit_pd pd;
+	struct cmpsit_rct rct;
+	struct cmpsit_samples samples;
 	struct xoshiro256ss rng;
 };
 
-int circ_cmpsit_init(struct circ_cmpsit *ct,
-	const struct circ_cmpsit_data *data, data_id fid);
+int cmpsit_init(struct cmpsit *ct, const struct cmpsit_data *data, data_id fid);
 
-void circ_cmpsit_destroy(struct circ_cmpsit *ct);
+void cmpsit_destroy(struct cmpsit *ct);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif // CIRC_CMPSIT_H
+#endif // CMPSIT_H

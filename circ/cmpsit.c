@@ -51,7 +51,7 @@ static int cmp_hamil_term_by_lex(const void *a, const void *b)
  * The remaining terms will be randomly sampled from.
  */
 static void cmpsit_hamil_rearrange(
-	const struct circ_cmpsit *ct, const struct circ_cmpsit_data *data)
+	const struct cmpsit *ct, const struct cmpsit_data *data)
 {
 	qsort(ct->circ.hamil.terms, ct->circ.hamil.nterms,
 		sizeof(struct circ_hamil_term), cmp_hamil_term_by_cf);
@@ -59,7 +59,7 @@ static void cmpsit_hamil_rearrange(
 		sizeof(struct circ_hamil_term), cmp_hamil_term_by_lex);
 }
 
-static int cmpsit_pd_init(struct circ_cmpsit_pd *pd,
+static int cmpsit_pd_init(struct cmpsit_pd *pd,
 	const struct circ_hamil_term *src, const size_t len)
 {
 	double *const x = malloc(sizeof(double) * len);
@@ -79,12 +79,12 @@ static int cmpsit_pd_init(struct circ_cmpsit_pd *pd,
 	return 0;
 }
 
-static void cmpsit_pd_destroy(struct circ_cmpsit_pd *pd)
+static void cmpsit_pd_destroy(struct cmpsit_pd *pd)
 {
 	free(pd->x);
 }
 
-static int cmpsit_rct_init(struct circ_cmpsit_rct *rct, const size_t len)
+static int cmpsit_rct_init(struct cmpsit_rct *rct, const size_t len)
 {
 	struct circ_hamil_term *trm =
 		malloc(sizeof(struct circ_hamil_term) * len);
@@ -97,12 +97,12 @@ static int cmpsit_rct_init(struct circ_cmpsit_rct *rct, const size_t len)
 	return 0;
 }
 
-static void cmpsit_rct_destroy(struct circ_cmpsit_rct *rct)
+static void cmpsit_rct_destroy(struct cmpsit_rct *rct)
 {
 	free(rct->trm);
 }
 
-static int cmpsit_samples_init(struct circ_cmpsit_samples *samples, size_t len)
+static int cmpsit_samples_init(struct cmpsit_samples *samples, size_t len)
 {
 	_Complex double *a = malloc(sizeof(_Complex double) * len);
 	if (!a)
@@ -113,13 +113,13 @@ static int cmpsit_samples_init(struct circ_cmpsit_samples *samples, size_t len)
 	return 0;
 }
 
-static void cmpsit_samples_destroy(struct circ_cmpsit_samples *samples)
+static void cmpsit_samples_destroy(struct cmpsit_samples *samples)
 {
 	free(samples->a);
 }
 
-int circ_cmpsit_init(struct circ_cmpsit *ct,
-	const struct circ_cmpsit_data *data, const data_id fid)
+int cmpsit_init(struct cmpsit *ct,
+	const struct cmpsit_data *data, const data_id fid)
 {
 	struct circ *c = &ct->circ;
 	if (circ_init(c, fid) < 0)
@@ -141,7 +141,7 @@ int circ_cmpsit_init(struct circ_cmpsit *ct,
 	 * introduce higher orders.
 	 */
 	const size_t rct_len =
-		data->length + data->depth * (CIRC_CMPSIT_TRUNC_DIST + 2);
+		data->length + data->depth * (CMPSIT_TRUNC_DIST + 2);
 	if (cmpsit_rct_init(&ct->rct, rct_len) < 0)
 		goto err_rct_init;
 
@@ -164,7 +164,7 @@ err_circ_init:
 	return -1;
 }
 
-void circ_cmpsit_destroy(struct circ_cmpsit *ct)
+void cmpsit_destroy(struct cmpsit *ct)
 {
 	cmpsit_samples_destroy(&ct->samples);
 	cmpsit_rct_destroy(&ct->rct);
@@ -172,7 +172,7 @@ void circ_cmpsit_destroy(struct circ_cmpsit *ct)
 	circ_destroy(&ct->circ);
 }
 
-static int cmpsit_prepst(struct circ_cmpsit *ct)
+static int cmpsit_prepst(struct cmpsit *ct)
 {
 	const struct circ_muldet *md = &ct->circ.muldet;
 
@@ -186,11 +186,11 @@ static int cmpsit_prepst(struct circ_cmpsit *ct)
 static void cmpsit_flush(struct paulis code_hi, struct paulis *codes_lo,
 	double *phis, size_t ncodes, void *data)
 {
-	struct circ_cmpsit *ct = data;
+	struct cmpsit *ct = data;
 	qreg_paulirot(&ct->circ.reg, code_hi, codes_lo, phis, ncodes);
 }
 
-static int cmpsit_step(struct circ_cmpsit *ct, const double omega)
+static int cmpsit_step(struct cmpsit *ct, const double omega)
 {
 	const struct circ_hamil *hamil = &ct->circ.hamil;
 	struct circ_cache *cache = &ct->circ.cache;
@@ -215,7 +215,7 @@ static int cmpsit_step(struct circ_cmpsit *ct, const double omega)
 	return 0;
 }
 
-static int cmpsit_effect(struct circ_cmpsit *ct)
+static int cmpsit_effect(struct cmpsit *ct)
 {
 	const double t = ct->data.step_size;
 	if (isnan(t))
@@ -227,7 +227,7 @@ static int cmpsit_effect(struct circ_cmpsit *ct)
 	return cmpsit_step(ct, theta);
 }
 
-static _Complex double cmpsit_measure(struct circ_cmpsit *ct)
+static _Complex double cmpsit_measure(struct cmpsit *ct)
 {
 	const struct circ_muldet *md = &ct->circ.muldet;
 
@@ -241,7 +241,7 @@ static _Complex double cmpsit_measure(struct circ_cmpsit *ct)
 	return pr;
 }
 
-static size_t sample_invcdf(struct circ_cmpsit *ct, double x)
+static size_t sample_invcdf(struct cmpsit *ct, double x)
 {
 	(void)ct;
 	size_t i = 0;
@@ -254,7 +254,7 @@ static size_t sample_invcdf(struct circ_cmpsit *ct, double x)
 /* TODO: Move to xoshiro256ss.h and document. */
 #define rand_dbl01(rng) ((double)(xoshiro256ss_next(rng) >> 11) * 0x1.0p-53)
 
-static void sample_terms(struct circ_cmpsit *ct)
+static void sample_terms(struct cmpsit *ct)
 {
 	for (size_t i = 0; i < ct->data.depth; i++) {
 		double x = rand_dbl01(&ct->rng);
@@ -267,7 +267,7 @@ static int cmpsit_simulate(struct circ *c)
 	int rt = -1;
 
 	size_t prog_pc = 0;
-	struct circ_cmpsit *ct = container_of(c, struct circ_cmpsit, circ);
+	struct cmpsit *ct = container_of(c, struct cmpsit, circ);
 
 	for (size_t i = 0; i < ct->samples.len; i++) {
 		size_t pc = i * 100 / ct->samples.len;
@@ -292,7 +292,7 @@ static int cmpsit_write_res(struct circ *c, data_id fid)
 {
 	int rt = -1;
 
-	struct circ_cmpsit *ct = container_of(c, struct circ_cmpsit, circ);
+	struct cmpsit *ct = container_of(c, struct cmpsit, circ);
 
 	if (data_grp_create(fid, DATA_CIRCCMPSIT) < 0)
 		goto data_res_write;

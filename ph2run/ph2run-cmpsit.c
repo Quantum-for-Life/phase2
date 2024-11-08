@@ -209,8 +209,8 @@ int run_circuit(const struct args *args)
 	data_id fid;
 	struct timespec t1, t2;
 
-	struct circ_cmpsit ct;
-	struct circ_cmpsit_data data = { /* */
+	struct cmpsit ct;
+	struct cmpsit_data data = { /* */
 		.depth = args->depth,
 		.length = args->length,
 		.samples = args->samples,
@@ -223,7 +223,7 @@ int run_circuit(const struct args *args)
 		log_error("open file: %s", args->filename);
 		goto ex_circ_init;
 	}
-	if (circ_cmpsit_init(&ct, &data, fid) < 0)
+	if (cmpsit_init(&ct, &data, fid) < 0)
 		goto ex_circ_init;
 	log_info("close data file: %s", args->filename);
 	data_close(fid);
@@ -247,7 +247,7 @@ int run_circuit(const struct args *args)
 
 	rt = 0; /* Success. */
 ex_circ_res_write:
-	circ_cmpsit_destroy(&ct);
+	cmpsit_destroy(&ct);
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_samples,depth,length,step_size,steps,"
 		 "n_ranks,t_tot");
