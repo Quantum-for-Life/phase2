@@ -169,8 +169,8 @@ static int run_circuit(const struct args *args)
 	data_id fid;
 	struct timespec t1, t2;
 
-	struct circ_trott tt;
-	struct circ_trott_data tt_dat;
+	struct trott tt;
+	struct trott_data tt_dat;
 	tt_dat.delta = args->delta;
 	tt_dat.nsteps = args->steps;
 
@@ -179,7 +179,7 @@ static int run_circuit(const struct args *args)
 		log_error("open file: %s", args->filename);
 		goto ex_circ_init;
 	}
-	if (circ_trott_init(&tt, &tt_dat, fid) < 0)
+	if (trott_init(&tt, &tt_dat, fid) < 0)
 		goto ex_circ_init;
 	log_info("close data file: %s", args->filename);
 	data_close(fid);
@@ -203,7 +203,7 @@ static int run_circuit(const struct args *args)
 
 	rt = 0; /* Success. */
 ex_circ_write_res:
-	circ_trott_destroy(&tt);
+	trott_destroy(&tt);
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
 	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt.circ.hamil.nqb,

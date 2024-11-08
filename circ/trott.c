@@ -5,21 +5,22 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "circ/trott.h"
 #include "container_of.h"
 #include "phase2.h"
+
+#include "circ/trott.h"
 
 int trott_write_res(struct circ *c, data_id fid);
 int trott_simulate(struct circ *c);
 
-static int trott_res_init(struct circ_trott *tt, size_t nsteps)
+static int trott_steps_init(struct trott *tt, size_t nsteps)
 {
 	_Complex double *steps = malloc(sizeof(_Complex double) * nsteps);
 	if (!steps)
 		goto malloc_steps;
 
-	tt->res.steps = steps;
-	tt->res.nsteps = nsteps;
+	tt->steps.z = steps;
+	tt->steps.len = nsteps;
 
 	return 0;
 
@@ -28,13 +29,12 @@ malloc_steps:
 	return -1;
 }
 
-static void trott_res_destroy(struct circ_trott *tt)
+static void trott_steps_destroy(struct trott *tt)
 {
-	free(tt->res.steps);
+	free(tt->steps.z);
 }
 
-int circ_trott_init(
-	struct circ_trott *tt, struct circ_trott_data *data, data_id fid)
+int trott_init(struct trott *tt, struct trott_data *data, data_id fid)
 {
 	struct circ *c = &tt->circ;
 	if (circ_init(c, fid) < 0)
@@ -43,7 +43,7 @@ int circ_trott_init(
 	c->write_res = trott_write_res;
 
 	tt->delta = data->delta;
-	if (trott_res_init(tt, data->nsteps) < 0)
+	if (trott_steps_init(tt, data->nsteps) < 0)
 		goto err_trott_res_init;
 
 	return 0;
@@ -55,13 +55,13 @@ err_circ_init:
 	return -1;
 }
 
-void circ_trott_destroy(struct circ_trott *tt)
+void trott_destroy(struct trott *tt)
 {
 	circ_destroy(&tt->circ);
-	trott_res_destroy(tt);
+	trott_steps_destroy(tt);
 }
 
-static int trott_prepst(struct circ_trott *tt)
+static int trott_prepst(struct trott *tt)
 {
 	const struct circ_muldet *md = &tt->circ.muldet;
 
@@ -75,11 +75,11 @@ static int trott_prepst(struct circ_trott *tt)
 static void trott_flush(struct paulis code_hi, struct paulis *codes_lo,
 	double *phis, size_t ncodes, void *data)
 {
-	struct circ_trott *tt = data;
+	struct trott *tt = data;
 	qreg_paulirot(&tt->circ.reg, code_hi, codes_lo, phis, ncodes);
 }
 
-static int trott_step(struct circ_trott *tt, const double omega)
+static int trott_step(struct trott *tt, const double omega)
 {
 	const struct circ_hamil *hamil = &tt->circ.hamil;
 	struct circ_cache *cache = &tt->circ.cache;
@@ -102,7 +102,7 @@ static int trott_step(struct circ_trott *tt, const double omega)
 	return 0;
 }
 
-static int trott_effect(struct circ_trott *tt)
+static int trott_effect(struct trott *tt)
 {
 	const double delta = tt->delta;
 	if (isnan(delta))
@@ -113,7 +113,7 @@ static int trott_effect(struct circ_trott *tt)
 	return trott_step(tt, delta);
 }
 
-static _Complex double trott_measure(struct circ_trott *tt)
+static _Complex double trott_measure(struct trott *tt)
 {
 	const struct circ_muldet *md = &tt->circ.muldet;
 
@@ -130,7 +130,7 @@ static _Complex double trott_measure(struct circ_trott *tt)
 int trott_write_res(struct circ *c, data_id fid)
 {
 	int rt = -1;
-	struct circ_trott *tt = container_of(c, struct circ_trott, circ);
+	struct trott *tt = container_of(c, struct trott, circ);
 
 	if (data_grp_create(fid, DATA_CIRCTROTT) < 0)
 		goto data_grp_create;
@@ -138,7 +138,7 @@ int trott_write_res(struct circ *c, data_id fid)
 		    fid, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA, tt->delta) < 0)
 		goto data_attr_write;
 	if (data_res_write(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES,
-		    tt->res.steps, tt->res.nsteps) < 0)
+		    tt->steps.z, tt->steps.len) < 0)
 		goto data_res_write;
 
 	rt = 0;
@@ -153,11 +153,11 @@ int trott_simulate(struct circ *c)
 	int rt = -1;
 
 	size_t prog_pc = 0;
-	struct circ_trott *tt = container_of(c, struct circ_trott, circ);
+	struct trott *tt = container_of(c, struct trott, circ);
 
 	trott_prepst(tt);
-	for (size_t i = 0; i < tt->res.nsteps; i++) {
-		size_t pc = i * 100 / tt->res.nsteps;
+	for (size_t i = 0; i < tt->steps.len; i++) {
+		size_t pc = i * 100 / tt->steps.len;
 		if (pc > prog_pc) {
 			prog_pc = pc;
 			log_info("Progress: %zu\% (trott_step: %zu)", pc, i);
@@ -165,7 +165,7 @@ int trott_simulate(struct circ *c)
 
 		if (trott_effect(tt) < 0)
 			goto ex_trott_effect;
-		tt->res.steps[i] = trott_measure(tt);
+		tt->steps.z[i] = trott_measure(tt);
 	}
 
 	rt = 0; /* Success. */
