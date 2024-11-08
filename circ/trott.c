@@ -10,17 +10,17 @@
 
 #include "circ/trott.h"
 
-int trott_write_res(struct circ *c, data_id fid);
-int trott_simulate(struct circ *c);
+int trott_write_res(struct circ *ct, data_id fid);
+int trott_simulate(struct circ *ct);
 
-static int trott_steps_init(struct trott *tt, size_t steps)
+static int trott_steps_init(struct trott_steps *stp, size_t steps)
 {
 	_Complex double *z = malloc(sizeof(_Complex double) * steps);
 	if (!z)
 		goto malloc_z;
 
-	tt->stp.z = z;
-	tt->stp.len = steps;
+	stp->z = z;
+	stp->len = steps;
 
 	return 0;
 
@@ -29,13 +29,12 @@ malloc_z:
 	return -1;
 }
 
-static void trott_steps_destroy(struct trott *tt)
+static void trott_steps_destroy(struct trott_steps *stp)
 {
-	free(tt->stp.z);
+	free(stp->z);
 }
 
-int trott_init(
-	struct trott *tt, const struct trott_data *dt, const data_id fid)
+int trott_init(struct trott *tt, const struct trott_data *dt, const data_id fid)
 {
 	struct circ *c = &tt->ct;
 	if (circ_init(c, fid) < 0)
@@ -45,7 +44,7 @@ int trott_init(
 
 	tt->dt = *dt;
 
-	if (trott_steps_init(tt, dt->steps) < 0)
+	if (trott_steps_init(&tt->stp, dt->steps) < 0)
 		goto err_trott_res_init;
 
 	return 0;
@@ -60,7 +59,7 @@ err_circ_init:
 void trott_destroy(struct trott *tt)
 {
 	circ_destroy(&tt->ct);
-	trott_steps_destroy(tt);
+	trott_steps_destroy(&tt->stp);
 }
 
 static int trott_prepst(struct trott *tt)
@@ -129,33 +128,12 @@ static _Complex double trott_measure(struct trott *tt)
 	return pr;
 }
 
-int trott_write_res(struct circ *c, data_id fid)
-{
-	int rt = -1;
-	struct trott *tt = container_of(c, struct trott, ct);
-
-	if (data_grp_create(fid, DATA_CIRCTROTT) < 0)
-		goto data_grp_create;
-	if (data_attr_write_dbl(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA,
-		    tt->dt.delta) < 0)
-		goto data_attr_write;
-	if (data_res_write(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES,
-		    tt->stp.z, tt->stp.len) < 0)
-		goto data_res_write;
-
-	rt = 0;
-data_res_write:
-data_attr_write:
-data_grp_create:
-	return rt;
-}
-
-int trott_simulate(struct circ *c)
+int trott_simulate(struct circ *ct)
 {
 	int rt = -1;
 
 	size_t prog_pc = 0;
-	struct trott *tt = container_of(c, struct trott, ct);
+	struct trott *tt = container_of(ct, struct trott, ct);
 
 	trott_prepst(tt);
 	for (size_t i = 0; i < tt->stp.len; i++) {
@@ -172,5 +150,26 @@ int trott_simulate(struct circ *c)
 
 	rt = 0; /* Success. */
 ex_trott_effect:
+	return rt;
+}
+
+int trott_write_res(struct circ *ct, data_id fid)
+{
+	int rt = -1;
+	struct trott *tt = container_of(ct, struct trott, ct);
+
+	if (data_grp_create(fid, DATA_CIRCTROTT) < 0)
+		goto data_grp_create;
+	if (data_attr_write_dbl(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA,
+		    tt->dt.delta) < 0)
+		goto data_attr_write;
+	if (data_res_write(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES,
+		    tt->stp.z, tt->stp.len) < 0)
+		goto data_res_write;
+
+	rt = 0;
+data_res_write:
+data_attr_write:
+data_grp_create:
 	return rt;
 }
