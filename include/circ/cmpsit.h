@@ -31,21 +31,21 @@ struct cmpsit_rct {
 
 /* Results */
 struct cmpsit_samples {
-	_Complex double *a;
+	_Complex double *z;
 	size_t len;
 };
 
 struct cmpsit {
-	struct circ circ;
-	struct cmpsit_data data;
+	struct circ ct;
+	struct cmpsit_data dt;
 	struct cmpsit_pd pd;
 	struct cmpsit_rct rct;
-	struct cmpsit_samples samples;
+	struct cmpsit_samples smp;
 	struct xoshiro256ss rng;
 };
 
-int cmpsit_init(struct cmpsit *ct, const struct cmpsit_data *data, data_id fid);
+int cmpsit_init(struct cmpsit *cp, const struct cmpsit_data *dt, data_id fid);
 
-void cmpsit_destroy(struct cmpsit *ct);
+void cmpsit_destroy(struct cmpsit *cp);
 
 #endif // CMPSIT_H
