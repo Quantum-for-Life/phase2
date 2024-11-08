@@ -4,10 +4,9 @@
 #include <stdlib.h>
 
 #include "phase2/paulis.h"
+#include "phase2/qreg.h"
 
-#include <phase2/qreg.h>
-
-struct paulis paulis_new(void)
+inline struct paulis paulis_new(void)
 {
 	struct paulis code = {
 		.pak = { 0, 0 }
@@ -60,18 +59,18 @@ int paulis_get(const struct paulis code, const uint32_t n)
 	}
 }
 
-int paulis_eq(const struct paulis code1, const struct paulis code2)
+inline int paulis_eq(const struct paulis code1, const struct paulis code2)
 {
 	return code1.pak[0] == code2.pak[0] && code1.pak[1] == code2.pak[1];
 }
 
-void paulis_shl(struct paulis *code, const uint32_t n)
+inline void paulis_shl(struct paulis *code, const uint32_t n)
 {
 	code->pak[0] <<= n;
 	code->pak[1] <<= n;
 }
 
-void paulis_shr(struct paulis *code, const uint32_t n)
+inline void paulis_shr(struct paulis *code, const uint32_t n)
 {
 	code->pak[0] >>= n;
 	code->pak[1] >>= n;
@@ -133,8 +132,11 @@ void paulis_merge(struct paulis *code, const uint32_t qb_lo,
 	code->pak[1] = (lo.pak[1] & mask_lo) | (hi.pak[1] & mask_hi);
 }
 
-int paulis_cmp(const struct paulis a, const struct paulis b)
+int paulis_cmp(struct paulis a, struct paulis b)
 {
+	if (paulis_eq(a, b))
+		return 0;
+
 	for (uint32_t n = 0; n < QREG_MAX_WIDTH; n++) {
 		const int x = paulis_get(a, n);
 		const int y = paulis_get(b, n);
@@ -144,5 +146,5 @@ int paulis_cmp(const struct paulis a, const struct paulis b)
 			return 1;
 	}
 
-	return 0;
+	unreachable();
 }
