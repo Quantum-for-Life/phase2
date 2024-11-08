@@ -18,7 +18,7 @@ struct qdrift_data {
 };
 
 struct qdrift {
-	struct circ circ;
+	struct circ ct;
 
 	size_t depth;
 	double step_size;

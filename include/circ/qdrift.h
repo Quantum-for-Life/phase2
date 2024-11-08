@@ -19,10 +19,9 @@ struct qdrift_samples {
 };
 
 struct qdrift {
-	struct circ circ;
-
-	size_t depth;
-	double step_size;
+	struct circ ct;
+	struct qdrift_data dt;
+	struct qdrift_samples smp;
 
 	struct xoshiro256ss rng;
 	size_t *smpl;

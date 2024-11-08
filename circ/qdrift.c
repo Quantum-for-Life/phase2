@@ -14,32 +14,28 @@
 
 #define SEED UINT64_C(0xeccd9dcc749fcdca)
 
-int qdrift_write_res(struct circ *c, data_id fid);
-int qdrift_simulate(struct circ *c);
+int qdrift_write_res(struct circ *ct, data_id fid);
+int qdrift_simulate(struct circ *ct);
 
-static int qdrift_res_init(struct qdrift *qd, size_t nsamples)
+static int qdrift_samples_init(struct qdrift_samples *smp, size_t samples)
 {
-	_Complex double *samples = malloc(sizeof(_Complex double) * nsamples);
-	if (!samples)
-		goto err_samples;
-	qd->res.samples = samples;
-	qd->res.nsamples = nsamples;
+	_Complex double *z = malloc(sizeof(_Complex double) * samples);
+	if (!z)
+		return -1;
+	smp->z = z;
+	smp->len = samples;
 
 	return 0;
-
-// free(samples);
-err_samples:
-	return -1;
 }
 
-static void qdrift_res_destroy(struct qdrift *qd)
+static void qdrift_samples_destroy(struct qdrift_samples *smp)
 {
 	free(smp->z);
 }
 
 int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt, data_id fid)
 {
-	struct circ *c = &qd->circ;
+	struct circ *c = &qd->ct;
 	if (circ_init(c, fid) < 0)
 		goto err_circ_init;
 	c->simulate = qdrift_simulate;
@@ -69,17 +65,17 @@ err_circ_init:
 
 void qdrift_destroy(struct qdrift *qd)
 {
-	circ_destroy(&qd->circ);
-	qdrift_res_destroy(qd);
+	circ_destroy(&qd->ct);
+	qdrift_samples_destroy(&qd->smp);
 }
 
 static int qdrift_prepst(struct qdrift *qd)
 {
-	const struct circ_muldet *md = &qd->circ.muldet;
+	const struct circ_muldet *md = &qd->ct.muldet;
 
-	qreg_zero(&qd->circ.reg);
+	qreg_zero(&qd->ct.reg);
 	for (size_t i = 0; i < md->ndets; i++)
-		qreg_setamp(&qd->circ.reg, md->dets[i].idx, md->dets[i].cf);
+		qreg_setamp(&qd->ct.reg, md->dets[i].idx, md->dets[i].cf);
 
 	return 0;
 }
@@ -88,13 +84,13 @@ static void qdrift_flush(struct paulis code_hi, struct paulis *codes_lo,
 	double *phis, size_t ncodes, void *data)
 {
 	struct qdrift *qd = data;
-	qreg_paulirot(&qd->circ.reg, code_hi, codes_lo, phis, ncodes);
+	qreg_paulirot(&qd->ct.reg, code_hi, codes_lo, phis, ncodes);
 }
 
 static int qdrift_step(struct qdrift *qd, const double omega)
 {
-	const struct circ_hamil *hamil = &qd->circ.hamil;
-	struct circ_cache *cache = &qd->circ.cache;
+	const struct circ_hamil *hamil = &qd->ct.hamil;
+	struct circ_cache *cache = &qd->ct.cache;
 
 	for (size_t i = 0; i < qd->dt.depth; i++) {
 		const double phi = omega;
@@ -129,12 +125,12 @@ static int qdrift_effect(struct qdrift *qd)
 
 static _Complex double qdrift_measure(struct qdrift *qd)
 {
-	const struct circ_muldet *md = &qd->circ.muldet;
+	const struct circ_muldet *md = &qd->ct.muldet;
 
 	_Complex double pr = 0.0;
 	for (size_t i = 0; i < md->ndets; i++) {
 		_Complex double a;
-		qreg_getamp(&qd->circ.reg, md->dets[i].idx, &a);
+		qreg_getamp(&qd->ct.reg, md->dets[i].idx, &a);
 		pr += a * conj(md->dets[i].cf);
 	}
 
@@ -147,7 +143,7 @@ static size_t sample_invcdf(struct qdrift *qd, double x)
 	size_t i = 0;
 	double cdf = 0;
 	while (cdf <= x)
-		cdf += fabs(qd->circ.hamil.terms[i++].cf);
+		cdf += fabs(qd->ct.hamil.terms[i++].cf);
 	return i - 1; /* Never again make the same off-by-one error! */
 }
 
@@ -162,11 +158,11 @@ static void sample_terms(struct qdrift *qd)
 	}
 }
 
-int qdrift_write_res(struct circ *c, data_id fid)
+int qdrift_write_res(struct circ *ct, data_id fid)
 {
 	int rt = -1;
 
-	struct qdrift *qd = container_of(c, struct qdrift, circ);
+	struct qdrift *qd = container_of(ct, struct qdrift, ct);
 
 	if (data_grp_create(fid, DATA_CIRCQDRIFT) < 0)
 		goto data_res_write;
@@ -186,12 +182,12 @@ data_res_write:
 	return rt;
 }
 
-int qdrift_simulate(struct circ *c)
+int qdrift_simulate(struct circ *ct)
 {
 	int rt = -1;
 
 	size_t prog_pc = 0;
-	struct qdrift *qd = container_of(c, struct qdrift, circ);
+	struct qdrift *qd = container_of(ct, struct qdrift, ct);
 
 	for (size_t i = 0; i < qd->smp.len; i++) {
 		size_t pc = i * 100 / qd->smp.len;
