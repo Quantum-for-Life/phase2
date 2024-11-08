@@ -183,7 +183,7 @@ int run_circuit(const struct args *args)
 
 	struct qdrift qd;
 	struct qdrift_data data = { .depth = args->depth,
-		.nsamples = args->nsamples,
+		.samples = args->nsamples,
 		.step_size = args->step_size };
 
 	log_info("open data file: %s", args->filename);
@@ -219,8 +219,8 @@ ex_circ_res_write:
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
 		 "n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", qd.circ.hamil.nqb,
-		qd.circ.hamil.nterms, qd.circ.muldet.ndets, data.nsamples,
+	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", qd.ct.hamil.nqb,
+		qd.ct.hamil.nterms, qd.ct.muldet.ndets, data.samples,
 		data.step_size, data.depth, WD.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:

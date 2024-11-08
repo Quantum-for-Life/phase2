@@ -211,7 +211,7 @@ int run_circuit(const struct args *args)
 
 	struct qdrift qd;
 	struct qdrift_data data = { .depth = args->depth,
-		.nsamples = args->samples,
+		.samples = args->samples,
 		.step_size = args->step_size };
 
 	log_info("open data file: %s", args->filename);

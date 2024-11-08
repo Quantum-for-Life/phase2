@@ -10,7 +10,12 @@
 struct qdrift_data {
 	size_t depth;
 	double step_size;
-	size_t nsamples;
+	size_t samples;
+};
+
+struct qdrift_samples {
+	_Complex double *z;
+	size_t len;
 };
 
 struct qdrift {
@@ -21,15 +26,9 @@ struct qdrift {
 
 	struct xoshiro256ss rng;
 	size_t *smpl;
-
-	struct {
-		_Complex double *samples;
-		size_t nsamples;
-	} res;
 };
 
-int qdrift_init(
-	struct qdrift *qd, struct qdrift_data *data, data_id fid);
+int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt, data_id fid);
 
 void qdrift_destroy(struct qdrift *qd);
 

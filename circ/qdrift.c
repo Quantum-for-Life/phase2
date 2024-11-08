@@ -34,11 +34,10 @@ err_samples:
 
 static void qdrift_res_destroy(struct qdrift *qd)
 {
-	free(qd->res.samples);
+	free(smp->z);
 }
 
-int qdrift_init(
-	struct qdrift *qd, struct qdrift_data *data, data_id fid)
+int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt, data_id fid)
 {
 	struct circ *c = &qd->circ;
 	if (circ_init(c, fid) < 0)
@@ -46,17 +45,17 @@ int qdrift_init(
 	c->simulate = qdrift_simulate;
 	c->write_res = qdrift_write_res;
 
+	qd->dt = *dt;
+
 	xoshiro256ss_init(&qd->rng, SEED);
-	size_t *smpl = malloc(sizeof(size_t) * data->depth);
+
+	size_t *smpl = malloc(sizeof(size_t) * dt->depth);
 	if (!smpl)
 		goto err_smpl;
 	qd->smpl = smpl;
 
-	if (qdrift_res_init(qd, data->nsamples) < 0)
+	if (qdrift_samples_init(&qd->smp, dt->samples) < 0)
 		goto err_res_init;
-
-	qd->depth = data->depth;
-	qd->step_size = data->step_size;
 
 	return 0;
 
@@ -97,7 +96,7 @@ static int qdrift_step(struct qdrift *qd, const double omega)
 	const struct circ_hamil *hamil = &qd->circ.hamil;
 	struct circ_cache *cache = &qd->circ.cache;
 
-	for (size_t i = 0; i < qd->depth; i++) {
+	for (size_t i = 0; i < qd->dt.depth; i++) {
 		const double phi = omega;
 		const size_t i_smpl = qd->smpl[i];
 		const struct paulis code = hamil->terms[i_smpl].op;
@@ -118,7 +117,7 @@ static int qdrift_step(struct qdrift *qd, const double omega)
 
 static int qdrift_effect(struct qdrift *qd)
 {
-	const double t = qd->step_size;
+	const double t = qd->dt.step_size;
 	if (isnan(t))
 		return -1;
 	if (fabs(t) < DBL_EPSILON)
@@ -157,7 +156,7 @@ static size_t sample_invcdf(struct qdrift *qd, double x)
 
 static void sample_terms(struct qdrift *qd)
 {
-	for (size_t i = 0; i < qd->depth; i++) {
+	for (size_t i = 0; i < qd->dt.depth; i++) {
 		double x = rand_dbl01(&qd->rng);
 		qd->smpl[i] = sample_invcdf(qd, x);
 	}
@@ -172,13 +171,13 @@ int qdrift_write_res(struct circ *c, data_id fid)
 	if (data_grp_create(fid, DATA_CIRCQDRIFT) < 0)
 		goto data_res_write;
 	if (data_attr_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_STEPSIZE,
-		    qd->step_size) < 0)
+		    qd->dt.step_size) < 0)
 		goto data_res_write;
-	if (data_attr_write(
-		    fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_DEPTH, qd->depth) < 0)
+	if (data_attr_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_DEPTH,
+		    qd->dt.depth) < 0)
 		goto data_res_write;
 	if (data_res_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_VALUES,
-		    qd->res.samples, qd->res.nsamples) < 0)
+		    qd->smp.z, qd->smp.len) < 0)
 		goto data_res_write;
 
 	rt = 0;
@@ -194,8 +193,8 @@ int qdrift_simulate(struct circ *c)
 	size_t prog_pc = 0;
 	struct qdrift *qd = container_of(c, struct qdrift, circ);
 
-	for (size_t i = 0; i < qd->res.nsamples; i++) {
-		size_t pc = i * 100 / qd->res.nsamples;
+	for (size_t i = 0; i < qd->smp.len; i++) {
+		size_t pc = i * 100 / qd->smp.len;
 		if (pc > prog_pc) {
 			prog_pc = pc;
 			log_info("Progress: %zu\% (samples: %zu)", pc, i);
@@ -205,7 +204,7 @@ int qdrift_simulate(struct circ *c)
 		qdrift_prepst(qd);
 		if (qdrift_effect(qd) < 0)
 			goto ex_qdrift_effect;
-		qd->res.samples[i] = qdrift_measure(qd);
+		qd->smp.z[i] = qdrift_measure(qd);
 	}
 
 	rt = 0; /* Success. */

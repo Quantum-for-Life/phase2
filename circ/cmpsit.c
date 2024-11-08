@@ -37,7 +37,7 @@ static void qdrift_res_destroy(struct qdrift *qd)
 }
 
 int qdrift_init(
-	struct qdrift *qd, struct qdrift_data *data, data_id fid)
+	struct qdrift *qd, struct qdrift_data *dt, data_id fid)
 {
 	struct circ *c = &qd->circ;
 	if (circ_init(c, fid) < 0)
@@ -46,16 +46,16 @@ int qdrift_init(
 	c->write_res = qdrift_write_res;
 
 	xoshiro256ss_init(&qd->rng, SEED);
-	size_t *smpl = malloc(sizeof(size_t) * data->depth);
+	size_t *smpl = malloc(sizeof(size_t) * dt->depth);
 	if (!smpl)
 		goto err_smpl;
 	qd->smpl = smpl;
 
-	if (qdrift_res_init(qd, data->nsamples) < 0)
+	if (qdrift_samples_init(qd, dt->samples) < 0)
 		goto err_res_init;
 
-	qd->depth = data->depth;
-	qd->step_size = data->step_size;
+	qd->depth = dt->depth;
+	qd->step_size = dt->step_size;
 
 	return 0;
 

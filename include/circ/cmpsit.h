@@ -14,7 +14,7 @@ extern "C" {
 struct qdrift_data {
 	size_t depth;
 	double step_size;
-	size_t nsamples;
+	size_t samples;
 };
 
 struct qdrift {
@@ -33,7 +33,7 @@ struct qdrift {
 };
 
 int qdrift_init(
-	struct qdrift *qd, struct qdrift_data *data, data_id fid);
+	struct qdrift *qd, struct qdrift_data *dt, data_id fid);
 
 void qdrift_destroy(struct qdrift *qd);
 
