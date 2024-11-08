@@ -11,13 +11,13 @@ extern "C" {
 #include "phase2/data.h"
 #include "xoshiro256ss.h"
 
-struct circ_qdrift_data {
+struct qdrift_data {
 	size_t depth;
 	double step_size;
 	size_t nsamples;
 };
 
-struct circ_qdrift {
+struct qdrift {
 	struct circ circ;
 
 	size_t depth;
@@ -32,10 +32,10 @@ struct circ_qdrift {
 	} res;
 };
 
-int circ_qdrift_init(
-	struct circ_qdrift *qd, struct circ_qdrift_data *data, data_id fid);
+int qdrift_init(
+	struct qdrift *qd, struct qdrift_data *data, data_id fid);
 
-void circ_qdrift_destroy(struct circ_qdrift *qd);
+void qdrift_destroy(struct qdrift *qd);
 
 #ifdef __cplusplus
 }

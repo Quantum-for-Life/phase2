@@ -209,8 +209,8 @@ int run_circuit(const struct args *args)
 	data_id fid;
 	struct timespec t1, t2;
 
-	struct circ_qdrift qd;
-	struct circ_qdrift_data data = { .depth = args->depth,
+	struct qdrift qd;
+	struct qdrift_data data = { .depth = args->depth,
 		.nsamples = args->samples,
 		.step_size = args->step_size };
 
@@ -219,7 +219,7 @@ int run_circuit(const struct args *args)
 		log_error("open file: %s", args->filename);
 		goto ex_circ_init;
 	}
-	if (circ_qdrift_init(&qd, &data, fid) < 0)
+	if (qdrift_init(&qd, &data, fid) < 0)
 		goto ex_circ_init;
 	log_info("close data file: %s", args->filename);
 	data_close(fid);
@@ -243,7 +243,7 @@ int run_circuit(const struct args *args)
 
 	rt = 0; /* Success. */
 ex_circ_res_write:
-	circ_qdrift_destroy(&qd);
+	qdrift_destroy(&qd);
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
 		 "n_ranks,t_tot");

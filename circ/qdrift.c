@@ -6,17 +6,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "circ/qdrift.h"
 #include "container_of.h"
 #include "phase2.h"
 #include "xoshiro256ss.h"
+
+#include "circ/qdrift.h"
 
 #define SEED UINT64_C(0xeccd9dcc749fcdca)
 
 int qdrift_write_res(struct circ *c, data_id fid);
 int qdrift_simulate(struct circ *c);
 
-static int qdrift_res_init(struct circ_qdrift *qd, size_t nsamples)
+static int qdrift_res_init(struct qdrift *qd, size_t nsamples)
 {
 	_Complex double *samples = malloc(sizeof(_Complex double) * nsamples);
 	if (!samples)
@@ -31,13 +32,13 @@ err_samples:
 	return -1;
 }
 
-static void qdrift_res_destroy(struct circ_qdrift *qd)
+static void qdrift_res_destroy(struct qdrift *qd)
 {
 	free(qd->res.samples);
 }
 
-int circ_qdrift_init(
-	struct circ_qdrift *qd, struct circ_qdrift_data *data, data_id fid)
+int qdrift_init(
+	struct qdrift *qd, struct qdrift_data *data, data_id fid)
 {
 	struct circ *c = &qd->circ;
 	if (circ_init(c, fid) < 0)
@@ -67,13 +68,13 @@ err_circ_init:
 	return -1;
 }
 
-void circ_qdrift_destroy(struct circ_qdrift *qd)
+void qdrift_destroy(struct qdrift *qd)
 {
 	circ_destroy(&qd->circ);
 	qdrift_res_destroy(qd);
 }
 
-static int qdrift_prepst(struct circ_qdrift *qd)
+static int qdrift_prepst(struct qdrift *qd)
 {
 	const struct circ_muldet *md = &qd->circ.muldet;
 
@@ -87,11 +88,11 @@ static int qdrift_prepst(struct circ_qdrift *qd)
 static void qdrift_flush(struct paulis code_hi, struct paulis *codes_lo,
 	double *phis, size_t ncodes, void *data)
 {
-	struct circ_qdrift *qd = data;
+	struct qdrift *qd = data;
 	qreg_paulirot(&qd->circ.reg, code_hi, codes_lo, phis, ncodes);
 }
 
-static int qdrift_step(struct circ_qdrift *qd, const double omega)
+static int qdrift_step(struct qdrift *qd, const double omega)
 {
 	const struct circ_hamil *hamil = &qd->circ.hamil;
 	struct circ_cache *cache = &qd->circ.cache;
@@ -115,7 +116,7 @@ static int qdrift_step(struct circ_qdrift *qd, const double omega)
 	return 0;
 }
 
-static int qdrift_effect(struct circ_qdrift *qd)
+static int qdrift_effect(struct qdrift *qd)
 {
 	const double t = qd->step_size;
 	if (isnan(t))
@@ -127,7 +128,7 @@ static int qdrift_effect(struct circ_qdrift *qd)
 	return qdrift_step(qd, theta);
 }
 
-static _Complex double qdrift_measure(struct circ_qdrift *qd)
+static _Complex double qdrift_measure(struct qdrift *qd)
 {
 	const struct circ_muldet *md = &qd->circ.muldet;
 
@@ -141,7 +142,7 @@ static _Complex double qdrift_measure(struct circ_qdrift *qd)
 	return pr;
 }
 
-static size_t sample_invcdf(struct circ_qdrift *qd, double x)
+static size_t sample_invcdf(struct qdrift *qd, double x)
 {
 	(void)qd;
 	size_t i = 0;
@@ -154,7 +155,7 @@ static size_t sample_invcdf(struct circ_qdrift *qd, double x)
 /* TODO: Move to xoshiro256ss.h and document. */
 #define rand_dbl01(rng) ((double)(xoshiro256ss_next(rng) >> 11) * 0x1.0p-53)
 
-static void sample_terms(struct circ_qdrift *qd)
+static void sample_terms(struct qdrift *qd)
 {
 	for (size_t i = 0; i < qd->depth; i++) {
 		double x = rand_dbl01(&qd->rng);
@@ -166,7 +167,7 @@ int qdrift_write_res(struct circ *c, data_id fid)
 {
 	int rt = -1;
 
-	struct circ_qdrift *qd = container_of(c, struct circ_qdrift, circ);
+	struct qdrift *qd = container_of(c, struct qdrift, circ);
 
 	if (data_grp_create(fid, DATA_CIRCQDRIFT) < 0)
 		goto data_res_write;
@@ -191,7 +192,7 @@ int qdrift_simulate(struct circ *c)
 	int rt = -1;
 
 	size_t prog_pc = 0;
-	struct circ_qdrift *qd = container_of(c, struct circ_qdrift, circ);
+	struct qdrift *qd = container_of(c, struct qdrift, circ);
 
 	for (size_t i = 0; i < qd->res.nsamples; i++) {
 		size_t pc = i * 100 / qd->res.nsamples;
