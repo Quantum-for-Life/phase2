@@ -1,12 +1,12 @@
-#ifndef CIRC_TROTT_H
-#define CIRC_TROTT_H
+#ifndef TROTT_H
+#define TROTT_H
 
 #include "phase2/circ.h"
 #include "phase2/data.h"
 
 struct trott_data {
 	double delta;
-	size_t nsteps;
+	size_t steps;
 };
 
 struct trott_steps {
@@ -15,13 +15,13 @@ struct trott_steps {
 };
 
 struct trott {
-	struct circ circ;
-	double delta;
-	struct trott_steps steps;
+	struct circ ct;
+	struct trott_data dt;
+	struct trott_steps stp;
 };
 
-int trott_init(struct trott *tt, struct trott_data *data, data_id fid);
+int trott_init(struct trott *tt, const struct trott_data *dt, data_id fid);
 
 void trott_destroy(struct trott *tt);
 
-#endif // CIRC_TROTT_H
+#endif // TROTT_H

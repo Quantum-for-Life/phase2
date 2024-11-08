@@ -170,22 +170,22 @@ static int run_circuit(const struct args *args)
 	struct timespec t1, t2;
 
 	struct trott tt;
-	struct trott_data tt_dat;
-	tt_dat.delta = args->delta;
-	tt_dat.nsteps = args->steps;
+	struct trott_data tt_dt;
+	tt_dt.delta = args->delta;
+	tt_dt.steps = args->steps;
 
 	log_info("open data file: %s", args->filename);
 	if ((fid = data_open(args->filename)) == DATA_INVALID_FID) {
 		log_error("open file: %s", args->filename);
 		goto ex_circ_init;
 	}
-	if (trott_init(&tt, &tt_dat, fid) < 0)
+	if (trott_init(&tt, &tt_dt, fid) < 0)
 		goto ex_circ_init;
 	log_info("close data file: %s", args->filename);
 	data_close(fid);
 
 	clock_gettime(CLOCK_REALTIME, &t1);
-	if (circ_simulate(&tt.circ) < 0)
+	if (circ_simulate(&tt.ct) < 0)
 		goto ex_circ_simulate;
 	clock_gettime(CLOCK_REALTIME, &t2);
 	const double t_tot = (double)(t2.tv_sec - t1.tv_sec) +
@@ -196,7 +196,7 @@ static int run_circuit(const struct args *args)
 		log_error("open file: %s", args->filename);
 		goto ex_circ_write_res;
 	}
-	if (circ_write_res(&tt.circ, fid) < 0)
+	if (circ_write_res(&tt.ct, fid) < 0)
 		goto ex_circ_write_res;
 	log_info("close data file: %s", args->filename);
 	data_close(fid);
@@ -206,8 +206,8 @@ ex_circ_write_res:
 	trott_destroy(&tt);
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt.circ.hamil.nqb,
-		tt.circ.hamil.nterms, tt.circ.muldet.ndets, args->delta,
+	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt.ct.hamil.nqb,
+		tt.ct.hamil.nterms, tt.ct.muldet.ndets, args->delta,
 		args->steps, WD.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:
