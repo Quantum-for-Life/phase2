@@ -161,9 +161,6 @@ static size_t sample_invcdf(struct qdrift *qd, double x)
 	return i - 1; /* Never again make the same off-by-one error! */
 }
 
-/* TODO: Move to xoshiro256ss.h and document. */
-#define rand_dbl01(rng) ((double)(xoshiro256ss_next(rng) >> 11) * 0x1.0p-53)
-
 static void sample_terms(struct qdrift *qd)
 {
 	for (size_t i = 0; i < qd->dt.depth; i++) {
