@@ -34,7 +34,7 @@ void circ_cache_flush(struct circ_cache *ch,
 struct circ_hamil {
 	size_t nqb;
 
-	struct {
+	struct circ_hamil_term {
 		struct paulis op;
 		double cf;
 	} *terms;
