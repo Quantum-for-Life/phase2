@@ -1,7 +1,4 @@
-#include <complex.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include "phase2/paulis.h"
 #include "phase2/world.h"
@@ -18,11 +15,6 @@ static struct world WD;
 static struct xoshiro256ss RNG;
 
 #define WIDTH_MAX (64)
-
-static double rand_double(void)
-{
-	return (double)(xoshiro256ss_next(&RNG) >> 11) * 0x1.0p-53;
-}
 
 static int rand_pauli(void)
 {
@@ -105,7 +97,7 @@ static void measure_b_paulis_effect(void)
 	struct bench b;
 	struct b_paulis_effect d;
 	struct paulis p = paulis_new();
-	_Complex double z = rand_double();
+	_Complex double z = rand_dbl01(&RNG);
 
 	for (uint32_t k = 0; k < WIDTH_MAX; k++)
 		paulis_set(&p, rand_pauli(), k);

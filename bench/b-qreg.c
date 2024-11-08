@@ -21,11 +21,6 @@ static struct world WD;
 #define SEED UINT64_C(0x2d1da81dc94cf64f)
 static struct xoshiro256ss RNG;
 
-static double rand_double(void)
-{
-	return (double)(xoshiro256ss_next(&RNG) >> 11) * 0x1.0p-53;
-}
-
 static int rand_pauli(void)
 {
 	return (int)(xoshiro256ss_next(&RNG) % 4);
@@ -164,7 +159,7 @@ static void b_qreg_paulirot_rand(struct b_qreg_paulirot *q)
 	for (size_t i = 0; i < q->ncodes; i++) {
 		for (size_t k = 0; k < q->reg->qb_lo; k++)
 			paulis_set(q->codes_lo + i, rand_pauli(), k);
-		q->angles[i] = rand_double() * 2.0 - 1.0;
+		q->angles[i] = rand_dbl01(&RNG) * 2.0 - 1.0;
 	}
 }
 
