@@ -55,6 +55,7 @@ void xoshiro256ss_longjump(struct xoshiro256ss *rng);
  *
  * Taken from: https://prng.di.unimi.it/
  */
-#define rand_dbl01(rng) ((double)(xoshiro256ss_next(rng) >> 11) * 0x1.0p-53)
+#define xoshiro256ss_dbl01(rng)                                                \
+	((double)(xoshiro256ss_next(rng) >> 11) * 0x1.0p-53)
 
 #endif /* XOSHIRO256SS_H */
