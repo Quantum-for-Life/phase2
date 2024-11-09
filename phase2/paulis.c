@@ -138,8 +138,8 @@ int paulis_cmp(struct paulis a, struct paulis b)
 		return 0;
 
 	for (uint32_t n = 0; n < QREG_MAX_WIDTH; n++) {
-		const int x = paulis_get(a, n);
-		const int y = paulis_get(b, n);
+		const int x = paulis_get(a, QREG_MAX_WIDTH - n - 1);
+		const int y = paulis_get(b, QREG_MAX_WIDTH - n - 1);
 		if (x < y)
 			return -1;
 		if (x > y)

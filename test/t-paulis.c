@@ -293,8 +293,8 @@ static void t_paulis_cmp_00()
 static int cmp_explicit(const struct paulis a, const struct paulis b)
 {
 	for (uint32_t n = 0; n < WIDTH; n++) {
-		const int x = paulis_get(a, n);
-		const int y = paulis_get(b, n);
+		const int x = paulis_get(a, WIDTH - n - 1);
+		const int y = paulis_get(b, WIDTH - n - 1);
 		if (x < y)
 			return -1;
 		if (x > y)
