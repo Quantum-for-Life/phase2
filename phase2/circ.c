@@ -178,62 +178,99 @@ static int circ_muldet_from_file(struct circ_muldet *m, const data_id fid)
 	return 0;
 }
 
-int circ_init(struct circ *c, const data_id fid)
+int circ_init(
+	struct circ *ct, const data_id fid, int (*simul)(struct circ *))
 {
-	if (circ_hamil_from_file(&c->hamil, fid) < 0)
+	if (circ_hamil_from_file(&ct->hamil, fid) < 0)
 		goto err_hamil_init;
-	if (circ_muldet_from_file(&c->muldet, fid) < 0)
+	if (circ_muldet_from_file(&ct->muldet, fid) < 0)
 		goto err_muldet_init;
-	if (qreg_init(&c->reg, c->hamil.nqb) < 0)
+	if (qreg_init(&ct->reg, ct->hamil.nqb) < 0)
 		goto err_qreg_init;
-	if (circ_cache_init(&c->cache, c->reg.qb_lo, c->reg.qb_hi) < 0)
+	if (circ_cache_init(&ct->cache, ct->reg.qb_lo, ct->reg.qb_hi) < 0)
 		goto err_cache_init;
+
+	ct->simul = simul;
 
 	return 0;
 
 	// circ_cache_destroy(&c->cache);
 err_cache_init:
-	qreg_destroy(&c->reg);
+	qreg_destroy(&ct->reg);
 err_qreg_init:
-	circ_muldet_destroy(&c->muldet);
+	circ_muldet_destroy(&ct->muldet);
 err_muldet_init:
-	circ_hamil_destroy(&c->hamil);
+	circ_hamil_destroy(&ct->hamil);
 err_hamil_init:
 	return -1;
 }
 
-void circ_destroy(struct circ *c)
+void circ_destroy(struct circ *ct)
 {
-	circ_hamil_destroy(&c->hamil);
-	circ_muldet_destroy(&c->muldet);
-	circ_cache_destroy(&c->cache);
-	qreg_destroy(&c->reg);
+	circ_hamil_destroy(&ct->hamil);
+	circ_muldet_destroy(&ct->muldet);
+	circ_cache_destroy(&ct->cache);
+	qreg_destroy(&ct->reg);
 }
 
-inline int circ_simulate(struct circ *c)
+int circ_prepst(struct circ *ct)
 {
-	return c->simulate(c);
-}
+	const struct circ_muldet *md = &ct->muldet;
 
-inline int circ_write_res(struct circ *c, data_id fid)
-{
-	return c->write_res(c, fid);
-}
+	qreg_zero(&ct->reg);
+	for (size_t i = 0; i < md->ndets; i++)
+		qreg_setamp(&ct->reg, md->dets[i].idx, md->dets[i].cf);
 
-
-static int hamil_term_cmp_abscf(const void *a, const void *b)
-{
-	const struct circ_hamil_term ta = *(const struct circ_hamil_term *)a;
-	const struct circ_hamil_term tb = *(const struct circ_hamil_term *)b;
-
-	const double x = fabs(ta.cf);
-	const double y = fabs(tb.cf);
-
-	if (x < y)
-		return -1;
-	if (x > y)
-		return 1;
 	return 0;
+}
+
+static void circ_flush(struct paulis code_hi, struct paulis *codes_lo,
+	double *phis, size_t ncodes, void *data)
+{
+	struct qreg *reg = data;
+	qreg_paulirot(reg, code_hi, codes_lo, phis, ncodes);
+}
+
+int circ_step(struct circ *ct, const double omega)
+{
+	const struct circ_hamil *hamil = &ct->hamil;
+	struct circ_cache *cache = &ct->cache;
+
+	for (size_t i = 0; i < hamil->nterms; i++) {
+		const double phi = omega * hamil->terms[i].cf;
+		const struct paulis code = hamil->terms[i].op;
+
+		if (circ_cache_insert(cache, code, phi) == 0)
+			continue;
+
+		log_trace("paulirot, term: %zu, num_codes: %zu", i, cache->n);
+		circ_cache_flush(cache, circ_flush, &ct->reg);
+		if (circ_cache_insert(cache, code, phi) < 0)
+			return -1;
+	}
+	log_trace("paulirot, last term group, num_codes: %zu", cache->n);
+	circ_cache_flush(cache, circ_flush, &ct->reg);
+
+	return 0;
+}
+
+_Complex double circ_measure(struct circ *ct)
+{
+	const struct circ_muldet *md = &ct->muldet;
+
+	_Complex double pr = 0.0;
+	for (size_t i = 0; i < md->ndets; i++) {
+		_Complex double a;
+		qreg_getamp(&ct->reg, md->dets[i].idx, &a);
+		pr += a * conj(md->dets[i].cf);
+	}
+
+	return pr;
+}
+
+inline int circ_simul(struct circ *ct)
+{
+	return ct->simul(ct);
 }
 
 static int hamil_term_cmp_lex(const void *a, const void *b)

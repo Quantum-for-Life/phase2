@@ -159,7 +159,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	/* Initialize circ_trott manually, because we don't have a
 	 * handle to an open data file. */
 	struct trott tt;
-	tt.ct.simulate = trott_simulate;
+	tt.ct.simul = trott_simulate;
 	qreg_init(&tt.ct.reg, NUM_QUBITS);
 	circ_cache_init(&tt.ct.cache, tt.ct.reg.qb_lo, tt.ct.reg.qb_hi);
 	tt.dt.delta = HAMIL_DELTA;
@@ -196,7 +196,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 		goto malloc_ressteps;
 	}
 
-	circ_simulate(&tt.ct);
+	circ_simul(&tt.ct);
 
 	/* Compare results. */
 	for (size_t s = 0; s < TROTT_STEPS; s++) {

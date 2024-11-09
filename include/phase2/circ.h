@@ -38,6 +38,8 @@ struct circ_hamil {
 	size_t nterms;
 };
 
+void circ_hamil_sort_lex(struct circ_hamil *hm);
+
 struct circ_muldet {
 	struct {
 		uint64_t idx;
@@ -53,18 +55,20 @@ struct circ {
 	struct circ_cache cache;
 	struct qreg reg;
 
-	int (*simulate)(struct circ *);
-	int (*write_res)(struct circ *, data_id);
+	int (*simul)(struct circ *);
 };
 
-int circ_init(struct circ *c, data_id fid);
+int circ_init(struct circ *ct, data_id fid, int (*simul)(struct circ *));
 
-void circ_destroy(struct circ *c);
+void circ_destroy(struct circ *ct);
 
-int circ_simulate(struct circ *c);
+int circ_prepst(struct circ *ct);
 
-int circ_write_res(struct circ *c, data_id fid);
+int circ_step(struct circ *ct, double omega);
 
-void circ_hamil_sort_lex(struct circ_hamil *hm);
+_Complex double circ_measure(struct circ *ct);
+
+int circ_simul(struct circ *ct);
+
 
 #endif // CIRC_H

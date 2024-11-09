@@ -185,7 +185,7 @@ static int run_circuit(const struct args *args)
 	data_close(fid);
 
 	clock_gettime(CLOCK_REALTIME, &t1);
-	if (circ_simulate(&tt.ct) < 0)
+	if (circ_simul(&tt.ct) < 0)
 		goto ex_circ_simulate;
 	clock_gettime(CLOCK_REALTIME, &t2);
 	const double t_tot = (double)(t2.tv_sec - t1.tv_sec) +
@@ -196,7 +196,7 @@ static int run_circuit(const struct args *args)
 		log_error("open file: %s", args->filename);
 		goto ex_circ_write_res;
 	}
-	if (circ_write_res(&tt.ct, fid) < 0)
+	if (trott_write_res(&tt, fid) < 0)
 		goto ex_circ_write_res;
 	log_info("close data file: %s", args->filename);
 	data_close(fid);
