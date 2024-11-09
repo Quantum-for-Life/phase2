@@ -51,7 +51,8 @@ extern int trott_simulate(struct circ *c);
 
 static _Complex double rand_complex(void)
 {
-	_Complex double z = CMPLX(rand_dbl01(&RNG), rand_dbl01(&RNG));
+	_Complex double z =
+		CMPLX(xoshiro256ss_dbl01(&RNG), xoshiro256ss_dbl01(&RNG));
 
 	return z / cabs(z);
 }
@@ -129,7 +130,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	TROTT_STEPS = ts;
 	MULTIDET_DETS = md;
 	HAMIL_TERMS = ht;
-	HAMIL_DELTA = rand_dbl01(&RNG) * 0.5 + 0.5;
+	HAMIL_DELTA = xoshiro256ss_dbl01(&RNG) * 0.5 + 0.5;
 
 	/* Generate random multidet / hamiltonian */
 	double norm = 0.0;
@@ -143,7 +144,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	for (size_t m = 0; m < MULTIDET_DETS; m++)
 		MULTIDET_COEFFS[m] /= norm;
 	for (size_t k = 0; k < HAMIL_TERMS; k++) {
-		HAMIL_COEFFS[k] = rand_dbl01(&RNG);
+		HAMIL_COEFFS[k] = xoshiro256ss_dbl01(&RNG);
 		HAMIL_PAULIS[k] = rand_paulis(NUM_QUBITS);
 	}
 

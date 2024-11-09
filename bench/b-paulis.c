@@ -97,7 +97,7 @@ static void measure_b_paulis_effect(void)
 	struct bench b;
 	struct b_paulis_effect d;
 	struct paulis p = paulis_new();
-	_Complex double z = rand_dbl01(&RNG);
+	_Complex double z = xoshiro256ss_dbl01(&RNG);
 
 	for (uint32_t k = 0; k < WIDTH_MAX; k++)
 		paulis_set(&p, rand_pauli(), k);

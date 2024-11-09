@@ -159,7 +159,7 @@ static void b_qreg_paulirot_rand(struct b_qreg_paulirot *q)
 	for (size_t i = 0; i < q->ncodes; i++) {
 		for (size_t k = 0; k < q->reg->qb_lo; k++)
 			paulis_set(q->codes_lo + i, rand_pauli(), k);
-		q->angles[i] = rand_dbl01(&RNG) * 2.0 - 1.0;
+		q->angles[i] = xoshiro256ss_dbl01(&RNG) * 2.0 - 1.0;
 	}
 }
 

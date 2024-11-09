@@ -93,7 +93,7 @@ static void t_qreg_getsetamp_02(size_t tag)
 
 	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "cannot initialize qreg");
 	for (size_t i = 0; i < NUM_AMPS; i++) {
-		z = rand_dbl01(&RNG) + rand_dbl01(&RNG) * I;
+		z = xoshiro256ss_dbl01(&RNG) + xoshiro256ss_dbl01(&RNG) * I;
 		AMPS[i] = z;
 		qreg_setamp(&reg, i, z);
 	}
@@ -115,7 +115,7 @@ static void t_qreg_zero(void)
 
 	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "cannot initialize qreg");
 	for (size_t i = 0; i < NUM_AMPS; i++) {
-		z = rand_dbl01(&RNG) + rand_dbl01(&RNG) * I;
+		z = xoshiro256ss_dbl01(&RNG) + xoshiro256ss_dbl01(&RNG) * I;
 		AMPS[i] = z;
 		qreg_setamp(&reg, i, z);
 	}
@@ -143,7 +143,7 @@ static void t_qreg_paulirot_00(void)
 
 	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "cannot initialize qreg");
 	for (size_t i = 0; i < NUM_AMPS; i++) {
-		z = rand_dbl01(&RNG) + rand_dbl01(&RNG) * I;
+		z = xoshiro256ss_dbl01(&RNG) + xoshiro256ss_dbl01(&RNG) * I;
 		AMPS[i] = z;
 		qreg_setamp(&reg, i, z);
 	}
@@ -239,7 +239,7 @@ static void t_qreg_paulirot_01(size_t tag)
 
 	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "cannot initialize qreg");
 	for (size_t i = 0; i < NUM_AMPS; i++) {
-		z = rand_dbl01(&RNG) + rand_dbl01(&RNG) * I;
+		z = xoshiro256ss_dbl01(&RNG) + xoshiro256ss_dbl01(&RNG) * I;
 		AMPS[i] = z;
 		qreg_setamp(&reg, i, z);
 	}
@@ -248,7 +248,7 @@ static void t_qreg_paulirot_01(size_t tag)
 	for (size_t k = 0; k < NUM_QUBITS; k++)
 		paulis_set(&ps, rand_pauli_op(), k);
 	paulis_split(ps, reg.qb_lo, reg.qb_hi, &ps_lo, &ps_hi);
-	angle = rand_dbl01(&RNG);
+	angle = xoshiro256ss_dbl01(&RNG);
 	qreg_paulirot(&reg, ps_hi, &ps_lo, &angle, 1);
 
 	for (size_t i = 0; i < NUM_AMPS; i++) {
@@ -277,7 +277,7 @@ static void t_qreg_paulirot_02(size_t tag)
 
 	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "cannot initialize qreg");
 	for (size_t i = 0; i < NUM_AMPS; i++) {
-		z[0] = rand_dbl01(&RNG) + rand_dbl01(&RNG) * I;
+		z[0] = xoshiro256ss_dbl01(&RNG) + xoshiro256ss_dbl01(&RNG) * I;
 		AMPS[i] = z[0];
 		qreg_setamp(&reg, i, z[0]);
 	}
@@ -298,8 +298,8 @@ static void t_qreg_paulirot_02(size_t tag)
 	TEST_ASSERT(paulis_eq(ps_hi[0], ps_hi[1]),
 		"[%zu] hi codes should be equal", tag);
 
-	angle[0] = rand_dbl01(&RNG);
-	angle[1] = rand_dbl01(&RNG);
+	angle[0] = xoshiro256ss_dbl01(&RNG);
+	angle[1] = xoshiro256ss_dbl01(&RNG);
 	qreg_paulirot(&reg, ps_hi[0], ps_lo, angle, 2);
 
 	for (size_t k = 0; k < 2; k++) {
@@ -349,7 +349,7 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 
 	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "cannot initialize qreg");
 	for (size_t i = 0; i < NUM_AMPS; i++) {
-		z[0] = rand_dbl01(&RNG) + rand_dbl01(&RNG) * I;
+		z[0] = xoshiro256ss_dbl01(&RNG) + xoshiro256ss_dbl01(&RNG) * I;
 		AMPS[i] = z[0];
 		qreg_setamp(&reg, i, z[0]);
 	}
@@ -371,7 +371,7 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 				"[%zu] l=%zu hi codes should be equal", tag, l);
 	}
 	for (size_t l = 0; l < n; l++)
-		angle[l] = rand_dbl01(&RNG);
+		angle[l] = xoshiro256ss_dbl01(&RNG);
 	qreg_paulirot(&reg, ps_hi[0], ps_lo, angle, n);
 
 	for (size_t k = 0; k < n; k++) {
