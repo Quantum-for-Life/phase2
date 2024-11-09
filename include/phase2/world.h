@@ -6,10 +6,6 @@
 #include "log.h"
 #include "xoshiro256ss.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 enum world_stat {
 	WORLD_UNDEF = -1,
 	WORLD_READY = 0,
@@ -82,8 +78,8 @@ int world_destroy(void);
  */
 int world_info(struct world *wd);
 
-#ifdef __cplusplus
-}
-#endif
+int world_backend_init(struct world *wd);
+
+void world_backend_destroy(struct world *wd);
 
 #endif /* WORLD_H */

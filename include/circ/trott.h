@@ -1,36 +1,27 @@
-#ifndef CIRC_TROTT_H
-#define CIRC_TROTT_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef TROTT_H
+#define TROTT_H
 
 #include "phase2/circ.h"
 #include "phase2/data.h"
 
-struct circ_trott_data {
+struct trott_data {
 	double delta;
-	size_t nsteps;
+	size_t steps;
 };
 
-struct circ_trott {
-	struct circ circ;
-
-	double delta;
-
-	struct {
-		_Complex double *steps;
-		size_t nsteps;
-	} res;
+struct trott_steps {
+	_Complex double *z;
+	size_t len;
 };
 
-int circ_trott_init(
-	struct circ_trott *tt, struct circ_trott_data *data, data_id fid);
+struct trott {
+	struct circ ct;
+	struct trott_data dt;
+	struct trott_steps stp;
+};
 
-void circ_trott_destroy(struct circ_trott *tt);
+int trott_init(struct trott *tt, const struct trott_data *dt, data_id fid);
 
-#ifdef __cplusplus
-}
-#endif
+void trott_destroy(struct trott *tt);
 
-#endif // CIRC_TROTT_H
+#endif // TROTT_H

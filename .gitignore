@@ -83,13 +83,15 @@ simul.h5*
 
 *.log
 
-ph2run/ph2run-trott
+ph2run/ph2run-cmpsit
 ph2run/ph2run-qdrift
+ph2run/ph2run-trott
 
 bench/b-paulis
 bench/b-qreg
 
 test/t-circ_cache
+test/t-circ_cmpsit
 test/t-circ_qdrift
 test/t-circ_trott
 test/t-data_hamil

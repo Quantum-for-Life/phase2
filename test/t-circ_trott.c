@@ -164,13 +164,13 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 
 	/* Initialize circ_trott manually, because we don't have a
 	 * handle to an open data file. */
-	struct circ_trott tt;
-	tt.circ.simulate = trott_simulate;
-	qreg_init(&tt.circ.reg, NUM_QUBITS);
-	circ_cache_init(&tt.circ.cache, tt.circ.reg.qb_lo, tt.circ.reg.qb_hi);
-	tt.delta = HAMIL_DELTA;
+	struct trott tt;
+	tt.ct.simulate = trott_simulate;
+	qreg_init(&tt.ct.reg, NUM_QUBITS);
+	circ_cache_init(&tt.ct.cache, tt.ct.reg.qb_lo, tt.ct.reg.qb_hi);
+	tt.dt.delta = HAMIL_DELTA;
 
-	struct circ_hamil *h = &tt.circ.hamil;
+	struct circ_hamil *h = &tt.ct.hamil;
 	h->nqb = NUM_QUBITS;
 	h->nterms = HAMIL_TERMS;
 	h->terms = malloc(sizeof *h->terms * HAMIL_TERMS);
@@ -183,7 +183,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 		h->terms[k].op = HAMIL_PAULIS[k];
 	}
 
-	struct circ_muldet *m = &tt.circ.muldet;
+	struct circ_muldet *m = &tt.ct.muldet;
 	m->ndets = MULTIDET_DETS;
 	m->dets = malloc(sizeof *m->dets * MULTIDET_DETS);
 	if (!m->dets) {
@@ -195,19 +195,19 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 		m->dets[k].cf = MULTIDET_COEFFS[k];
 	}
 
-	tt.res.nsteps = TROTT_STEPS;
-	tt.res.steps = malloc(sizeof *tt.res.steps * TROTT_STEPS);
-	if (!tt.res.steps) {
+	tt.stp.len = TROTT_STEPS;
+	tt.stp.z = malloc(sizeof *tt.stp.z * TROTT_STEPS);
+	if (!tt.stp.z) {
 		TEST_FAIL("malloc res.steps");
 		goto malloc_ressteps;
 	}
 
-	circ_simulate(&tt.circ);
+	circ_simulate(&tt.ct);
 
 	/* Compare results. */
 	for (size_t s = 0; s < TROTT_STEPS; s++) {
-		_Complex double eval = tt.res.steps[s];
-		TEST_ASSERT(cabs(tt.res.steps[s] - TROTT_VALS[s]) < MARGIN,
+		_Complex double eval = tt.stp.z[s];
+		TEST_ASSERT(cabs(tt.stp.z[s] - TROTT_VALS[s]) < MARGIN,
 			"[%zu] ts=%zu, md=%zu, ht=%zu, step=%zu "
 			"eval=%f+%fi, TROTT_VALS=%f+%fi",
 			tag, ts, md, ht, s, creal(eval), cimag(eval),

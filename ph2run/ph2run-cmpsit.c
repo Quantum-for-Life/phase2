@@ -6,38 +6,48 @@
 #include <string.h>
 #include <time.h>
 
-#include "circ/trott.h"
+#include "circ/qdrift.h"
+#include "ph2run.h"
 #include "phase2.h"
 
-#define WD_SEED UINT64_C(0xd326119d4859ebb2)
+#define WD_SEED UINT64_C(0xd871e5d39fc0222d)
 static struct world WD;
 
 static struct args {
 	const char *progname;
 	bool opt_help;
 	bool opt_version;
-	double delta;
+	size_t depth;
+	size_t length;
+	size_t samples;
 	size_t steps;
+	double step_size;
 	const char *filename;
 } ARGS = {
 	.progname = nullptr,
 	.opt_help = false,
 	.opt_version = false,
-	.delta = 1.0,
+	.depth = 64,
+	.length = 1,
+	.samples = 1,
+	.step_size = 1.0,
 	.steps = 1,
 	.filename = nullptr,
 };
-
 static void print_help(const char *progname)
 {
-	fprintf(stderr, "%s: Simulate \"trott\" circuit.\n\n", progname);
+	fprintf(stderr, "%s: Simulate \"composite\" circuit.\n\n", progname);
 	fprintf(stderr, "  usage: %s [OPTIONS] FILENAME\n", progname);
-	fprintf(stderr, "\nOptions:\n"
-			"  -h, --help          Show this help.\n"
-			"  -v, --version       Print version number.\n"
-			"  --delta=1.0         Time scale.\n"
-			"  --steps=1           Number of Trotter steps.\n"
-			"\n");
+	fprintf(stderr,
+		"\nOptions:\n"
+		"  -h, --help          Show this help.\n"
+		"  -v, --version       Print version number.\n"
+		"  --depth=64          Depth of the sampled sub-circuit.\n"
+		"  --length=1          Length of the deterministic Hamiltonian.\n"
+		"  --samples=1         Number of samples.\n"
+		"  --step-size=1.0     Time evolution step size.\n"
+		"  --steps=1           Number of Trotter steps.\n"
+		"\n");
 	fprintf(stderr, "FILENAME is a HDF5 simulation worksheet.\n");
 }
 
@@ -75,18 +85,48 @@ static int args_parse_longopt(const int *argc, char ***argv)
 	(void)argc;
 
 	char *o = **argv;
-	if (strncmp(o, "--delta=", 8) == 0) {
-		double delta = strtod(o + 8, nullptr);
-		if (delta == 0) {
-			fprintf(stderr, "Option: --delta=, wrong value.\n");
+	if (strncmp(o, "--depth=", 8) == 0) {
+		size_t depth = strtoul(o + 8, nullptr, 10);
+		if (depth == 0) {
+			fprintf(stderr, "Option: --depth=, wrong value.\n");
 			return -1;
 		}
-		ARGS.delta = delta;
+		ARGS.depth = depth;
 
 		return 0;
 	}
 	if (strncmp(o, "--help", 6) == 0) {
 		ARGS.opt_help = true;
+		return 0;
+	}
+	if (strncmp(o, "--length=", 9) == 0) {
+		size_t length = strtoul(o + 9, nullptr, 10);
+		if (length == 0) {
+			fprintf(stderr, "Option: --length=, wrong value.\n");
+			return -1;
+		}
+		ARGS.length = length;
+
+		return 0;
+	}
+	if (strncmp(o, "--samples=", 10) == 0) {
+		size_t samples = strtoul(o + 10, nullptr, 10);
+		if (samples == 0) {
+			fprintf(stderr, "Option: --samples=, wrong value.\n");
+			return -1;
+		}
+		ARGS.samples = samples;
+
+		return 0;
+	}
+	if (strncmp(o, "--step-size=", 12) == 0) {
+		double ss = strtod(o + 12, nullptr);
+		if (ss == 0) {
+			fprintf(stderr, "Option: --step-size=, wrong value.\n");
+			return -1;
+		}
+		ARGS.step_size = ss;
+
 		return 0;
 	}
 	if (strncmp(o, "--steps=", 8) == 0) {
@@ -162,30 +202,30 @@ static void args_validate(void)
 	}
 }
 
-static int run_circuit(const struct args *args)
+int run_circuit(const struct args *args)
 {
 	int rt = -1; /* Return value */
 
 	data_id fid;
 	struct timespec t1, t2;
 
-	struct trott tt;
-	struct trott_data tt_dt;
-	tt_dt.delta = args->delta;
-	tt_dt.steps = args->steps;
+	struct circ_qdrift qd;
+	struct circ_qdrift_data data = { .depth = args->depth,
+		.nsamples = args->samples,
+		.step_size = args->step_size };
 
 	log_info("open data file: %s", args->filename);
 	if ((fid = data_open(args->filename)) == DATA_INVALID_FID) {
 		log_error("open file: %s", args->filename);
 		goto ex_circ_init;
 	}
-	if (trott_init(&tt, &tt_dt, fid) < 0)
+	if (circ_qdrift_init(&qd, &data, fid) < 0)
 		goto ex_circ_init;
 	log_info("close data file: %s", args->filename);
 	data_close(fid);
 
 	clock_gettime(CLOCK_REALTIME, &t1);
-	if (circ_simulate(&tt.ct) < 0)
+	if (circ_simulate(&qd.circ) < 0)
 		goto ex_circ_simulate;
 	clock_gettime(CLOCK_REALTIME, &t2);
 	const double t_tot = (double)(t2.tv_sec - t1.tv_sec) +
@@ -194,21 +234,22 @@ static int run_circuit(const struct args *args)
 	log_info("open data file: %s", args->filename);
 	if ((fid = data_open(args->filename)) == DATA_INVALID_FID) {
 		log_error("open file: %s", args->filename);
-		goto ex_circ_write_res;
+		goto ex_circ_res_write;
 	}
-	if (circ_write_res(&tt.ct, fid) < 0)
-		goto ex_circ_write_res;
+	if (circ_write_res(&qd.circ, fid) < 0)
+		goto ex_circ_res_write;
 	log_info("close data file: %s", args->filename);
 	data_close(fid);
 
 	rt = 0; /* Success. */
-ex_circ_write_res:
-	trott_destroy(&tt);
+ex_circ_res_write:
+	circ_qdrift_destroy(&qd);
 	log_info("> Simulation summary (CSV):");
-	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt.ct.hamil.nqb,
-		tt.ct.hamil.nterms, tt.ct.muldet.ndets, args->delta,
-		args->steps, WD.size, t_tot);
+	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
+		 "n_ranks,t_tot");
+	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", qd.circ.hamil.nqb,
+		qd.circ.hamil.nterms, qd.circ.muldet.ndets, data.nsamples,
+		data.step_size, data.depth, WD.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:
 	return rt;
@@ -222,35 +263,39 @@ int main(int argc, char **argv)
 	args_validate();
 
 	if (world_init(&argc, &argv, WD_SEED) != WORLD_READY)
-		goto ex_world_init;
+		goto exit_world_init;
 	world_info(&WD);
 
-	const unsigned int nranks = WD.size;
+	unsigned int nranks = WD.size;
 	if (nranks == 0 || (nranks & (nranks - 1)) != 0) {
 		log_error("number of MPI ranks (%u) "
 			  "must be a power of two.",
 			nranks);
-		goto ex_nranks;
+		goto exit_nranks;
 	}
 
 	log_info("*** Init ***");
-	log_info("MPI nranks: %d", nranks);
+	log_info("MPI num_ranks: %d", nranks);
 	log_info("world_backend: %s", WORLD_BACKEND);
 
-	log_info("*** Circuit: trott ***");
-	log_info("delta: %f", ARGS.delta);
-	log_info("num_steps: %zu", ARGS.steps);
+	log_info("*** Circuit: cmpsit >>> ***");
+	log_info("depth: %zu", ARGS.depth);
+	log_info("length: %zu", ARGS.length);
+	log_info("samples: %zu", ARGS.samples);
+	log_info("step_size: %f", ARGS.step_size);
+	log_info("steps: %zu", ARGS.steps);
+
 	if (run_circuit(&ARGS) < 0) {
 		log_error("Failure: simulation error");
-		goto ex_run_circuit;
+		goto exit_run_circuit;
 	}
 
 	rt = 0; /* Success. */
 
-ex_run_circuit:
+exit_run_circuit:
 	log_info("Shut down simulation environment");
-ex_nranks:
-ex_world_init:
+exit_nranks:
+exit_world_init:
 	world_destroy();
 
 	return rt;
