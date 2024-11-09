@@ -17,30 +17,6 @@
 static int cmpsit_write_res(struct circ *c, data_id fid);
 static int cmpsit_simulate(struct circ *c);
 
-/* Sort in _descending_ order */
-static int cmp_hamil_term_by_cf(const void *a, const void *b)
-{
-	const struct circ_hamil_term ta = *(const struct circ_hamil_term *)a;
-	const struct circ_hamil_term tb = *(const struct circ_hamil_term *)b;
-
-	const double x = fabs(ta.cf);
-	const double y = fabs(tb.cf);
-
-	if (x > y)
-		return -1;
-	if (x < y)
-		return 1;
-	return 0;
-}
-
-static int cmp_hamil_term_by_lex(const void *a, const void *b)
-{
-	const struct paulis x = ((const struct circ_hamil_term *)a)->op;
-	const struct paulis y = ((const struct circ_hamil_term *)b)->op;
-
-	return paulis_cmp(x, y);
-}
-
 /*
  * Sort the Hamiltonian by absolute val of coefficients, in descending order.
  *
@@ -51,12 +27,9 @@ static int cmp_hamil_term_by_lex(const void *a, const void *b)
  * The remaining terms will be randomly sampled from.
  */
 static void cmpsit_hamil_rearrange(
-	const struct cmpsit *ct, const struct cmpsit_data *data)
+	const struct cmpsit *cp, const struct cmpsit_data *data)
 {
-	qsort(ct->ct.hamil.terms, ct->ct.hamil.nterms,
-		sizeof(struct circ_hamil_term), cmp_hamil_term_by_cf);
-	qsort(ct->ct.hamil.terms, data->length,
-		sizeof(struct circ_hamil_term), cmp_hamil_term_by_lex);
+	circ_hamil_sort_cf_desc(&cp->ct.hamil);
 }
 
 static int cmpsit_pd_init(struct cmpsit_pd *pd,
@@ -118,8 +91,8 @@ static void cmpsit_samples_destroy(struct cmpsit_samples *samples)
 	free(samples->z);
 }
 
-int cmpsit_init(struct cmpsit *cp,
-	const struct cmpsit_data *dt, const data_id fid)
+int cmpsit_init(
+	struct cmpsit *cp, const struct cmpsit_data *dt, const data_id fid)
 {
 	struct circ *c = &cp->ct;
 	if (circ_init(c, fid) < 0)
@@ -140,8 +113,7 @@ int cmpsit_init(struct cmpsit *cp,
 	 * This is 2nd order Trotter formula. Update it, if you want to
 	 * introduce higher orders.
 	 */
-	const size_t rct_len =
-		dt->length + dt->depth * (CMPSIT_TRUNC_DIST + 2);
+	const size_t rct_len = dt->length + dt->depth * (CMPSIT_TRUNC_DIST + 2);
 	if (cmpsit_rct_init(&cp->rct, rct_len) < 0)
 		goto err_rct_init;
 

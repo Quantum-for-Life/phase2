@@ -251,10 +251,10 @@ ex_circ_res_write:
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_samples,depth,length,step_size,steps,"
 		 "n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%zu,%zu,%.6f,%zu,%d,%.3f",
-		ct.ct.hamil.nqb, ct.ct.hamil.nterms, ct.ct.muldet.ndets,
-		data.samples, data.depth, data.length, data.step_size,
-		data.steps, WD.size, t_tot);
+	log_info("> %zu,%zu,%zu,%zu,%zu,%zu,%.6f,%zu,%d,%.3f", ct.ct.hamil.nqb,
+		ct.ct.hamil.nterms, ct.ct.muldet.ndets, data.samples,
+		data.depth, data.length, data.step_size, data.steps, WD.size,
+		t_tot);
 ex_circ_simulate:
 ex_circ_init:
 	return rt;
