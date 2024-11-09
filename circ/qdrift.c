@@ -164,7 +164,7 @@ static size_t sample_invcdf(struct qdrift *qd, double x)
 static void sample_terms(struct qdrift *qd)
 {
 	for (size_t i = 0; i < qd->dt.depth; i++) {
-		double x = rand_dbl01(&qd->rng);
+		double x = xoshiro256ss_dbl01(&qd->rng);
 		qd->rct.idx[i] = sample_invcdf(qd, x);
 	}
 }
