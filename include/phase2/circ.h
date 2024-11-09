@@ -64,7 +64,7 @@ void circ_destroy(struct circ *ct);
 
 int circ_prepst(struct circ *ct);
 
-int circ_step(struct circ *ct, double omega);
+int circ_step(struct circ *ct, const struct circ_hamil *hm, double omega);
 
 _Complex double circ_measure(struct circ *ct);
 

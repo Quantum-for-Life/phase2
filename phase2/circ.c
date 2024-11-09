@@ -231,14 +231,13 @@ static void circ_flush(struct paulis code_hi, struct paulis *codes_lo,
 	qreg_paulirot(reg, code_hi, codes_lo, phis, ncodes);
 }
 
-int circ_step(struct circ *ct, const double omega)
+int circ_step(struct circ *ct, const struct circ_hamil *hm, const double omega)
 {
-	const struct circ_hamil *hamil = &ct->hamil;
 	struct circ_cache *cache = &ct->cache;
 
-	for (size_t i = 0; i < hamil->nterms; i++) {
-		const double phi = omega * hamil->terms[i].cf;
-		const struct paulis code = hamil->terms[i].op;
+	for (size_t i = 0; i < hm->nterms; i++) {
+		const double phi = omega * hm->terms[i].cf;
+		const struct paulis code = hm->terms[i].op;
 
 		if (circ_cache_insert(cache, code, phi) == 0)
 			continue;

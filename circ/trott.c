@@ -75,7 +75,7 @@ int trott_simulate(struct circ *ct)
 			log_info("Progress: %zu\% (trott_step: %zu)", pc, i);
 		}
 
-		if (circ_step(ct, tt->dt.delta) < 0)
+		if (circ_step(ct, &ct->hamil, tt->dt.delta) < 0)
 			goto ex_trott_effect;
 		tt->stp.z[i] = circ_measure(ct);
 	}

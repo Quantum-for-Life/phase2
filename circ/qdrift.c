@@ -111,18 +111,6 @@ static int qdrift_step(struct qdrift *qd, const double omega)
 	return 0;
 }
 
-static int qdrift_effect(struct qdrift *qd)
-{
-	const double t = qd->dt.step_size;
-	if (isnan(t))
-		return -1;
-	if (fabs(t) < DBL_EPSILON)
-		return 0;
-	const double theta = asin(t);
-
-	return qdrift_step(qd, theta);
-}
-
 static size_t sample_invcdf(struct qdrift *qd, double x)
 {
 	(void)qd;
@@ -157,7 +145,7 @@ int qdrift_simulate(struct circ *ct)
 
 		sample_terms(qd);
 		circ_prepst(ct);
-		if (qdrift_effect(qd) < 0)
+		if (qdrift_step(qd, asin(qd->dt.step_size)) < 0)
 			goto ex_qdrift_effect;
 		qd->smp.z[i] = circ_measure(ct);
 	}
