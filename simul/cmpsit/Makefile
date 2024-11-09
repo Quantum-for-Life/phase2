@@ -1,8 +1,10 @@
 # -----------------------------------------------------------------------------
 # Simulation parameters:
-DEPTH		:= 256
-SAMPLES 	:= 64
+DEPTH		:= 16
+LENGTH		:= 4
+SAMPLES 	:= 32
 STEP_SIZE	:= 0.0625
+STEPS		:= 8
 MPI_RANKS	?= 2
 # -----------------------------------------------------------------------------
 
@@ -25,12 +27,14 @@ PARSE_FCIDUMP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
 PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
 
 # Application flags
-PARSE_FCIDUMP_FLAGS	=
+PARSE_FCIDUMP_FLAGS	= --sort-terms
 PARSE_INPUTST_FLAGS	=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
 PH2RUN_FLAGS		= --depth=$(DEPTH) 			\
+				--length=$(LENGTH)		\
 				--samples=$(SAMPLES)		\
-				--step-size=$(STEP_SIZE)
+				--step-size=$(STEP_SIZE)	\
+				--steps=$(STEPS)
 PHASE2_LOG		?= info
 
 .DEFAULT_GOAL := all
