@@ -42,7 +42,7 @@ err_cu_alloc:
 	return -1;
 }
 
-void qreg_backend_destroy(struct qreg *reg)
+void qreg_backend_free(struct qreg *reg)
 {
 	struct qreg_cuda *cu = reg->data;
 	cudaFree(cu->dbuf);

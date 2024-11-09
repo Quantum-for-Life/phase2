@@ -50,7 +50,7 @@ err:
 	return WORLD.stat = WORLD_ERR;
 }
 
-int world_destroy(void)
+int world_free(void)
 {
 	if (WORLD.stat == WORLD_READY) {
 		if (MPI_Finalize() == MPI_SUCCESS)

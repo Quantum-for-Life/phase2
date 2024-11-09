@@ -1,6 +1,5 @@
 #include "c23_compat.h"
 #include <complex.h>
-#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -24,7 +23,7 @@ static int qdrift_rct_init(
 
 static void qdrift_rct_destroy(struct qdrift_rct *rct)
 {
-	circ_hamil_destroy(&rct->rhm);
+	circ_hamil_free(&rct->rhm);
 }
 
 static int qdrift_samples_init(struct qdrift_samples *smp, size_t samples)
@@ -64,45 +63,16 @@ int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt, data_id fid)
 err_samples_init:
 	qdrift_rct_destroy(&qd->rct);
 err_rct_init:
-	circ_destroy(c);
+	circ_free(c);
 err_circ_init:
 	return -1;
 }
 
-void qdrift_destroy(struct qdrift *qd)
+void qdrift_free(struct qdrift *qd)
 {
 	qdrift_samples_destroy(&qd->smp);
 	qdrift_rct_destroy(&qd->rct);
-	circ_destroy(&qd->ct);
-}
-
-static void qdrift_flush(struct paulis code_hi, struct paulis *codes_lo,
-	double *phis, size_t ncodes, void *data)
-{
-	struct qdrift *qd = data;
-	qreg_paulirot(&qd->ct.reg, code_hi, codes_lo, phis, ncodes);
-}
-
-static int qdrift_step(struct qdrift *qd, const double omega)
-{
-	const struct circ_hamil *hm = &qd->rct.rhm;
-	struct circ_cache *cache = &qd->ct.cache;
-
-	for (size_t i = 0; i < qd->dt.depth; i++) {
-		const double phi = omega * hm->terms[i].cf;
-		const struct paulis code = hm->terms[i].op;
-		if (circ_cache_insert(cache, code, phi) == 0)
-			continue;
-
-		log_trace("paulirot, term: %zu, num_codes: %zu", i, cache->n);
-		circ_cache_flush(cache, qdrift_flush, qd);
-		if (circ_cache_insert(cache, code, phi) < 0)
-			return -1;
-	}
-	log_trace("paulirot, last term group, num_codes: %zu", cache->n);
-	circ_cache_flush(cache, qdrift_flush, qd);
-
-	return 0;
+	circ_free(&qd->ct);
 }
 
 static size_t sample_invcdf(struct qdrift *qd, double x)
@@ -138,9 +108,9 @@ int qdrift_simulate(struct circ *ct)
 			log_info("Progress: %zu\% (samples: %zu)", pc, i);
 		}
 
-		sample_terms(qd);
 		circ_prepst(ct);
-		if (qdrift_step(qd, asin(qd->dt.step_size)) < 0)
+		sample_terms(qd);
+		if (circ_step(ct, &qd->rct.rhm, asin(qd->dt.step_size)) < 0)
 			goto ex_qdrift_effect;
 		qd->smp.z[i] = circ_measure(ct);
 	}

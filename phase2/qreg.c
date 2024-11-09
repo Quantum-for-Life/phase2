@@ -74,9 +74,9 @@ err_reqs_alloc:
 	return -1;
 }
 
-void qreg_destroy(struct qreg *reg)
+void qreg_free(struct qreg *reg)
 {
-	qreg_backend_destroy(reg);
+	qreg_backend_free(reg);
 
 	if (reg->amp != nullptr)
 		free(reg->amp);

@@ -19,7 +19,7 @@ struct circ_cache {
 
 int circ_cache_init(struct circ_cache *ch, uint32_t qb_lo, uint32_t qb_hi);
 
-void circ_cache_destroy(struct circ_cache *ch);
+void circ_cache_free(struct circ_cache *ch);
 
 int circ_cache_insert(struct circ_cache *ch, struct paulis code, double phi);
 
@@ -39,7 +39,7 @@ struct circ_hamil {
 
 int circ_hamil_init(struct circ_hamil *hm, uint32_t qb, size_t len);
 
-void circ_hamil_destroy(struct circ_hamil *hm);
+void circ_hamil_free(struct circ_hamil *hm);
 
 void circ_hamil_sort_lex(struct circ_hamil *hm);
 
@@ -53,7 +53,7 @@ struct circ_muldet {
 
 int circ_muldet_init(struct circ_muldet *m, size_t len);
 
-void circ_muldet_destroy(struct circ_muldet *m);
+void circ_muldet_free(struct circ_muldet *m);
 
 struct circ {
 	struct circ_hamil hamil;
@@ -66,7 +66,7 @@ struct circ {
 
 int circ_init(struct circ *ct, data_id fid, int (*simul)(struct circ *));
 
-void circ_destroy(struct circ *ct);
+void circ_free(struct circ *ct);
 
 int circ_prepst(struct circ *ct);
 

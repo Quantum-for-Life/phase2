@@ -41,7 +41,7 @@ int qreg_backend_init(struct qreg *reg)
 	return 0;
 }
 
-void qreg_backend_destroy(struct qreg *reg)
+void qreg_backend_free(struct qreg *reg)
 {
 	struct world_quest *w = reg->wd.data;
 	struct qreg_quest *q = reg->data;

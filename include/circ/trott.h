@@ -22,7 +22,7 @@ struct trott {
 
 int trott_init(struct trott *tt, const struct trott_data *dt, data_id fid);
 
-void trott_destroy(struct trott *tt);
+void trott_free(struct trott *tt);
 
 int trott_write_res(struct trott *tt, data_id fid);
 

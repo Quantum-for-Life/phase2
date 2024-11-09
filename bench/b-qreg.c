@@ -36,7 +36,7 @@ static int b_qreg_init(void *data)
 	struct qreg reg;
 
 	qreg_init(&reg, q->n);
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 
 	return 0;
 }
@@ -86,7 +86,7 @@ static void measure_b_qreg_get(void)
 		log_info(
 			"b_qreg_get [nqb,t_ms]: %2u,%11.6f", n, bench_msrep(b));
 
-		qreg_destroy(&reg);
+		qreg_free(&reg);
 	}
 }
 
@@ -118,7 +118,7 @@ static void measure_b_qreg_zero(void)
 		log_info("b_qreg_zero [nqb,t_ms]: %2u,%11.6f", n,
 			bench_msrep(b));
 
-		qreg_destroy(&reg);
+		qreg_free(&reg);
 	}
 }
 
@@ -190,7 +190,7 @@ static void measure_b_qreg_paulirot(void)
 				n, ncodes, bench_msrep(b));
 
 			b_qreg_paulirot_destroy(&q);
-			qreg_destroy(&reg);
+			qreg_free(&reg);
 		}
 	}
 }
@@ -223,7 +223,7 @@ int main(int argc, char **argv)
 	log_info("<<< END BENCHES");
 
 	log_info("Destroy world");
-	world_destroy();
+	world_free();
 
 	return 0;
 }

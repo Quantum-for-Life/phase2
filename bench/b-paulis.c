@@ -130,7 +130,7 @@ int main(int argc, char **argv)
 
 	log_info("<<< END BENCHES");
 	log_info("Destroy world");
-	world_destroy();
+	world_free();
 
 	return 0;
 }

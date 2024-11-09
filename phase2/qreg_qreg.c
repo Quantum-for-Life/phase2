@@ -21,7 +21,7 @@ int qreg_backend_init(struct qreg *reg)
 	return 0;
 }
 
-void qreg_backend_destroy(struct qreg *reg)
+void qreg_backend_free(struct qreg *reg)
 {
 	(void)reg;
 }

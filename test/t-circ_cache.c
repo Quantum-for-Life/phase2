@@ -41,7 +41,7 @@ void t_cache_00(void)
 		circ_cache_insert(&ch, p, 0.0) == 0, "insert different code");
 	TEST_ASSERT(ch.n == 1, "cache size should be 1");
 
-	circ_cache_destroy(&ch);
+	circ_cache_free(&ch);
 }
 
 void TEST_MAIN(void)
@@ -54,5 +54,5 @@ void TEST_MAIN(void)
 
 	t_cache_00();
 
-	world_destroy();
+	world_free();
 }

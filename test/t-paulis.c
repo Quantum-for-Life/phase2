@@ -369,5 +369,5 @@ static void TEST_MAIN(void)
 	for (size_t n = 0; n < 999; n++)
 		t_paulis_cmp_02_eq(n);
 
-	world_destroy();
+	world_free();
 }

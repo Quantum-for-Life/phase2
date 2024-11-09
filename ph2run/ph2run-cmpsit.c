@@ -247,7 +247,7 @@ int run_circuit(const struct args *args)
 
 	rt = 0; /* Success. */
 ex_circ_res_write:
-	cmpsit_destroy(&cp);
+	cmpsit_free(&cp);
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_samples,depth,length,step_size,steps,"
 		 "n_ranks,t_tot");
@@ -300,7 +300,7 @@ exit_run_circuit:
 	log_info("Shut down simulation environment");
 exit_nranks:
 exit_world_init:
-	world_destroy();
+	world_free();
 
 	return rt;
 }

@@ -49,14 +49,14 @@ int trott_init(struct trott *tt, const struct trott_data *dt, const data_id fid)
 
 	// trott_steps_destroy(tt);
 err_trott_res_init:
-	circ_destroy(&tt->ct);
+	circ_free(&tt->ct);
 err_circ_init:
 	return -1;
 }
 
-void trott_destroy(struct trott *tt)
+void trott_free(struct trott *tt)
 {
-	circ_destroy(&tt->ct);
+	circ_free(&tt->ct);
 	trott_steps_destroy(&tt->stp);
 }
 

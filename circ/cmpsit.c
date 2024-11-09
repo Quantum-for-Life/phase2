@@ -139,17 +139,17 @@ err_samples_init:
 err_rct_init:
 	cmpsit_pd_destroy(&cp->pd);
 err_pd_init:
-	circ_destroy(c);
+	circ_free(c);
 err_circ_init:
 	return -1;
 }
 
-void cmpsit_destroy(struct cmpsit *cp)
+void cmpsit_free(struct cmpsit *cp)
 {
 	cmpsit_samples_destroy(&cp->smp);
 	cmpsit_rct_destroy(&cp->rct);
 	cmpsit_pd_destroy(&cp->pd);
-	circ_destroy(&cp->ct);
+	circ_free(&cp->ct);
 }
 
 static void cmpsit_flush(struct paulis code_hi, struct paulis *codes_lo,

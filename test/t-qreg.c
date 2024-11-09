@@ -56,7 +56,7 @@ static void t_qreg_init(void)
 	TEST_EQ(nqb_hi, reg.qb_hi);
 	TEST_EQ(namp, reg.namp);
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 static void t_qreg_getsetamp_01(void)
@@ -83,7 +83,7 @@ static void t_qreg_getsetamp_01(void)
 	TEST_ASSERT(
 		z == -1.9 + 0.8 * I, "amp=27, z=%f+%fi", creal(z), cimag(z));
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 static void t_qreg_getsetamp_02(size_t tag)
@@ -105,7 +105,7 @@ static void t_qreg_getsetamp_02(size_t tag)
 			creal(z), cimag(z), creal(AMPS[i]), cimag(AMPS[i]));
 	}
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 static void t_qreg_zero(void)
@@ -127,7 +127,7 @@ static void t_qreg_zero(void)
 		TEST_ASSERT(z == 0.0, "i=%zu, z=%f+%fi", i, creal(z), cimag(z));
 	}
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 /*
@@ -160,7 +160,7 @@ static void t_qreg_paulirot_00(void)
 			creal(z_exp), cimag(z_exp));
 	}
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 static void t_qreg_paulirot_0y_explicit(void)
@@ -192,7 +192,7 @@ static void t_qreg_paulirot_0y_explicit(void)
 	TEST_ASSERT(cabs(z - z_exp) < MARGIN, "i=%d, z=%f+%fi, z_exp=%f+%fi", 1,
 		creal(z), cimag(z), creal(z_exp), cimag(z_exp));
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 static void t_qreg_paulirot_0yyy_explicit(void)
@@ -226,7 +226,7 @@ static void t_qreg_paulirot_0yyy_explicit(void)
 	TEST_ASSERT(cabs(z - z_exp) < MARGIN, "i=%d, z=%f+%fi, z_exp=%f+%fi", 1,
 		creal(z), cimag(z), creal(z_exp), cimag(z_exp));
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 /* Test rotation by one random Pauli string */
@@ -264,7 +264,7 @@ static void t_qreg_paulirot_01(size_t tag)
 			cimag(z), creal(z_exp), cimag(z_exp));
 	}
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 /* Test rotation by two random Pauli strings */
@@ -327,7 +327,7 @@ static void t_qreg_paulirot_02(size_t tag)
 			cimag(AMPS[i]));
 	}
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 /* Test rotation by n random Pauli strings */
@@ -399,7 +399,7 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 			cimag(AMPS[i]));
 	}
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 	free(angle);
 	free(ps);
 }
@@ -440,5 +440,5 @@ static void TEST_MAIN(void)
 			t_qreg_paulirot_03(k, n);
 	t_qreg_paulirot_03(1234, 999);
 
-	world_destroy();
+	world_free();
 }

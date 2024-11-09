@@ -32,7 +32,7 @@ err_lo:
 	return -1;
 }
 
-void circ_cache_destroy(struct circ_cache *ch)
+void circ_cache_free(struct circ_cache *ch)
 {
 	free(ch->codes_lo);
 	free(ch->phis);
@@ -80,7 +80,7 @@ int circ_hamil_init(struct circ_hamil *hm, uint32_t qb, size_t len)
 	return 0;
 }
 
-void circ_hamil_destroy(struct circ_hamil *hm)
+void circ_hamil_free(struct circ_hamil *hm)
 {
 	if (hm->terms != nullptr)
 		free(hm->terms);
@@ -138,7 +138,7 @@ int circ_muldet_init(struct circ_muldet *m, size_t len)
 	return 0;
 }
 
- void circ_muldet_destroy(struct circ_muldet *m)
+ void circ_muldet_free(struct circ_muldet *m)
 {
 	if (m->dets != nullptr)
 		free(m->dets);
@@ -196,21 +196,21 @@ int circ_init(
 
 	// circ_cache_destroy(&c->cache);
 err_cache_init:
-	qreg_destroy(&ct->reg);
+	qreg_free(&ct->reg);
 err_qreg_init:
-	circ_muldet_destroy(&ct->muldet);
+	circ_muldet_free(&ct->muldet);
 err_muldet_init:
-	circ_hamil_destroy(&ct->hamil);
+	circ_hamil_free(&ct->hamil);
 err_hamil_init:
 	return -1;
 }
 
-void circ_destroy(struct circ *ct)
+void circ_free(struct circ *ct)
 {
-	circ_hamil_destroy(&ct->hamil);
-	circ_muldet_destroy(&ct->muldet);
-	circ_cache_destroy(&ct->cache);
-	qreg_destroy(&ct->reg);
+	circ_hamil_free(&ct->hamil);
+	circ_muldet_free(&ct->muldet);
+	circ_cache_free(&ct->cache);
+	qreg_free(&ct->reg);
 }
 
 int circ_prepst(struct circ *ct)

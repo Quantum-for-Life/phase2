@@ -203,7 +203,7 @@ static int run_circuit(const struct args *args)
 
 	rt = 0; /* Success. */
 ex_circ_write_res:
-	trott_destroy(&tt);
+	trott_free(&tt);
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
 	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt.ct.hamil.qb,
@@ -251,7 +251,7 @@ ex_run_circuit:
 	log_info("Shut down simulation environment");
 ex_nranks:
 ex_world_init:
-	world_destroy();
+	world_free();
 
 	return rt;
 }
