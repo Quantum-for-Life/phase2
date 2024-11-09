@@ -38,7 +38,7 @@ static void cmpsit_hamil_rearrange(
 	struct cmpsit *cp, const struct cmpsit_data *data)
 {
 	struct circ_hamil *hm = &cp->ct.hamil;
-	qsort(hm->terms, hm->nterms, sizeof(struct circ_hamil_term),
+	qsort(hm->terms, hm->len, sizeof(struct circ_hamil_term),
 		hamil_term_cmp_abscf_desc);
 }
 

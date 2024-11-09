@@ -206,8 +206,8 @@ ex_circ_write_res:
 	trott_destroy(&tt);
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt.ct.hamil.nqb,
-		tt.ct.hamil.nterms, tt.ct.muldet.ndets, args->delta,
+	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt.ct.hamil.qb,
+		tt.ct.hamil.len, tt.ct.muldet.len, args->delta,
 		args->steps, WD.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:

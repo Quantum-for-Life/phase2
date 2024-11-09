@@ -165,8 +165,8 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	tt.dt.delta = HAMIL_DELTA;
 
 	struct circ_hamil *h = &tt.ct.hamil;
-	h->nqb = NUM_QUBITS;
-	h->nterms = HAMIL_TERMS;
+	h->qb = NUM_QUBITS;
+	h->len = HAMIL_TERMS;
 	h->terms = malloc(sizeof *h->terms * HAMIL_TERMS);
 	if (!h->terms) {
 		TEST_FAIL("malloc h->terms");
@@ -178,7 +178,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	}
 
 	struct circ_muldet *m = &tt.ct.muldet;
-	m->ndets = MULTIDET_DETS;
+	m->len = MULTIDET_DETS;
 	m->dets = malloc(sizeof *m->dets * MULTIDET_DETS);
 	if (!m->dets) {
 		TEST_FAIL("malloc m->dets");

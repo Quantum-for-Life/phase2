@@ -8,7 +8,7 @@
 #include "phase2/circ.h"
 #include "phase2/paulis.h"
 
-int circ_cache_init(struct circ_cache *ch, size_t qb_lo, size_t qb_hi)
+int circ_cache_init(struct circ_cache *ch, uint32_t qb_lo, uint32_t qb_hi)
 {
 	struct paulis *lo = malloc(sizeof(struct paulis) * MAX_CACHE_CODES);
 	if (!lo)
@@ -69,21 +69,21 @@ void circ_cache_flush(struct circ_cache *ch,
 	ch->n = 0;
 }
 
-static int circ_hamil_init(struct circ_hamil *h, uint32_t nqb, size_t nterms)
+int circ_hamil_init(struct circ_hamil *hm, uint32_t qb, size_t len)
 {
-	h->terms = malloc(sizeof *h->terms * nterms);
-	if (!h->terms)
+	hm->terms = malloc(sizeof *hm->terms * len);
+	if (!hm->terms)
 		return -1;
-	h->nterms = nterms;
-	h->nqb = nqb;
+	hm->len = len;
+	hm->qb = qb;
 
 	return 0;
 }
 
-static void circ_hamil_destroy(struct circ_hamil *h)
+void circ_hamil_destroy(struct circ_hamil *hm)
 {
-	if (h->terms != nullptr)
-		free(h->terms);
+	if (hm->terms != nullptr)
+		free(hm->terms);
 }
 
 struct hamil_iter_data {
@@ -97,7 +97,7 @@ static int hamil_iter(double cf, unsigned char *ops, void *iter_data)
 	struct hamil_iter_data *id = iter_data;
 	struct circ_hamil *h = id->hamil;
 	const size_t i = id->i++;
-	const uint32_t nqb = h->nqb;
+	const uint32_t nqb = h->qb;
 
 	h->terms[i].cf = cf * id->norm;
 	struct paulis op = paulis_new();
@@ -128,17 +128,17 @@ static int circ_hamil_from_file(struct circ_hamil *h, const data_id fid)
 	return 0;
 }
 
-static int circ_muldet_init(struct circ_muldet *m, size_t ndets)
+int circ_muldet_init(struct circ_muldet *m, size_t len)
 {
-	m->dets = malloc(sizeof *m->dets * ndets);
+	m->dets = malloc(sizeof *m->dets * len);
 	if (!m->dets)
 		return -1;
-	m->ndets = ndets;
+	m->len = len;
 
 	return 0;
 }
 
-static void circ_muldet_destroy(struct circ_muldet *m)
+ void circ_muldet_destroy(struct circ_muldet *m)
 {
 	if (m->dets != nullptr)
 		free(m->dets);
@@ -185,7 +185,7 @@ int circ_init(
 		goto err_hamil_init;
 	if (circ_muldet_from_file(&ct->muldet, fid) < 0)
 		goto err_muldet_init;
-	if (qreg_init(&ct->reg, ct->hamil.nqb) < 0)
+	if (qreg_init(&ct->reg, ct->hamil.qb) < 0)
 		goto err_qreg_init;
 	if (circ_cache_init(&ct->cache, ct->reg.qb_lo, ct->reg.qb_hi) < 0)
 		goto err_cache_init;
@@ -218,7 +218,7 @@ int circ_prepst(struct circ *ct)
 	const struct circ_muldet *md = &ct->muldet;
 
 	qreg_zero(&ct->reg);
-	for (size_t i = 0; i < md->ndets; i++)
+	for (size_t i = 0; i < md->len; i++)
 		qreg_setamp(&ct->reg, md->dets[i].idx, md->dets[i].cf);
 
 	return 0;
@@ -235,7 +235,7 @@ int circ_step(struct circ *ct, const struct circ_hamil *hm, const double omega)
 {
 	struct circ_cache *cache = &ct->cache;
 
-	for (size_t i = 0; i < hm->nterms; i++) {
+	for (size_t i = 0; i < hm->len; i++) {
 		const double phi = omega * hm->terms[i].cf;
 		const struct paulis code = hm->terms[i].op;
 
@@ -258,7 +258,7 @@ _Complex double circ_measure(struct circ *ct)
 	const struct circ_muldet *md = &ct->muldet;
 
 	_Complex double pr = 0.0;
-	for (size_t i = 0; i < md->ndets; i++) {
+	for (size_t i = 0; i < md->len; i++) {
 		_Complex double a;
 		qreg_getamp(&ct->reg, md->dets[i].idx, &a);
 		pr += a * conj(md->dets[i].cf);
@@ -282,6 +282,6 @@ static int hamil_term_cmp_lex(const void *a, const void *b)
 
 void circ_hamil_sort_lex(struct circ_hamil *hm)
 {
-	qsort(hm->terms, hm->nterms, sizeof(struct circ_hamil_term),
+	qsort(hm->terms, hm->len, sizeof(struct circ_hamil_term),
 		hamil_term_cmp_lex);
 }

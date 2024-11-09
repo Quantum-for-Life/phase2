@@ -17,7 +17,7 @@ struct circ_cache {
 	size_t n;
 };
 
-int circ_cache_init(struct circ_cache *ch, size_t qb_lo, size_t qb_hi);
+int circ_cache_init(struct circ_cache *ch, uint32_t qb_lo, uint32_t qb_hi);
 
 void circ_cache_destroy(struct circ_cache *ch);
 
@@ -28,15 +28,18 @@ void circ_cache_flush(struct circ_cache *ch,
 	void *data);
 
 struct circ_hamil {
-	size_t nqb;
+	uint32_t qb;
 
 	struct circ_hamil_term {
-		struct paulis op;
 		double cf;
+		struct paulis op;
 	} *terms;
-
-	size_t nterms;
+	size_t len;
 };
+
+int circ_hamil_init(struct circ_hamil *hm, uint32_t qb, size_t len);
+
+void circ_hamil_destroy(struct circ_hamil *hm);
 
 void circ_hamil_sort_lex(struct circ_hamil *hm);
 
@@ -45,9 +48,12 @@ struct circ_muldet {
 		uint64_t idx;
 		_Complex double cf;
 	} *dets;
-
-	size_t ndets;
+	size_t len;
 };
+
+int circ_muldet_init(struct circ_muldet *m, size_t len);
+
+void circ_muldet_destroy(struct circ_muldet *m);
 
 struct circ {
 	struct circ_hamil hamil;
@@ -69,6 +75,5 @@ int circ_step(struct circ *ct, const struct circ_hamil *hm, double omega);
 _Complex double circ_measure(struct circ *ct);
 
 int circ_simul(struct circ *ct);
-
 
 #endif // CIRC_H

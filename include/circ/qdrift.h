@@ -14,8 +14,7 @@ struct qdrift_data {
 };
 
 struct qdrift_rct {
-	size_t *idx;
-	size_t len;
+	struct circ_hamil rhm;
 };
 
 struct qdrift_samples {
