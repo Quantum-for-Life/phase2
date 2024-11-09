@@ -1,44 +1,38 @@
-#ifndef CIRC_QDRIFT_H
-#define CIRC_QDRIFT_H
+#ifndef QDRIFT_H
+#define QDRIFT_H
 
 #include <stddef.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "phase2/circ.h"
 #include "phase2/data.h"
 #include "xoshiro256ss.h"
 
-struct circ_qdrift_data {
+struct qdrift_data {
 	size_t depth;
 	double step_size;
-	size_t nsamples;
+	size_t samples;
 };
 
-struct circ_qdrift {
-	struct circ circ;
+struct qdrift_rct {
+	size_t *idx;
+	size_t len;
+};
 
-	size_t depth;
-	double step_size;
+struct qdrift_samples {
+	_Complex double *z;
+	size_t len;
+};
 
+struct qdrift {
+	struct circ ct;
+	struct qdrift_data dt;
+	struct qdrift_rct rct;
+	struct qdrift_samples smp;
 	struct xoshiro256ss rng;
-	size_t *smpl;
-
-	struct {
-		_Complex double *samples;
-		size_t nsamples;
-	} res;
 };
 
-int circ_qdrift_init(
-	struct circ_qdrift *qd, struct circ_qdrift_data *data, data_id fid);
+int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt, data_id fid);
 
-void circ_qdrift_destroy(struct circ_qdrift *qd);
+void qdrift_destroy(struct qdrift *qd);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif // CIRC_QDRIFT_H
+#endif // QDRIFT_H
