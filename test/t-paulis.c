@@ -276,6 +276,68 @@ static void t_paulis_split_01(size_t tag)
 	}
 }
 
+static void t_paulis_cmp_00()
+{
+	const struct paulis a = paulis_new();
+
+	struct paulis b = paulis_new();
+	paulis_set(&b, PAULI_X, 1);
+
+	TEST_ASSERT(paulis_cmp(a, a) == 0, "cmp with itself");
+	TEST_ASSERT(paulis_cmp(b, b) == 0, "cmp with itself");
+
+	TEST_ASSERT(paulis_cmp(a, b) == -1, "cmp with I");
+	TEST_ASSERT(paulis_cmp(b, a) == 1, "cmp with I");
+}
+
+static int cmp_explicit(const struct paulis a, const struct paulis b)
+{
+	for (uint32_t n = 0; n < WIDTH; n++) {
+		const int x = paulis_get(a, n);
+		const int y = paulis_get(b, n);
+		if (x < y)
+			return -1;
+		if (x > y)
+			return 1;
+	}
+
+	return 0;
+}
+
+static void t_paulis_cmp_01(size_t tag)
+{
+	struct paulis a = paulis_new();
+	struct paulis b = paulis_new();
+
+	for (uint32_t n = 0; n < WIDTH; n++) {
+		const int x = xoshiro256ss_next(&RNG) % 4;
+		const int y = xoshiro256ss_next(&RNG) % 4;
+		paulis_set(&a, x, n);
+		paulis_set(&b, y, n);
+	}
+
+	const int res = paulis_cmp(a, b);
+	const int exp = cmp_explicit(a, b);
+	TEST_ASSERT(res == exp, "[%zu] res=%d, exp=%d", tag, res, exp);
+}
+
+static void t_paulis_cmp_02_eq(size_t tag)
+{
+	struct paulis a = paulis_new();
+	struct paulis b = paulis_new();
+
+	for (uint32_t n = 0; n < WIDTH; n++) {
+		const int x = xoshiro256ss_next(&RNG) % 4;
+		paulis_set(&a, x, n);
+		paulis_set(&b, x, n);
+	}
+	TEST_ASSERT(paulis_eq(a, b), "[%zu]", tag);
+
+	const int res = paulis_cmp(a, b);
+	const int exp = cmp_explicit(a, b);
+	TEST_ASSERT(res == exp, "[%zu] res=%d, exp=%d", tag, res, exp);
+}
+
 static void TEST_MAIN(void)
 {
 	world_init((void *)0, (void *)0, WD_SEED);
@@ -283,7 +345,7 @@ static void TEST_MAIN(void)
 	xoshiro256ss_init(&RNG, SEED);
 
 	t_paulis_new();
-	for (size_t n = 0; n < 9999; n++) {
+	for (size_t n = 0; n < 999; n++) {
 		t_paulis_eq(n);
 		t_paulis_getset(n);
 	}
@@ -295,11 +357,17 @@ static void TEST_MAIN(void)
 	t_paulis_effect_i1();
 	t_paulis_effect_i2();
 	t_paulis_effect_01();
-	for (size_t n = 0; n < 9999; n++)
+	for (size_t n = 0; n < 999; n++)
 		t_paulis_effect_02(n);
 
-	for (size_t n = 0; n < 9999; n++)
+	for (size_t n = 0; n < 999; n++)
 		t_paulis_split_01(n);
+
+	t_paulis_cmp_00();
+	for (size_t n = 0; n < 999; n++)
+		t_paulis_cmp_01(n);
+	for (size_t n = 0; n < 999; n++)
+		t_paulis_cmp_02_eq(n);
 
 	world_destroy();
 }

@@ -1,5 +1,6 @@
 #include "c23_compat.h"
 #include <complex.h>
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -209,12 +210,48 @@ void circ_destroy(struct circ *c)
 	qreg_destroy(&c->reg);
 }
 
-__inline__ int circ_simulate(struct circ *c)
+inline int circ_simulate(struct circ *c)
 {
 	return c->simulate(c);
 }
 
-__inline__ int circ_write_res(struct circ *c, data_id fid)
+inline int circ_write_res(struct circ *c, data_id fid)
 {
 	return c->write_res(c, fid);
+}
+
+/* Sort in _descending_ order */
+static int hamil_term_cmp_cf_desc(const void *a, const void *b)
+{
+	const struct circ_hamil_term ta = *(const struct circ_hamil_term *)a;
+	const struct circ_hamil_term tb = *(const struct circ_hamil_term *)b;
+
+	const double x = fabs(ta.cf);
+	const double y = fabs(tb.cf);
+
+	if (x > y)
+		return -1;
+	if (x < y)
+		return 1;
+	return 0;
+}
+
+void circ_hamil_sort_cf_desc(struct circ_hamil *hm)
+{
+	qsort(hm->terms, hm->nterms, sizeof(struct circ_hamil_term),
+		hamil_term_cmp_cf_desc);
+}
+
+static int hamil_term_cmp_lex(const void *a, const void *b)
+{
+	const struct paulis x = ((const struct circ_hamil_term *)a)->op;
+	const struct paulis y = ((const struct circ_hamil_term *)b)->op;
+
+	return paulis_cmp(x, y);
+}
+
+void circ_hamil_sort_lex(struct circ_hamil *hm)
+{
+	qsort(hm->terms, hm->nterms, sizeof(struct circ_hamil_term),
+		hamil_term_cmp_lex);
 }

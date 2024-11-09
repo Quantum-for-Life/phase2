@@ -8,10 +8,6 @@
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define MAX_CACHE_CODES UINT64_C(0x0400)
 
 struct circ_cache {
@@ -34,7 +30,7 @@ void circ_cache_flush(struct circ_cache *ch,
 struct circ_hamil {
 	size_t nqb;
 
-	struct {
+	struct circ_hamil_term {
 		struct paulis op;
 		double cf;
 	} *terms;
@@ -69,8 +65,8 @@ int circ_simulate(struct circ *c);
 
 int circ_write_res(struct circ *c, data_id fid);
 
-#ifdef __cplusplus
-}
-#endif
+void circ_hamil_sort_cf_desc(struct circ_hamil *hm);
+
+void circ_hamil_sort_lex(struct circ_hamil *hm);
 
 #endif // CIRC_H

@@ -1,44 +1,51 @@
-#ifndef CIRC_QDRIFT_H
-#define CIRC_QDRIFT_H
+#ifndef CMPSIT_H
+#define CMPSIT_H
 
 #include <stddef.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include "phase2/circ.h"
-#include "phase2/data.h"
+#include "phase2.h"
 #include "xoshiro256ss.h"
 
-struct circ_qdrift_data {
+#define CMPSIT_TRUNC_DIST (16UL)
+
+struct cmpsit_data {
 	size_t depth;
+	size_t length;
+	size_t samples;
 	double step_size;
-	size_t nsamples;
+	size_t steps;
 };
 
-struct circ_qdrift {
-	struct circ circ;
+/* Probability distribution to sample from */
+struct cmpsit_pd {
+	double *x;
+	size_t len;
+	double lambda_r;
+};
 
-	size_t depth;
-	double step_size;
+/* Sampled circuit. */
+struct cmpsit_rct {
+	struct circ_hamil_term *trm;
+	size_t len;
+};
 
+/* Results */
+struct cmpsit_samples {
+	_Complex double *z;
+	size_t len;
+};
+
+struct cmpsit {
+	struct circ ct;
+	struct cmpsit_data dt;
+	struct cmpsit_pd pd;
+	struct cmpsit_rct rct;
+	struct cmpsit_samples smp;
 	struct xoshiro256ss rng;
-	size_t *smpl;
-
-	struct {
-		_Complex double *samples;
-		size_t nsamples;
-	} res;
 };
 
-int circ_qdrift_init(
-	struct circ_qdrift *qd, struct circ_qdrift_data *data, data_id fid);
+int cmpsit_init(struct cmpsit *cp, const struct cmpsit_data *dt, data_id fid);
 
-void circ_qdrift_destroy(struct circ_qdrift *qd);
+void cmpsit_destroy(struct cmpsit *cp);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif // CIRC_QDRIFT_H
+#endif // CMPSIT_H

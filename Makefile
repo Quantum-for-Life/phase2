@@ -165,14 +165,13 @@ PROGS		:=  $(PH2RUNDIR)/ph2run-cmpsit				\
 			$(PH2RUNDIR)/ph2run-trott			\
 			$(PH2RUNDIR)/ph2run-qdrift
 
-$(PROGS): 	$(PH2RUNDIR)/ph2run.h					\
-			$(PHASE2OBJS)					\
-			$(LIBOBJS)
-
 $(PH2RUNDIR)/ph2run-cmpsit: $(CIRCDIR)/cmpsit.o
 $(PH2RUNDIR)/ph2run-trott: $(CIRCDIR)/trott.o
 $(PH2RUNDIR)/ph2run-qdrift: $(CIRCDIR)/qdrift.o
 
+$(PROGS): 	$(PH2RUNDIR)/ph2run.h					\
+			$(PHASE2OBJS)					\
+			$(LIBOBJS)
 
 # Update flags
 CFLAGS		+= -I$(INCLUDE)						\
