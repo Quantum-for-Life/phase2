@@ -19,17 +19,28 @@ static int cmpsit_simulate(struct circ *c);
 
 /*
  * Sort the Hamiltonian by absolute val of coefficients, in descending order.
- *
- * The first data->length terms are "deterministic" and they can be sorted
- * back by lexicographical order of Pauli strings to improve performance of
- * the distributed computation.
- *
- * The remaining terms will be randomly sampled from.
  */
+static int hamil_term_cmp_abscf_desc(const void *a, const void *b)
+{
+	const struct circ_hamil_term ta = *(const struct circ_hamil_term *)a;
+	const struct circ_hamil_term tb = *(const struct circ_hamil_term *)b;
+
+	const double x = fabs(ta.cf);
+	const double y = fabs(tb.cf);
+
+	if (x > y)
+		return -1;
+	if (x < y)
+		return 1;
+	return 0;
+}
+
 static void cmpsit_hamil_rearrange(
 	const struct cmpsit *cp, const struct cmpsit_data *data)
 {
-	circ_hamil_sort_cf_desc(&cp->ct.hamil);
+	struct circ_hamil *hm = &cp->ct.hamil;
+	qsort(hm->terms, hm->nterms, sizeof(struct circ_hamil_term),
+		hamil_term_cmp_abscf_desc);
 }
 
 static int cmpsit_pd_init(struct cmpsit_pd *pd,
@@ -91,8 +102,8 @@ static void cmpsit_samples_destroy(struct cmpsit_samples *samples)
 	free(samples->z);
 }
 
-int cmpsit_init(
-	struct cmpsit *cp, const struct cmpsit_data *dt, const data_id fid)
+int cmpsit_init(struct cmpsit *cp,
+	const struct cmpsit_data *dt, const data_id fid)
 {
 	struct circ *c = &cp->ct;
 	if (circ_init(c, fid) < 0)
@@ -113,7 +124,8 @@ int cmpsit_init(
 	 * This is 2nd order Trotter formula. Update it, if you want to
 	 * introduce higher orders.
 	 */
-	const size_t rct_len = dt->length + dt->depth * (CMPSIT_TRUNC_DIST + 2);
+	const size_t rct_len =
+		dt->length + dt->depth * (CMPSIT_TRUNC_DIST + 2);
 	if (cmpsit_rct_init(&cp->rct, rct_len) < 0)
 		goto err_rct_init;
 
