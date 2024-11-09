@@ -65,8 +65,6 @@ int circ_simulate(struct circ *c);
 
 int circ_write_res(struct circ *c, data_id fid);
 
-void circ_hamil_sort_cf_desc(struct circ_hamil *hm);
-
 void circ_hamil_sort_lex(struct circ_hamil *hm);
 
 #endif // CIRC_H

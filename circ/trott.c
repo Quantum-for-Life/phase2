@@ -44,6 +44,8 @@ int trott_init(struct trott *tt, const struct trott_data *dt, const data_id fid)
 
 	tt->dt = *dt;
 
+	circ_hamil_sort_lex(&tt->ct.hamil);
+
 	if (trott_steps_init(&tt->stp, dt->steps) < 0)
 		goto err_trott_res_init;
 

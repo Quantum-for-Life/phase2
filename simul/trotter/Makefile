@@ -26,7 +26,7 @@ TROTT_PREP	= $(PYTHON) $(SCRIPTS)/trott_prep.py
 TROTT_RPE	= $(PYTHON) $(SCRIPTS)/trott_rpe.py
 
 # Application flags
-PARSE_FCIDUMP_FLAGS	= --sort-terms
+PARSE_FCIDUMP_FLAGS	=
 PARSE_INPUTST_FLAGS	=
 TROTT_PREP_FLAGS	= --time-factor=$(TIME_FACT)
 TROTT_RPE_FLAGS		=

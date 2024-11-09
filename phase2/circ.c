@@ -220,8 +220,8 @@ inline int circ_write_res(struct circ *c, data_id fid)
 	return c->write_res(c, fid);
 }
 
-/* Sort in _descending_ order */
-static int hamil_term_cmp_cf_desc(const void *a, const void *b)
+
+static int hamil_term_cmp_abscf(const void *a, const void *b)
 {
 	const struct circ_hamil_term ta = *(const struct circ_hamil_term *)a;
 	const struct circ_hamil_term tb = *(const struct circ_hamil_term *)b;
@@ -229,17 +229,11 @@ static int hamil_term_cmp_cf_desc(const void *a, const void *b)
 	const double x = fabs(ta.cf);
 	const double y = fabs(tb.cf);
 
-	if (x > y)
-		return -1;
 	if (x < y)
+		return -1;
+	if (x > y)
 		return 1;
 	return 0;
-}
-
-void circ_hamil_sort_cf_desc(struct circ_hamil *hm)
-{
-	qsort(hm->terms, hm->nterms, sizeof(struct circ_hamil_term),
-		hamil_term_cmp_cf_desc);
 }
 
 static int hamil_term_cmp_lex(const void *a, const void *b)
