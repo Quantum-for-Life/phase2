@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 struct prob_cdf {
-	double *x; /* normalized array of nonnegative doubles */
+	double *y;
 	size_t len;
 };
 
@@ -30,12 +30,11 @@ int prob_cdf_from_samples(
  *   where f(j) is the probability density function.
  *
  * Arguments:
- *   pdf - probability density function (consisting of a finite set of
- *         nonnegative numbers)
+ *   cdf - pointer to CDF
  *   y   - argument of F^{-1}(y)
  *
  * Returns:
- *       Index i of the corresponding bin such that F(i) = y.
+ *       Largest index i such that F(i) <= y, or 0 if F(i) > y for all i.
  */
 size_t prob_cdf_inverse(const struct prob_cdf *cdf, double y);
 

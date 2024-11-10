@@ -11,7 +11,7 @@ int prob_cdf_init(struct prob_cdf *cdf, const size_t len)
 	if (!x)
 		return -1;
 
-	cdf->x = x;
+	cdf->y = x;
 	cdf->len = len;
 
 	return 0;
@@ -19,34 +19,42 @@ int prob_cdf_init(struct prob_cdf *cdf, const size_t len)
 
 void prob_cdf_free(struct prob_cdf *cdf)
 {
-	free(cdf->x);
+	free(cdf->y);
 }
 
 int prob_cdf_from_samples(
 	struct prob_cdf *cdf, double (*get_smpl)(void *), void *data)
 {
+	/* Calculate PDF. */
 	double lambda = 0.0;
-	for (size_t i = 0; i < cdf->len; i++) {
-		const double xi = fabs(get_smpl(data));
-		cdf->x[i] = xi;
-		lambda += xi;
+	for (double *y = cdf->y; y < cdf->y + cdf->len; y++) {
+		const double yi = fabs(get_smpl(data));
+		*y = yi;
+		lambda += yi;
 	}
 	if (lambda < DBL_EPSILON)
 		return -1;
 
-	for (double *x = cdf->x; x < cdf->x + cdf->len; x++)
-		*x /= lambda;
+	/* Calculate CDF */
+	double f = 0.0;
+	for (double *y = cdf->y; y < cdf->y + cdf->len; y++) {
+		f += *y / lambda;
+		*y = f;
+	}
 
 	return 0;
 }
 
 size_t prob_cdf_inverse(const struct prob_cdf *cdf, const double y)
 {
-	size_t i = 0;
-	double f = 0.0;
+	size_t i = 0, d = cdf->len;
+	while ((d /= 2) > 0)
+		if (cdf->y[i + d] <= y)
+			i += d;
 
-	while (f <= y)
-		f += cdf->x[i++];
+	d = i;
+	while (d < cdf->len && cdf->y[d] <= y)
+		i = d++;
 
-	return i - 1;
+	return i;
 }
