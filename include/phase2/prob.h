@@ -8,6 +8,7 @@ struct prob_cdf {
 	size_t len;
 };
 
+/* Len must be greater than 0. */
 int prob_cdf_init(struct prob_cdf *cdf, size_t len);
 
 void prob_cdf_free(struct prob_cdf *cdf);

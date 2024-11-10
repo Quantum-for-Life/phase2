@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include "bug.h"
 #include "phase2/prob.h"
 
 int prob_cdf_init(struct prob_cdf *cdf, const size_t len)
@@ -47,10 +48,15 @@ int prob_cdf_from_samples(
 
 size_t prob_cdf_inverse(const struct prob_cdf *cdf, const double y)
 {
-	size_t i = 0;
+	size_t i = 0, d = cdf->len;
 
-	while (i < cdf->len && cdf->y[i++] <= y)
-		;
+	while ((d /= 2) > 0) {
+		BUG_ON(i >= cdf->len);
+		if (cdf->y[i + d] <= y)
+			i += d;
+	}
+	while (i < cdf->len && cdf->y[i] <= y)
+		i++;
 
-	return i - 1;
+	return i;
 }
