@@ -13,7 +13,7 @@
 
 #define SEED UINT64_C(0xeccd9dcc749fcdca)
 
-static int qdrift_ranct_init(struct qdrift_ranct *rct, const uint32_t qb,
+static int ranct_init(struct qdrift_ranct *rct, const uint32_t qb,
 	const size_t depth, const size_t cdf_len)
 {
 	if (prob_cdf_init(&rct->cdf, cdf_len) < 0)
@@ -24,7 +24,7 @@ static int qdrift_ranct_init(struct qdrift_ranct *rct, const uint32_t qb,
 	return 0;
 }
 
-static void qdrift_ranct_free(struct qdrift_ranct *rct)
+static void ranct_free(struct qdrift_ranct *rct)
 {
 	circ_hamil_free(&rct->hm_ran);
 	prob_cdf_free(&rct->cdf);
@@ -42,11 +42,11 @@ static double get_vals(void *data)
 	return dt->terms[dt->i++].cf;
 }
 
-static void qdrift_ranct_calc_cdf(
+static void ranct_calc_cdf(
 	struct qdrift_ranct *rct, struct circ_hamil_term *terms)
 {
 	struct get_vals_data data = { .i = 0, .terms = terms };
-	prob_cdf_from(&rct->cdf, get_vals, &data);
+	prob_cdf_from_iter(&rct->cdf, get_vals, &data);
 }
 
 int qdrift_init(
@@ -57,16 +57,16 @@ int qdrift_init(
 
 	qd->dt = *dt;
 
-	if (qdrift_ranct_init(
+	if (ranct_init(
 		    &qd->ranct, qd->ct.hm.qb, dt->depth, qd->ct.hm.len) < 0)
 		goto err_rct_init;
-	qdrift_ranct_calc_cdf(&qd->ranct, qd->ct.hm.terms);
+	ranct_calc_cdf(&qd->ranct, qd->ct.hm.terms);
 
 	xoshiro256ss_init(&qd->rng, SEED);
 
 	return 0;
 
-	// qdrift_ranct_free(&qd->ranct);
+	// ranct_free(&qd->ranct);
 err_rct_init:
 	circ_free(&qd->ct);
 err_circ_init:
@@ -75,11 +75,11 @@ err_circ_init:
 
 void qdrift_free(struct qdrift *qd)
 {
-	qdrift_ranct_free(&qd->ranct);
+	ranct_free(&qd->ranct);
 	circ_free(&qd->ct);
 }
 
-static void qdrift_ranct_sample(struct qdrift *qd)
+static void ranct_sample(struct qdrift *qd)
 {
 	for (size_t i = 0; i < qd->ranct.hm_ran.len; i++) {
 		const double x = xoshiro256ss_dbl01(&qd->rng);
@@ -97,7 +97,7 @@ int qdrift_simul(struct qdrift *qd)
 	struct circ_prog prog;
 	circ_prog_init(&prog, vals->len);
 	for (size_t i = 0; i < vals->len; i++) {
-		qdrift_ranct_sample(qd);
+		ranct_sample(qd);
 
 		circ_prepst(ct);
 		if (circ_step(ct, &qd->ranct.hm_ran, asin(qd->dt.step_size)) <

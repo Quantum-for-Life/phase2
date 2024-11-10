@@ -18,7 +18,7 @@ struct cmpsit_data {
 
 /* Sampled circuit. */
 struct cmpsit_ranct {
-	struct circ_hamil hm_ran;
+	struct circ_hamil hm_det, hm_ran, hm_smpl;
 	struct prob_cdf cdf;
 };
 

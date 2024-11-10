@@ -27,7 +27,7 @@ PARSE_FCIDUMP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
 PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
 
 # Application flags
-PARSE_FCIDUMP_FLAGS	= --sort-terms
+PARSE_FCIDUMP_FLAGS	=
 PARSE_INPUTST_FLAGS	=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
 PH2RUN_FLAGS		= --depth=$(DEPTH) 			\
