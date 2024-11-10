@@ -32,7 +32,6 @@ struct cmpsit {
 	struct circ ct;
 	struct cmpsit_data dt;
 	struct cmpsit_ranct ranct;
-	struct cmpsit_smpl smpl;
 	struct xoshiro256ss rng;
 };
 

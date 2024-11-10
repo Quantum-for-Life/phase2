@@ -39,10 +39,16 @@ struct circ_prog {
 	size_t i, len;
 };
 
+struct circ_values {
+	_Complex double *z;
+	size_t len;
+};
+
 struct circ {
 	struct circ_hamil hm;
 	struct circ_muldet md;
 	struct circ_cache cache;
+	struct circ_values vals;
 	struct qreg reg;
 };
 
@@ -63,7 +69,10 @@ void circ_muldet_free(struct circ_muldet *md);
 void circ_prog_init(struct circ_prog *prog, size_t len);
 void circ_prog_tick(struct circ_prog *prog);
 
-int circ_init(struct circ *ct, data_id fid);
+int circ_values_init(struct circ_values *vals, size_t len);
+void circ_values_free(struct circ_values *vals);
+
+int circ_init(struct circ *ct, data_id fid, size_t vals_len);
 void circ_free(struct circ *ct);
 int circ_prepst(struct circ *ct);
 int circ_step(struct circ *ct, const struct circ_hamil *hm, double omega);

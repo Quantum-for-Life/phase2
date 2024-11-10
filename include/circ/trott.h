@@ -17,7 +17,6 @@ struct trott_steps {
 struct trott {
 	struct circ ct;
 	struct trott_data dt;
-	struct trott_steps stp;
 };
 
 int trott_init(struct trott *tt, const struct trott_data *dt, data_id fid);

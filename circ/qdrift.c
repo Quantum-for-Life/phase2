@@ -49,26 +49,10 @@ static void qdrift_ranct_calc_cdf(
 	prob_cdf_from(&rct->cdf, get_vals, &data);
 }
 
-static int qdrift_smpl_init(struct qdrift_smpl *smp, size_t samples)
-{
-	_Complex double *z = malloc(sizeof(_Complex double) * samples);
-	if (!z)
-		return -1;
-	smp->z = z;
-	smp->len = samples;
-
-	return 0;
-}
-
-static void qdrift_smpl_free(struct qdrift_smpl *smp)
-{
-	free(smp->z);
-}
-
 int qdrift_init(
 	struct qdrift *qd, const struct qdrift_data *dt, const data_id fid)
 {
-	if (circ_init(&qd->ct, fid) < 0)
+	if (circ_init(&qd->ct, fid, dt->samples) < 0)
 		goto err_circ_init;
 
 	qd->dt = *dt;
@@ -78,16 +62,11 @@ int qdrift_init(
 		goto err_rct_init;
 	qdrift_ranct_calc_cdf(&qd->ranct, qd->ct.hm.terms);
 
-	if (qdrift_smpl_init(&qd->smpl, dt->samples) < 0)
-		goto err_samples_init;
-
 	xoshiro256ss_init(&qd->rng, SEED);
 
 	return 0;
 
-	// qdrift_samples_destroy(&qd->smpl);
-err_samples_init:
-	qdrift_ranct_free(&qd->ranct);
+	// qdrift_ranct_free(&qd->ranct);
 err_rct_init:
 	circ_free(&qd->ct);
 err_circ_init:
@@ -96,7 +75,6 @@ err_circ_init:
 
 void qdrift_free(struct qdrift *qd)
 {
-	qdrift_smpl_free(&qd->smpl);
 	qdrift_ranct_free(&qd->ranct);
 	circ_free(&qd->ct);
 }
@@ -114,16 +92,18 @@ static void qdrift_ranct_sample(struct qdrift *qd)
 int qdrift_simul(struct qdrift *qd)
 {
 	struct circ *ct = &qd->ct;
-	struct circ_prog prog;
+	struct circ_values *vals = &ct->vals;
 
-	circ_prog_init(&prog, qd->smpl.len);
-	for (size_t i = 0; i < qd->smpl.len; i++) {
+	struct circ_prog prog;
+	circ_prog_init(&prog, vals->len);
+	for (size_t i = 0; i < vals->len; i++) {
 		qdrift_ranct_sample(qd);
 
 		circ_prepst(ct);
-		if (circ_step(ct, &qd->ranct.hm_ran, asin(qd->dt.step_size)) < 0)
+		if (circ_step(ct, &qd->ranct.hm_ran, asin(qd->dt.step_size)) <
+			0)
 			return -1;
-		qd->smpl.z[i] = circ_measure(ct);
+		vals->z[i] = circ_measure(ct);
 
 		circ_prog_tick(&prog);
 	}
@@ -144,7 +124,7 @@ int qdrift_write_res(struct qdrift *qd, data_id fid)
 		    qd->dt.depth) < 0)
 		goto data_res_write;
 	if (data_res_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_VALUES,
-		    qd->smpl.z, qd->smpl.len) < 0)
+		    qd->ct.vals.z, qd->ct.vals.len) < 0)
 		goto data_res_write;
 
 	rt = 0;

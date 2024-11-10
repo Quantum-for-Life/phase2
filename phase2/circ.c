@@ -211,7 +211,24 @@ void circ_prog_tick(struct circ_prog *prog)
 	}
 }
 
-int circ_init(struct circ *ct, const data_id fid)
+int circ_values_init(struct circ_values *vals, size_t len)
+{
+	_Complex double *z = malloc(sizeof(_Complex double) * len);
+	if (!z)
+		return -1;
+
+	vals->z = z;
+	vals->len = len;
+
+	return 0;
+}
+
+void circ_values_free(struct circ_values *vals)
+{
+	free(vals->z);
+}
+
+int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
 {
 	if (circ_hamil_from_file(&ct->hm, fid) < 0)
 		goto err_hamil_init;
@@ -221,10 +238,14 @@ int circ_init(struct circ *ct, const data_id fid)
 		goto err_qreg_init;
 	if (circ_cache_init(&ct->cache, ct->reg.qb_lo, ct->reg.qb_hi) < 0)
 		goto err_cache_init;
+	if (circ_values_init(&ct->vals, vals_len) < 0)
+		goto err_vals_init;
 
 	return 0;
 
-	// circ_cache_destroy(&c->cache);
+	// circ_values_free(&ct->vals);
+err_vals_init:
+	circ_cache_free(&ct->cache);
 err_cache_init:
 	qreg_free(&ct->reg);
 err_qreg_init:
@@ -237,6 +258,7 @@ err_hamil_init:
 
 void circ_free(struct circ *ct)
 {
+	circ_values_free(&ct->vals);
 	circ_hamil_free(&ct->hm);
 	circ_muldet_free(&ct->md);
 	circ_cache_free(&ct->cache);

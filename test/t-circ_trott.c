@@ -186,9 +186,9 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 		m->dets[k].cf = MULTIDET_COEFFS[k];
 	}
 
-	tt.stp.len = TROTT_STEPS;
-	tt.stp.z = malloc(sizeof *tt.stp.z * TROTT_STEPS);
-	if (!tt.stp.z) {
+	tt.ct.vals.len = TROTT_STEPS;
+	tt.ct.vals.z = malloc(sizeof *tt.ct.vals.z * TROTT_STEPS);
+	if (!tt.ct.vals.z) {
 		TEST_FAIL("malloc res.steps");
 		goto malloc_ressteps;
 	}
@@ -197,8 +197,8 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 
 	/* Compare results. */
 	for (size_t s = 0; s < TROTT_STEPS; s++) {
-		_Complex double eval = tt.stp.z[s];
-		TEST_ASSERT(cabs(tt.stp.z[s] - TROTT_VALS[s]) < MARGIN,
+		_Complex double eval = tt.ct.vals.z[s];
+		TEST_ASSERT(cabs(tt.ct.vals.z[s] - TROTT_VALS[s]) < MARGIN,
 			"[%zu] ts=%zu, md=%zu, ht=%zu, step=%zu "
 			"eval=%f+%fi, TROTT_VALS=%f+%fi",
 			tag, ts, md, ht, s, creal(eval), cimag(eval),

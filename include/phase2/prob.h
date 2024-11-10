@@ -20,8 +20,7 @@ void prob_cdf_free(struct prob_cdf *cdf);
  * The pdf is calculated by calling get_vals() pd->len times, taking
  * the absolute value, and normalizing to obtain a PDF.
  */
-int prob_cdf_from(
-	struct prob_cdf *cdf, double (*get_vals)(void *), void *data);
+int prob_cdf_from(struct prob_cdf *cdf, double (*get_vals)(void *), void *data);
 
 /*
  * Compute the inverse of a discrete cumulative distribution function (CDF).

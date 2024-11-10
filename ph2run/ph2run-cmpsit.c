@@ -252,9 +252,8 @@ ex_circ_res_write:
 	log_info("> n_qb,n_terms,n_dets,n_samples,depth,length,step_size,steps,"
 		 "n_ranks,t_tot");
 	log_info("> %zu,%zu,%zu,%zu,%zu,%zu,%.6f,%zu,%d,%.3f", cp.ct.hm.qb,
-		cp.ct.hm.len, cp.ct.md.len, data.samples,
-		data.depth, data.length, data.step_size, data.steps, WD.size,
-		t_tot);
+		cp.ct.hm.len, cp.ct.md.len, data.samples, data.depth,
+		data.length, data.step_size, data.steps, WD.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:
 	return rt;

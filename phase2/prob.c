@@ -23,8 +23,7 @@ void prob_cdf_free(struct prob_cdf *cdf)
 	free(cdf->y);
 }
 
-int prob_cdf_from(
-	struct prob_cdf *cdf, double (*get_vals)(void *), void *data)
+int prob_cdf_from(struct prob_cdf *cdf, double (*get_vals)(void *), void *data)
 {
 	/* Calculate PDF. */
 	double lambda = 0.0;

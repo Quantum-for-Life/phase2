@@ -19,16 +19,10 @@ struct qdrift_ranct {
 	struct prob_cdf cdf;
 };
 
-struct qdrift_smpl {
-	_Complex double *z;
-	size_t len;
-};
-
 struct qdrift {
 	struct circ ct;
 	struct qdrift_data dt;
 	struct qdrift_ranct ranct;
-	struct qdrift_smpl smpl;
 	struct xoshiro256ss rng;
 };
 

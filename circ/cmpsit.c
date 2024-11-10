@@ -73,27 +73,10 @@ static void cmpsit_ranct_calc_cdf(
 	prob_cdf_from(&rct->cdf, get_vals, &data);
 }
 
-/* TODO: This can be abstracted and moved to circ_ */
-static int cmpsit_smpl_init(struct cmpsit_smpl *samples, const size_t len)
-{
-	_Complex double *a = malloc(sizeof(_Complex double) * len);
-	if (!a)
-		return -1;
-	samples->z = a;
-	samples->len = len;
-
-	return 0;
-}
-
-static void cmpsit_smpl_free(struct cmpsit_smpl *samples)
-{
-	free(samples->z);
-}
-
 int cmpsit_init(
 	struct cmpsit *cp, const struct cmpsit_data *dt, const data_id fid)
 {
-	if (circ_init(&cp->ct, fid) < 0)
+	if (circ_init(&cp->ct, fid, dt->samples) < 0)
 		goto err_circ_init;
 
 	cp->dt = *dt;
@@ -107,17 +90,12 @@ int cmpsit_init(
 		goto err_ranct_init;
 	cmpsit_ranct_calc_cdf(&cp->ranct, cp->ct.hm.terms + dt->depth);
 
-	if (cmpsit_smpl_init(&cp->smpl, dt->samples) < 0)
-		goto err_smpl_init;
-
 	/* TODO: seed it with user-supplied seed */
 	xoshiro256ss_init(&cp->rng, SEED);
 
 	return 0;
 
-	// cmpsit_smpl_free(&ct->smpl);
-err_smpl_init:
-	cmpsit_ranct_free(&cp->ranct);
+	// cmpsit_ranct_free(&cp->ranct);
 err_ranct_init:
 	circ_free(&cp->ct);
 err_circ_init:
@@ -126,7 +104,6 @@ err_circ_init:
 
 void cmpsit_free(struct cmpsit *cp)
 {
-	cmpsit_smpl_free(&cp->smpl);
 	cmpsit_ranct_free(&cp->ranct);
 	circ_free(&cp->ct);
 }
@@ -139,16 +116,17 @@ int cmpsit_simul(struct cmpsit *cp)
 {
 	/* Second order Trotter */
 	struct circ *ct = &cp->ct;
-	struct circ_prog prog;
+	struct circ_values *vals = &ct->vals;
 
-	circ_prog_init(&prog, cp->smpl.len);
-	for (size_t i = 0; i < cp->smpl.len; i++) {
+	struct circ_prog prog;
+	circ_prog_init(&prog, vals->len);
+	for (size_t i = 0; i < vals->len; i++) {
 		cmpsit_ranct_sample(cp);
 
 		circ_prepst(ct);
 		// if (circ_step(&cp->ct, &cp) < 0)
 		//	return -1;
-		cp->smpl.z[i] = circ_measure(ct);
+		vals->z[i] = circ_measure(ct);
 
 		circ_prog_tick(&prog);
 	}
@@ -175,7 +153,7 @@ int cmpsit_write_res(struct cmpsit *cp, data_id fid)
 		    cp->dt.steps) < 0)
 		goto data_res_write;
 	if (data_res_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_VALUES,
-		    cp->smpl.z, cp->smpl.len) < 0)
+		    cp->ct.vals.z, cp->ct.vals.len) < 0)
 		goto data_res_write;
 
 	rt = 0;
