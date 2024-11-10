@@ -17,11 +17,11 @@ void prob_cdf_free(struct prob_cdf *cdf);
  * Calculate probability distribution (cumulative distribution function) from
  * a set of not normalized, possibly negative samples of length pd->len.
  *
- * The pdf is calculated by calling get_smpl() pd->len times, taking
+ * The pdf is calculated by calling get_vals() pd->len times, taking
  * the absolute value, and normalizing to obtain a PDF.
  */
-int prob_cdf_from_samples(
-	struct prob_cdf *cdf, double (*get_smpl)(void *), void *data);
+int prob_cdf_from(
+	struct prob_cdf *cdf, double (*get_vals)(void *), void *data);
 
 /*
  * Compute the inverse of a discrete cumulative distribution function (CDF).

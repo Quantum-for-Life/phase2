@@ -23,13 +23,13 @@ void prob_cdf_free(struct prob_cdf *cdf)
 	free(cdf->y);
 }
 
-int prob_cdf_from_samples(
-	struct prob_cdf *cdf, double (*get_smpl)(void *), void *data)
+int prob_cdf_from(
+	struct prob_cdf *cdf, double (*get_vals)(void *), void *data)
 {
 	/* Calculate PDF. */
 	double lambda = 0.0;
 	for (double *y = cdf->y; y < cdf->y + cdf->len; y++) {
-		const double yi = fabs(get_smpl(data));
+		const double yi = fabs(get_vals(data));
 		*y = yi;
 		lambda += yi;
 	}

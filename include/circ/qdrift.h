@@ -10,16 +10,16 @@
 
 struct qdrift_data {
 	size_t depth;
-	double step_size;
 	size_t samples;
+	double step_size;
 };
 
-struct qdrift_randct {
+struct qdrift_ranct {
+	struct circ_hamil hm_ran; /* randomized */
 	struct prob_cdf cdf;
-	struct circ_hamil hm;
 };
 
-struct qdrift_samples {
+struct qdrift_smpl {
 	_Complex double *z;
 	size_t len;
 };
@@ -27,8 +27,8 @@ struct qdrift_samples {
 struct qdrift {
 	struct circ ct;
 	struct qdrift_data dt;
-	struct qdrift_randct randct;
-	struct qdrift_samples smpl;
+	struct qdrift_ranct ranct;
+	struct qdrift_smpl smpl;
 	struct xoshiro256ss rng;
 };
 
