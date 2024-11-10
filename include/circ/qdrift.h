@@ -36,6 +36,8 @@ int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt, data_id fid);
 
 void qdrift_free(struct qdrift *qd);
 
+int qdrift_simul(struct qdrift *qd);
+
 int qdrift_write_res(struct qdrift *qd, data_id fid);
 
 #endif // QDRIFT_H

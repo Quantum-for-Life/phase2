@@ -40,6 +40,8 @@ int cmpsit_init(struct cmpsit *cp, const struct cmpsit_data *dt, data_id fid);
 
 void cmpsit_free(struct cmpsit *cp);
 
+int cmpsit_simul(struct cmpsit *cp);
+
 int cmpsit_write_res(struct cmpsit *cp, data_id fid);
 
 #endif // CMPSIT_H

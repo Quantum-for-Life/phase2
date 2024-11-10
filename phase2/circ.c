@@ -10,10 +10,11 @@
 
 int circ_cache_init(struct circ_cache *ch, uint32_t qb_lo, uint32_t qb_hi)
 {
-	struct paulis *lo = malloc(sizeof(struct paulis) * MAX_CACHE_CODES);
+	struct paulis *lo =
+		malloc(sizeof(struct paulis) * CIRC_CACHE_CODES_MAX);
 	if (!lo)
 		goto err_lo;
-	double *angles = malloc(sizeof(double) * MAX_CACHE_CODES);
+	double *angles = malloc(sizeof(double) * CIRC_CACHE_CODES_MAX);
 	if (!angles)
 		goto err_angles;
 
@@ -21,7 +22,7 @@ int circ_cache_init(struct circ_cache *ch, uint32_t qb_lo, uint32_t qb_hi)
 	ch->phis = angles;
 	ch->qb_lo = qb_lo;
 	ch->qb_hi = qb_hi;
-	ch->n = 0;
+	ch->len = 0;
 
 	return 0;
 
@@ -42,16 +43,16 @@ int circ_cache_insert(struct circ_cache *ch, struct paulis code, double phi)
 {
 	struct paulis lo, hi;
 	paulis_split(code, ch->qb_lo, ch->qb_hi, &lo, &hi);
-	if (ch->n == 0) {
+	if (ch->len == 0) {
 		ch->code_hi = hi;
 		ch->codes_lo[0] = lo;
 		ch->phis[0] = phi;
-		ch->n = 1;
+		ch->len = 1;
 		return 0;
 	}
 
-	if (ch->n < MAX_CACHE_CODES && paulis_eq(ch->code_hi, hi)) {
-		const size_t k = ch->n++;
+	if (ch->len < CIRC_CACHE_CODES_MAX && paulis_eq(ch->code_hi, hi)) {
+		const size_t k = ch->len++;
 		ch->codes_lo[k] = lo;
 		ch->phis[k] = phi;
 		return 0;
@@ -64,9 +65,9 @@ void circ_cache_flush(struct circ_cache *ch,
 	void (*op)(struct paulis, struct paulis *, double *, size_t, void *),
 	void *data)
 {
-	if (ch->n > 0 && op)
-		op(ch->code_hi, ch->codes_lo, ch->phis, ch->n, data);
-	ch->n = 0;
+	if (ch->len > 0 && op)
+		op(ch->code_hi, ch->codes_lo, ch->phis, ch->len, data);
+	ch->len = 0;
 }
 
 int circ_hamil_init(struct circ_hamil *hm, uint32_t qb, size_t len)
@@ -128,6 +129,20 @@ static int circ_hamil_from_file(struct circ_hamil *h, const data_id fid)
 	return 0;
 }
 
+static int hamil_term_cmp_lex(const void *a, const void *b)
+{
+	const struct paulis x = ((const struct circ_hamil_term *)a)->op;
+	const struct paulis y = ((const struct circ_hamil_term *)b)->op;
+
+	return paulis_cmp(x, y);
+}
+
+void circ_hamil_sort_lex(struct circ_hamil *hm)
+{
+	qsort(hm->terms, hm->len, sizeof(struct circ_hamil_term),
+		hamil_term_cmp_lex);
+}
+
 int circ_muldet_init(struct circ_muldet *md, size_t len)
 {
 	md->dets = malloc(sizeof *md->dets * len);
@@ -178,7 +193,25 @@ static int circ_muldet_from_file(struct circ_muldet *m, const data_id fid)
 	return 0;
 }
 
-int circ_init(struct circ *ct, const data_id fid, int (*simul)(struct circ *))
+void circ_prog_init(struct circ_prog *prog, size_t len)
+{
+	prog->i = 0;
+	prog->len = len;
+	prog->pc = 0;
+}
+
+void circ_prog_tick(struct circ_prog *prog)
+{
+	prog->i++;
+
+	const unsigned pc = prog->i * 100 / prog->len;
+	if (pc > prog->pc) {
+		prog->pc = pc;
+		log_info("Progress: %zu%%", prog->pc);
+	}
+}
+
+int circ_init(struct circ *ct, const data_id fid)
 {
 	if (circ_hamil_from_file(&ct->hm, fid) < 0)
 		goto err_hamil_init;
@@ -188,8 +221,6 @@ int circ_init(struct circ *ct, const data_id fid, int (*simul)(struct circ *))
 		goto err_qreg_init;
 	if (circ_cache_init(&ct->cache, ct->reg.qb_lo, ct->reg.qb_hi) < 0)
 		goto err_cache_init;
-
-	ct->simul = simul;
 
 	return 0;
 
@@ -241,12 +272,12 @@ int circ_step(struct circ *ct, const struct circ_hamil *hm, const double omega)
 		if (circ_cache_insert(cache, code, phi) == 0)
 			continue;
 
-		log_trace("paulirot, term: %zu, num_codes: %zu", i, cache->n);
+		log_trace("paulirot, term: %zu, num_codes: %zu", i, cache->len);
 		circ_cache_flush(cache, circ_flush, &ct->reg);
 		if (circ_cache_insert(cache, code, phi) < 0)
 			return -1;
 	}
-	log_trace("paulirot, last term group, num_codes: %zu", cache->n);
+	log_trace("paulirot, last term group, num_codes: %zu", cache->len);
 	circ_cache_flush(cache, circ_flush, &ct->reg);
 
 	return 0;
@@ -264,41 +295,4 @@ _Complex double circ_measure(struct circ *ct)
 	}
 
 	return pr;
-}
-
-inline int circ_simul(struct circ *ct)
-{
-	return ct->simul(ct);
-}
-
-static int hamil_term_cmp_lex(const void *a, const void *b)
-{
-	const struct paulis x = ((const struct circ_hamil_term *)a)->op;
-	const struct paulis y = ((const struct circ_hamil_term *)b)->op;
-
-	return paulis_cmp(x, y);
-}
-
-void circ_hamil_sort_lex(struct circ_hamil *hm)
-{
-	qsort(hm->terms, hm->len, sizeof(struct circ_hamil_term),
-		hamil_term_cmp_lex);
-}
-
-void circ_prog_init(struct circ_prog *prog, size_t len)
-{
-	prog->i = 0;
-	prog->len = len;
-	prog->pc = 0;
-}
-
-void circ_prog_tick(struct circ_prog *prog)
-{
-	prog->i++;
-
-	const unsigned pc = prog->i * 100 / prog->len;
-	if (pc > prog->pc) {
-		prog->pc = pc;
-		log_info("Progress: %zu%%", prog->pc);
-	}
 }

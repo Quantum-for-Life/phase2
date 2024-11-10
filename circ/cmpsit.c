@@ -5,16 +5,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "bug.h"
-#include "container_of.h"
 #include "phase2.h"
 #include "xoshiro256ss.h"
 
 #include "circ/cmpsit.h"
 
 #define SEED UINT64_C(0xafb424901446f21f)
-
-static int cmpsit_simul(struct circ *ct);
 
 /*
  * Sort the Hamiltonian by absolute val of coefficients, in descending order.
@@ -97,7 +93,7 @@ static void cmpsit_smpl_free(struct cmpsit_smpl *samples)
 int cmpsit_init(
 	struct cmpsit *cp, const struct cmpsit_data *dt, const data_id fid)
 {
-	if (circ_init(&cp->ct, fid, cmpsit_simul) < 0)
+	if (circ_init(&cp->ct, fid) < 0)
 		goto err_circ_init;
 
 	cp->dt = *dt;
@@ -137,13 +133,12 @@ void cmpsit_free(struct cmpsit *cp)
 
 static void cmpsit_ranct_sample(struct cmpsit *cp)
 {
-
 }
 
-static int cmpsit_simul(struct circ *ct)
+int cmpsit_simul(struct cmpsit *cp)
 {
 	/* Second order Trotter */
-	struct cmpsit *cp = container_of(ct, struct cmpsit, ct);
+	struct circ *ct = &cp->ct;
 	struct circ_prog prog;
 
 	circ_prog_init(&prog, cp->smpl.len);

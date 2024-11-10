@@ -4,12 +4,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "container_of.h"
 #include "phase2.h"
 
 #include "circ/trott.h"
-
-int trott_simul(struct circ *ct);
 
 static int trott_steps_init(struct trott_steps *stp, size_t steps)
 {
@@ -34,8 +31,7 @@ static void trott_steps_free(struct trott_steps *stp)
 
 int trott_init(struct trott *tt, const struct trott_data *dt, const data_id fid)
 {
-	struct circ *c = &tt->ct;
-	if (circ_init(c, fid, trott_simul) < 0)
+	if (circ_init(&tt->ct, fid) < 0)
 		goto err_circ_init;
 
 	tt->dt = *dt;
@@ -60,9 +56,9 @@ void trott_free(struct trott *tt)
 	trott_steps_free(&tt->stp);
 }
 
-int trott_simul(struct circ *ct)
+int trott_simul(struct trott *tt)
 {
-	struct trott *tt = container_of(ct, struct trott, ct);
+	struct circ *ct = &tt->ct;
 	struct circ_prog prog;
 
 	circ_prog_init(&prog, tt->stp.len);

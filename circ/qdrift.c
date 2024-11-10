@@ -13,8 +13,6 @@
 
 #define SEED UINT64_C(0xeccd9dcc749fcdca)
 
-static int qdrift_simul(struct circ *ct);
-
 static int qdrift_ranct_init(struct qdrift_ranct *rct, const uint32_t qb,
 	const size_t depth, const size_t cdf_len)
 {
@@ -70,7 +68,7 @@ static void qdrift_smpl_free(struct qdrift_smpl *smp)
 int qdrift_init(
 	struct qdrift *qd, const struct qdrift_data *dt, const data_id fid)
 {
-	if (circ_init(&qd->ct, fid, qdrift_simul) < 0)
+	if (circ_init(&qd->ct, fid) < 0)
 		goto err_circ_init;
 
 	qd->dt = *dt;
@@ -113,9 +111,9 @@ static void qdrift_ranct_sample(struct qdrift *qd)
 	}
 }
 
-static int qdrift_simul(struct circ *ct)
+int qdrift_simul(struct qdrift *qd)
 {
-	struct qdrift *qd = container_of(ct, struct qdrift, ct);
+	struct circ *ct = &qd->ct;
 	struct circ_prog prog;
 
 	circ_prog_init(&prog, qd->smpl.len);

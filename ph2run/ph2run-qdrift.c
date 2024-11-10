@@ -196,7 +196,7 @@ int run_circuit(const struct args *args)
 	data_close(fid);
 
 	clock_gettime(CLOCK_REALTIME, &t1);
-	if (circ_simul(&qd.ct) < 0)
+	if (qdrift_simul(&qd) < 0)
 		goto ex_circ_simulate;
 	clock_gettime(CLOCK_REALTIME, &t2);
 	const double t_tot = (double)(t2.tv_sec - t1.tv_sec) +
@@ -219,8 +219,8 @@ ex_circ_res_write:
 	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
 		 "n_ranks,t_tot");
 	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", qd.ct.hm.qb,
-		qd.ct.hm.len, qd.ct.md.len, data.samples,
-		data.step_size, data.depth, WD.size, t_tot);
+		qd.ct.hm.len, qd.ct.md.len, data.samples, data.step_size,
+		data.depth, WD.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:
 	return rt;

@@ -185,7 +185,7 @@ static int run_circuit(const struct args *args)
 	data_close(fid);
 
 	clock_gettime(CLOCK_REALTIME, &t1);
-	if (circ_simul(&tt.ct) < 0)
+	if (trott_simul(&tt) < 0)
 		goto ex_circ_simulate;
 	clock_gettime(CLOCK_REALTIME, &t2);
 	const double t_tot = (double)(t2.tv_sec - t1.tv_sec) +
@@ -206,9 +206,8 @@ ex_circ_write_res:
 	trott_free(&tt);
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt.ct.hm.qb,
-		tt.ct.hm.len, tt.ct.md.len, args->delta,
-		args->steps, WD.size, t_tot);
+	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt.ct.hm.qb, tt.ct.hm.len,
+		tt.ct.md.len, args->delta, args->steps, WD.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:
 	return rt;

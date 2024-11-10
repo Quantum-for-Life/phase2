@@ -229,7 +229,7 @@ int run_circuit(const struct args *args)
 	data_close(fid);
 
 	clock_gettime(CLOCK_REALTIME, &t1);
-	if (circ_simul(&cp.ct) < 0)
+	if (cmpsit_simul(&cp) < 0)
 		goto ex_circ_simulate;
 	clock_gettime(CLOCK_REALTIME, &t2);
 	const double t_tot = (double)(t2.tv_sec - t1.tv_sec) +

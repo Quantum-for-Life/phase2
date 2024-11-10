@@ -47,8 +47,6 @@ static size_t MULTIDET_IDX[MULTIDET_DETS_MAX];
 #define SEED UINT64_C(0xd3b9268b8737ddc0)
 static struct xoshiro256ss RNG;
 
-extern int trott_simul(struct circ *c);
-
 static _Complex double rand_complex(void)
 {
 	_Complex double z =
@@ -159,7 +157,6 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	/* Initialize circ_trott manually, because we don't have a
 	 * handle to an open data file. */
 	struct trott tt;
-	tt.ct.simul = trott_simul;
 	qreg_init(&tt.ct.reg, NUM_QUBITS);
 	circ_cache_init(&tt.ct.cache, tt.ct.reg.qb_lo, tt.ct.reg.qb_hi);
 	tt.dt.delta = HAMIL_DELTA;
@@ -196,7 +193,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 		goto malloc_ressteps;
 	}
 
-	circ_simul(&tt.ct);
+	trott_simul(&tt);
 
 	/* Compare results. */
 	for (size_t s = 0; s < TROTT_STEPS; s++) {
