@@ -164,7 +164,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	circ_cache_init(&tt.ct.cache, tt.ct.reg.qb_lo, tt.ct.reg.qb_hi);
 	tt.dt.delta = HAMIL_DELTA;
 
-	struct circ_hamil *h = &tt.ct.hamil;
+	struct circ_hamil *h = &tt.ct.hm;
 	h->qb = NUM_QUBITS;
 	h->len = HAMIL_TERMS;
 	h->terms = malloc(sizeof *h->terms * HAMIL_TERMS);
@@ -177,7 +177,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 		h->terms[k].op = HAMIL_PAULIS[k];
 	}
 
-	struct circ_muldet *m = &tt.ct.muldet;
+	struct circ_muldet *m = &tt.ct.md;
 	m->len = MULTIDET_DETS;
 	m->dets = malloc(sizeof *m->dets * MULTIDET_DETS);
 	if (!m->dets) {

@@ -51,13 +51,13 @@ struct circ_muldet {
 	size_t len;
 };
 
-int circ_muldet_init(struct circ_muldet *m, size_t len);
+int circ_muldet_init(struct circ_muldet *md, size_t len);
 
-void circ_muldet_free(struct circ_muldet *m);
+void circ_muldet_free(struct circ_muldet *md);
 
 struct circ {
-	struct circ_hamil hamil;
-	struct circ_muldet muldet;
+	struct circ_hamil hm;
+	struct circ_muldet md;
 	struct circ_cache cache;
 	struct qreg reg;
 

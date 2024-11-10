@@ -37,7 +37,7 @@ static int hamil_term_cmp_abscf_desc(const void *a, const void *b)
 static void cmpsit_hamil_rearrange(
 	struct cmpsit *cp, const struct cmpsit_data *data)
 {
-	struct circ_hamil *hm = &cp->ct.hamil;
+	struct circ_hamil *hm = &cp->ct.hm;
 	qsort(hm->terms, hm->len, sizeof(struct circ_hamil_term),
 		hamil_term_cmp_abscf_desc);
 }
@@ -112,7 +112,7 @@ int cmpsit_init(
 
 	cmpsit_hamil_rearrange(cp, dt);
 
-	const struct circ_hamil_term *src = cp->ct.hamil.terms + dt->length;
+	const struct circ_hamil_term *src = cp->ct.hm.terms + dt->length;
 	if (cmpsit_pd_init(&cp->pd, src, dt->length) < 0)
 		goto err_pd_init;
 
@@ -161,7 +161,7 @@ static void cmpsit_flush(struct paulis code_hi, struct paulis *codes_lo,
 
 static int cmpsit_step(struct cmpsit *cp, const double omega)
 {
-	const struct circ_hamil *hamil = &cp->ct.hamil;
+	const struct circ_hamil *hamil = &cp->ct.hm;
 	struct circ_cache *cache = &cp->ct.cache;
 
 	for (size_t i = 0; i < cp->dt.depth; i++) {
@@ -202,7 +202,7 @@ static size_t sample_invcdf(struct cmpsit *cp, double x)
 	size_t i = 0;
 	double cdf = 0;
 	while (cdf <= x)
-		cdf += fabs(cp->ct.hamil.terms[i++].cf);
+		cdf += fabs(cp->ct.hm.terms[i++].cf);
 	return i - 1; /* Never again make the same off-by-one error! */
 }
 

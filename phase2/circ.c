@@ -128,20 +128,20 @@ static int circ_hamil_from_file(struct circ_hamil *h, const data_id fid)
 	return 0;
 }
 
-int circ_muldet_init(struct circ_muldet *m, size_t len)
+int circ_muldet_init(struct circ_muldet *md, size_t len)
 {
-	m->dets = malloc(sizeof *m->dets * len);
-	if (!m->dets)
+	md->dets = malloc(sizeof *md->dets * len);
+	if (!md->dets)
 		return -1;
-	m->len = len;
+	md->len = len;
 
 	return 0;
 }
 
- void circ_muldet_free(struct circ_muldet *m)
+ void circ_muldet_free(struct circ_muldet *md)
 {
-	if (m->dets != nullptr)
-		free(m->dets);
+	if (md->dets != nullptr)
+		free(md->dets);
 }
 
 struct iter_muldet_data {
@@ -181,11 +181,11 @@ static int circ_muldet_from_file(struct circ_muldet *m, const data_id fid)
 int circ_init(
 	struct circ *ct, const data_id fid, int (*simul)(struct circ *))
 {
-	if (circ_hamil_from_file(&ct->hamil, fid) < 0)
+	if (circ_hamil_from_file(&ct->hm, fid) < 0)
 		goto err_hamil_init;
-	if (circ_muldet_from_file(&ct->muldet, fid) < 0)
+	if (circ_muldet_from_file(&ct->md, fid) < 0)
 		goto err_muldet_init;
-	if (qreg_init(&ct->reg, ct->hamil.qb) < 0)
+	if (qreg_init(&ct->reg, ct->hm.qb) < 0)
 		goto err_qreg_init;
 	if (circ_cache_init(&ct->cache, ct->reg.qb_lo, ct->reg.qb_hi) < 0)
 		goto err_cache_init;
@@ -198,24 +198,24 @@ int circ_init(
 err_cache_init:
 	qreg_free(&ct->reg);
 err_qreg_init:
-	circ_muldet_free(&ct->muldet);
+	circ_muldet_free(&ct->md);
 err_muldet_init:
-	circ_hamil_free(&ct->hamil);
+	circ_hamil_free(&ct->hm);
 err_hamil_init:
 	return -1;
 }
 
 void circ_free(struct circ *ct)
 {
-	circ_hamil_free(&ct->hamil);
-	circ_muldet_free(&ct->muldet);
+	circ_hamil_free(&ct->hm);
+	circ_muldet_free(&ct->md);
 	circ_cache_free(&ct->cache);
 	qreg_free(&ct->reg);
 }
 
 int circ_prepst(struct circ *ct)
 {
-	const struct circ_muldet *md = &ct->muldet;
+	const struct circ_muldet *md = &ct->md;
 
 	qreg_zero(&ct->reg);
 	for (size_t i = 0; i < md->len; i++)
@@ -255,7 +255,7 @@ int circ_step(struct circ *ct, const struct circ_hamil *hm, const double omega)
 
 _Complex double circ_measure(struct circ *ct)
 {
-	const struct circ_muldet *md = &ct->muldet;
+	const struct circ_muldet *md = &ct->md;
 
 	_Complex double pr = 0.0;
 	for (size_t i = 0; i < md->len; i++) {

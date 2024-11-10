@@ -14,8 +14,8 @@ struct qdrift_data {
 	size_t samples;
 };
 
-struct qdrift_rct {
-	struct prob_pd pd;
+struct qdrift_randct {
+	struct prob_cdf cdf;
 	struct circ_hamil hm;
 };
 
@@ -27,7 +27,7 @@ struct qdrift_samples {
 struct qdrift {
 	struct circ ct;
 	struct qdrift_data dt;
-	struct qdrift_rct rct;
+	struct qdrift_randct randct;
 	struct qdrift_samples smpl;
 	struct xoshiro256ss rng;
 };

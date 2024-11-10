@@ -40,7 +40,7 @@ int trott_init(struct trott *tt, const struct trott_data *dt, const data_id fid)
 
 	tt->dt = *dt;
 
-	circ_hamil_sort_lex(&tt->ct.hamil);
+	circ_hamil_sort_lex(&tt->ct.hm);
 
 	if (trott_steps_init(&tt->stp, dt->steps) < 0)
 		goto err_trott_res_init;
@@ -75,7 +75,7 @@ int trott_simulate(struct circ *ct)
 			log_info("Progress: %zu\% (trott_step: %zu)", pc, i);
 		}
 
-		if (circ_step(ct, &ct->hamil, tt->dt.delta) < 0)
+		if (circ_step(ct, &ct->hm, tt->dt.delta) < 0)
 			goto ex_trott_effect;
 		tt->stp.z[i] = circ_measure(ct);
 	}

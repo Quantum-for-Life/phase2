@@ -15,10 +15,10 @@
 
 int qdrift_simulate(struct circ *ct);
 
-static int qdrift_rct_init(struct qdrift_rct *rct, const uint32_t qb,
-	const size_t depth, const size_t pd_len)
+static int qdrift_rct_init(struct qdrift_randct *rct, const uint32_t qb,
+	const size_t depth, const size_t cdf_len)
 {
-	if (prob_pd_init(&rct->pd, pd_len) < 0)
+	if (prob_cdf_init(&rct->cdf, cdf_len) < 0)
 		return -1;
 	if (circ_hamil_init(&rct->hm, qb, depth) < 0)
 		return -1;
@@ -26,10 +26,10 @@ static int qdrift_rct_init(struct qdrift_rct *rct, const uint32_t qb,
 	return 0;
 }
 
-static void qdrift_rct_free(struct qdrift_rct *rct)
+static void qdrift_rct_free(struct qdrift_randct *rct)
 {
 	circ_hamil_free(&rct->hm);
-	prob_pd_free(&rct->pd);
+	prob_cdf_free(&rct->cdf);
 }
 
 struct get_smpl_data {
@@ -45,10 +45,10 @@ static double get_smpl(void *data)
 }
 
 static void qdrift_rct_calc_pd(
-	struct qdrift_rct *rct, struct circ_hamil_term *terms)
+	struct qdrift_randct *rct, struct circ_hamil_term *terms)
 {
 	struct get_smpl_data data = { .i = 0, .terms = terms };
-	prob_pdf_from_samples(&rct->pd, get_smpl, &data);
+	prob_cdf_from_samples(&rct->cdf, get_smpl, &data);
 }
 
 static int qdrift_samples_init(struct qdrift_samples *smp, size_t samples)
@@ -76,9 +76,9 @@ int qdrift_init(
 	qd->dt = *dt;
 
 	if (qdrift_rct_init(
-		    &qd->rct, qd->ct.hamil.qb, dt->depth, qd->ct.hamil.len) < 0)
+		    &qd->randct, qd->ct.hm.qb, dt->depth, qd->ct.hm.len) < 0)
 		goto err_rct_init;
-	qdrift_rct_calc_pd(&qd->rct, qd->ct.hamil.terms);
+	qdrift_rct_calc_pd(&qd->randct, qd->ct.hm.terms);
 
 	if (qdrift_samples_init(&qd->smpl, dt->samples) < 0)
 		goto err_samples_init;
@@ -89,7 +89,7 @@ int qdrift_init(
 
 	// qdrift_samples_destroy(&qd->smpl);
 err_samples_init:
-	qdrift_rct_free(&qd->rct);
+	qdrift_rct_free(&qd->randct);
 err_rct_init:
 	circ_free(&qd->ct);
 err_circ_init:
@@ -99,16 +99,16 @@ err_circ_init:
 void qdrift_free(struct qdrift *qd)
 {
 	qdrift_samples_free(&qd->smpl);
-	qdrift_rct_free(&qd->rct);
+	qdrift_rct_free(&qd->randct);
 	circ_free(&qd->ct);
 }
 
 static void qdrift_rct_sample_terms(struct qdrift *qd)
 {
-	for (size_t i = 0; i < qd->rct.hm.len; i++) {
+	for (size_t i = 0; i < qd->randct.hm.len; i++) {
 		const double x = xoshiro256ss_dbl01(&qd->rng);
-		const size_t idx = prob_cdf_inverse(&qd->rct.pd, x);
-		qd->rct.hm.terms[i] = qd->ct.hamil.terms[idx];
+		const size_t idx = prob_cdf_inverse(&qd->randct.cdf, x);
+		qd->randct.hm.terms[i] = qd->ct.hm.terms[idx];
 	}
 }
 
@@ -128,7 +128,7 @@ int qdrift_simulate(struct circ *ct)
 
 		circ_prepst(ct);
 		qdrift_rct_sample_terms(qd);
-		if (circ_step(ct, &qd->rct.hm, asin(qd->dt.step_size)) < 0)
+		if (circ_step(ct, &qd->randct.hm, asin(qd->dt.step_size)) < 0)
 			goto ex_qdrift_effect;
 		qd->smpl.z[i] = circ_measure(ct);
 	}

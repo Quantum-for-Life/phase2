@@ -218,8 +218,8 @@ ex_circ_res_write:
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
 		 "n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", qd.ct.hamil.qb,
-		qd.ct.hamil.len, qd.ct.muldet.len, data.samples,
+	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", qd.ct.hm.qb,
+		qd.ct.hm.len, qd.ct.md.len, data.samples,
 		data.step_size, data.depth, WD.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:
