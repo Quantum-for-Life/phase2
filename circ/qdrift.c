@@ -108,7 +108,8 @@ static void qdrift_rct_sample_terms(struct qdrift *qd)
 	for (size_t i = 0; i < qd->randct.hm.len; i++) {
 		const double x = xoshiro256ss_dbl01(&qd->rng);
 		const size_t idx = prob_cdf_inverse(&qd->randct.cdf, x);
-		qd->randct.hm.terms[i] = qd->ct.hm.terms[idx];
+		qd->randct.hm.terms[i].cf = 1.0; // qd->ct.hm.terms[idx].cf;
+		qd->randct.hm.terms[i].op = qd->ct.hm.terms[idx].op;
 	}
 }
 

@@ -47,14 +47,10 @@ int prob_cdf_from_samples(
 
 size_t prob_cdf_inverse(const struct prob_cdf *cdf, const double y)
 {
-	size_t i = 0, d = cdf->len;
-	while ((d /= 2) > 0)
-		if (cdf->y[i + d] <= y)
-			i += d;
+	size_t i = 0;
 
-	d = i;
-	while (d < cdf->len && cdf->y[d] <= y)
-		i = d++;
+	while (i < cdf->len && cdf->y[i++] <= y)
+		;
 
-	return i;
+	return i - 1;
 }

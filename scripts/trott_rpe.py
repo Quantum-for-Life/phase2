@@ -53,7 +53,7 @@ if __name__ == "__main__":
     if thJ > math.pi:
         thJ = - (2 * math.pi - thJ)
     x = 2**(-J)
-    E0 = math.sqrt(1-x**2)/x / norm * math.tan(x*thJ)
+    E0 = math.sqrt(1-x**2)/x * math.tan(x*thJ) / norm
     #E0 = thJ / (norm * time_factor)
     E0 = E0 / delta
     print(E0, E0 + offset)

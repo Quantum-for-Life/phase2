@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     thetas = [0.0]
     for i in range(0, J + 1):
-        filename = args.filename + f".{i}"
+        filename = args.filename + f"-{i}"
         with h5py.File(filename, "a") as f:
             grp = f["circ_qdrift"]
             depth = grp.attrs["depth"]
@@ -46,7 +46,7 @@ if __name__ == "__main__":
             z_im = sum(x[1] for x in grp["values"]) / num_samples
         z = z_re + 1j * z_im
         t = depth * x
-        # print(f"{depth=}, {x=}, {t=}, {z=}")
+        print(f"{depth=}, {x=}, {t=}, {z=}")
         phi = cmath.phase(z)  # phi \in [-\pi, \pi]
         if phi < 0:
             phi = 2 * math.pi + phi
@@ -61,6 +61,6 @@ if __name__ == "__main__":
     thJ = thetas[J]
     if thJ > math.pi:
         thJ = - (2 * math.pi - thJ)
-    E0 = (math.sqrt(1 - x * x)) / (norm * x) * math.tan(x * thJ)
-    E = E0 + offset
+    E0 = math.sqrt(1-x**2)/x * math.tan(x*thJ) / norm
+    E = E0  + offset
     print(f"{delta},{epsilon},{E0},{E}")
