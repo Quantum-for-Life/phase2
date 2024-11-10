@@ -49,6 +49,7 @@ void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 void qreg_zero(struct qreg *reg)
 {
 	memset(reg->amp, 0, reg->namp * sizeof(c64));
+	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 static void exch_init(struct qreg *reg, const int rnk_rem)

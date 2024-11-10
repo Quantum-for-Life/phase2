@@ -87,6 +87,7 @@ void qreg_zero(struct qreg *reg)
 	/* cuDoubleComplex zero representation is all bits set to zero */
 	cudaMemset(cu->damp, 0, reg->namp * sizeof(cuDoubleComplex));
 	cudaDeviceSynchronize();
+	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 static void exch_init(struct qreg *reg, const int rnk_rem)
