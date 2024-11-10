@@ -14,7 +14,7 @@
 
 #define SEED UINT64_C(0xafb424901446f21f)
 
-static int cmpsit_simulate(struct circ *c);
+static int cmpsit_simul(struct circ *c);
 
 /*
  * Sort the Hamiltonian by absolute val of coefficients, in descending order.
@@ -105,7 +105,7 @@ int cmpsit_init(
 	struct cmpsit *cp, const struct cmpsit_data *dt, const data_id fid)
 {
 	struct circ *c = &cp->ct;
-	if (circ_init(c, fid, cmpsit_simulate) < 0)
+	if (circ_init(c, fid, cmpsit_simul) < 0)
 		goto err_circ_init;
 
 	cp->dt = *dt;
@@ -217,7 +217,7 @@ static void sample_terms(struct cmpsit *ct)
 	}
 }
 
-static int cmpsit_simulate(struct circ *ct)
+static int cmpsit_simul(struct circ *ct)
 {
 	struct cmpsit *cp = container_of(ct, struct cmpsit, ct);
 	struct circ_prog prog;
@@ -225,6 +225,7 @@ static int cmpsit_simulate(struct circ *ct)
 	circ_prog_init(&prog, cp->smp.len);
 	for (size_t i = 0; i < cp->smp.len; i++) {
 		sample_terms(cp);
+
 		circ_prepst(ct);
 		if (cmpsit_effect(cp) < 0)
 			return -1;

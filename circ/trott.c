@@ -9,7 +9,7 @@
 
 #include "circ/trott.h"
 
-int trott_simulate(struct circ *ct);
+int trott_simul(struct circ *ct);
 
 static int trott_steps_init(struct trott_steps *stp, size_t steps)
 {
@@ -35,7 +35,7 @@ static void trott_steps_free(struct trott_steps *stp)
 int trott_init(struct trott *tt, const struct trott_data *dt, const data_id fid)
 {
 	struct circ *c = &tt->ct;
-	if (circ_init(c, fid, trott_simulate) < 0)
+	if (circ_init(c, fid, trott_simul) < 0)
 		goto err_circ_init;
 
 	tt->dt = *dt;
@@ -60,12 +60,13 @@ void trott_free(struct trott *tt)
 	trott_steps_free(&tt->stp);
 }
 
-int trott_simulate(struct circ *ct)
+int trott_simul(struct circ *ct)
 {
 	struct trott *tt = container_of(ct, struct trott, ct);
 	struct circ_prog prog;
 
 	circ_prog_init(&prog, tt->stp.len);
+
 	circ_prepst(ct);
 	for (size_t i = 0; i < tt->stp.len; i++) {
 		if (circ_step(ct, &ct->hm, tt->dt.delta) < 0)
