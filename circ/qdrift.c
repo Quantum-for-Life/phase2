@@ -13,7 +13,7 @@
 
 #define SEED UINT64_C(0xeccd9dcc749fcdca)
 
-int qdrift_simulate(struct circ *ct);
+int qdrift_simul(struct circ *ct);
 
 static int qdrift_rct_init(struct qdrift_randct *rct, const uint32_t qb,
 	const size_t depth, const size_t cdf_len)
@@ -70,7 +70,7 @@ static void qdrift_samples_free(struct qdrift_samples *smp)
 int qdrift_init(
 	struct qdrift *qd, const struct qdrift_data *dt, const data_id fid)
 {
-	if (circ_init(&qd->ct, fid, qdrift_simulate) < 0)
+	if (circ_init(&qd->ct, fid, qdrift_simul) < 0)
 		goto err_circ_init;
 
 	qd->dt = *dt;
@@ -113,30 +113,23 @@ static void qdrift_rct_sample_terms(struct qdrift *qd)
 	}
 }
 
-int qdrift_simulate(struct circ *ct)
+int qdrift_simul(struct circ *ct)
 {
-	int rt = -1;
-
-	size_t prog_pc = 0;
 	struct qdrift *qd = container_of(ct, struct qdrift, ct);
+	struct circ_prog prog;
 
+	circ_prog_init(&prog, qd->smpl.len);
 	for (size_t i = 0; i < qd->smpl.len; i++) {
-		size_t pc = i * 100 / qd->smpl.len;
-		if (pc > prog_pc) {
-			prog_pc = pc;
-			log_info("Progress: %zu\% (samples: %zu)", pc, i);
-		}
-
 		circ_prepst(ct);
 		qdrift_rct_sample_terms(qd);
 		if (circ_step(ct, &qd->randct.hm, asin(qd->dt.step_size)) < 0)
-			goto ex_qdrift_effect;
+			return -1;
 		qd->smpl.z[i] = circ_measure(ct);
+
+		circ_prog_tick(&prog);
 	}
 
-	rt = 0; /* Success. */
-ex_qdrift_effect:
-	return rt;
+	return 0;
 }
 
 int qdrift_write_res(struct qdrift *qd, data_id fid)

@@ -76,4 +76,13 @@ _Complex double circ_measure(struct circ *ct);
 
 int circ_simul(struct circ *ct);
 
+struct circ_prog {
+	unsigned pc;
+	size_t i, len;
+};
+
+void circ_prog_init(struct circ_prog *prog, size_t len);
+
+void circ_prog_tick(struct circ_prog *prog);
+
 #endif // CIRC_H

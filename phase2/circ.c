@@ -138,7 +138,7 @@ int circ_muldet_init(struct circ_muldet *md, size_t len)
 	return 0;
 }
 
- void circ_muldet_free(struct circ_muldet *md)
+void circ_muldet_free(struct circ_muldet *md)
 {
 	if (md->dets != nullptr)
 		free(md->dets);
@@ -178,8 +178,7 @@ static int circ_muldet_from_file(struct circ_muldet *m, const data_id fid)
 	return 0;
 }
 
-int circ_init(
-	struct circ *ct, const data_id fid, int (*simul)(struct circ *))
+int circ_init(struct circ *ct, const data_id fid, int (*simul)(struct circ *))
 {
 	if (circ_hamil_from_file(&ct->hm, fid) < 0)
 		goto err_hamil_init;
@@ -284,4 +283,22 @@ void circ_hamil_sort_lex(struct circ_hamil *hm)
 {
 	qsort(hm->terms, hm->len, sizeof(struct circ_hamil_term),
 		hamil_term_cmp_lex);
+}
+
+void circ_prog_init(struct circ_prog *prog, size_t len)
+{
+	prog->i = 0;
+	prog->len = len;
+	prog->pc = 0;
+}
+
+void circ_prog_tick(struct circ_prog *prog)
+{
+	prog->i++;
+
+	const unsigned pc = prog->i * 100 / prog->len;
+	if (pc > prog->pc) {
+		prog->pc = pc;
+		log_info("Progress: %zu%%", prog->pc);
+	}
 }

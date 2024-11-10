@@ -219,28 +219,21 @@ static void sample_terms(struct cmpsit *ct)
 
 static int cmpsit_simulate(struct circ *ct)
 {
-	int rt = -1;
-
-	size_t prog_pc = 0;
 	struct cmpsit *cp = container_of(ct, struct cmpsit, ct);
+	struct circ_prog prog;
 
+	circ_prog_init(&prog, cp->smp.len);
 	for (size_t i = 0; i < cp->smp.len; i++) {
-		size_t pc = i * 100 / cp->smp.len;
-		if (pc > prog_pc) {
-			prog_pc = pc;
-			log_info("Progress: %zu\% (samples: %zu)", pc, i);
-		}
-
 		sample_terms(cp);
 		circ_prepst(ct);
 		if (cmpsit_effect(cp) < 0)
-			goto ex_cmpsit_effect;
+			return -1;
 		cp->smp.z[i] = circ_measure(ct);
+
+		circ_prog_tick(&prog);
 	}
 
-	rt = 0; /* Success. */
-ex_cmpsit_effect:
-	return rt;
+	return 0;
 }
 
 int cmpsit_write_res(struct cmpsit *cp, data_id fid)
