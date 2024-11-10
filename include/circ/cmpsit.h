@@ -6,7 +6,7 @@
 #include "phase2.h"
 #include "xoshiro256ss.h"
 
-#define CMPSIT_TRUNC_DIST (16UL)
+#define CMPSIT_TRUNC_DIST (99UL)
 
 struct cmpsit_data {
 	size_t depth;
@@ -16,21 +16,14 @@ struct cmpsit_data {
 	size_t steps;
 };
 
-/* Probability distribution to sample from */
-struct cmpsit_pd {
-	double *x;
-	size_t len;
-	double lambda_r;
-};
-
 /* Sampled circuit. */
-struct cmpsit_rct {
-	struct circ_hamil_term *trm;
-	size_t len;
+struct cmpsit_ranct {
+	struct circ_hamil hm_ran;
+	struct prob_cdf cdf;
 };
 
 /* Results */
-struct cmpsit_samples {
+struct cmpsit_smpl {
 	_Complex double *z;
 	size_t len;
 };
@@ -38,9 +31,8 @@ struct cmpsit_samples {
 struct cmpsit {
 	struct circ ct;
 	struct cmpsit_data dt;
-	struct cmpsit_pd pd;
-	struct cmpsit_rct rct;
-	struct cmpsit_samples smp;
+	struct cmpsit_ranct ranct;
+	struct cmpsit_smpl smpl;
 	struct xoshiro256ss rng;
 };
 

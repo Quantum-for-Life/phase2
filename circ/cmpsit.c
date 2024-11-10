@@ -1,11 +1,11 @@
 #include "c23_compat.h"
 #include <complex.h>
-#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "bug.h"
 #include "container_of.h"
 #include "phase2.h"
 #include "xoshiro256ss.h"
@@ -14,7 +14,7 @@
 
 #define SEED UINT64_C(0xafb424901446f21f)
 
-static int cmpsit_simul(struct circ *c);
+static int cmpsit_simul(struct circ *ct);
 
 /*
  * Sort the Hamiltonian by absolute val of coefficients, in descending order.
@@ -34,58 +34,51 @@ static int hamil_term_cmp_abscf_desc(const void *a, const void *b)
 	return 0;
 }
 
-static void cmpsit_hamil_rearrange(
-	struct cmpsit *cp, const struct cmpsit_data *data)
+static void cmpsit_hamil_rearrange(struct cmpsit *cp)
 {
 	struct circ_hamil *hm = &cp->ct.hm;
 	qsort(hm->terms, hm->len, sizeof(struct circ_hamil_term),
 		hamil_term_cmp_abscf_desc);
 }
 
-static int cmpsit_pd_init(struct cmpsit_pd *pd,
-	const struct circ_hamil_term *src, const size_t len)
+static int cmpsit_ranct_init(struct cmpsit_ranct *rct, const uint32_t qb,
+	const size_t hm_ran_len, const size_t cdf_len)
 {
-	double *const x = malloc(sizeof(double) * len);
-	if (!x)
+	if (prob_cdf_init(&rct->cdf, cdf_len) < 0)
 		return -1;
-
-	double lambda_r = 0.0;
-	for (size_t i = 0; i < len; i++)
-		lambda_r += fabs(src[i].cf);
-	for (size_t i = 0; i < len; i++)
-		x[i] = fabs(src[i].cf) / lambda_r;
-
-	pd->x = x;
-	pd->len = len;
-	pd->lambda_r = lambda_r;
+	if (circ_hamil_init(&rct->hm_ran, qb, hm_ran_len) < 0)
+		return -1;
 
 	return 0;
 }
 
-static void cmpsit_pd_destroy(struct cmpsit_pd *pd)
+static void cmpsit_ranct_free(struct cmpsit_ranct *rct)
 {
-	free(pd->x);
+	circ_hamil_free(&rct->hm_ran);
+	prob_cdf_free(&rct->cdf);
 }
 
-static int cmpsit_rct_init(struct cmpsit_rct *rct, const size_t len)
+struct get_vals_data {
+	size_t i;
+	struct circ_hamil_term *terms;
+};
+
+static double get_vals(void *data)
 {
-	struct circ_hamil_term *trm =
-		malloc(sizeof(struct circ_hamil_term) * len);
-	if (!trm)
-		return -1;
+	struct get_vals_data *dt = data;
 
-	rct->trm = trm;
-	rct->len = len;
-
-	return 0;
+	return dt->terms[dt->i++].cf;
 }
 
-static void cmpsit_rct_destroy(struct cmpsit_rct *rct)
+static void cmpsit_ranct_calc_cdf(
+	struct cmpsit_ranct *rct, struct circ_hamil_term *terms)
 {
-	free(rct->trm);
+	struct get_vals_data data = { .i = 0, .terms = terms };
+	prob_cdf_from(&rct->cdf, get_vals, &data);
 }
 
-static int cmpsit_samples_init(struct cmpsit_samples *samples, size_t len)
+/* TODO: This can be abstracted and moved to circ_ */
+static int cmpsit_smpl_init(struct cmpsit_smpl *samples, const size_t len)
 {
 	_Complex double *a = malloc(sizeof(_Complex double) * len);
 	if (!a)
@@ -96,7 +89,7 @@ static int cmpsit_samples_init(struct cmpsit_samples *samples, size_t len)
 	return 0;
 }
 
-static void cmpsit_samples_destroy(struct cmpsit_samples *samples)
+static void cmpsit_smpl_free(struct cmpsit_smpl *samples)
 {
 	free(samples->z);
 }
@@ -104,132 +97,63 @@ static void cmpsit_samples_destroy(struct cmpsit_samples *samples)
 int cmpsit_init(
 	struct cmpsit *cp, const struct cmpsit_data *dt, const data_id fid)
 {
-	struct circ *c = &cp->ct;
-	if (circ_init(c, fid, cmpsit_simul) < 0)
+	if (circ_init(&cp->ct, fid, cmpsit_simul) < 0)
 		goto err_circ_init;
 
 	cp->dt = *dt;
 
-	cmpsit_hamil_rearrange(cp, dt);
+	cmpsit_hamil_rearrange(cp);
 
-	const struct circ_hamil_term *src = cp->ct.hm.terms + dt->length;
-	if (cmpsit_pd_init(&cp->pd, src, dt->length) < 0)
-		goto err_pd_init;
+	/* Calculate the sampled circuit size (no. of pauli rotations). */
+	const size_t hm_ran_len = dt->length * dt->depth * CMPSIT_TRUNC_DIST;
+	if (cmpsit_ranct_init(&cp->ranct, cp->ct.hm.qb, hm_ran_len,
+		    cp->ct.hm.len - dt->depth) < 0)
+		goto err_ranct_init;
+	cmpsit_ranct_calc_cdf(&cp->ranct, cp->ct.hm.terms + dt->depth);
 
-	/*
-	 * Calculate the sampled circuit size (no. of pauli rotations).
-	 * This is 2nd order Trotter formula. Update it, if you want to
-	 * introduce higher orders.
-	 */
-	const size_t rct_len = dt->length + dt->depth * (CMPSIT_TRUNC_DIST + 2);
-	if (cmpsit_rct_init(&cp->rct, rct_len) < 0)
-		goto err_rct_init;
-
-	if (cmpsit_samples_init(&cp->smp, dt->samples) < 0)
-		goto err_samples_init;
+	if (cmpsit_smpl_init(&cp->smpl, dt->samples) < 0)
+		goto err_smpl_init;
 
 	/* TODO: seed it with user-supplied seed */
 	xoshiro256ss_init(&cp->rng, SEED);
 
 	return 0;
 
-	// cmpsit_samples_destroy(&ct->samples);
-err_samples_init:
-	cmpsit_rct_destroy(&cp->rct);
-err_rct_init:
-	cmpsit_pd_destroy(&cp->pd);
-err_pd_init:
-	circ_free(c);
+	// cmpsit_smpl_free(&ct->smpl);
+err_smpl_init:
+	cmpsit_ranct_free(&cp->ranct);
+err_ranct_init:
+	circ_free(&cp->ct);
 err_circ_init:
 	return -1;
 }
 
 void cmpsit_free(struct cmpsit *cp)
 {
-	cmpsit_samples_destroy(&cp->smp);
-	cmpsit_rct_destroy(&cp->rct);
-	cmpsit_pd_destroy(&cp->pd);
+	cmpsit_smpl_free(&cp->smpl);
+	cmpsit_ranct_free(&cp->ranct);
 	circ_free(&cp->ct);
 }
 
-static void cmpsit_flush(struct paulis code_hi, struct paulis *codes_lo,
-	double *phis, size_t ncodes, void *data)
+static void cmpsit_ranct_sample(struct cmpsit *cp)
 {
-	struct cmpsit *ct = data;
-	qreg_paulirot(&ct->ct.reg, code_hi, codes_lo, phis, ncodes);
-}
 
-static int cmpsit_step(struct cmpsit *cp, const double omega)
-{
-	const struct circ_hamil *hamil = &cp->ct.hm;
-	struct circ_cache *cache = &cp->ct.cache;
-
-	for (size_t i = 0; i < cp->dt.depth; i++) {
-		const double phi = omega;
-		/* const size_t i_smpl = ct->smpl[i];
-		const struct paulis code = hamil->terms[i_smpl].op;
-
-		if (circ_cache_insert(cache, code, phi) == 0)
-			continue;
-
-		log_trace("paulirot, term: %zu, num_codes: %zu", i, cache->n);
-		circ_cache_flush(cache, cmpsit_flush, ct);
-		if (circ_cache_insert(cache, code, phi) < 0)
-			return -1;
-		*/
-	}
-	log_trace("paulirot, last term group, num_codes: %zu", cache->n);
-	circ_cache_flush(cache, cmpsit_flush, cp);
-
-	return 0;
-}
-
-static int cmpsit_effect(struct cmpsit *cp)
-{
-	const double t = cp->dt.step_size;
-	if (isnan(t))
-		return -1;
-	if (fabs(t) < DBL_EPSILON)
-		return 0;
-	const double theta = asin(t);
-
-	return cmpsit_step(cp, theta);
-}
-
-static size_t sample_invcdf(struct cmpsit *cp, double x)
-{
-	(void)cp;
-	size_t i = 0;
-	double cdf = 0;
-	while (cdf <= x)
-		cdf += fabs(cp->ct.hm.terms[i++].cf);
-	return i - 1; /* Never again make the same off-by-one error! */
-}
-
-/* TODO: Move to xoshiro256ss.h and document. */
-#define rand_dbl01(rng) ((double)(xoshiro256ss_next(rng) >> 11) * 0x1.0p-53)
-
-static void sample_terms(struct cmpsit *ct)
-{
-	for (size_t i = 0; i < ct->dt.depth; i++) {
-		double x = rand_dbl01(&ct->rng);
-		/* ct->smpl[i] = sample_invcdf(ct, x); */
-	}
 }
 
 static int cmpsit_simul(struct circ *ct)
 {
+	/* Second order Trotter */
 	struct cmpsit *cp = container_of(ct, struct cmpsit, ct);
 	struct circ_prog prog;
 
-	circ_prog_init(&prog, cp->smp.len);
-	for (size_t i = 0; i < cp->smp.len; i++) {
-		sample_terms(cp);
+	circ_prog_init(&prog, cp->smpl.len);
+	for (size_t i = 0; i < cp->smpl.len; i++) {
+		cmpsit_ranct_sample(cp);
 
 		circ_prepst(ct);
-		if (cmpsit_effect(cp) < 0)
-			return -1;
-		cp->smp.z[i] = circ_measure(ct);
+		// if (circ_step(&cp->ct, &cp) < 0)
+		//	return -1;
+		cp->smpl.z[i] = circ_measure(ct);
 
 		circ_prog_tick(&prog);
 	}
@@ -256,7 +180,7 @@ int cmpsit_write_res(struct cmpsit *cp, data_id fid)
 		    cp->dt.steps) < 0)
 		goto data_res_write;
 	if (data_res_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_VALUES,
-		    cp->smp.z, cp->smp.len) < 0)
+		    cp->smpl.z, cp->smpl.len) < 0)
 		goto data_res_write;
 
 	rt = 0;
