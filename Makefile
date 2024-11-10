@@ -11,7 +11,7 @@ VERSION_PATCH	:= 0
 AS		:= nasm
 ASFLAGS		+= -felf64 -w+all -w-reloc-rel-dword -Ox
 CC		?= gcc
-CFLAGS		+= -std=c11 -Wall -Wextra -O3 -march=native -mavx2
+CFLAGS		+= -std=c11 -Wall -Wextra -O3 -march=native -mavx2 -ffast-math
 INCLUDE		:= ./include
 LDFLAGS 	+=
 LDLIBS		+= -lm
