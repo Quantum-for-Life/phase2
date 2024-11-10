@@ -27,7 +27,7 @@ malloc_z:
 	return -1;
 }
 
-static void trott_steps_destroy(struct trott_steps *stp)
+static void trott_steps_free(struct trott_steps *stp)
 {
 	free(stp->z);
 }
@@ -57,7 +57,7 @@ err_circ_init:
 void trott_free(struct trott *tt)
 {
 	circ_free(&tt->ct);
-	trott_steps_destroy(&tt->stp);
+	trott_steps_free(&tt->stp);
 }
 
 int trott_simulate(struct circ *ct)

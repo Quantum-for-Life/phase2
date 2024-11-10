@@ -5,6 +5,7 @@
 
 #include "phase2/circ.h"
 #include "phase2/data.h"
+#include "phase2/prob.h"
 #include "xoshiro256ss.h"
 
 struct qdrift_data {
@@ -14,7 +15,8 @@ struct qdrift_data {
 };
 
 struct qdrift_rct {
-	struct circ_hamil rhm;
+	struct prob_pd pd;
+	struct circ_hamil hm;
 };
 
 struct qdrift_samples {
@@ -26,7 +28,7 @@ struct qdrift {
 	struct circ ct;
 	struct qdrift_data dt;
 	struct qdrift_rct rct;
-	struct qdrift_samples smp;
+	struct qdrift_samples smpl;
 	struct xoshiro256ss rng;
 };
 
