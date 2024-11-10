@@ -54,7 +54,7 @@ if __name__ == "__main__":
         thJ = - (2 * math.pi - thJ)
     x = 2**(-J)
     E0 = math.sqrt(1-x**2)/x * math.tan(x*thJ) / norm
-    #E0 = thJ / (norm * time_factor)
+    #E0 = thJ / norm
     E0 = E0 / delta
     print(E0, E0 + offset)
 
