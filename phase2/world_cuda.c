@@ -8,7 +8,6 @@
 #include "phase2/world.h"
 
 #include "world_cuda.h"
-#include "world_impl.h"
 
 int world_backend_init(struct world *wd)
 {
