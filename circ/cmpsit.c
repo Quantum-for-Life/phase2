@@ -12,6 +12,10 @@
 
 #define SEED UINT64_C(0xafb424901446f21f)
 
+#ifndef FRAC_PI_2
+#define FRAC_PI_2 1.57079632679489661923132169163975144
+#endif
+
 /*
  * Sort the Hamiltonian by absolute val of coefficients, in descending order.
  */
@@ -42,19 +46,44 @@ static double get_vals(void *data)
 	return dt->terms[dt->i++].cf;
 }
 
-static void ranct_calc_cdf(
-	struct cmpsit_ranct *rct, struct circ_hamil_term *terms)
+static double sqr_kernel(double delta, unsigned n)
+{
+	return sqrt(1 + (delta * delta) / (n * n));
+}
+
+struct int_trunc_data {
+	double delta;
+	unsigned n;
+	unsigned long n_fact;
+};
+
+static double int_trunc(void *data)
+{
+	struct int_trunc_data *dt = data;
+
+	const double d = pow(dt->delta, dt->n) / dt->n_fact *
+			 sqr_kernel(dt->delta, dt->n + 1);
+	dt->n++;
+	dt->n_fact *= dt->n;
+
+	return d;
+}
+
+static void ranct_calc_cdf(struct cmpsit_ranct *rct,
+	struct circ_hamil_term *terms, const double delta)
 {
 	struct get_vals_data data = { .i = 0, .terms = terms };
 	prob_cdf_from_iter(&rct->cdf, get_vals, &data);
+
+	struct int_trunc_data int_trunc_data = {
+		.delta = delta, .n = 1, .n_fact = 1
+	};
+	prob_cdf_from_iter(&rct->cdf_int_trunc, int_trunc, &int_trunc_data);
 }
 
 static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
-	const size_t length)
+	const size_t length, double step_size)
 {
-	if (prob_cdf_init(&rct->cdf, hm->len - length) < 0)
-		return -1;
-
 	const uint32_t qb = hm->qb;
 
 	struct circ_hamil hm_tmp;
@@ -64,7 +93,6 @@ static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
 		hm_tmp.terms[i] = hm->terms[i];
 	qsort(hm_tmp.terms, hm_tmp.len, sizeof(struct circ_hamil_term),
 		hamil_term_cmp_abscf_desc);
-	ranct_calc_cdf(rct, hm_tmp.terms + length);
 
 	if (circ_hamil_init(&rct->hm_det, qb, length) < 0)
 		goto err_hm_det;
@@ -78,11 +106,21 @@ static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
 		rct->hm_ran.terms[i - length] = hm_tmp.terms[i];
 	circ_hamil_sort_lex(&rct->hm_det);
 
+	if (prob_cdf_init(&rct->cdf, hm->len - length) < 0)
+		goto err_cdf;
+	if (prob_cdf_init(&rct->cdf_int_trunc, CMPSIT_TRUNC) < 0)
+		goto err_cdf_int_trunc;
+	ranct_calc_cdf(rct, hm_tmp.terms + length, step_size);
+
 	circ_hamil_free(&hm_tmp);
 
 	return 0;
 
-	// circ_hamil_free(&rct->hm_ran);
+	// prob_cdf_free(&rct->cdf_int_trunc);
+err_cdf_int_trunc:
+	prob_cdf_free(&rct->cdf);
+err_cdf:
+	circ_hamil_free(&rct->hm_ran);
 err_hm_ran:
 	circ_hamil_free(&rct->hm_det);
 err_hm_det:
@@ -95,6 +133,7 @@ static void cmpsit_ranct_free(struct cmpsit_ranct *rct)
 {
 	circ_hamil_free(&rct->hm_ran);
 	circ_hamil_free(&rct->hm_det);
+	prob_cdf_free(&rct->cdf_int_trunc);
 	prob_cdf_free(&rct->cdf);
 }
 
@@ -106,7 +145,7 @@ int cmpsit_init(
 
 	cp->dt = *dt;
 
-	if (ranct_init(&cp->ranct, &cp->ct.hm, dt->length) < 0)
+	if (ranct_init(&cp->ranct, &cp->ct.hm, dt->length, dt->step_size) < 0)
 		goto err_ranct_init;
 
 	/* TODO: seed it with user-supplied seed */
@@ -132,7 +171,7 @@ static int ranct_hmsmpl(struct cmpsit *cp)
 	int rt = -1;
 
 	const size_t hm_smpl_len_max =
-		cp->dt.length + cp->dt.depth * CMPSIT_TRUNC_DIST;
+		cp->dt.length + cp->dt.depth * CMPSIT_TRUNC;
 	struct circ_hamil_term *trm = malloc(sizeof *trm * hm_smpl_len_max);
 	if (!trm)
 		goto trm_alloc;
@@ -141,12 +180,39 @@ static int ranct_hmsmpl(struct cmpsit *cp)
 	for (i = 0; i < cp->dt.length; i++)
 		trm[i] = cp->ranct.hm_det.terms[i];
 	for (size_t d = 0; d < cp->dt.depth; d++) {
+		/* Sample terms */
+		unsigned n;
+		do {
+			double y = xoshiro256ss_dbl01(&cp->rng);
+			n = prob_cdf_inverse(&cp->ranct.cdf_int_trunc, y);
+		} while (n % 2 != 0);
+		log_trace("sampled n = %u", n);
+
+		double theta = acos(1.0 / sqr_kernel(cp->dt.step_size, n + 1));
+		double y = xoshiro256ss_dbl01(&cp->rng);
+		size_t idx = prob_cdf_inverse(&cp->ranct.cdf, y);
+
 		if (i == hm_smpl_len_max) {
 			log_warn("Max. sampled circuit size reached: %zu", i);
 			break;
 		}
+		trm[i].op = cp->ranct.hm_ran.terms[idx].op;
+		trm[i].cf = theta;
+		i++;
 
-		/* Sample terms */
+		for (size_t j = 1; j <= n + 1; j++) {
+			double y = xoshiro256ss_dbl01(&cp->rng);
+			size_t idx = prob_cdf_inverse(&cp->ranct.cdf, y);
+			if (i == hm_smpl_len_max) {
+				log_warn(
+					"Max. sampled circuit size reached: %zu",
+					i);
+				break;
+			}
+			trm[i].op = cp->ranct.hm_ran.terms[idx].op;
+			trm[i].cf = FRAC_PI_2;
+			i++;
+		}
 	}
 
 	const size_t hm_smpl_len = i;

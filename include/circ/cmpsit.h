@@ -6,7 +6,7 @@
 #include "phase2.h"
 #include "xoshiro256ss.h"
 
-#define CMPSIT_TRUNC_DIST (99UL)
+#define CMPSIT_TRUNC (17UL)
 
 struct cmpsit_data {
 	size_t depth;
@@ -19,7 +19,7 @@ struct cmpsit_data {
 /* Sampled circuit. */
 struct cmpsit_ranct {
 	struct circ_hamil hm_det, hm_ran, hm_smpl;
-	struct prob_cdf cdf;
+	struct prob_cdf cdf, cdf_int_trunc;
 };
 
 /* Results */
