@@ -6,7 +6,7 @@
 #include "phase2.h"
 #include "xoshiro256ss.h"
 
-#define CMPSIT_TRUNC (17UL)
+#define CMPSIT_TRUNC (9UL)
 
 struct cmpsit_data {
 	size_t depth;
