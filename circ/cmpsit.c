@@ -10,6 +10,8 @@
 
 #include "circ/cmpsit.h"
 
+#include <float.h>
+
 #define SEED UINT64_C(0xafb424901446f21f)
 
 #ifndef FRAC_PI_2
@@ -37,13 +39,17 @@ static int hamil_term_cmp_abscf_desc(const void *a, const void *b)
 struct get_vals_data {
 	size_t i;
 	struct circ_hamil_term *terms;
+	double norm;
 };
 
 static double get_vals(void *data)
 {
 	struct get_vals_data *dt = data;
 
-	return dt->terms[dt->i++].cf;
+	double d = dt->terms[dt->i++].cf;
+	dt->norm += fabs(d);
+
+	return d;
 }
 
 static double sqr_kernel(double delta, unsigned n)
@@ -55,6 +61,7 @@ struct int_trunc_data {
 	double delta;
 	unsigned n;
 	unsigned long n_fact;
+	double b_tot;
 };
 
 static double int_trunc(void *data)
@@ -63,8 +70,9 @@ static double int_trunc(void *data)
 
 	const double d = pow(dt->delta, dt->n) / dt->n_fact *
 			 sqr_kernel(dt->delta, dt->n + 1);
-	dt->n += 2;
+	dt->n += 1;
 	dt->n_fact *= dt->n;
+	dt->b_tot += d;
 
 	return d;
 }
@@ -74,11 +82,13 @@ static void ranct_calc_cdf(struct cmpsit_ranct *rct,
 {
 	struct get_vals_data data = { .i = 0, .terms = terms };
 	prob_cdf_from_iter(&rct->cdf, get_vals, &data);
+	rct->lambda_r = data.norm;
 
 	struct int_trunc_data int_trunc_data = {
-		.delta = delta, .n = 0, .n_fact = 1
+		.delta = delta, .n = 0, .n_fact = 1, .b_tot = 0.0
 	};
 	prob_cdf_from_iter(&rct->cdf_int_trunc, int_trunc, &int_trunc_data);
+	rct->b_tot = int_trunc_data.b_tot;
 }
 
 static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
@@ -110,6 +120,7 @@ static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
 	if (prob_cdf_init(&rct->cdf_int_trunc, CMPSIT_TRUNC) < 0)
 		goto err_cdf_int_trunc;
 	ranct_calc_cdf(rct, hm_tmp.terms + length, step_size);
+	log_trace("b_tot: %.9f", rct->b_tot);
 
 	circ_hamil_free(&hm_tmp);
 
@@ -165,12 +176,20 @@ void cmpsit_free(struct cmpsit *cp)
 	circ_free(&cp->ct);
 }
 
+double signof(double a)
+{
+	double f = fabs(a);
+	if (f < DBL_EPSILON)
+		return 0.0;
+	return a < f ? -1.0 : 1.0;
+}
+
 static int ranct_hm_sample(struct cmpsit *cp)
 {
 	int rt = -1;
 
 	const size_t hm_smpl_len_max =
-		cp->dt.length + cp->dt.depth * CMPSIT_TRUNC;
+		cp->dt.length + cp->dt.depth * CMPSIT_TRUNC * 2;
 	struct circ_hamil_term *trm = malloc(sizeof *trm * hm_smpl_len_max);
 	if (!trm)
 		goto trm_alloc;
@@ -178,37 +197,36 @@ static int ranct_hm_sample(struct cmpsit *cp)
 	size_t i;
 	for (i = 0; i < cp->dt.length; i++)
 		trm[i] = cp->ranct.hm_det.terms[i];
+
+
 	for (size_t d = 0; d < cp->dt.depth; d++) {
 		/* Sample terms */
-		unsigned n = 2 * prob_cdf_inverse(&cp->ranct.cdf_int_trunc,
-					 xoshiro256ss_dbl01(&cp->rng));
+		unsigned n;
+		do {
+			n = prob_cdf_inverse(&cp->ranct.cdf_int_trunc,
+					    xoshiro256ss_dbl01(&cp->rng));
+		} while (n % 2 != 0);
 		log_trace("sampled n = %u", n);
 
-		double theta = acos(1.0 / sqr_kernel(cp->dt.step_size, n + 1));
 		size_t idx = prob_cdf_inverse(
 			&cp->ranct.cdf, xoshiro256ss_dbl01(&cp->rng));
+		struct circ_hamil_term t = cp->ranct.hm_ran.terms[idx];
 
-		if (i == hm_smpl_len_max) {
-			log_warn("Max. sampled circuit size reached: %zu", i);
-			break;
-		}
-		trm[i].op = cp->ranct.hm_ran.terms[idx].op;
-		trm[i].cf = theta;
+
+		trm[i].op = t.op;
+		double theta = -atan(cp->dt.step_size / n + 1);//acos(1.0 / sqr_kernel(cp->dt.step_size, n + 1));
+		trm[i].cf = theta *  signof(t.cf);
 		i++;
 
-		for (size_t j = 1; j <= n + 1; j++) {
+		while (n--) {
 			size_t idx = prob_cdf_inverse(
 				&cp->ranct.cdf, xoshiro256ss_dbl01(&cp->rng));
-			if (i == hm_smpl_len_max) {
-				log_warn(
-					"Max. sampled circuit size reached: %zu",
-					i);
-				break;
-			}
+
 			trm[i].op = cp->ranct.hm_ran.terms[idx].op;
 			trm[i].cf = FRAC_PI_2;
 			i++;
 		}
+
 	}
 
 	const size_t hm_smpl_len = i;
@@ -243,9 +261,11 @@ int cmpsit_simul(struct cmpsit *cp)
 
 		circ_prepst(ct);
 		for (size_t s = 0; s < cp->dt.steps; s++)
-			if (circ_step(&cp->ct, &cp->ranct.hm_smpl, 1.0) < 0)
+			if (circ_step(&cp->ct, &cp->ranct.hm_smpl,
+				    cp->dt.step_size) < 0)
 				return -1;
-		vals->z[i] = circ_measure(ct);
+		vals->z[i] =
+			circ_measure(ct) ; // pow(cp->ranct.b_tot, cp->dt.steps);
 
 		ranct_hmsmpl_free(cp);
 		circ_prog_tick(&prog);

@@ -20,6 +20,7 @@ struct cmpsit_data {
 struct cmpsit_ranct {
 	struct circ_hamil hm_det, hm_ran, hm_smpl;
 	struct prob_cdf cdf, cdf_int_trunc;
+	double lambda_r, b_tot;
 };
 
 /* Results */
