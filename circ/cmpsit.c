@@ -92,7 +92,7 @@ static void ranct_calc_cdf(struct cmpsit_ranct *rct,
 }
 
 static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
-	const size_t length, double step_size)
+	const struct cmpsit_data *dt)
 {
 	const uint32_t qb = hm->qb;
 
@@ -104,23 +104,29 @@ static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
 	qsort(hm_tmp.terms, hm_tmp.len, sizeof(struct circ_hamil_term),
 		hamil_term_cmp_abscf_desc);
 
-	if (circ_hamil_init(&rct->hm_det, qb, length) < 0)
+	if (circ_hamil_init(&rct->hm_det, qb, dt->length) < 0)
 		goto err_hm_det;
-	for (size_t i = 0; i < length; i++)
+	for (size_t i = 0; i < dt->length; i++)
 		rct->hm_det.terms[i] = hm_tmp.terms[i];
 	circ_hamil_sort_lex(&rct->hm_det);
 
-	if (circ_hamil_init(&rct->hm_ran, qb, hm->len - length) < 0)
+	if (circ_hamil_init(&rct->hm_ran, qb, hm->len - dt->length) < 0)
 		goto err_hm_ran;
-	for (size_t i = length; i < hm->len; i++)
-		rct->hm_ran.terms[i - length] = hm_tmp.terms[i];
+	for (size_t i = dt->length; i < hm->len; i++)
+		rct->hm_ran.terms[i - dt->length] = hm_tmp.terms[i];
 
-	if (prob_cdf_init(&rct->cdf, hm->len - length) < 0)
+	if (prob_cdf_init(&rct->cdf, hm->len - dt->length) < 0)
 		goto err_cdf;
 	if (prob_cdf_init(&rct->cdf_int_trunc, CMPSIT_TRUNC) < 0)
 		goto err_cdf_int_trunc;
-	ranct_calc_cdf(rct, hm_tmp.terms + length, step_size);
-	log_trace("b_tot: %.9f", rct->b_tot);
+	ranct_calc_cdf(rct, hm_tmp.terms + dt->length, dt->step_size);
+	log_info("ranct.b_tot: %.9f", rct->b_tot);
+	log_info("ranct.lambda_r: %.9f", rct->lambda_r);
+
+	size_t depth = ceil(rct->lambda_r * dt->step_size * dt->steps);
+	depth = depth * depth;
+	log_info("ranct.depth: %zu", depth);
+	rct->depth = depth;
 
 	circ_hamil_free(&hm_tmp);
 
@@ -155,7 +161,7 @@ int cmpsit_init(
 
 	cp->dt = *dt;
 
-	if (ranct_init(&cp->ranct, &cp->ct.hm, dt->length, dt->step_size) < 0)
+	if (ranct_init(&cp->ranct, &cp->ct.hm, dt) < 0)
 		goto err_ranct_init;
 
 	/* TODO: seed it with user-supplied seed */
@@ -188,8 +194,8 @@ static int ranct_hm_sample(struct cmpsit *cp)
 {
 	int rt = -1;
 
-	const size_t hm_smpl_len_max =
-		cp->dt.length + cp->dt.depth * CMPSIT_TRUNC * 2;
+	size_t depth = cp->ranct.depth;
+	const size_t hm_smpl_len_max = cp->dt.length + depth * CMPSIT_TRUNC;
 	struct circ_hamil_term *trm = malloc(sizeof *trm * hm_smpl_len_max);
 	if (!trm)
 		goto trm_alloc;
@@ -198,13 +204,12 @@ static int ranct_hm_sample(struct cmpsit *cp)
 	for (i = 0; i < cp->dt.length; i++)
 		trm[i] = cp->ranct.hm_det.terms[i];
 
-
-	for (size_t d = 0; d < cp->dt.depth; d++) {
+	for (size_t d = 0; d < depth; d++) {
 		/* Sample terms */
 		unsigned n;
 		do {
 			n = prob_cdf_inverse(&cp->ranct.cdf_int_trunc,
-					    xoshiro256ss_dbl01(&cp->rng));
+				xoshiro256ss_dbl01(&cp->rng));
 		} while (n % 2 != 0);
 		log_trace("sampled n = %u", n);
 
@@ -212,10 +217,9 @@ static int ranct_hm_sample(struct cmpsit *cp)
 			&cp->ranct.cdf, xoshiro256ss_dbl01(&cp->rng));
 		struct circ_hamil_term t = cp->ranct.hm_ran.terms[idx];
 
-
 		trm[i].op = t.op;
-		double theta = -atan(cp->dt.step_size / n + 1);//acos(1.0 / sqr_kernel(cp->dt.step_size, n + 1));
-		trm[i].cf = theta *  signof(t.cf);
+		double theta = acos(1.0 / sqr_kernel(cp->dt.step_size, n + 1));
+		trm[i].cf = theta * signof(t.cf) * cp->ranct.lambda_r;
 		i++;
 
 		while (n--) {
@@ -226,7 +230,6 @@ static int ranct_hm_sample(struct cmpsit *cp)
 			trm[i].cf = FRAC_PI_2;
 			i++;
 		}
-
 	}
 
 	const size_t hm_smpl_len = i;
@@ -264,8 +267,8 @@ int cmpsit_simul(struct cmpsit *cp)
 			if (circ_step(&cp->ct, &cp->ranct.hm_smpl,
 				    cp->dt.step_size) < 0)
 				return -1;
-		vals->z[i] =
-			circ_measure(ct) ; // pow(cp->ranct.b_tot, cp->dt.steps);
+
+		vals->z[i] = circ_measure(ct);
 
 		ranct_hmsmpl_free(cp);
 		circ_prog_tick(&prog);
@@ -279,9 +282,6 @@ int cmpsit_write_res(struct cmpsit *cp, data_id fid)
 	int rt = -1;
 
 	if (data_grp_create(fid, DATA_CIRCCMPSIT) < 0)
-		goto data_res_write;
-	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_DEPTH,
-		    cp->dt.depth) < 0)
 		goto data_res_write;
 	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_LENGTH,
 		    cp->dt.length) < 0)

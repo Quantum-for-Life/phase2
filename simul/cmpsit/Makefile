@@ -1,6 +1,5 @@
 # -----------------------------------------------------------------------------
 # Simulation parameters:
-DEPTH		:= 16
 LENGTH		:= 4
 SAMPLES 	:= 32
 STEP_SIZE	:= 0.0625
@@ -30,8 +29,7 @@ PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
 PARSE_FCIDUMP_FLAGS	=
 PARSE_INPUTST_FLAGS	=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
-PH2RUN_FLAGS		= --depth=$(DEPTH) 			\
-				--length=$(LENGTH)		\
+PH2RUN_FLAGS		= --length=$(LENGTH)			\
 				--samples=$(SAMPLES)		\
 				--step-size=$(STEP_SIZE)	\
 				--steps=$(STEPS)

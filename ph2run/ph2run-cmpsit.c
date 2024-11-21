@@ -17,7 +17,6 @@ static struct args {
 	const char *progname;
 	bool opt_help;
 	bool opt_version;
-	size_t depth;
 	size_t length;
 	size_t samples;
 	size_t steps;
@@ -27,7 +26,6 @@ static struct args {
 	.progname = nullptr,
 	.opt_help = false,
 	.opt_version = false,
-	.depth = 64,
 	.length = 1,
 	.samples = 1,
 	.step_size = 1.0,
@@ -42,7 +40,6 @@ static void print_help(const char *progname)
 		"\nOptions:\n"
 		"  -h, --help          Show this help.\n"
 		"  -v, --version       Print version number.\n"
-		"  --depth=64          Depth of the sampled sub-circuit.\n"
 		"  --length=1          Length of the deterministic Hamiltonian.\n"
 		"  --samples=1         Number of samples.\n"
 		"  --step-size=1.0     Time evolution step size.\n"
@@ -85,16 +82,6 @@ static int args_parse_longopt(const int *argc, char ***argv)
 	(void)argc;
 
 	char *o = **argv;
-	if (strncmp(o, "--depth=", 8) == 0) {
-		size_t depth = strtoul(o + 8, nullptr, 10);
-		if (depth == 0) {
-			fprintf(stderr, "Option: --depth=, wrong value.\n");
-			return -1;
-		}
-		ARGS.depth = depth;
-
-		return 0;
-	}
 	if (strncmp(o, "--help", 6) == 0) {
 		ARGS.opt_help = true;
 		return 0;
@@ -211,7 +198,6 @@ int run_circuit(const struct args *args)
 
 	struct cmpsit cp;
 	struct cmpsit_data data = { /* */
-		.depth = args->depth,
 		.length = args->length,
 		.samples = args->samples,
 		.step_size = args->step_size,
@@ -249,10 +235,10 @@ int run_circuit(const struct args *args)
 ex_circ_res_write:
 	cmpsit_free(&cp);
 	log_info("> Simulation summary (CSV):");
-	log_info("> n_qb,n_terms,n_dets,n_samples,depth,length,step_size,steps,"
+	log_info("> n_qb,n_terms,n_dets,n_samples,length,step_size,steps,"
 		 "n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%zu,%zu,%.6f,%zu,%d,%.3f", cp.ct.hm.qb,
-		cp.ct.hm.len, cp.ct.md.len, data.samples, data.depth,
+	log_info("> %zu,%zu,%zu,%zu,%zu,%.6f,%zu,%d,%.3f", cp.ct.hm.qb,
+		cp.ct.hm.len, cp.ct.md.len, data.samples,
 		data.length, data.step_size, data.steps, WD.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:
@@ -282,7 +268,6 @@ int main(int argc, char **argv)
 	log_info("MPI num_ranks: %d", nranks);
 	log_info("world_backend: %s", WORLD_BACKEND);
 	log_info("*** Circuit: cmpsit >>> ***");
-	log_info("depth: %zu", ARGS.depth);
 	log_info("length: %zu", ARGS.length);
 	log_info("samples: %zu", ARGS.samples);
 	log_info("step_size: %f", ARGS.step_size);

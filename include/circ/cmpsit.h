@@ -9,7 +9,6 @@
 #define CMPSIT_TRUNC (9UL)
 
 struct cmpsit_data {
-	size_t depth;
 	size_t length;
 	size_t samples;
 	double step_size;
@@ -21,6 +20,7 @@ struct cmpsit_ranct {
 	struct circ_hamil hm_det, hm_ran, hm_smpl;
 	struct prob_cdf cdf, cdf_int_trunc;
 	double lambda_r, b_tot;
+	size_t depth;
 };
 
 /* Results */
