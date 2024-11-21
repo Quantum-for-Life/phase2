@@ -40,7 +40,8 @@ if __name__ == "__main__":
             z_re = sum(x[0] for x in grp["values"]) / num_samples
             z_im = sum(x[1] for x in grp["values"]) / num_samples
         z = z_re + 1j * z_im
-        #print(f"{depth=}, {x=}, {t=}, {z=}")
+        t = step_size * 2**i
+        print(f"{step_size=}, 2^i={2**i}, {t=}, {z=}")
         phi = cmath.phase(z)  # phi \in [-\pi, \pi]
         if phi < 0:
             phi = 2 * math.pi + phi
