@@ -76,6 +76,8 @@ int circ_init(struct circ *ct, data_id fid, size_t vals_len);
 void circ_free(struct circ *ct);
 int circ_prepst(struct circ *ct);
 int circ_step(struct circ *ct, const struct circ_hamil *hm, double omega);
+int circ_step_reverse(
+	struct circ *ct, const struct circ_hamil *hm, double omega);
 _Complex double circ_measure(struct circ *ct);
 
 #endif // CIRC_H

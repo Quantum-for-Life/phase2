@@ -283,13 +283,17 @@ static void circ_flush(struct paulis code_hi, struct paulis *codes_lo,
 	qreg_paulirot(reg, code_hi, codes_lo, phis, ncodes);
 }
 
-int circ_step(struct circ *ct, const struct circ_hamil *hm, const double omega)
+static int circ_step_generic(struct circ *ct, const struct circ_hamil *hm,
+	const double omega, bool reverse)
 {
 	struct circ_cache *cache = &ct->cache;
 
 	for (size_t i = 0; i < hm->len; i++) {
-		const double phi = omega * hm->terms[i].cf;
-		const struct paulis code = hm->terms[i].op;
+		size_t j = i;
+		if (reverse)
+			j = hm->len - i - 1;
+		const double phi = omega * hm->terms[j].cf;
+		const struct paulis code = hm->terms[j].op;
 
 		if (circ_cache_insert(cache, code, phi) == 0)
 			continue;
@@ -303,6 +307,17 @@ int circ_step(struct circ *ct, const struct circ_hamil *hm, const double omega)
 	circ_cache_flush(cache, circ_flush, &ct->reg);
 
 	return 0;
+}
+
+inline int circ_step(struct circ *ct, const struct circ_hamil *hm, const double omega)
+{
+	return circ_step_generic(ct, hm, omega, false);
+}
+
+inline int circ_step_reverse(
+	struct circ *ct, const struct circ_hamil *hm, const double omega)
+{
+	return circ_step_generic(ct, hm, omega, true);
 }
 
 _Complex double circ_measure(struct circ *ct)

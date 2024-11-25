@@ -230,22 +230,13 @@ static int ranct_hm_sample(struct cmpsit *cp)
 	if (!trm)
 		goto trm_alloc;
 
-	/* Second order Suzuki-Trotter */
 	size_t i = 0;
 	for (size_t j = 0; j < cp->dt.length; j++) {
 		trm[i] = cp->ranct.hm_det.terms[j];
-		trm[i].cf *= 0.5;
 		i++;
 	}
 	for (size_t d = 0; d < depth; d++)
-		hm_sample_rand(trm, &i, cp, 0.5);
-	for (size_t d = 0; d < depth; d++)
-		hm_sample_rand(trm, &i, cp, 0.5);
-	for (size_t j = 0; j < cp->dt.length; j++) {
-		trm[i] = cp->ranct.hm_det.terms[cp->ranct.hm_det.len - j - 1];
-		trm[i].cf *= 0.5;
-		i++;
-	}
+		hm_sample_rand(trm, &i, cp, 1.0);
 
 	const size_t hm_smpl_len = i;
 	if (circ_hamil_init(&cp->ranct.hm_smpl, cp->ct.hm.qb, hm_smpl_len) < 0)
@@ -276,10 +267,18 @@ int cmpsit_simul(struct cmpsit *cp)
 	for (size_t i = 0; i < vals->len; i++) {
 		circ_prepst(ct);
 		for (size_t s = 0; s < cp->dt.steps; s++) {
+			/* Second order Suzuki-Trotter */
 			if (ranct_hm_sample(cp) < 0)
 				return -1;
 			if (circ_step(&cp->ct, &cp->ranct.hm_smpl,
-				    cp->dt.step_size) < 0)
+				    cp->dt.step_size * 0.5) < 0)
+				return -1;
+			ranct_hmsmpl_free(cp);
+
+			if (ranct_hm_sample(cp) < 0)
+				return -1;
+			if (circ_step_reverse(&cp->ct, &cp->ranct.hm_smpl,
+				    cp->dt.step_size * 0.5) < 0)
 				return -1;
 			ranct_hmsmpl_free(cp);
 		}

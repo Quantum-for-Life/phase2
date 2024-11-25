@@ -57,8 +57,7 @@ int qdrift_init(
 
 	qd->dt = *dt;
 
-	if (ranct_init(
-		    &qd->ranct, qd->ct.hm.qb, dt->depth, qd->ct.hm.len) < 0)
+	if (ranct_init(&qd->ranct, qd->ct.hm.qb, dt->depth, qd->ct.hm.len) < 0)
 		goto err_rct_init;
 	ranct_calc_cdf(&qd->ranct, qd->ct.hm.terms);
 
@@ -97,11 +96,11 @@ int qdrift_simul(struct qdrift *qd)
 	struct circ_prog prog;
 	circ_prog_init(&prog, vals->len);
 	for (size_t i = 0; i < vals->len; i++) {
-		ranct_sample(qd);
-
 		circ_prepst(ct);
-		if (circ_step(ct, &qd->ranct.hm_ran, asin(qd->dt.step_size)) <
-			0)
+
+		ranct_sample(qd);
+		if (circ_step(ct, &qd->ranct.hm_ran,
+			    asin(qd->dt.step_size) * 1.0) < 0)
 			return -1;
 		vals->z[i] = circ_measure(ct);
 
