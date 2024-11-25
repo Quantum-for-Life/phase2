@@ -220,28 +220,25 @@ static void hm_sample_rand(
 	}
 }
 
-static int ranct_hm_sample(struct cmpsit *cp)
+static int hm_sample(struct cmpsit *cp)
 {
 	int rt = -1;
 
 	size_t depth = cp->ranct.depth;
-	const size_t len_max = (cp->dt.length + depth * CMPSIT_TRUNC) * 2;
+	const size_t len_max = cp->dt.length + depth * CMPSIT_TRUNC;
 	struct circ_hamil_term *trm = malloc(sizeof *trm * len_max);
 	if (!trm)
 		goto trm_alloc;
 
-	size_t i = 0;
-	for (size_t j = 0; j < cp->dt.length; j++) {
-		trm[i] = cp->ranct.hm_det.terms[j];
-		i++;
-	}
+	size_t hm_len;
+	for (hm_len = 0; hm_len < cp->dt.length; hm_len++)
+		trm[hm_len] = cp->ranct.hm_det.terms[hm_len];
 	for (size_t d = 0; d < depth; d++)
-		hm_sample_rand(trm, &i, cp, 1.0);
+		hm_sample_rand(trm, &hm_len, cp, 1.0);
 
-	const size_t hm_smpl_len = i;
-	if (circ_hamil_init(&cp->ranct.hm_smpl, cp->ct.hm.qb, hm_smpl_len) < 0)
+	if (circ_hamil_init(&cp->ranct.hm_smpl, cp->ct.hm.qb, hm_len) < 0)
 		goto hm_smpl_init;
-	for (i = 0; i < hm_smpl_len; i++)
+	for (size_t i = 0; i < hm_len; i++)
 		cp->ranct.hm_smpl.terms[i] = trm[i];
 
 	rt = 0;
@@ -268,14 +265,14 @@ int cmpsit_simul(struct cmpsit *cp)
 		circ_prepst(ct);
 		for (size_t s = 0; s < cp->dt.steps; s++) {
 			/* Second order Suzuki-Trotter */
-			if (ranct_hm_sample(cp) < 0)
+			if (hm_sample(cp) < 0)
 				return -1;
 			if (circ_step(&cp->ct, &cp->ranct.hm_smpl,
 				    cp->dt.step_size * 0.5) < 0)
 				return -1;
 			ranct_hmsmpl_free(cp);
 
-			if (ranct_hm_sample(cp) < 0)
+			if (hm_sample(cp) < 0)
 				return -1;
 			if (circ_step_reverse(&cp->ct, &cp->ranct.hm_smpl,
 				    cp->dt.step_size * 0.5) < 0)
