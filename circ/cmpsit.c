@@ -190,46 +190,61 @@ double signof(double a)
 	return a < f ? -1.0 : 1.0;
 }
 
+static void hm_sample_rand(
+	struct circ_hamil_term *trm, size_t *i, struct cmpsit *cp, double fact)
+{
+	/* Sample terms */
+	unsigned n;
+	do {
+		n = prob_cdf_inverse(
+			&cp->ranct.cdf_int_trunc, xoshiro256ss_dbl01(&cp->rng));
+	} while (n % 2 != 0);
+	log_trace("sampled n = %u", n);
+
+	size_t idx =
+		prob_cdf_inverse(&cp->ranct.cdf, xoshiro256ss_dbl01(&cp->rng));
+	struct circ_hamil_term t = cp->ranct.hm_ran.terms[idx];
+
+	trm[*i].op = t.op;
+	double theta = acos(1.0 / sqr_kernel(cp->dt.step_size, n + 1));
+	trm[*i].cf = theta * signof(t.cf) * cp->ranct.lambda_r * fact;
+	(*i)++;
+
+	while (n--) {
+		size_t idx = prob_cdf_inverse(
+			&cp->ranct.cdf, xoshiro256ss_dbl01(&cp->rng));
+
+		trm[*i].op = cp->ranct.hm_ran.terms[idx].op;
+		trm[*i].cf = FRAC_PI_2;
+		(*i)++;
+	}
+}
+
 static int ranct_hm_sample(struct cmpsit *cp)
 {
 	int rt = -1;
 
 	size_t depth = cp->ranct.depth;
-	const size_t hm_smpl_len_max = cp->dt.length + depth * CMPSIT_TRUNC;
-	struct circ_hamil_term *trm = malloc(sizeof *trm * hm_smpl_len_max);
+	const size_t len_max = (cp->dt.length + depth * CMPSIT_TRUNC) * 2;
+	struct circ_hamil_term *trm = malloc(sizeof *trm * len_max);
 	if (!trm)
 		goto trm_alloc;
 
-	size_t i;
-	for (i = 0; i < cp->dt.length; i++)
-		trm[i] = cp->ranct.hm_det.terms[i];
-
-	for (size_t d = 0; d < depth; d++) {
-		/* Sample terms */
-		unsigned n;
-		do {
-			n = prob_cdf_inverse(&cp->ranct.cdf_int_trunc,
-				xoshiro256ss_dbl01(&cp->rng));
-		} while (n % 2 != 0);
-		log_trace("sampled n = %u", n);
-
-		size_t idx = prob_cdf_inverse(
-			&cp->ranct.cdf, xoshiro256ss_dbl01(&cp->rng));
-		struct circ_hamil_term t = cp->ranct.hm_ran.terms[idx];
-
-		trm[i].op = t.op;
-		double theta = acos(1.0 / sqr_kernel(cp->dt.step_size, n + 1));
-		trm[i].cf = theta * signof(t.cf) * cp->ranct.lambda_r;
+	/* Second order Suzuki-Trotter */
+	size_t i = 0;
+	for (size_t j = 0; j < cp->dt.length; j++) {
+		trm[i] = cp->ranct.hm_det.terms[j];
+		trm[i].cf *= 0.5;
 		i++;
-
-		while (n--) {
-			size_t idx = prob_cdf_inverse(
-				&cp->ranct.cdf, xoshiro256ss_dbl01(&cp->rng));
-
-			trm[i].op = cp->ranct.hm_ran.terms[idx].op;
-			trm[i].cf = FRAC_PI_2;
-			i++;
-		}
+	}
+	for (size_t d = 0; d < depth; d++)
+		hm_sample_rand(trm, &i, cp, 0.5);
+	for (size_t d = 0; d < depth; d++)
+		hm_sample_rand(trm, &i, cp, 0.5);
+	for (size_t j = 0; j < cp->dt.length; j++) {
+		trm[i] = cp->ranct.hm_det.terms[cp->ranct.hm_det.len - j - 1];
+		trm[i].cf *= 0.5;
+		i++;
 	}
 
 	const size_t hm_smpl_len = i;
@@ -259,18 +274,16 @@ int cmpsit_simul(struct cmpsit *cp)
 	struct circ_prog prog;
 	circ_prog_init(&prog, vals->len);
 	for (size_t i = 0; i < vals->len; i++) {
-		if (ranct_hm_sample(cp) < 0)
-			return -1;
-
 		circ_prepst(ct);
-		for (size_t s = 0; s < cp->dt.steps; s++)
+		for (size_t s = 0; s < cp->dt.steps; s++) {
+			if (ranct_hm_sample(cp) < 0)
+				return -1;
 			if (circ_step(&cp->ct, &cp->ranct.hm_smpl,
 				    cp->dt.step_size) < 0)
 				return -1;
-
+			ranct_hmsmpl_free(cp);
+		}
 		vals->z[i] = circ_measure(ct);
-
-		ranct_hmsmpl_free(cp);
 		circ_prog_tick(&prog);
 	}
 
