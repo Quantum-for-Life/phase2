@@ -95,6 +95,9 @@ endif
 ifeq ($(BACKEND),cuda)
 NVCC		?= nvcc
 NVCCFLAGS	+= -O3 -dopt=on -arch=native
+## Compile for NVIDIA H100
+## https://docs.nvidia.com/cuda/hopper-compatibility-guide/index.html
+#NVCCFLAGS      += -O3 -dopt=on -arch=sm_90a -use_fast_math
 CUDA_PREFIX	:=/usr/local/cuda
 CUDA_INCLUDE	:=$(CUDA_PREFIX)/include
 CUDA_LIBDIR	:=$(CUDA_PREFIX)/lib64
