@@ -5,7 +5,6 @@
 
 #include "phase2/world.h"
 
-#include "world.h"
 #include "world_quest.h"
 
 int world_backend_init(struct world *wd)

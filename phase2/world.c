@@ -5,8 +5,6 @@
 
 #include "phase2/world.h"
 
-#include "world.h"
-
 static struct world WORLD = {
 	.stat = WORLD_UNDEF,
 	.size = 0,
@@ -52,7 +50,7 @@ err:
 	return WORLD.stat = WORLD_ERR;
 }
 
-int world_destroy(void)
+int world_free(void)
 {
 	if (WORLD.stat == WORLD_READY) {
 		if (MPI_Finalize() == MPI_SUCCESS)
@@ -78,14 +76,14 @@ int world_info(struct world *wd)
 }
 
 #if PHASE2_BACKEND == 0 /* qreg */
-int world_backend_init(struct world *wd)
+inline int world_backend_init(struct world *wd)
 {
 	wd->data = nullptr;
 
 	return 0;
 }
 
-void world_backend_destroy(struct world *wd)
+inline void world_backend_destroy(struct world *wd)
 {
 	(void)wd;
 }

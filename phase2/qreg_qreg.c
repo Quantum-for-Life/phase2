@@ -21,7 +21,7 @@ int qreg_backend_init(struct qreg *reg)
 	return 0;
 }
 
-void qreg_backend_destroy(struct qreg *reg)
+void qreg_backend_free(struct qreg *reg)
 {
 	(void)reg;
 }
@@ -49,6 +49,7 @@ void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 void qreg_zero(struct qreg *reg)
 {
 	memset(reg->amp, 0, reg->namp * sizeof(c64));
+	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 static void exch_init(struct qreg *reg, const int rnk_rem)

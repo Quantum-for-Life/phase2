@@ -32,13 +32,6 @@ static _Complex double AMPS[NUM_AMPS];
 #define SEED UINT64_C(0x34eaaa33)
 static struct xoshiro256ss RNG;
 
-static double rand_double(void)
-{
-	uint64_t x = xoshiro256ss_next(&RNG);
-
-	return (x >> 11) * 0x1.0p-53;
-}
-
 static int rand_pauli_op(void)
 {
 	return (int)(xoshiro256ss_next(&RNG) % 4);
@@ -63,7 +56,7 @@ static void t_qreg_init(void)
 	TEST_EQ(nqb_hi, reg.qb_hi);
 	TEST_EQ(namp, reg.namp);
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 static void t_qreg_getsetamp_01(void)
@@ -90,7 +83,7 @@ static void t_qreg_getsetamp_01(void)
 	TEST_ASSERT(
 		z == -1.9 + 0.8 * I, "amp=27, z=%f+%fi", creal(z), cimag(z));
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 static void t_qreg_getsetamp_02(size_t tag)
@@ -100,7 +93,7 @@ static void t_qreg_getsetamp_02(size_t tag)
 
 	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "cannot initialize qreg");
 	for (size_t i = 0; i < NUM_AMPS; i++) {
-		z = rand_double() + rand_double() * I;
+		z = xoshiro256ss_dbl01(&RNG) + xoshiro256ss_dbl01(&RNG) * I;
 		AMPS[i] = z;
 		qreg_setamp(&reg, i, z);
 	}
@@ -112,7 +105,7 @@ static void t_qreg_getsetamp_02(size_t tag)
 			creal(z), cimag(z), creal(AMPS[i]), cimag(AMPS[i]));
 	}
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 static void t_qreg_zero(void)
@@ -122,7 +115,7 @@ static void t_qreg_zero(void)
 
 	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "cannot initialize qreg");
 	for (size_t i = 0; i < NUM_AMPS; i++) {
-		z = rand_double() + rand_double() * I;
+		z = xoshiro256ss_dbl01(&RNG) + xoshiro256ss_dbl01(&RNG) * I;
 		AMPS[i] = z;
 		qreg_setamp(&reg, i, z);
 	}
@@ -134,7 +127,7 @@ static void t_qreg_zero(void)
 		TEST_ASSERT(z == 0.0, "i=%zu, z=%f+%fi", i, creal(z), cimag(z));
 	}
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 /*
@@ -150,7 +143,7 @@ static void t_qreg_paulirot_00(void)
 
 	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "cannot initialize qreg");
 	for (size_t i = 0; i < NUM_AMPS; i++) {
-		z = rand_double() + rand_double() * I;
+		z = xoshiro256ss_dbl01(&RNG) + xoshiro256ss_dbl01(&RNG) * I;
 		AMPS[i] = z;
 		qreg_setamp(&reg, i, z);
 	}
@@ -167,7 +160,7 @@ static void t_qreg_paulirot_00(void)
 			creal(z_exp), cimag(z_exp));
 	}
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 static void t_qreg_paulirot_0y_explicit(void)
@@ -199,7 +192,7 @@ static void t_qreg_paulirot_0y_explicit(void)
 	TEST_ASSERT(cabs(z - z_exp) < MARGIN, "i=%d, z=%f+%fi, z_exp=%f+%fi", 1,
 		creal(z), cimag(z), creal(z_exp), cimag(z_exp));
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 static void t_qreg_paulirot_0yyy_explicit(void)
@@ -233,7 +226,7 @@ static void t_qreg_paulirot_0yyy_explicit(void)
 	TEST_ASSERT(cabs(z - z_exp) < MARGIN, "i=%d, z=%f+%fi, z_exp=%f+%fi", 1,
 		creal(z), cimag(z), creal(z_exp), cimag(z_exp));
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 /* Test rotation by one random Pauli string */
@@ -246,7 +239,7 @@ static void t_qreg_paulirot_01(size_t tag)
 
 	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "cannot initialize qreg");
 	for (size_t i = 0; i < NUM_AMPS; i++) {
-		z = rand_double() + rand_double() * I;
+		z = xoshiro256ss_dbl01(&RNG) + xoshiro256ss_dbl01(&RNG) * I;
 		AMPS[i] = z;
 		qreg_setamp(&reg, i, z);
 	}
@@ -255,7 +248,7 @@ static void t_qreg_paulirot_01(size_t tag)
 	for (size_t k = 0; k < NUM_QUBITS; k++)
 		paulis_set(&ps, rand_pauli_op(), k);
 	paulis_split(ps, reg.qb_lo, reg.qb_hi, &ps_lo, &ps_hi);
-	angle = rand_double();
+	angle = xoshiro256ss_dbl01(&RNG);
 	qreg_paulirot(&reg, ps_hi, &ps_lo, &angle, 1);
 
 	for (size_t i = 0; i < NUM_AMPS; i++) {
@@ -271,7 +264,7 @@ static void t_qreg_paulirot_01(size_t tag)
 			cimag(z), creal(z_exp), cimag(z_exp));
 	}
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 /* Test rotation by two random Pauli strings */
@@ -284,7 +277,7 @@ static void t_qreg_paulirot_02(size_t tag)
 
 	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "cannot initialize qreg");
 	for (size_t i = 0; i < NUM_AMPS; i++) {
-		z[0] = rand_double() + rand_double() * I;
+		z[0] = xoshiro256ss_dbl01(&RNG) + xoshiro256ss_dbl01(&RNG) * I;
 		AMPS[i] = z[0];
 		qreg_setamp(&reg, i, z[0]);
 	}
@@ -305,8 +298,8 @@ static void t_qreg_paulirot_02(size_t tag)
 	TEST_ASSERT(paulis_eq(ps_hi[0], ps_hi[1]),
 		"[%zu] hi codes should be equal", tag);
 
-	angle[0] = rand_double();
-	angle[1] = rand_double();
+	angle[0] = xoshiro256ss_dbl01(&RNG);
+	angle[1] = xoshiro256ss_dbl01(&RNG);
 	qreg_paulirot(&reg, ps_hi[0], ps_lo, angle, 2);
 
 	for (size_t k = 0; k < 2; k++) {
@@ -334,7 +327,7 @@ static void t_qreg_paulirot_02(size_t tag)
 			cimag(AMPS[i]));
 	}
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 }
 
 /* Test rotation by n random Pauli strings */
@@ -356,7 +349,7 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 
 	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "cannot initialize qreg");
 	for (size_t i = 0; i < NUM_AMPS; i++) {
-		z[0] = rand_double() + rand_double() * I;
+		z[0] = xoshiro256ss_dbl01(&RNG) + xoshiro256ss_dbl01(&RNG) * I;
 		AMPS[i] = z[0];
 		qreg_setamp(&reg, i, z[0]);
 	}
@@ -378,7 +371,7 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 				"[%zu] l=%zu hi codes should be equal", tag, l);
 	}
 	for (size_t l = 0; l < n; l++)
-		angle[l] = rand_double();
+		angle[l] = xoshiro256ss_dbl01(&RNG);
 	qreg_paulirot(&reg, ps_hi[0], ps_lo, angle, n);
 
 	for (size_t k = 0; k < n; k++) {
@@ -406,7 +399,7 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 			cimag(AMPS[i]));
 	}
 
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 	free(angle);
 	free(ps);
 }
@@ -447,5 +440,5 @@ static void TEST_MAIN(void)
 			t_qreg_paulirot_03(k, n);
 	t_qreg_paulirot_03(1234, 999);
 
-	world_destroy();
+	world_free();
 }

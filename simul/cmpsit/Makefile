@@ -1,8 +1,10 @@
 # -----------------------------------------------------------------------------
 # Simulation parameters:
-DELTA		= 0.01
-TROTT_STEPS	= 1024
-MPI_RANKS	= 2
+LENGTH		:= 4
+SAMPLES 	:= 32
+STEP_SIZE	:= 0.0625
+STEPS		:= 8
+MPI_RANKS	?= 2
 # -----------------------------------------------------------------------------
 
 # System
@@ -18,27 +20,25 @@ SIMUL_PROC	:= $(SIMUL_H5).proc
 
 PYTHON		?= python3
 MPIRUN		?= mpirun
-PH2RUN		?= $(BUILD)/ph2run-trott
+PH2RUN		?= $(BUILD)/ph2run-cmpsit
 
 PARSE_FCIDUMP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
 PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
-TROTT_PREP	= $(PYTHON) $(SCRIPTS)/trott_prep.py
-TROTT_RPE	= $(PYTHON) $(SCRIPTS)/trott_rpe.py
 
 # Application flags
 PARSE_FCIDUMP_FLAGS	=
 PARSE_INPUTST_FLAGS	=
-TROTT_PREP_FLAGS	= --time-factor=$(TIME_FACT)
-TROTT_RPE_FLAGS		=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
-PH2RUN_FLAGS		= --steps=$(TROTT_STEPS) --delta=$(DELTA)
+PH2RUN_FLAGS		= --length=$(LENGTH)			\
+				--samples=$(SAMPLES)		\
+				--step-size=$(STEP_SIZE)	\
+				--steps=$(STEPS)
 PHASE2_LOG		?= info
 
+.DEFAULT_GOAL := all
+.PHONY: all clean rpe
 
-.DEFAULT_GOAL: all
-.PHONY: all clean
-
-all: $(SIMUL_PROC)
+all: $(SIMUL_H5)
 
 $(SIMUL_ORIG): $(FCIDUMP) $(INPUTST)
 	$(PARSE_FCIDUMP) $(PARSE_FCIDUMP_FLAGS) -o $@ $(FCIDUMP)
@@ -46,12 +46,8 @@ $(SIMUL_ORIG): $(FCIDUMP) $(INPUTST)
 
 $(SIMUL_H5): $(SIMUL_ORIG)
 	cp $< $@
-	$(MPIRUN) $(MPIRUN_FLAGS) -x PHASE2_LOG=$(PHASE2_LOG) \
-		$(PH2RUN) $(PH2RUN_FLAGS) $(SIMUL_H5) 
-
-$(SIMUL_PROC): $(SIMUL_H5)
-	@echo -n "$(TIME_FACT),$(TROTT_STEPS)," >> $@
-	$(TROTT_RPE) $(TROTT_RPE_FLAGS) $< | tee -a $@
+	$(MPIRUN) $(MPIRUN_FLAGS) -x PHASE2_LOG=$(PHASE2_LOG)	\
+		$(PH2RUN) $(PH2RUN_FLAGS) $@
 
 clean:
-	$(RM) $(SIMUL_ORIG) $(SIMUL_H5) $(SIMUL_PROC)
+	$(RM) $(SIMUL_ORIG) $(SIMUL_H5)*

@@ -11,7 +11,7 @@ uint64_t qreg_getihi(const struct qreg *reg, uint64_t i);
 
 int qreg_backend_init(struct qreg *reg);
 
-void qreg_backend_destroy(struct qreg *reg);
+void qreg_backend_free(struct qreg *reg);
 
 #ifdef __cplusplus
 }

@@ -23,7 +23,7 @@ static void TEST_MAIN(void)
 	if (wd.rank == 0)
 		log_info("This is rank no. %d", wd.rank);
 
-	world_destroy();
+	world_free();
 
 	world_info(&wd);
 	TEST_ASSERT(wd.stat == WORLD_DONE, "wrong status");

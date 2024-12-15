@@ -134,5 +134,5 @@ ex_prepare:
 	if (wd.rank == 0 && remove(FILENAME) != 0)
 		TEST_FAIL("remove temp file");
 ex_create:
-	world_destroy();
+	world_free();
 }

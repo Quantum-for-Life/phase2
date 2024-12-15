@@ -9,8 +9,8 @@
 #include "phase2/qreg.h"
 #include "phase2/world.h"
 
+#include "qreg.h"
 #include "qreg_cuda.h"
-#include "qreg_impl.h"
 #include "world_cuda.h"
 
 typedef _Complex double c64;
@@ -42,7 +42,7 @@ err_cu_alloc:
 	return -1;
 }
 
-void qreg_backend_destroy(struct qreg *reg)
+void qreg_backend_free(struct qreg *reg)
 {
 	struct qreg_cuda *cu = reg->data;
 	cudaFree(cu->dbuf);
@@ -50,7 +50,7 @@ void qreg_backend_destroy(struct qreg *reg)
 	free(cu);
 }
 
-void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
+void qreg_getamp(struct qreg *reg, const uint64_t i, c64 *z)
 {
 	struct qreg_cuda *cu = reg->data;
 
@@ -65,7 +65,7 @@ void qreg_getamp(const struct qreg *reg, const uint64_t i, c64 *z)
 	MPI_Bcast(z, 2, MPI_DOUBLE, rank, MPI_COMM_WORLD);
 }
 
-void qreg_setamp(const struct qreg *reg, const uint64_t i, c64 z)
+void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 {
 	struct qreg_cuda *cu = reg->data;
 
@@ -87,6 +87,7 @@ void qreg_zero(struct qreg *reg)
 	/* cuDoubleComplex zero representation is all bits set to zero */
 	cudaMemset(cu->damp, 0, reg->namp * sizeof(cuDoubleComplex));
 	cudaDeviceSynchronize();
+	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 static void exch_init(struct qreg *reg, const int rnk_rem)
@@ -114,7 +115,7 @@ static void exch_waitall(struct qreg *reg)
 
 static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi, c64 *bm)
 {
-	paulis_shr(&code_hi, reg->nqb_lo);
+	paulis_shr(&code_hi, reg->qb_lo);
 	const uint64_t rnk_rem = paulis_effect(code_hi, reg->wd.rank, nullptr);
 
 	exch_init(reg, rnk_rem);

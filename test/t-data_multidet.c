@@ -215,5 +215,5 @@ static void TEST_MAIN(void)
 		return;
 	}
 
-	world_destroy();
+	world_free();
 }

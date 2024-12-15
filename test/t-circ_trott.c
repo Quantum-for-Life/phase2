@@ -47,18 +47,10 @@ static size_t MULTIDET_IDX[MULTIDET_DETS_MAX];
 #define SEED UINT64_C(0xd3b9268b8737ddc0)
 static struct xoshiro256ss RNG;
 
-extern int trott_simulate(struct circ *c);
-
-static double rand_double(void)
-{
-	uint64_t x = xoshiro256ss_next(&RNG);
-
-	return (x >> 11) * 0x1.0p-53;
-}
-
 static _Complex double rand_complex(void)
 {
-	_Complex double z = CMPLX(rand_double(), rand_double());
+	_Complex double z =
+		CMPLX(xoshiro256ss_dbl01(&RNG), xoshiro256ss_dbl01(&RNG));
 
 	return z / cabs(z);
 }
@@ -136,7 +128,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	TROTT_STEPS = ts;
 	MULTIDET_DETS = md;
 	HAMIL_TERMS = ht;
-	HAMIL_DELTA = rand_double() * 0.5 + 0.5;
+	HAMIL_DELTA = xoshiro256ss_dbl01(&RNG) * 0.5 + 0.5;
 
 	/* Generate random multidet / hamiltonian */
 	double norm = 0.0;
@@ -150,7 +142,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	for (size_t m = 0; m < MULTIDET_DETS; m++)
 		MULTIDET_COEFFS[m] /= norm;
 	for (size_t k = 0; k < HAMIL_TERMS; k++) {
-		HAMIL_COEFFS[k] = rand_double();
+		HAMIL_COEFFS[k] = xoshiro256ss_dbl01(&RNG);
 		HAMIL_PAULIS[k] = rand_paulis(NUM_QUBITS);
 	}
 
@@ -164,15 +156,14 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 
 	/* Initialize circ_trott manually, because we don't have a
 	 * handle to an open data file. */
-	struct circ_trott tt;
-	tt.circ.simulate = trott_simulate;
-	qreg_init(&tt.circ.reg, NUM_QUBITS);
-	circ_cache_init(&tt.circ.cache, tt.circ.reg.qb_lo, tt.circ.reg.qb_hi);
-	tt.delta = HAMIL_DELTA;
+	struct trott tt;
+	qreg_init(&tt.ct.reg, NUM_QUBITS);
+	circ_cache_init(&tt.ct.cache, tt.ct.reg.qb_lo, tt.ct.reg.qb_hi);
+	tt.dt.delta = HAMIL_DELTA;
 
-	struct circ_hamil *h = &tt.circ.hamil;
-	h->nqb = NUM_QUBITS;
-	h->nterms = HAMIL_TERMS;
+	struct circ_hamil *h = &tt.ct.hm;
+	h->qb = NUM_QUBITS;
+	h->len = HAMIL_TERMS;
 	h->terms = malloc(sizeof *h->terms * HAMIL_TERMS);
 	if (!h->terms) {
 		TEST_FAIL("malloc h->terms");
@@ -183,8 +174,8 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 		h->terms[k].op = HAMIL_PAULIS[k];
 	}
 
-	struct circ_muldet *m = &tt.circ.muldet;
-	m->ndets = MULTIDET_DETS;
+	struct circ_muldet *m = &tt.ct.md;
+	m->len = MULTIDET_DETS;
 	m->dets = malloc(sizeof *m->dets * MULTIDET_DETS);
 	if (!m->dets) {
 		TEST_FAIL("malloc m->dets");
@@ -195,19 +186,19 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 		m->dets[k].cf = MULTIDET_COEFFS[k];
 	}
 
-	tt.res.nsteps = TROTT_STEPS;
-	tt.res.steps = malloc(sizeof *tt.res.steps * TROTT_STEPS);
-	if (!tt.res.steps) {
+	tt.ct.vals.len = TROTT_STEPS;
+	tt.ct.vals.z = malloc(sizeof *tt.ct.vals.z * TROTT_STEPS);
+	if (!tt.ct.vals.z) {
 		TEST_FAIL("malloc res.steps");
 		goto malloc_ressteps;
 	}
 
-	circ_simulate(&tt.circ);
+	trott_simul(&tt);
 
 	/* Compare results. */
 	for (size_t s = 0; s < TROTT_STEPS; s++) {
-		_Complex double eval = tt.res.steps[s];
-		TEST_ASSERT(cabs(tt.res.steps[s] - TROTT_VALS[s]) < MARGIN,
+		_Complex double eval = tt.ct.vals.z[s];
+		TEST_ASSERT(cabs(tt.ct.vals.z[s] - TROTT_VALS[s]) < MARGIN,
 			"[%zu] ts=%zu, md=%zu, ht=%zu, step=%zu "
 			"eval=%f+%fi, TROTT_VALS=%f+%fi",
 			tag, ts, md, ht, s, creal(eval), cimag(eval),
@@ -256,5 +247,5 @@ void TEST_MAIN(void)
 	t_circ_trott(9999, TROTT_STEPS_MAX - 1, MULTIDET_DETS_MAX - 1,
 		HAMIL_TERMS_MAX - 1);
 
-	world_destroy();
+	world_free();
 }

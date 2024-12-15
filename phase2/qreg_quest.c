@@ -6,7 +6,6 @@
 
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
-#include "phase2/world.h"
 
 #include "qreg.h"
 #include "world_quest.h"
@@ -30,7 +29,7 @@ int qreg_backend_init(struct qreg *reg)
 	reg->amp = nullptr;
 
 	struct world_quest *const w = reg->wd.data;
-	uint32_t nqb = reg->nqb_lo + reg->nqb_hi;
+	uint32_t nqb = reg->qb_lo + reg->qb_hi;
 	q->qureg = createQureg(nqb, w->env);
 	for (size_t i = 0; i < nqb; i++) {
 		q->tg_qb[i] = i;
@@ -42,7 +41,7 @@ int qreg_backend_init(struct qreg *reg)
 	return 0;
 }
 
-void qreg_backend_destroy(struct qreg *reg)
+void qreg_backend_free(struct qreg *reg)
 {
 	struct world_quest *w = reg->wd.data;
 	struct qreg_quest *q = reg->data;
@@ -50,7 +49,7 @@ void qreg_backend_destroy(struct qreg *reg)
 	destroyQureg(q->qureg, w->env);
 }
 
-void qreg_getamp(const struct qreg *reg, const uint64_t i, _Complex double *z)
+void qreg_getamp(struct qreg *reg, const uint64_t i, _Complex double *z)
 {
 	struct qreg_quest *q = reg->data;
 
@@ -142,13 +141,13 @@ static void paulirot_onecode(
 void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
 	const struct paulis *codes_lo, const double *phis, const size_t ncodes)
 {
-	const size_t nqb = reg->nqb_lo + reg->nqb_hi;
+	const size_t nqb = reg->qb_lo + reg->qb_hi;
 	struct qreg_quest *q = reg->data;
 
 	struct paulis code;
 	for (size_t k = 0; k < ncodes; k++) {
 		paulis_merge(
-			&code, reg->nqb_lo, reg->nqb_hi, codes_lo[k], code_hi);
+			&code, reg->qb_lo, reg->qb_hi, codes_lo[k], code_hi);
 		for (size_t i = 0; i < nqb; i++)
 			q->tg_op[i] = paulis_get(code, i);
 

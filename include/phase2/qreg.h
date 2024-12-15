@@ -31,7 +31,7 @@ struct qreg {
 
 int qreg_init(struct qreg *reg, uint32_t qb);
 
-void qreg_destroy(struct qreg *reg);
+void qreg_free(struct qreg *reg);
 
 void qreg_getamp(struct qreg *reg, uint64_t i, _Complex double *z);
 

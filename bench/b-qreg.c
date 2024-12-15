@@ -21,11 +21,6 @@ static struct world WD;
 #define SEED UINT64_C(0x2d1da81dc94cf64f)
 static struct xoshiro256ss RNG;
 
-static double rand_double(void)
-{
-	return (double)(xoshiro256ss_next(&RNG) >> 11) * 0x1.0p-53;
-}
-
 static int rand_pauli(void)
 {
 	return (int)(xoshiro256ss_next(&RNG) % 4);
@@ -41,7 +36,7 @@ static int b_qreg_init(void *data)
 	struct qreg reg;
 
 	qreg_init(&reg, q->n);
-	qreg_destroy(&reg);
+	qreg_free(&reg);
 
 	return 0;
 }
@@ -91,7 +86,7 @@ static void measure_b_qreg_get(void)
 		log_info(
 			"b_qreg_get [nqb,t_ms]: %2u,%11.6f", n, bench_msrep(b));
 
-		qreg_destroy(&reg);
+		qreg_free(&reg);
 	}
 }
 
@@ -123,7 +118,7 @@ static void measure_b_qreg_zero(void)
 		log_info("b_qreg_zero [nqb,t_ms]: %2u,%11.6f", n,
 			bench_msrep(b));
 
-		qreg_destroy(&reg);
+		qreg_free(&reg);
 	}
 }
 
@@ -164,7 +159,7 @@ static void b_qreg_paulirot_rand(struct b_qreg_paulirot *q)
 	for (size_t i = 0; i < q->ncodes; i++) {
 		for (size_t k = 0; k < q->reg->qb_lo; k++)
 			paulis_set(q->codes_lo + i, rand_pauli(), k);
-		q->angles[i] = rand_double() * 2.0 - 1.0;
+		q->angles[i] = xoshiro256ss_dbl01(&RNG) * 2.0 - 1.0;
 	}
 }
 
@@ -195,7 +190,7 @@ static void measure_b_qreg_paulirot(void)
 				n, ncodes, bench_msrep(b));
 
 			b_qreg_paulirot_destroy(&q);
-			qreg_destroy(&reg);
+			qreg_free(&reg);
 		}
 	}
 }
@@ -228,7 +223,7 @@ int main(int argc, char **argv)
 	log_info("<<< END BENCHES");
 
 	log_info("Destroy world");
-	world_destroy();
+	world_free();
 
 	return 0;
 }

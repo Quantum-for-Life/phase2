@@ -9,15 +9,13 @@ import h5py
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        prog="qdrift-rpe",
-        description="Robust phase estimation for QDrift",
+        prog="cmpsit-rpe",
+        description="Robust phase estimation for Composite",
         epilog="Quantum-for-Life",
     )
 
     parser.add_argument("filename", type=str, help="Input file")
-    parser.add_argument("--delta", type=float)
-    parser.add_argument("--epsilon", type=float)
-    parser.add_argument("--num-samples", type=int)
+    parser.add_argument("--step-pow", type=int)
 
     return parser.parse_args()
 
@@ -30,23 +28,20 @@ if __name__ == "__main__":
         norm = grp.attrs['normalization']
         offset = grp.attrs['offset']
 
-    delta = args.delta
-    epsilon = args.epsilon
-    J = math.ceil(math.log2(delta / epsilon))
-    x = math.pow(2, -1 * J)
+    J = args.step_pow
 
     thetas = [0.0]
     for i in range(0, J + 1):
         filename = args.filename + f"-{i}"
         with h5py.File(filename, "a") as f:
-            grp = f["circ_qdrift"]
-            depth = grp.attrs["depth"]
+            grp = f["circ_cmpsit"]
+            step_size = grp.attrs["step_size"]
             num_samples = len(grp["values"])
             z_re = sum(x[0] for x in grp["values"]) / num_samples
             z_im = sum(x[1] for x in grp["values"]) / num_samples
         z = z_re + 1j * z_im
-        t = depth * x
-        print(f"{depth=}, {x=}, {t=}, {z=}")
+        t = step_size * 2**i
+        print(f"{step_size=}, 2^i={2**i}, {t=}, {z=}")
         phi = cmath.phase(z)  # phi \in [-\pi, \pi]
         if phi < 0:
             phi = 2 * math.pi + phi
@@ -61,6 +56,8 @@ if __name__ == "__main__":
     thJ = thetas[J]
     if thJ > math.pi:
         thJ = - (2 * math.pi - thJ)
+    x = 2**(-J)
     E0 = math.sqrt(1-x**2)/x * math.tan(x*thJ) / norm
+    E0 = E0 / step_size
     E = E0  + offset
-    print(f"{delta},{epsilon},{E0},{E}")
+    print(f"{E0},{E}")

@@ -14,18 +14,26 @@
 
 #define DATA_HAMIL "pauli_hamil"
 #define DATA_HAMIL_COEFFS "coeffs"
-#define DATA_HAMIL_PAULIS "paulis"
 #define DATA_HAMIL_NORM "normalization"
+#define DATA_HAMIL_PAULIS "paulis"
 
 #define DATA_CIRCTROTT "circ_trott"
 #define DATA_CIRCTROTT_DELTA "delta"
 #define DATA_CIRCTROTT_VALUES "values"
 
 #define DATA_CIRCQDRIFT "circ_qdrift"
-#define DATA_CIRCQDRIFT_STEPSIZE "step_size"
-#define DATA_CIRCQDRIFT_NUMSAMPLES "num_samples"
 #define DATA_CIRCQDRIFT_DEPTH "depth"
+#define DATA_CIRCQDRIFT_NUMSAMPLES "num_samples"
+#define DATA_CIRCQDRIFT_STEPSIZE "step_size"
 #define DATA_CIRCQDRIFT_VALUES "values"
+
+#define DATA_CIRCCMPSIT "circ_cmpsit"
+#define DATA_CIRCCMPSIT_DEPTH "depth"
+#define DATA_CIRCCMPSIT_LENGTH "length"
+#define DATA_CIRCCMPSIT_NUMSAMPLES "num_samples"
+#define DATA_CIRCCMPSIT_STEPSIZE "step_size"
+#define DATA_CIRCCMPSIT_STEPS "steps"
+#define DATA_CIRCCMPSIT_VALUES "values"
 
 /**
  * Handle to a data file
