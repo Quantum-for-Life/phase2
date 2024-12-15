@@ -11,7 +11,7 @@ VERSION_PATCH	:= 0
 AS		:= nasm
 ASFLAGS		+= -felf64 -w+all -w-reloc-rel-dword -Ox
 CC		?= gcc
-CFLAGS		+= -std=c11 -Wall -Wextra -O3 -march=native -mavx2 -ffast-math
+CFLAGS		+= -std=c11 -Wall -Wextra -O3 -march=native -mavx2
 INCLUDE		:= ./include
 LDFLAGS 	+=
 LDLIBS		+= -lm
@@ -97,7 +97,7 @@ NVCC		?= nvcc
 NVCCFLAGS	+= -O3 -dopt=on -arch=native
 ## Compile for NVIDIA H100
 ## https://docs.nvidia.com/cuda/hopper-compatibility-guide/index.html
-#NVCCFLAGS      += -O3 -dopt=on -arch=sm_90a -use_fast_math
+#NVCCFLAGS      += -O3 -dopt=on -arch=sm_90a
 CUDA_PREFIX	:=/usr/local/cuda
 CUDA_INCLUDE	:=$(CUDA_PREFIX)/include
 CUDA_LIBDIR	:=$(CUDA_PREFIX)/lib64
@@ -113,6 +113,7 @@ BACKEND_LDLIBS	+= -lcudart -lstdc++
 $(BACKEND_OBJS): $(PHASE2DIR)/qreg_cuda.h				\
        			$(PHASE2DIR)/world_cuda.h
 
+NVCCFLAGS	+= $(MPI_CFLAGS) $(HDF5_CFLAGS)
 $(PHASE2DIR)/qreg_cuda_lo.o: $(PHASE2DIR)/qreg_cuda_lo.cu
 	$(NVCC) $(NVCCFLAGS) $(BACKEND_CFLAGS) 				\
 	       -I$(INCLUDE) -c $< -o $@
