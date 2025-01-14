@@ -191,7 +191,7 @@ double signof(double a)
 }
 
 static void hm_sample_rand(
-	struct circ_hamil_term *trm, size_t *i, struct cmpsit *cp, double fact)
+	struct circ_hamil_term *trm, size_t *i, struct cmpsit *cp, double tau)
 {
 	/* Sample terms */
 	unsigned n;
@@ -206,8 +206,8 @@ static void hm_sample_rand(
 	struct circ_hamil_term t = cp->ranct.hm_ran.terms[idx];
 
 	trm[*i].op = t.op;
-	double theta = acos(1.0 / sqr_kernel(cp->dt.step_size, n + 1));
-	trm[*i].cf = theta * signof(t.cf) * cp->ranct.lambda_r * fact;
+	double theta = acos(1.0 / sqr_kernel(tau, n + 1));
+	trm[*i].cf = theta * signof(t.cf) * cp->ranct.lambda_r * tau;
 	(*i)++;
 
 	while (n--) {
@@ -215,7 +215,7 @@ static void hm_sample_rand(
 			&cp->ranct.cdf, xoshiro256ss_dbl01(&cp->rng));
 
 		trm[*i].op = cp->ranct.hm_ran.terms[idx].op;
-		trm[*i].cf = FRAC_PI_2;
+		trm[*i].cf = FRAC_PI_2 * signof(cp->ranct.hm_ran.terms[idx].cf);
 		(*i)++;
 	}
 }
@@ -231,8 +231,11 @@ static int hm_sample(struct cmpsit *cp)
 		goto trm_alloc;
 
 	size_t hm_len;
-	for (hm_len = 0; hm_len < cp->dt.length; hm_len++)
-		trm[hm_len] = cp->ranct.hm_det.terms[hm_len];
+	for (hm_len = 0; hm_len < cp->dt.length; hm_len++) {
+		trm[hm_len].op = cp->ranct.hm_det.terms[hm_len].op;
+		trm[hm_len].cf =
+			cp->ranct.hm_det.terms[hm_len].cf * cp->dt.step_size;
+	}
 
 	const double tau =
 		1.0 / (cp->ranct.lambda_r * cp->dt.step_size * cp->dt.steps);
@@ -270,15 +273,14 @@ int cmpsit_simul(struct cmpsit *cp)
 			/* Second order Suzuki-Trotter */
 			if (hm_sample(cp) < 0)
 				return -1;
-			if (circ_step(&cp->ct, &cp->ranct.hm_smpl,
-				    cp->dt.step_size * 0.5) < 0)
+			if (circ_step(&cp->ct, &cp->ranct.hm_smpl, 0.5) < 0)
 				return -1;
 			ranct_hmsmpl_free(cp);
 
 			if (hm_sample(cp) < 0)
 				return -1;
-			if (circ_step_reverse(&cp->ct, &cp->ranct.hm_smpl,
-				    cp->dt.step_size * 0.5) < 0)
+			if (circ_step_reverse(
+				    &cp->ct, &cp->ranct.hm_smpl, 0.5) < 0)
 				return -1;
 			ranct_hmsmpl_free(cp);
 		}
