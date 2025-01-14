@@ -123,8 +123,8 @@ static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
 	log_info("ranct.b_tot: %.9f", rct->b_tot);
 	log_info("ranct.lambda_r: %.9f", rct->lambda_r);
 
-	size_t depth = ceil(rct->lambda_r * dt->step_size * dt->steps);
-	depth = depth * depth;
+	size_t depth = ceil(rct->lambda_r * rct->lambda_r * dt->step_size *
+			    dt->step_size * dt->steps);
 	log_info("ranct.depth: %zu", depth);
 	rct->depth = depth;
 
@@ -233,8 +233,11 @@ static int hm_sample(struct cmpsit *cp)
 	size_t hm_len;
 	for (hm_len = 0; hm_len < cp->dt.length; hm_len++)
 		trm[hm_len] = cp->ranct.hm_det.terms[hm_len];
+
+	const double tau =
+		1.0 / (cp->ranct.lambda_r * cp->dt.step_size * cp->dt.steps);
 	for (size_t d = 0; d < depth; d++)
-		hm_sample_rand(trm, &hm_len, cp, 1.0);
+		hm_sample_rand(trm, &hm_len, cp, tau);
 
 	if (circ_hamil_init(&cp->ranct.hm_smpl, cp->ct.hm.qb, hm_len) < 0)
 		goto hm_smpl_init;
