@@ -6,7 +6,7 @@
 # ----------------------------------------------------------------------------#
 VERSION_MAJOR	:= 0
 VERSION_MINOR	:= 12
-VERSION_PATCH	:= 0
+VERSION_PATCH	:= 1
 
 AS		:= nasm
 ASFLAGS		+= -felf64 -w+all -w-reloc-rel-dword -Ox

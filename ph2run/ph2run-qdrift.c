@@ -31,7 +31,8 @@ static struct args {
 };
 static void print_help(const char *progname)
 {
-	fprintf(stderr, "%s: Simulate \"qdrift\" circuit.\n\n", progname);
+	fprintf(stderr, "%s-%d.%d.%d: Simulate \"trott\" circuit.\n\n",
+		progname, PHASE2_VER_MAJOR, PHASE2_VER_MINOR, PHASE2_VER_PATCH);
 	fprintf(stderr, "  usage: %s [OPTIONS] FILENAME\n", progname);
 	fprintf(stderr, "\nOptions:\n"
 			"  -h, --help          Show this help.\n"
