@@ -1,5 +1,6 @@
 #include "c23_compat.h"
 #include <complex.h>
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -78,12 +79,20 @@ void qdrift_free(struct qdrift *qd)
 	circ_free(&qd->ct);
 }
 
+static double signof(double a)
+{
+	const double f = fabs(a);
+	if (f < DBL_EPSILON)
+		return 0.0;
+	return a < f ? -1.0 : 1.0;
+}
+
 static void ranct_sample(struct qdrift *qd)
 {
 	for (size_t i = 0; i < qd->ranct.hm_ran.len; i++) {
 		const double x = xoshiro256ss_dbl01(&qd->rng);
 		const size_t idx = prob_cdf_inverse(&qd->ranct.cdf, x);
-		qd->ranct.hm_ran.terms[i].cf = 1.0; // qd->ct.hm.terms[idx].cf;
+		qd->ranct.hm_ran.terms[i].cf = signof(qd->ct.hm.terms[idx].cf);
 		qd->ranct.hm_ran.terms[i].op = qd->ct.hm.terms[idx].op;
 	}
 }
@@ -99,8 +108,8 @@ int qdrift_simul(struct qdrift *qd)
 		circ_prepst(ct);
 
 		ranct_sample(qd);
-		if (circ_step(ct, &qd->ranct.hm_ran,
-			    asin(qd->dt.step_size) * 1.0) < 0)
+		if (circ_step(ct, &qd->ranct.hm_ran, asin(qd->dt.step_size)) <
+			0)
 			return -1;
 		vals->z[i] = circ_measure(ct);
 

@@ -5,7 +5,7 @@
 # and headers.                                                                #
 # ----------------------------------------------------------------------------#
 VERSION_MAJOR	:= 0
-VERSION_MINOR	:= 9
+VERSION_MINOR	:= 12
 VERSION_PATCH	:= 0
 
 AS		:= nasm
