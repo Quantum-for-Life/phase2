@@ -102,6 +102,5 @@ void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
 	}
 
 	// We mix again damp and dbuf. Sync them first.
-	cudaDeviceSynchronize();
 	kernelAdd<<<blocks, threadPerBlock>>>(cu->damp, cu->dbuf, reg->namp);
 }
