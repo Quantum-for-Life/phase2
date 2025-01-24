@@ -94,6 +94,7 @@ static void exch_init(struct qreg *reg, const int rnk_rem)
 {
 	struct qreg_cuda *cu = reg->data;
 
+	cudaDeviceSynchronize();
 	const int nr = reg->nreqs;
 	for (int i = 0; i < nr; i++) {
 		const size_t offset = i * reg->msg_count;
@@ -111,6 +112,7 @@ static void exch_waitall(struct qreg *reg)
 
 	MPI_Waitall(nr, reg->reqs_snd, MPI_STATUSES_IGNORE);
 	MPI_Waitall(nr, reg->reqs_rcv, MPI_STATUSES_IGNORE);
+	cudaDeviceSynchronize();
 }
 
 static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi, c64 *bm)
