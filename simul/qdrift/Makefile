@@ -3,6 +3,7 @@
 DEPTH		:= 256
 SAMPLES 	:= 64
 STEP_SIZE	:= 0.0625
+SEED		:= 3924873492
 MPI_RANKS	?= 2
 # -----------------------------------------------------------------------------
 
@@ -30,7 +31,8 @@ PARSE_INPUTST_FLAGS	=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
 PH2RUN_FLAGS		= --depth=$(DEPTH) 			\
 				--samples=$(SAMPLES)		\
-				--step-size=$(STEP_SIZE)
+				--step-size=$(STEP_SIZE)	\
+				--seed=$(SEED)
 PHASE2_LOG		?= info
 
 .DEFAULT_GOAL := all

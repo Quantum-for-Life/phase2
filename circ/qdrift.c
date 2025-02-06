@@ -12,7 +12,7 @@
 
 #include "circ/qdrift.h"
 
-#define SEED UINT64_C(0xeccd9dcc749fcdca)
+static uint64_t SEED = UINT64_C(0xeccd9dcc749fcdca);
 
 static int ranct_init(struct qdrift_ranct *rct, const uint32_t qb,
 	const size_t depth, const size_t cdf_len)
@@ -62,6 +62,9 @@ int qdrift_init(
 		goto err_rct_init;
 	ranct_calc_cdf(&qd->ranct, qd->ct.hm.terms);
 
+	if (qd->dt.seed != 0) {
+		SEED = qd->dt.seed;
+	}
 	xoshiro256ss_init(&qd->rng, SEED);
 
 	return 0;
@@ -130,6 +133,8 @@ int qdrift_write_res(struct qdrift *qd, data_id fid)
 		goto data_res_write;
 	if (data_attr_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_DEPTH,
 		    qd->dt.depth) < 0)
+		goto data_res_write;
+	if (data_attr_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_SEED, SEED) < 0)
 		goto data_res_write;
 	if (data_res_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_VALUES,
 		    qd->ct.vals.z, qd->ct.vals.len) < 0)

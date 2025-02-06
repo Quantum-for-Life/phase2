@@ -19,6 +19,7 @@ static struct args {
 	size_t depth;
 	size_t nsamples;
 	double step_size;
+	uint64_t seed;
 	const char *filename;
 } ARGS = {
 	.progname = nullptr,
@@ -27,6 +28,7 @@ static struct args {
 	.depth = 64,
 	.nsamples = 1,
 	.step_size = 1.0,
+	.seed = 0,
 	.filename = nullptr,
 };
 static void print_help(const char *progname)
@@ -34,13 +36,15 @@ static void print_help(const char *progname)
 	fprintf(stderr, "%s-%d.%d.%d: Simulate \"trott\" circuit.\n\n",
 		progname, PHASE2_VER_MAJOR, PHASE2_VER_MINOR, PHASE2_VER_PATCH);
 	fprintf(stderr, "  usage: %s [OPTIONS] FILENAME\n", progname);
-	fprintf(stderr, "\nOptions:\n"
-			"  -h, --help          Show this help.\n"
-			"  -v, --version       Print version number.\n"
-			"  --depth=64          Depth of the sampled circuit.\n"
-			"  --samples=1         Number of samples.\n"
-			"  --step-size=1.0     Time evolution step size.\n"
-			"\n");
+	fprintf(stderr,
+		"\nOptions:\n"
+		"  -h, --help          Show this help.\n"
+		"  -v, --version       Print version number.\n"
+		"  --depth=64          Depth of the sampled circuit.\n"
+		"  --samples=1         Number of samples.\n"
+		"  --step-size=1.0     Time evolution step size.\n"
+		"  --seed=N            Seed of the PRNG (default value if not specified).\n"
+		"\n");
 	fprintf(stderr, "FILENAME is a HDF5 simulation worksheet.\n");
 }
 
@@ -109,6 +113,14 @@ static int args_parse_longopt(const int *argc, char ***argv)
 			return -1;
 		}
 		ARGS.step_size = ss;
+
+		return 0;
+	}
+	if (strncmp(o, "--seed=", 7) == 0) {
+		uint64_t seed = strtoul(o + 7, nullptr, 10);
+		if (seed != 0) {
+			ARGS.seed = seed;
+		}
 
 		return 0;
 	}
@@ -184,7 +196,8 @@ int run_circuit(const struct args *args)
 	struct qdrift qd;
 	struct qdrift_data data = { .depth = args->depth,
 		.samples = args->nsamples,
-		.step_size = args->step_size };
+		.step_size = args->step_size,
+		.seed = args->seed };
 
 	log_info("open data file: %s", args->filename);
 	if ((fid = data_open(args->filename)) == DATA_INVALID_FID) {
@@ -254,6 +267,7 @@ int main(int argc, char **argv)
 	log_info("depth: %zu", ARGS.depth);
 	log_info("samples: %zu", ARGS.nsamples);
 	log_info("step_size: %f", ARGS.step_size);
+	log_info("seed: %lu", ARGS.seed);
 
 	if (run_circuit(&ARGS) < 0) {
 		log_error("Failure: simulation error");

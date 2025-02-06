@@ -26,6 +26,7 @@
 #define DATA_CIRCQDRIFT_NUMSAMPLES "num_samples"
 #define DATA_CIRCQDRIFT_STEPSIZE "step_size"
 #define DATA_CIRCQDRIFT_VALUES "values"
+#define DATA_CIRCQDRIFT_SEED "seed"
 
 #define DATA_CIRCCMPSIT "circ_cmpsit"
 #define DATA_CIRCCMPSIT_DEPTH "depth"

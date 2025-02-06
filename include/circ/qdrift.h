@@ -12,6 +12,7 @@ struct qdrift_data {
 	size_t depth;
 	size_t samples;
 	double step_size;
+	uint64_t seed;
 };
 
 struct qdrift_ranct {
