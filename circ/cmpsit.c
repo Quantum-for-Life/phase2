@@ -12,7 +12,7 @@
 
 #include <float.h>
 
-#define SEED UINT64_C(0xafb424901446f21f)
+static uint64_t SEED = UINT64_C(0xafb424901446f21f);
 
 #ifndef FRAC_PI_2
 #define FRAC_PI_2 1.57079632679489661923132169163975144
@@ -126,7 +126,9 @@ int cmpsit_init(
 	if (ranct_init(&cp->ranct, &cp->ct.hm, dt) < 0)
 		goto err_ranct_init;
 
-	/* TODO: seed it with user-supplied seed */
+	if (cp->dt.seed != 0) {
+		SEED = cp->dt.seed;
+	}
 	xoshiro256ss_init(&cp->rng, SEED);
 
 	return 0;
@@ -232,6 +234,8 @@ int cmpsit_write_res(struct cmpsit *cp, data_id fid)
 		goto data_res_write;
 	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_STEPS,
 		    cp->dt.steps) < 0)
+		goto data_res_write;
+	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_SEED, SEED) < 0)
 		goto data_res_write;
 	if (data_res_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_VALUES,
 		    cp->ct.vals.z, cp->ct.vals.len) < 0)

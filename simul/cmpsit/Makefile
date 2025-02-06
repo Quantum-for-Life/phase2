@@ -4,6 +4,7 @@ LENGTH		:= 4
 SAMPLES 	:= 32
 STEP_SIZE	:= 0.0625
 STEPS		:= 8
+SEED		:= 9393992002
 MPI_RANKS	?= 2
 # -----------------------------------------------------------------------------
 
@@ -32,7 +33,8 @@ MPIRUN_FLAGS		= -n $(MPI_RANKS)
 PH2RUN_FLAGS		= --length=$(LENGTH)			\
 				--samples=$(SAMPLES)		\
 				--step-size=$(STEP_SIZE)	\
-				--steps=$(STEPS)
+				--steps=$(STEPS)		\
+				--seed=$(SEED)
 PHASE2_LOG		?= info
 
 .DEFAULT_GOAL := all

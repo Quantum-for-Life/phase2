@@ -21,6 +21,7 @@ static struct args {
 	size_t samples;
 	size_t steps;
 	double step_size;
+	uint64_t seed;
 	const char *filename;
 } ARGS = {
 	.progname = nullptr,
@@ -30,6 +31,7 @@ static struct args {
 	.samples = 1,
 	.step_size = 1.0,
 	.steps = 1,
+	.seed = 0,
 	.filename = nullptr,
 };
 static void print_help(const char *progname)
@@ -128,6 +130,14 @@ static int args_parse_longopt(const int *argc, char ***argv)
 
 		return 0;
 	}
+	if (strncmp(o, "--seed=", 7) == 0) {
+		uint64_t seed = strtoul(o + 7, nullptr, 10);
+		if (seed != 0) {
+			ARGS.seed = seed;
+		}
+
+		return 0;
+	}
 	if (strncmp(o, "--version", 9) == 0) {
 		ARGS.opt_version = true;
 		return 0;
@@ -202,7 +212,8 @@ int run_circuit(const struct args *args)
 		.length = args->length,
 		.samples = args->samples,
 		.step_size = args->step_size,
-		.steps = args->steps
+		.steps = args->steps,
+		.seed = args->seed
 	};
 
 	log_info("open data file: %s", args->filename);

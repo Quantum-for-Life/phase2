@@ -13,6 +13,7 @@ struct cmpsit_data {
 	size_t samples;
 	double step_size;
 	size_t steps;
+	uint64_t seed;
 };
 
 /* Sampled circuit. */

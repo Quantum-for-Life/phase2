@@ -35,6 +35,7 @@
 #define DATA_CIRCCMPSIT_STEPSIZE "step_size"
 #define DATA_CIRCCMPSIT_STEPS "steps"
 #define DATA_CIRCCMPSIT_VALUES "values"
+#define DATA_CIRCCMPSIT_SEED "seed"
 
 /**
  * Handle to a data file
