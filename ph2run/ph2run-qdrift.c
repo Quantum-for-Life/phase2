@@ -42,8 +42,8 @@ static void print_help(const char *progname)
 		"  -v, --version       Print version number.\n"
 		"  --depth=64          Depth of the sampled circuit.\n"
 		"  --samples=1         Number of samples.\n"
-		"  --step-size=1.0     Time evolution step size.\n"
 		"  --seed=N            Seed of the PRNG (default value if not specified).\n"
+		"  --step-size=1.0     Time evolution step size.\n"
 		"\n");
 	fprintf(stderr, "FILENAME is a HDF5 simulation worksheet.\n");
 }
@@ -266,8 +266,8 @@ int main(int argc, char **argv)
 	log_info("*** Circuit: qDRIFT >>> ***");
 	log_info("depth: %zu", ARGS.depth);
 	log_info("samples: %zu", ARGS.nsamples);
-	log_info("step_size: %f", ARGS.step_size);
 	log_info("seed: %lu", ARGS.seed);
+	log_info("step_size: %f", ARGS.step_size);
 
 	if (run_circuit(&ARGS) < 0) {
 		log_error("Failure: simulation error");

@@ -45,6 +45,7 @@ static void print_help(const char *progname)
 		"  -v, --version       Print version number.\n"
 		"  --length=1          Length of the deterministic Hamiltonian.\n"
 		"  --samples=1         Number of samples.\n"
+		"  --seed=N            Seed of the PRNG (default value if not specified).\n"
 		"  --step-size=1.0     Time evolution step size.\n"
 		"  --steps=1           Number of Trotter steps.\n"
 		"\n");
@@ -282,6 +283,7 @@ int main(int argc, char **argv)
 	log_info("*** Circuit: cmpsit >>> ***");
 	log_info("length: %zu", ARGS.length);
 	log_info("samples: %zu", ARGS.samples);
+	log_info("seed: %lu", ARGS.seed);
 	log_info("step_size: %f", ARGS.step_size);
 	log_info("steps: %zu", ARGS.steps);
 
