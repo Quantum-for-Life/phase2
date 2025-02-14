@@ -12,28 +12,32 @@
 
 #define WD_SEED UINT64_C(0xd871e5d39fc0222d)
 static struct world WD;
-
 static struct args {
 	const char *progname;
 	bool opt_help;
 	bool opt_version;
 	size_t length;
-	size_t samples;
+	size_t depth;
 	size_t steps;
-	double step_size;
+	double angle_det;
+	double angle_rand;
+	size_t samples;
 	uint64_t seed;
 	const char *filename;
 } ARGS = {
 	.progname = nullptr,
 	.opt_help = false,
 	.opt_version = false,
-	.length = 1,
-	.samples = 1,
-	.step_size = 1.0,
-	.steps = 1,
 	.seed = 0,
+	.length = 1,
+	.depth = 64,
+	.steps = 1,
+	.angle_det = 1.0,
+	.angle_rand = 1.0,
+	.samples = 1,
 	.filename = nullptr,
 };
+
 static void print_help(const char *progname)
 {
 	fprintf(stderr, "%s-%d.%d.%d: Simulate \"trott\" circuit.\n\n",
@@ -43,11 +47,13 @@ static void print_help(const char *progname)
 		"\nOptions:\n"
 		"  -h, --help          Show this help.\n"
 		"  -v, --version       Print version number.\n"
-		"  --length=1          Length of the deterministic Hamiltonian.\n"
-		"  --samples=1         Number of samples.\n"
 		"  --seed=N            Seed of the PRNG (default value if not specified).\n"
-		"  --step-size=1.0     Time evolution step size.\n"
+		"  --length=1          Length of the deterministic Hamiltonian.\n"
+		"  --depth=64          Depth of the sampled circuit.\n"
 		"  --steps=1           Number of Trotter steps.\n"
+		"  --angle-det=1.0     Deterministic time evolution angle (delta).\n"
+		"  --angle-rand=1.0    Randomized evolution angle (tau).\n"
+		"  --samples=1         Number of samples.\n"
 		"\n");
 	fprintf(stderr, "FILENAME is a HDF5 simulation worksheet.\n");
 }
@@ -90,6 +96,16 @@ static int args_parse_longopt(const int *argc, char ***argv)
 		ARGS.opt_help = true;
 		return 0;
 	}
+	if (strncmp(o, "--depth=", 8) == 0) {
+		size_t depth = strtoul(o + 8, nullptr, 10);
+		if (depth == 0) {
+			fprintf(stderr, "Option: --depth=, wrong value.\n");
+			return -1;
+		}
+		ARGS.depth = depth;
+
+		return 0;
+	}
 	if (strncmp(o, "--length=", 9) == 0) {
 		size_t length = strtoul(o + 9, nullptr, 10);
 		if (length == 0) {
@@ -110,13 +126,23 @@ static int args_parse_longopt(const int *argc, char ***argv)
 
 		return 0;
 	}
-	if (strncmp(o, "--step-size=", 12) == 0) {
+	if (strncmp(o, "--angle-det=", 12) == 0) {
 		double ss = strtod(o + 12, nullptr);
 		if (ss == 0) {
-			fprintf(stderr, "Option: --step-size=, wrong value.\n");
+			fprintf(stderr, "Option: --angle-det=, wrong value.\n");
 			return -1;
 		}
-		ARGS.step_size = ss;
+		ARGS.angle_det = ss;
+
+		return 0;
+	}
+	if (strncmp(o, "--angle-rand=", 13) == 0) {
+		double tau = strtod(o + 13, nullptr);
+		if (tau == 0) {
+			fprintf(stderr, "Option: --anglerand=, wrong value.\n");
+			return -1;
+		}
+		ARGS.angle_rand = tau;
 
 		return 0;
 	}
@@ -207,15 +233,18 @@ int run_circuit(const struct args *args)
 
 	data_id fid;
 	struct timespec t1, t2;
-
-	struct cmpsit cp;
-	struct cmpsit_data data = { /* */
+	struct cmpsit_data data = {
+		/* */
+		.depth = args->depth,
 		.length = args->length,
 		.samples = args->samples,
-		.step_size = args->step_size,
+		.angle_det = args->angle_det,
 		.steps = args->steps,
-		.seed = args->seed
+		.seed = args->seed,
+		.angle_rand = args->angle_rand,
 	};
+
+	struct cmpsit cp;
 
 	log_info("open data file: %s", args->filename);
 	if ((fid = data_open(args->filename)) == DATA_INVALID_FID) {
@@ -248,11 +277,12 @@ int run_circuit(const struct args *args)
 ex_circ_res_write:
 	cmpsit_free(&cp);
 	log_info("> Simulation summary (CSV):");
-	log_info("> n_qb,n_terms,n_dets,n_samples,length,step_size,steps,"
-		 "n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%zu,%.6f,%zu,%d,%.3f", cp.ct.hm.qb,
-		cp.ct.hm.len, cp.ct.md.len, data.samples,
-		data.length, data.step_size, data.steps, WD.size, t_tot);
+	log_info(
+		"> n_qb,n_terms,n_dets,samples,length,depth,angle_det,angle_rand,steps,n_ranks,t_tot");
+	log_info("> %zu,%zu,%zu,%zu,%zu,%zu,%.16f,%.16f,%zu,%d,%.3f",
+		cp.ct.hm.qb, cp.ct.hm.len, cp.ct.md.len, data.samples,
+		data.length, data.depth, data.angle_det, data.angle_rand,
+		data.steps, WD.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:
 	return rt;
@@ -281,11 +311,13 @@ int main(int argc, char **argv)
 	log_info("MPI num_ranks: %d", nranks);
 	log_info("world_backend: %s", WORLD_BACKEND);
 	log_info("*** Circuit: cmpsit >>> ***");
-	log_info("length: %zu", ARGS.length);
-	log_info("samples: %zu", ARGS.samples);
 	log_info("seed: %lu", ARGS.seed);
-	log_info("step_size: %f", ARGS.step_size);
+	log_info("length: %zu", ARGS.length);
+	log_info("depth: %zu", ARGS.depth);
 	log_info("steps: %zu", ARGS.steps);
+	log_info("angle_det: %.16f", ARGS.angle_det);
+	log_info("angle_rand: %.16f", ARGS.angle_rand);
+	log_info("samples: %zu", ARGS.samples);
 
 	if (run_circuit(&ARGS) < 0) {
 		log_error("Failure: simulation error");

@@ -1,10 +1,12 @@
 # -----------------------------------------------------------------------------
 # Simulation parameters:
-LENGTH		:= 4
-SAMPLES 	:= 32
-STEP_SIZE	:= 0.0625
-STEPS		:= 8
 SEED		:= 9393992002
+LENGTH		:= 4
+DEPTH		:= 8
+ANGLE_DET	:= 0.0625
+ANGLE_RAND	:= 1.0
+STEPS		:= 8
+SAMPLES 	:= 32
 MPI_RANKS	?= 2
 # -----------------------------------------------------------------------------
 
@@ -31,9 +33,11 @@ PARSE_FCIDUMP_FLAGS	=
 PARSE_INPUTST_FLAGS	=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
 PH2RUN_FLAGS		= --length=$(LENGTH)			\
-				--samples=$(SAMPLES)		\
-				--step-size=$(STEP_SIZE)	\
+				--depth=$(DEPTH)		\
+				--angle-det=$(ANGLE_DET)	\
+				--angle-rand=$(ANGLE_RAND)	\
 				--steps=$(STEPS)		\
+				--samples=$(SAMPLES)		\
 				--seed=$(SEED)
 PHASE2_LOG		?= info
 

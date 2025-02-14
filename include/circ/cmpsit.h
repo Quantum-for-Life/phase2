@@ -9,11 +9,13 @@
 #define CMPSIT_TRUNC (9UL)
 
 struct cmpsit_data {
-	size_t length;
-	size_t samples;
-	double step_size;
-	size_t steps;
 	uint64_t seed;
+	size_t length;
+	size_t depth;
+	size_t steps;
+	double angle_det;
+	double angle_rand;
+	size_t samples;
 };
 
 /* Sampled circuit. */
@@ -22,6 +24,7 @@ struct cmpsit_ranct {
 	struct prob_cdf cdf, cdf_int_trunc;
 	double lambda_r, b_tot;
 	size_t depth;
+	double angle_rand;
 };
 
 /* Results */

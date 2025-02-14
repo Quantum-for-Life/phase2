@@ -89,11 +89,10 @@ static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
 
 	ranct_calc_cdf(rct, hm_tmp.terms + dt->length);
 	log_info("ranct.lambda_r: %.9f", rct->lambda_r);
-
-	size_t depth = ceil(rct->lambda_r * rct->lambda_r * dt->step_size *
-			    dt->step_size * dt->steps);
-	log_info("ranct.depth: %zu", depth);
-	rct->depth = depth;
+	rct->depth = dt->depth;
+	log_info("ranct.depth: %zu", rct->depth);
+	rct->angle_rand = dt->angle_rand;
+	log_info("ranct.tau: %.9f", rct->angle_rand);
 
 	circ_hamil_free(&hm_tmp);
 
@@ -165,17 +164,16 @@ static int hm_sample(struct cmpsit *cp)
 	for (size_t i = 0; i < cp->dt.length; i++) {
 		cp->ranct.hm_smpl.terms[i].op = cp->ranct.hm_det.terms[i].op;
 		cp->ranct.hm_smpl.terms[i].cf =
-			cp->ranct.hm_det.terms[i].cf * cp->dt.step_size;
+			cp->ranct.hm_det.terms[i].cf * cp->dt.angle_det;
 	}
 
-	const double tau =
-		cp->ranct.lambda_r * cp->dt.step_size / cp->ranct.depth;
+	const double tau = cp->ranct.angle_rand;
 	for (size_t i = cp->dt.length; i < len_max; i++) {
 		const double x = xoshiro256ss_dbl01(&cp->rng);
 		const size_t idx = prob_cdf_inverse(&cp->ranct.cdf, x);
 		cp->ranct.hm_smpl.terms[i].op = cp->ranct.hm_ran.terms[idx].op;
 		cp->ranct.hm_smpl.terms[i].cf =
-			signof(cp->ranct.hm_ran.terms[idx].cf) * asin(tau);
+			signof(cp->ranct.hm_ran.terms[idx].cf) * tau;
 	}
 
 	rt = 0;
@@ -229,13 +227,20 @@ int cmpsit_write_res(struct cmpsit *cp, data_id fid)
 	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_LENGTH,
 		    cp->dt.length) < 0)
 		goto data_res_write;
-	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_STEPSIZE,
-		    cp->dt.step_size) < 0)
+	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_DEPTH,
+		    cp->dt.depth) < 0)
+		goto data_res_write;
+	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_ANGLEDET,
+		    cp->dt.angle_det) < 0)
+		goto data_res_write;
+	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_ANGLERAND,
+		    cp->dt.angle_rand) < 0)
 		goto data_res_write;
 	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_STEPS,
 		    cp->dt.steps) < 0)
 		goto data_res_write;
-	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_SEED, SEED) < 0)
+	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_SEED, SEED) <
+		0)
 		goto data_res_write;
 	if (data_res_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_VALUES,
 		    cp->ct.vals.z, cp->ct.vals.len) < 0)
