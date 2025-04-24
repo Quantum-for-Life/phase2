@@ -144,8 +144,6 @@ automated system.
 Credits and License
 -------------------
 
-Copyright (c) 2025 ⧉⧉⧉
-
 This software is distributed under the BSD-3Clause License. See [LICENSE](./LICENSE)
 for more information.
 
