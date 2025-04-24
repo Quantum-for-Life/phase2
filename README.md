@@ -137,7 +137,34 @@ will compute 100 Trotter steps for a Hamiltonian specified in the file
 `simul.h5` using 8 MPI processes, and write the result back to the same file.
 
 See also the directory: [./simul](./simul) for an example of a simple
-automated system, and the repository:
-[Quantum-for-Life/simul-trott-error](https://github.com/Quantum-for-Life/simul-trott-error)
-for a real-life application.
+automated system.
 
+
+
+Credits and License
+-------------------
+
+Copyright (c) 2025 ⧉⧉⧉
+
+This software is distributed under the BSD-3Clause License. See [LICENSE](./LICENSE)
+for more information.
+
+Online repository available at: https://github.com/Quantum-for-Life/phase2
+
+
+### Citation
+
+Please cite this work as:
+
+> Marek Miller, Jakob Gunther, Freek Witteveen, Matthew S. Teynor, Mihael Erakovic,
+> Markus Reiher, Gemma C. Solomon, and Matthias Christandl,
+> *phase2: Full-State Vector Simulation of Quantum Time Evolution at Scale*, arXiv preprint: TBA.
+
+
+### Maintainers
+
+* Marek Miller <mlm@math.ku.dk>
+
+Report bugs or submit patches via [GitHub Issues].
+
+[GitHub Issues]: https://github.com/Quantum-for-Life/phase2/issues
