@@ -156,7 +156,7 @@ Please cite this work as:
 
 > Marek Miller, Jakob Gunther, Freek Witteveen, Matthew S. Teynor, Mihael Erakovic,
 > Markus Reiher, Gemma C. Solomon, and Matthias Christandl,
-> *phase2: Full-State Vector Simulation of Quantum Time Evolution at Scale*, arXiv preprint: TBA.
+> *phase2: Full-State Vector Simulation of Quantum Time Evolution at Scale*, arXiv preprint, arXiv:2504.17881.
 
 
 ### Maintainers
