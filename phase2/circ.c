@@ -309,7 +309,8 @@ static int circ_step_generic(struct circ *ct, const struct circ_hamil *hm,
 	return 0;
 }
 
-inline int circ_step(struct circ *ct, const struct circ_hamil *hm, const double omega)
+inline int circ_step(
+	struct circ *ct, const struct circ_hamil *hm, const double omega)
 {
 	return circ_step_generic(ct, hm, omega, false);
 }

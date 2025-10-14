@@ -134,7 +134,8 @@ int qdrift_write_res(struct qdrift *qd, data_id fid)
 	if (data_attr_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_DEPTH,
 		    qd->dt.depth) < 0)
 		goto data_res_write;
-	if (data_attr_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_SEED, SEED) < 0)
+	if (data_attr_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_SEED, SEED) <
+		0)
 		goto data_res_write;
 	if (data_res_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_VALUES,
 		    qd->ct.vals.z, qd->ct.vals.len) < 0)

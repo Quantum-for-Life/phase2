@@ -30,8 +30,8 @@ static struct args {
 
 static void print_help(const char *progname)
 {
-	fprintf(stderr, "%s-%d.%d.%d: Simulate \"trott\" circuit.\n\n",
-		progname, PHASE2_VER_MAJOR, PHASE2_VER_MINOR, PHASE2_VER_PATCH);
+	fprintf(stderr, "%s-%s: Simulate \"trott\" circuit.\n\n", progname,
+		PHASE2_VERSION);
 	fprintf(stderr, "  usage: %s [OPTIONS] FILENAME\n", progname);
 	fprintf(stderr, "\nOptions:\n"
 			"  -h, --help          Show this help.\n"
@@ -44,8 +44,7 @@ static void print_help(const char *progname)
 
 static void print_version(const char *progname)
 {
-	fprintf(stderr, "%s-v%d.%d.%d\n", progname, PHASE2_VER_MAJOR,
-		PHASE2_VER_MINOR, PHASE2_VER_PATCH);
+	fprintf(stderr, "%s-v%s\n", progname, PHASE2_VERSION);
 }
 
 static int args_parse_shortopt(const int *argc, char ***argv)
