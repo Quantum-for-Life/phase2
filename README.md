@@ -11,8 +11,7 @@ Dependencies
 
 To run the simulation, you will need:
 
-- CPU supporting AVX2 instruction set extension
-- Linux x86-64 platform, with a C11/C++11 compiler toolchain
+- Linux x86-64 platform, GNU C library and C>=11 compiler toolchain
 - [OpenMPI][openmpi-website]
 - Parallel [HDF5][hdf5-website]
 
