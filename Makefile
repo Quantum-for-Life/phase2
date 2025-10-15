@@ -174,6 +174,7 @@ PROGS		:=  $(PH2RUNDIR)/ph2run-cmpsit				\
 $(PH2RUNDIR)/ph2run-cmpsit: $(CIRCDIR)/cmpsit.o
 $(PH2RUNDIR)/ph2run-trott: $(CIRCDIR)/trott.o
 $(PH2RUNDIR)/ph2run-qdrift: $(CIRCDIR)/qdrift.o
+$(PH2RUNDIR)/ph2run: $(CIRCDIR)/trott.o $(CIRCDIR)/qdrift.o $(CIRCDIR)/cmpsit.o	
 
 $(PROGS):	$(PHASE2OBJS)						\
 			$(LIBOBJS)

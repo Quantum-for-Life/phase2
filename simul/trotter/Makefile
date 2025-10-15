@@ -18,7 +18,7 @@ SIMUL_PROC	:= $(SIMUL_H5).proc
 
 PYTHON		?= python3
 MPIRUN		?= mpirun
-PH2RUN		?= $(BUILD)/ph2run-trott
+PH2RUN		?= $(BUILD)/ph2run
 
 PARSE_FCIDUMP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
 PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
@@ -31,7 +31,8 @@ PARSE_INPUTST_FLAGS	=
 TROTT_PREP_FLAGS	= --time-factor=$(TIME_FACT)
 TROTT_RPE_FLAGS		=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
-PH2RUN_FLAGS		= --steps=$(TROTT_STEPS) --delta=$(DELTA)
+PH2RUN_FLAGS		= --delta=$(DELTA) --simul=$(SIMUL_H5) 		\
+				trott --steps=$(TROTT_STEPS)
 PHASE2_LOG		?= info
 
 
@@ -47,7 +48,7 @@ $(SIMUL_ORIG): $(FCIDUMP) $(INPUTST)
 $(SIMUL_H5): $(SIMUL_ORIG)
 	cp $< $@
 	$(MPIRUN) $(MPIRUN_FLAGS) -x PHASE2_LOG=$(PHASE2_LOG) \
-		$(PH2RUN) $(PH2RUN_FLAGS) $(SIMUL_H5) 
+		$(PH2RUN) $(PH2RUN_FLAGS) 
 
 $(SIMUL_PROC): $(SIMUL_H5)
 	@echo -n "$(TIME_FACT),$(TROTT_STEPS)," >> $@
