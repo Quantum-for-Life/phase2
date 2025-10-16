@@ -12,7 +12,7 @@
 #include "phase2.h"
 
 #define WD_SEED UINT64_C(0xd326119d4859ebb2)
-static struct world WD;
+static struct world wd;
 
 #define xstr(s) str(s)
 #define str(s) #s
@@ -41,7 +41,7 @@ static struct argp_option opts[] = {
 	{ "verbose", 'v', 0, 0,
 		"Print verbose output", 0 },
 	{ "simul", 'S', "FILE", 0,
-		"Simulation HDF5 data file (default: ./simul.h5)", 0 }, 
+		"Simulation HDF5 data file (default: ./simul.h5)", 0 },
 	{ "delta", 'D', "VALUE", 0,
 		"Floating point number (default: 1.0)", 0},
 	{ 0 }
@@ -81,10 +81,18 @@ static error_t opts_parser(int key, char *arg, struct argp_state *state)
 
 static struct argp argp = { opts, opts_parser, args_doc, doc, 0, 0, 0 };
 
-#define CMD_TROTT "trott"
-#define CMD_QDRIFT "qdrift"
-#define CMD_CMPSIT "cmpsit"
+/* Commands */
+enum {
+	CMD_TROTT,
+	CMD_QDRIFT,
+	CMD_CMPSIT,
+};
 
+#define CMD_TROTT_STR "trott"
+#define CMD_QDRIFT_STR "qdrift"
+#define CMD_CMPSIT_STR "cmpsit"
+
+/* Command: "trott" */
 #define doc_trott "Run trotter algo"
 #define argv0_trott "ph2run [OPTS] trott"
 #define args_doc_trott ""
@@ -96,7 +104,7 @@ static struct args_trott {
 };
 
 static struct argp_option opts_trott[] = {
-	{ "steps", 's', "N", 0, 
+	{ "steps", 's', "N", 0,
 		"Number of Trotter steps", 0},
 	{ 0 }
 };
@@ -124,12 +132,16 @@ static error_t opts_parser_trott(int key, char *arg, struct argp_state *state)
 	return 0;
 }
 
-static struct argp argp_trott = { opts_trott, opts_parser_trott, 
+static struct argp argp_trott = { opts_trott, opts_parser_trott,
 	args_doc_trott, doc_trott, 0, 0, 0 };
 
-static int trott_run_circuit(void)
+int cmd_trott(void)
 {
-	int rt = -1; /* Return value */
+	int rt = -1;
+
+	log_info("*** Circuit: trott ***");
+	log_info("delta: %f", args.delta);
+	log_info("num_steps: %zu", args_trott.steps);
 
 	data_id fid;
 	struct timespec t1, t2;
@@ -167,70 +179,58 @@ static int trott_run_circuit(void)
 	data_close(fid);
 
 	rt = 0; /* Success. */
+
 ex_circ_write_res:
 	trott_free(&tt);
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
 	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt.ct.hm.qb, tt.ct.hm.len,
-		tt.ct.md.len, args.delta, args_trott.steps, WD.size, t_tot);
+		tt.ct.md.len, args.delta, args_trott.steps, wd.size, t_tot);
 ex_circ_simulate:
 ex_circ_init:
-	return rt;
-}
-
-int cmd_trott(void)
-{
-	int rt = -1;
-
-	if (world_init(nullptr, nullptr, WD_SEED) != WORLD_READY)
-		goto ex_world_init;
-	world_info(&WD);
-
-	const unsigned int nranks = WD.size;
-	if (nranks == 0 || (nranks & (nranks - 1)) != 0) {
-		log_error("number of MPI ranks (%u) "
-			  "must be a power of two.",
-			nranks);
-		goto ex_nranks;
-	}
-
-	log_info("*** Init ***");
-	log_info("MPI nranks: %d", nranks);
-	log_info("world_backend: %s", WORLD_BACKEND);
-
-	log_info("*** Circuit: trott ***");
-	log_info("delta: %f", args.delta);
-	log_info("num_steps: %zu", args_trott.steps);
-	if (trott_run_circuit() < 0) {
-		log_error("Failure: simulation error");
-		goto ex_run_circuit;
-	}
-
-	rt = 0; /* Success. */
-
-ex_run_circuit:
 	log_info("Shut down simulation environment");
-ex_nranks:
-ex_world_init:
-	world_free();
 
 	return rt;
 }
+
+/* Command: "qdrift" */
+
+
+/* Command: "cmpsit" */
 
 int main(int argc, char **argv)
 {
+	int rt = -1;
+
 	argp_parse(&argp, argc, argv, ARGP_IN_ORDER, nullptr, &args);
 
 	/* Parse subcommands. */
+	int cmd = -1;
 	argc -= args.cmd_num;
 	argv += args.cmd_num;
-	if (strncmp(args.cmd, CMD_TROTT, strlen(CMD_TROTT)) == 0) {
+	if (strncmp(args.cmd, CMD_TROTT_STR, strlen(CMD_TROTT_STR)) == 0) {
 		argv[0] = argv0_trott;
 		argp_parse(&argp_trott, argc, argv, ARGP_IN_ORDER, nullptr,
 			&args_trott);
-		return cmd_trott();
+		cmd = CMD_TROTT;
+	}
+	if (cmd < 0) {
+		fprintf(stderr, "Unrecognized command.\n");
+		exit(-1);
 	}
 
+	if (world_init(nullptr, nullptr, WD_SEED) != WORLD_READY)
+		exit(-1);
 
-	exit(0);
+	switch(cmd)
+	{
+	case CMD_TROTT:
+		rt = cmd_trott();
+		break;
+	default:
+		unreachable();
+	}
+
+	world_free();
+	exit(rt);
 }

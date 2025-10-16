@@ -27,8 +27,11 @@ int world_init(int *argc, char ***argv, uint64_t seed)
 		goto err;
 	if (MPI_Comm_size(MPI_COMM_WORLD, &sz) != MPI_SUCCESS)
 		goto err;
-	if (sz == 0)
+	if (sz == 0 || (sz & (sz - 1)) != 0) {
+		log_error("Number of MPI processes (%u) must"
+			" be a power of two.", sz);
 		goto err;
+	}
 	if (MPI_Comm_rank(MPI_COMM_WORLD, &rk) != MPI_SUCCESS)
 		goto err;
 
@@ -44,7 +47,12 @@ int world_init(int *argc, char ***argv, uint64_t seed)
 	if (world_backend_init(&WORLD) < 0)
 		goto err;
 
-	return WORLD.stat = WORLD_READY;
+	WORLD.stat = WORLD_READY;
+	log_info("*** Init ***");
+	log_info("World size: %d", sz);
+	log_info("Backend: %s", WORLD_BACKEND);
+
+	return WORLD.stat;
 
 err:
 	return WORLD.stat = WORLD_ERR;
@@ -66,13 +74,16 @@ int world_free(void)
 
 int world_info(struct world *wd)
 {
-	wd->size = WORLD.size;
-	wd->rank = WORLD.rank;
-	wd->seed = WORLD.seed;
-	wd->rng = WORLD.rng;
-	wd->data = WORLD.data;
+	if (wd) {
+		wd->size = WORLD.size;
+		wd->rank = WORLD.rank;
+		wd->seed = WORLD.seed;
+		wd->rng = WORLD.rng;
+		wd->data = WORLD.data;
+		wd->stat = WORLD.stat;
+	}
 
-	return wd->stat = WORLD.stat;
+	return WORLD.stat;
 }
 
 #if PHASE2_BACKEND == 0 /* qreg */
