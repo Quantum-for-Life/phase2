@@ -44,7 +44,7 @@ void t_cache_00(void)
 	circ_cache_free(&ch);
 }
 
-void TEST_MAIN(void)
+int main(void)
 {
 	world_init(nullptr, nullptr, WD_SEED);
 	world_info(&WD);

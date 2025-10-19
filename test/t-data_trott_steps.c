@@ -54,7 +54,7 @@ ex_create:
 	return rt;
 }
 
-static void TEST_MAIN(void)
+int main(void)
 {
 	struct world wd;
 	world_init((void *)0, (void *)0, WD_SEED);

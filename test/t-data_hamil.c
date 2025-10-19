@@ -253,22 +253,16 @@ static int t_iter(void)
 	return 0;
 }
 
-static void TEST_MAIN(void)
+int main(void)
 {
 	world_init((void *)0, (void *)0, WD_SEED);
 
-	if (t_getnums() < 0) {
+	if (t_getnums() < 0)
 		TEST_FAIL("getnums");
-		return;
-	}
-	if (t_getnorm() < 0) {
+	if (t_getnorm() < 0)
 		TEST_FAIL("getnorm");
-		return;
-	}
-	if (t_iter() < 0) {
+	if (t_iter() < 0)
 		TEST_FAIL("iter");
-		return;
-	}
 
 	world_free();
 }

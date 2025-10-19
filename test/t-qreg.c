@@ -404,7 +404,7 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 	free(ps);
 }
 
-static void TEST_MAIN(void)
+int main(void)
 {
 	world_init((void *)0, (void *)0, WD_SEED);
 	world_info(&WD);

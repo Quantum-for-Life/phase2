@@ -1,10 +1,8 @@
 #ifndef TEST_H
 #define TEST_H
 
-#include <stdbool.h>
 #include <stdio.h>
-
-static _Atomic bool TEST_RT = true;
+#include <stdlib.h>
 
 /*
  * __VA_OPT__ has been added to C23. It is also part of GNU C and is
@@ -14,7 +12,7 @@ static _Atomic bool TEST_RT = true;
 	({                                                                     \
 		fprintf(stderr, "%s:%d FAIL \"" fmt "\"\n", __FILE__,          \
 			__LINE__ __VA_OPT__(, ) __VA_ARGS__);                  \
-		TEST_RT = false;                                               \
+		exit(-1);                                                      \
 	})
 
 #define TEST_ASSERT(expr, fmt, ...)                                            \
@@ -31,17 +29,5 @@ static _Atomic bool TEST_RT = true;
 		TEST_ASSERT((a) == (b), "expected %s == %s", TEST_XSTR(a),     \
 			TEST_XSTR(b));                                         \
 	})
-
-static void TEST_MAIN(void);
-
-int main(int argc, char **argv)
-{
-	(void)argc;
-	(void)argv;
-
-	TEST_MAIN();
-
-	return TEST_RT ? 0 : -1;
-}
 
 #endif /* TEST_H */

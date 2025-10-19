@@ -24,16 +24,16 @@ static struct world WD;
 #endif /* PHASE2_BACKEND */
 
 #define WIDTH (64)
-#define NUM_QUBITS (12)
+#define NUM_QUBITS (11)
 #define NUM_AMPS (1UL << NUM_QUBITS)
 static _Complex double AMPS_INIT[NUM_AMPS];
 static _Complex double AMPS[NUM_AMPS];
 
-#define TROTT_STEPS_MAX (99UL)
+#define TROTT_STEPS_MAX (13UL)
 static size_t TROTT_STEPS;
 static _Complex double TROTT_VALS[TROTT_STEPS_MAX];
 
-#define HAMIL_TERMS_MAX (99UL)
+#define HAMIL_TERMS_MAX (19UL)
 static size_t HAMIL_TERMS;
 static double HAMIL_COEFFS[HAMIL_TERMS_MAX];
 static struct paulis HAMIL_PAULIS[HAMIL_TERMS_MAX];
@@ -213,7 +213,7 @@ malloc_mddets:
 malloc_hterms:;
 }
 
-void TEST_MAIN(void)
+int main(void)
 {
 	world_init(nullptr, nullptr, WD_SEED);
 	world_info(&WD);

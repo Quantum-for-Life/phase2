@@ -29,21 +29,17 @@ static struct args {
 	double delta;
 	char *cmd;
 	unsigned cmd_num;
-} args = {
-	.verbose	= false,
-	.simul		= "./simul.h5",
-	.delta		= 1.0,
-	.cmd		= nullptr,
-	.cmd_num	= 0
-};
+} args = { .verbose = false,
+	.simul = "./simul.h5",
+	.delta = 1.0,
+	.cmd = nullptr,
+	.cmd_num = 0 };
 
 static struct argp_option opts[] = {
-	{ "verbose", 'v', 0, 0,
-		"Print verbose output", 0 },
+	{ "verbose", 'v', 0, 0, "Print verbose output", 0 },
 	{ "simul", 'S', "FILE", 0,
 		"Simulation HDF5 data file (default: ./simul.h5)", 0 },
-	{ "delta", 'D', "VALUE", 0,
-		"Floating point number (default: 1.0)", 0},
+	{ "delta", 'D', "VALUE", 0, "Floating point number (default: 1.0)", 0 },
 	{ 0 }
 };
 
@@ -99,13 +95,10 @@ enum {
 
 static struct args_trott {
 	size_t steps;
-} args_trott = {
-	.steps = 1
-};
+} args_trott = { .steps = 1 };
 
 static struct argp_option opts_trott[] = {
-	{ "steps", 's', "N", 0,
-		"Number of Trotter steps", 0},
+	{ "steps", 's', "N", 0, "Number of Trotter steps", 0 },
 	{ 0 }
 };
 
@@ -132,8 +125,8 @@ static error_t opts_parser_trott(int key, char *arg, struct argp_state *state)
 	return 0;
 }
 
-static struct argp argp_trott = { opts_trott, opts_parser_trott,
-	args_doc_trott, doc_trott, 0, 0, 0 };
+static struct argp argp_trott = { opts_trott, opts_parser_trott, args_doc_trott,
+	doc_trott, 0, 0, 0 };
 
 int cmd_trott(void)
 {
@@ -195,7 +188,6 @@ ex_circ_init:
 
 /* Command: "qdrift" */
 
-
 /* Command: "cmpsit" */
 
 int main(int argc, char **argv)
@@ -222,8 +214,7 @@ int main(int argc, char **argv)
 	if (world_init(nullptr, nullptr, WD_SEED) != WORLD_READY)
 		exit(-1);
 
-	switch(cmd)
-	{
+	switch (cmd) {
 	case CMD_TROTT:
 		rt = cmd_trott();
 		break;

@@ -36,7 +36,7 @@ err:
 	return -1;
 }
 
-static void TEST_MAIN(void)
+int main(void)
 {
 	world_init((void *)0, (void *)0, WD_SEED);
 
@@ -51,10 +51,8 @@ static void TEST_MAIN(void)
 
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
 		const char *filename = TEST_DATA[i].filename;
-		if (open_exist(filename) < 0) {
+		if (open_exist(filename) < 0)
 			TEST_FAIL("open data file: %s", filename);
-			return;
-		}
 	}
 
 	world_free();

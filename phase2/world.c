@@ -29,7 +29,8 @@ int world_init(int *argc, char ***argv, uint64_t seed)
 		goto err;
 	if (sz == 0 || (sz & (sz - 1)) != 0) {
 		log_error("Number of MPI processes (%u) must"
-			" be a power of two.", sz);
+			  " be a power of two.",
+			sz);
 		goto err;
 	}
 	if (MPI_Comm_rank(MPI_COMM_WORLD, &rk) != MPI_SUCCESS)

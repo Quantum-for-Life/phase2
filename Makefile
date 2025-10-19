@@ -216,27 +216,6 @@ debug: CFLAGS	+= -DDEBUG -g -Og
 
 build: $(PROGS)
 
-clean:
-	@$(RM) $(CIRCDIR)/*.o $(CIRCDIR)/*.d
-	@$(RM) $(BENCHDIR)/*.o $(BENCHDIR)/*.d
-	@$(RM) $(LIBDIR)/*.o $(LIBDIR)/*.d
-	@$(RM) $(PH2RUNDIR)/*.o $(PH2RUNDIR)/*.d
-	@$(RM) $(PHASE2DIR)/*.o $(PHASE2DIR)/*.d
-	@$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
-
-distclean: clean
-	@$(RM) $(BENCHES)
-	@$(RM) $(TESTS)
-	@$(RM) $(PROGS)
-
-format:
-	@find ./ -name "*.c" 						\
-		-or -name "*.h"						\
-		-or -name "*.cpp"					\
-		-or -name "*.cu" | 					\
-		while read f ; do					\
-			clang-format --style=file -i $$f ;		\
-		done
 # --------------------------------------------------------------------------- #
 # Benchmarks                                                                  #
 # --------------------------------------------------------------------------- #
@@ -291,12 +270,23 @@ $(TESTDIR)/t-circ_trott: $(CIRCDIR)/trott.o
 
 build-test: $(TESTS)
 
-check: build-test
-	@for tt in $(TESTS); do						\
-		./$$tt &&						\
-			echo "$$tt: OK" ||				\
-			( echo "$$tt: FAIL"; exit 1 );			\
-	done
+CHECKS	:= $(TESTS:$(TESTDIR)/%=check/%)
+
+.PHONY: $(CHECKS)
+$(CHECKS): CFLAGS += -DDEBUG -g -Og
+$(CHECKS): check/%: $(TESTDIR)/%
+	@./$< && echo "$< OK" || (echo "$<: FAIL"; exit 1)
+
+.PHONY: check
+check: $(CHECKS)
+
+
+#check: build-test
+#	@for tt in $(TESTS); do						\
+#		./$$tt &&						\
+#			echo "$$tt: OK" ||				\
+#			( echo "$$tt: FAIL"; exit 1 );			\
+#	done
 
 check-mpi: build-test
 	@for tt in $(TESTS); do						\
@@ -304,4 +294,31 @@ check-mpi: build-test
 			echo "$$tt: OK" ||				\
 			( echo "$$tt: FAIL"; exit 1 );			\
 	done
+
+
+# --------------------------------------------------------------------------- #
+# Clean up.                                                                   #
+# --------------------------------------------------------------------------- #
+
+clean:
+	@$(RM) $(CIRCDIR)/*.o $(CIRCDIR)/*.d
+	@$(RM) $(BENCHDIR)/*.o $(BENCHDIR)/*.d
+	@$(RM) $(LIBDIR)/*.o $(LIBDIR)/*.d
+	@$(RM) $(PH2RUNDIR)/*.o $(PH2RUNDIR)/*.d
+	@$(RM) $(PHASE2DIR)/*.o $(PHASE2DIR)/*.d
+	@$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
+
+distclean: clean
+	@$(RM) $(BENCHES)
+	@$(RM) $(TESTS)
+	@$(RM) $(PROGS)
+
+format:
+	@find ./ -name "*.c" 						\
+		-or -name "*.h"						\
+		-or -name "*.cpp"					\
+		-or -name "*.cu" | 					\
+		while read f ; do					\
+			clang-format --style=file -i $$f ;		\
+		done
 

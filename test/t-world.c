@@ -6,7 +6,7 @@
 
 #define WD_SEED UINT64_C(0x84a06b714640f7dc)
 
-static void TEST_MAIN(void)
+int main(void)
 {
 	struct world wd;
 

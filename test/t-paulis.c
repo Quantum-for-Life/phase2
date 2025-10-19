@@ -338,7 +338,7 @@ static void t_paulis_cmp_02_eq(size_t tag)
 	TEST_ASSERT(res == exp, "[%zu] res=%d, exp=%d", tag, res, exp);
 }
 
-static void TEST_MAIN(void)
+int main(void)
 {
 	world_init((void *)0, (void *)0, WD_SEED);
 

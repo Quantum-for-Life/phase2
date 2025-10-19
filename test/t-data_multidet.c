@@ -198,22 +198,16 @@ err:
 	return -1;
 }
 
-static void TEST_MAIN(void)
+int main(void)
 {
 	world_init(nullptr, nullptr, WD_SEED);
 
-	if (t_get_nums() < 0) {
+	if (t_get_nums() < 0)
 		TEST_FAIL("getnums");
-		return;
-	}
-	if (t_iter0() < 0) {
+	if (t_iter0() < 0)
 		TEST_FAIL("iter0");
-		return;
-	}
-	if (t_iter1() < 0) {
+	if (t_iter1() < 0)
 		TEST_FAIL("iter1");
-		return;
-	}
 
 	world_free();
 }
