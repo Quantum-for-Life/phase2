@@ -31,8 +31,8 @@ PARSE_INPUTST_FLAGS	=
 TROTT_PREP_FLAGS	= --time-factor=$(TIME_FACT)
 TROTT_RPE_FLAGS		=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
-PH2RUN_FLAGS		= --delta=$(DELTA) --simul=$(SIMUL_H5) 		\
-				trott --steps=$(TROTT_STEPS)
+PH2RUN_FLAGS		= --simul=$(SIMUL_H5) 		\
+				trott --delta=$(DELTA) --steps=$(TROTT_STEPS)
 PHASE2_LOG		?= info
 
 
