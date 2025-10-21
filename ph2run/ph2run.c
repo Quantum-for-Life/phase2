@@ -16,8 +16,24 @@
 #define WD_SEED UINT64_C(0xd326119d4859ebb2)
 static struct world wd;
 
-#define xstr(s) str(s)
 #define str(s) #s
+#define xstr(s) str(s)
+
+int timeit(int (*fn)(void *), void *data, double *t)
+{
+	int rt = -1;
+	struct timespec t1, t2;
+
+	clock_gettime(CLOCK_REALTIME, &t1);
+	rt = fn(data);
+	clock_gettime(CLOCK_REALTIME, &t2);
+
+	if (t)
+		*t = (double)(t2.tv_sec - t1.tv_sec) +
+		     (double)(t2.tv_nsec - t1.tv_nsec) * 1.0e-9;
+
+	return rt;
+}
 
 const char *argp_program_version = PHASE2_VERSION;
 const char *argp_program_bug_address = "Marek Miller <mlm@math.ku.dk>";
@@ -73,6 +89,25 @@ static error_t opts_parser(int key, char *arg, struct argp_state *state)
 
 static struct argp argp = { opts, opts_parser, args_doc, doc, 0, 0, 0 };
 
+static int data_exec(int (*fn)(data_id, void *), void *data)
+{
+	int rt = -1;
+
+	data_id fid;
+	log_info("open data file: %s", args.simul);
+	if ((fid = data_open(args.simul)) == DATA_INVALID_FID) {
+		log_error("open file: %s", args.simul);
+		return -1;
+	}
+
+	rt = fn(fid, data);
+
+	log_info("close data file: %s", args.simul);
+	data_close(fid);
+
+	return rt;
+}
+
 /* Commands */
 enum {
 	CMD_TROTT = 0,
@@ -80,19 +115,49 @@ enum {
 	CMD_CMPSIT = 2,
 };
 
-#define CMD_TROTT_STR "trott"
-#define CMD_QDRIFT_STR "qdrift"
-#define CMD_CMPSIT_STR "cmpsit"
-
 /* Command: "trott" */
+static struct cmd_trott_dt {
+	struct trott tt;
+	struct trott_data tt_dt;
+} cmd_trott_dt = {
+	.tt_dt = { .delta = 1.0, .steps = 1 }
+};
+
+static int cmd_trott_init(data_id fid, void *data)
+{
+	struct cmd_trott_dt *const dt = data;
+
+	log_info("*** Circuit: trott ***");
+	log_info("delta: %f", dt->tt_dt.delta);
+	log_info("num_steps: %zu", dt->tt_dt.steps);
+
+	return trott_init(&dt->tt, &dt->tt_dt, fid);
+}
+
+static int cmd_trott_write(data_id fid, void *data)
+{
+	int rt = -1;
+	struct cmd_trott_dt *const dt = data;
+
+	rt = trott_write_res(&dt->tt, fid);
+	trott_free(&dt->tt);
+
+	return rt;
+}
+
+static int cmd_trott_run(void *data)
+{
+	struct cmd_trott_dt *dt = data;
+
+	return trott_simul(&dt->tt);
+}
+
 #define doc_trott "Run trotter algo"
 #define argv0_trott "ph2run [OPTS] trott"
 #define args_doc_trott ""
 
-static struct args_trott {
-	double delta;
-	size_t steps;
-} args_trott = { .delta = 1.0, .steps = 1 };
+/* Alias for the option parser. */
+static struct trott_data *const args_trott = &cmd_trott_dt.tt_dt;
 
 static struct argp_option opts_trott[] = {
 	{ "delta", 'D', "VAL", 0, "Floating point number (default: 1.0)", 0 },
@@ -102,14 +167,14 @@ static struct argp_option opts_trott[] = {
 
 static error_t opts_parser_trott(int key, char *arg, struct argp_state *state)
 {
-	struct args_trott *args = state->input;
+	struct trott_data *dt = state->input;
 
 	switch (key) {
 	case 'D':
-		args->delta = strtod(arg, nullptr);
+		dt->delta = strtod(arg, nullptr);
 		break;
 	case 's':
-		args->steps = strtoull(arg, nullptr, 10);
+		dt->steps = strtoull(arg, nullptr, 10);
 		break;
 
 	case ARGP_KEY_ARG:
@@ -129,82 +194,79 @@ static error_t opts_parser_trott(int key, char *arg, struct argp_state *state)
 static struct argp argp_trott = { opts_trott, opts_parser_trott, args_doc_trott,
 	doc_trott, 0, 0, 0 };
 
-int cmd_trott(void)
+static int cmd_trott(void)
 {
 	int rt = -1;
+	double t_tot;
 
-	log_info("*** Circuit: trott ***");
-	log_info("delta: %f", args_trott.delta);
-	log_info("num_steps: %zu", args_trott.steps);
-
-	data_id fid;
-	struct timespec t1, t2;
-
-	struct trott tt;
-	struct trott_data tt_dt;
-	tt_dt.delta = args_trott.delta;
-	tt_dt.steps = args_trott.steps;
-
-	log_info("open data file: %s", args.simul);
-	if ((fid = data_open(args.simul)) == DATA_INVALID_FID) {
-		log_error("open file: %s", args.simul);
-		goto ex_circ_init;
+	if (data_exec(cmd_trott_init, &cmd_trott_dt) < 0)
+		goto ex;
+	if (timeit(cmd_trott_run, &cmd_trott_dt, &t_tot) < 0) {
+		log_error("Simulation error");
+		goto ex;
 	}
-	if (trott_init(&tt, &tt_dt, fid) < 0)
-		goto ex_circ_init;
-	log_info("close data file: %s", args.simul);
-	data_close(fid);
-
-	clock_gettime(CLOCK_REALTIME, &t1);
-	if (trott_simul(&tt) < 0)
-		goto ex_circ_simulate;
-	clock_gettime(CLOCK_REALTIME, &t2);
-	const double t_tot = (double)(t2.tv_sec - t1.tv_sec) +
-			     (double)(t2.tv_nsec - t1.tv_nsec) * 1.0e-9;
-
-	log_info("open data file: %s", args.simul);
-	if ((fid = data_open(args.simul)) == DATA_INVALID_FID) {
-		log_error("open file: %s", args.simul);
-		goto ex_circ_write_res;
-	}
-	if (trott_write_res(&tt, fid) < 0)
-		goto ex_circ_write_res;
-	log_info("close data file: %s", args.simul);
-	data_close(fid);
+	if (data_exec(cmd_trott_write, &cmd_trott_dt) < 0)
+		goto ex;
 
 	rt = 0; /* Success. */
 
-ex_circ_write_res:
-	trott_free(&tt);
+	struct trott *const tt = &cmd_trott_dt.tt;
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt.ct.hm.qb, tt.ct.hm.len,
-		tt.ct.md.len, args_trott.delta, args_trott.steps, wd.size,
+	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt->ct.hm.qb, tt->ct.hm.len,
+		tt->ct.md.len, args_trott->delta, args_trott->steps, wd.size,
 		t_tot);
-ex_circ_simulate:
-ex_circ_init:
+
+ex:
 	log_info("Shut down simulation environment");
 
 	return rt;
 }
 
 /* Command: "qdrift" */
+static struct cmd_qdrift_dt {
+	struct qdrift qd;
+	struct qdrift_data qd_dt;
+} cmd_qdrift_dt = {
+	.qd_dt = { .step_size = 1.0, .depth = 64, .samples = 1, .seed = 23 }
+};
+
+static int cmd_qdrift_init(data_id fid, void *data)
+{
+	struct cmd_qdrift_dt *const dt = data;
+
+	log_info("*** Circuit: qDRIFT >>> ***");
+	log_info("delta: %f", dt->qd_dt.step_size);
+	log_info("depth: %zu", dt->qd_dt.depth);
+	log_info("samples: %zu", dt->qd_dt.samples);
+	log_info("seed: %lu", dt->qd_dt.seed);
+
+	return qdrift_init(&dt->qd, &dt->qd_dt, fid);
+}
+
+static int cmd_qdrift_write(data_id fid, void *data)
+{
+	int rt = -1;
+	struct cmd_qdrift_dt *const dt = data;
+
+	rt = qdrift_write_res(&dt->qd, fid);
+	qdrift_free(&dt->qd);
+
+	return rt;
+}
+
+static int cmd_qdrift_run(void *data)
+{
+	struct cmd_qdrift_dt *dt = data;
+
+	return qdrift_simul(&dt->qd);
+}
+
 #define doc_qdrift "Run qDrift algorithm"
 #define argv0_qdrift "ph2run [OPTS] qdrift"
 #define args_doc_qdrift ""
 
-static struct args_qdrift {
-	double delta;
-	size_t depth;
-	size_t nsamples;
-	double step_size;
-	uint64_t seed;
-} args_qdrift = {
-	.delta = 1.0,
-	.depth = 64,
-	.nsamples = 1,
-	.seed = 0,
-};
+static struct qdrift_data *const args_qdrift = &cmd_qdrift_dt.qd_dt;
 
 static struct argp_option opts_qdrift[] = {
 	{ "delta", 'D', "VAL", 0, "Floating point number (default: 1.0)", 0 },
@@ -217,23 +279,20 @@ static struct argp_option opts_qdrift[] = {
 
 static error_t opts_parser_qdrift(int key, char *arg, struct argp_state *state)
 {
-	struct args_qdrift *args = state->input;
+	struct qdrift_data *dt = state->input;
 
 	switch (key) {
 	case 'D':
-		args->delta = strtod(arg, nullptr);
+		dt->step_size = strtod(arg, nullptr);
 		break;
 	case 'd':
-		args->depth = strtoull(arg, nullptr, 10);
+		dt->depth = strtoull(arg, nullptr, 10);
 		break;
 	case 'n':
-		args->nsamples = strtoull(arg, nullptr, 10);
-		break;
-	case 's':
-		args->step_size = strtod(arg, nullptr);
+		dt->samples = strtoull(arg, nullptr, 10);
 		break;
 	case 'x':
-		args->seed = strtoull(arg, nullptr, 10);
+		dt->seed = strtoull(arg, nullptr, 10);
 		break;
 
 	case ARGP_KEY_ARG:
@@ -256,61 +315,28 @@ static struct argp argp_qdrift = { opts_qdrift, opts_parser_qdrift,
 int cmd_qdrift(void)
 {
 	int rt = -1;
+	double t_tot;
 
-	log_info("*** Circuit: qDRIFT >>> ***");
-	log_info("delta: %f", args_qdrift.delta);
-	log_info("depth: %zu", args_qdrift.depth);
-	log_info("samples: %zu", args_qdrift.nsamples);
-	log_info("seed: %lu", args_qdrift.seed);
-
-	data_id fid;
-	struct timespec t1, t2;
-
-	struct qdrift qd;
-	struct qdrift_data data = { .depth = args_qdrift.depth,
-		.samples = args_qdrift.nsamples,
-		.step_size = args_qdrift.delta,
-		.seed = args_qdrift.seed };
-
-	log_info("open data file: %s", args.simul);
-	if ((fid = data_open(args.simul)) == DATA_INVALID_FID) {
-		log_error("open file: %s", args.simul);
-		goto ex_circ_init;
+	if (data_exec(cmd_qdrift_init, &cmd_qdrift_dt) < 0)
+		goto ex;
+	if (timeit(cmd_qdrift_run, &cmd_qdrift_dt, &t_tot) < 0) {
+		log_error("Simulation error");
+		goto ex;
 	}
-	if (qdrift_init(&qd, &data, fid) < 0)
-		goto ex_circ_init;
-	log_info("close data file: %s", args.simul);
-	data_close(fid);
-
-	clock_gettime(CLOCK_REALTIME, &t1);
-	if (qdrift_simul(&qd) < 0)
-		goto ex_circ_simulate;
-	clock_gettime(CLOCK_REALTIME, &t2);
-	const double t_tot = (double)(t2.tv_sec - t1.tv_sec) +
-			     (double)(t2.tv_nsec - t1.tv_nsec) * 1.0e-9;
-
-	log_info("open data file: %s", args.simul);
-	if ((fid = data_open(args.simul)) == DATA_INVALID_FID) {
-		log_error("open file: %s", args.simul);
-		goto ex_circ_res_write;
-	}
-	if (qdrift_write_res(&qd, fid) < 0)
-		goto ex_circ_res_write;
-	log_info("close data file: %s", args.simul);
-	data_close(fid);
+	if (data_exec(cmd_qdrift_write, &cmd_qdrift_dt) < 0)
+		goto ex;
 
 	rt = 0; /* Success. */
 
-ex_circ_res_write:
-	qdrift_free(&qd);
+	const struct qdrift *qd = &cmd_qdrift_dt.qd;
+	const struct qdrift_data *qd_dt = &cmd_qdrift_dt.qd_dt;
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
 		 "n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", qd.ct.hm.qb,
-		qd.ct.hm.len, qd.ct.md.len, data.samples, data.step_size,
-		data.depth, wd.size, t_tot);
-ex_circ_simulate:
-ex_circ_init:
+	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", qd->ct.hm.qb,
+		qd->ct.hm.len, qd->ct.md.len, qd_dt->samples, qd_dt->step_size,
+		qd_dt->depth, wd.size, t_tot);
+ex:
 	log_info("Shut down simulation environment");
 
 	return rt;
@@ -329,18 +355,21 @@ int main(int argc, char **argv)
 	argv += args.cmd_num;
 	int cmd = -1;
 
-#define cmd_parse(name, str, val)                                              \
+#define cmd_parse(name, val)                                                   \
 	({                                                                     \
-		if (strncmp(args.cmd, str, strlen(str)) == 0) {                \
+		if (strncmp(args.cmd, xstr(name), strlen(xstr(name))) == 0) {  \
 			argv[0] = argv0_##name;                                \
 			argp_parse(&argp_##name, argc, argv, ARGP_IN_ORDER,    \
-				nullptr, &args_##name);                        \
+				nullptr, args_##name);                         \
 			cmd = val;                                             \
+			break;                                                 \
 		}                                                              \
 	})
 
-	cmd_parse(trott, CMD_TROTT_STR, CMD_TROTT);
-	cmd_parse(qdrift, CMD_QDRIFT_STR, CMD_QDRIFT);
+	while (1) {
+		cmd_parse(trott, CMD_TROTT);
+		cmd_parse(qdrift, CMD_QDRIFT);
+	}
 
 	if (world_init(nullptr, nullptr, WD_SEED) != WORLD_READY)
 		exit(-1);
