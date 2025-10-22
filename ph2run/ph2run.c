@@ -119,6 +119,7 @@ enum {
 static struct cmd_trott_dt {
 	struct trott tt;
 	struct trott_data tt_dt;
+	double t_tot;
 } cmd_trott_dt = {
 	.tt_dt = { .delta = 1.0, .steps = 1 }
 };
@@ -141,6 +142,12 @@ static int cmd_trott_write(data_id fid, void *data)
 
 	rt = trott_write_res(&dt->tt, fid);
 	trott_free(&dt->tt);
+
+	log_info("> Simulation summary (CSV):");
+	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
+	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", dt->tt.ct.hm.qb,
+		dt->tt.ct.hm.len, dt->tt.ct.md.len, dt->tt_dt.delta,
+		dt->tt_dt.steps, wd.size, dt->t_tot);
 
 	return rt;
 }
@@ -197,11 +204,10 @@ static struct argp argp_trott = { opts_trott, opts_parser_trott, args_doc_trott,
 static int cmd_trott(void)
 {
 	int rt = -1;
-	double t_tot;
 
 	if (data_exec(cmd_trott_init, &cmd_trott_dt) < 0)
 		goto ex;
-	if (timeit(cmd_trott_run, &cmd_trott_dt, &t_tot) < 0) {
+	if (timeit(cmd_trott_run, &cmd_trott_dt, &cmd_trott_dt.t_tot) < 0) {
 		log_error("Simulation error");
 		goto ex;
 	}
@@ -209,14 +215,6 @@ static int cmd_trott(void)
 		goto ex;
 
 	rt = 0; /* Success. */
-
-	struct trott *const tt = &cmd_trott_dt.tt;
-	log_info("> Simulation summary (CSV):");
-	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", tt->ct.hm.qb, tt->ct.hm.len,
-		tt->ct.md.len, args_trott->delta, args_trott->steps, wd.size,
-		t_tot);
-
 ex:
 	log_info("Shut down simulation environment");
 
@@ -227,6 +225,7 @@ ex:
 static struct cmd_qdrift_dt {
 	struct qdrift qd;
 	struct qdrift_data qd_dt;
+	double t_tot;
 } cmd_qdrift_dt = {
 	.qd_dt = { .step_size = 1.0, .depth = 64, .samples = 1, .seed = 23 }
 };
@@ -251,6 +250,13 @@ static int cmd_qdrift_write(data_id fid, void *data)
 
 	rt = qdrift_write_res(&dt->qd, fid);
 	qdrift_free(&dt->qd);
+
+	log_info("> Simulation summary (CSV):");
+	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
+		 "n_ranks,t_tot");
+	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", dt->qd.ct.hm.qb,
+		dt->qd.ct.hm.len, dt->qd.ct.md.len, dt->qd_dt.samples,
+		dt->qd_dt.step_size, dt->qd_dt.depth, wd.size, dt->t_tot);
 
 	return rt;
 }
@@ -315,11 +321,10 @@ static struct argp argp_qdrift = { opts_qdrift, opts_parser_qdrift,
 int cmd_qdrift(void)
 {
 	int rt = -1;
-	double t_tot;
 
 	if (data_exec(cmd_qdrift_init, &cmd_qdrift_dt) < 0)
 		goto ex;
-	if (timeit(cmd_qdrift_run, &cmd_qdrift_dt, &t_tot) < 0) {
+	if (timeit(cmd_qdrift_run, &cmd_qdrift_dt, &cmd_qdrift_dt.t_tot) < 0) {
 		log_error("Simulation error");
 		goto ex;
 	}
@@ -327,15 +332,6 @@ int cmd_qdrift(void)
 		goto ex;
 
 	rt = 0; /* Success. */
-
-	const struct qdrift *qd = &cmd_qdrift_dt.qd;
-	const struct qdrift_data *qd_dt = &cmd_qdrift_dt.qd_dt;
-	log_info("> Simulation summary (CSV):");
-	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
-		 "n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", qd->ct.hm.qb,
-		qd->ct.hm.len, qd->ct.md.len, qd_dt->samples, qd_dt->step_size,
-		qd_dt->depth, wd.size, t_tot);
 ex:
 	log_info("Shut down simulation environment");
 
