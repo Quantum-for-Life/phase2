@@ -23,7 +23,7 @@ SIMUL_PROC	:= $(SIMUL_H5).proc
 
 PYTHON		?= python3
 MPIRUN		?= mpirun
-PH2RUN		?= $(BUILD)/ph2run-cmpsit
+PH2RUN		?= $(BUILD)/ph2run
 
 PARSE_FCIDUMP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
 PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
@@ -32,7 +32,8 @@ PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
 PARSE_FCIDUMP_FLAGS	=
 PARSE_INPUTST_FLAGS	=
 MPIRUN_FLAGS		= -n $(MPI_RANKS)
-PH2RUN_FLAGS		= --length=$(LENGTH)			\
+PH2RUN_FLAGS		= --simul $(SIMUL_H5) cmpsit		\
+				--length=$(LENGTH)		\
 				--depth=$(DEPTH)		\
 				--angle-det=$(ANGLE_DET)	\
 				--angle-rand=$(ANGLE_RAND)	\
@@ -53,7 +54,7 @@ $(SIMUL_ORIG): $(FCIDUMP) $(INPUTST)
 $(SIMUL_H5): $(SIMUL_ORIG)
 	cp $< $@
 	$(MPIRUN) $(MPIRUN_FLAGS) -x PHASE2_LOG=$(PHASE2_LOG)	\
-		$(PH2RUN) $(PH2RUN_FLAGS) $@
+		$(PH2RUN) $(PH2RUN_FLAGS)
 
 clean:
 	$(RM) $(SIMUL_ORIG) $(SIMUL_H5)*

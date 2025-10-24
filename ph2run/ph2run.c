@@ -339,6 +339,148 @@ ex:
 }
 
 /* Command: "cmpsit" */
+static struct cmd_cmpsit_dt {
+	struct cmpsit cp;
+	struct cmpsit_data cp_dt;
+	double t_tot;
+} cmd_cmpsit_dt = { .cp_dt = {
+	/* */
+	.seed = 1,
+	.length = 1,
+	.depth = 64,
+	.steps = 1,
+	.angle_det = 1.0,
+	.angle_rand = 1.0,
+	.samples = 1,
+	}
+};
+
+static int cmd_cmpsit_init(data_id fid, void *data)
+{
+	struct cmd_cmpsit_dt *const dt = data;
+
+	log_info("*** Circuit: cmpsit ***");
+	log_info("seed: %lu", dt->cp_dt.seed);
+	log_info("length: %zu", dt->cp_dt.length);
+	log_info("depth: %zu", dt->cp_dt.depth);
+	log_info("steps: %zu", dt->cp_dt.steps);
+	log_info("angle_det: %.16f", dt->cp_dt.angle_det);
+	log_info("angle_rand: %.16f", dt->cp_dt.angle_rand);
+	log_info("samples: %zu", dt->cp_dt.samples);
+
+	return cmpsit_init(&dt->cp, &dt->cp_dt, fid);
+}
+
+static int cmd_cmpsit_write(data_id fid, void *data)
+{
+	int rt = -1;
+	struct cmd_cmpsit_dt *const dt = data;
+
+	rt = cmpsit_write_res(&dt->cp, fid);
+	cmpsit_free(&dt->cp);
+
+	log_info("> Simulation summary (CSV):");
+	log_info("> n_qb,n_terms,n_dets,samples,length,depth,angle_det"
+		 ",angle_rand,steps,n_ranks,t_tot");
+	log_info("> %zu,%zu,%zu,%zu,%zu,%zu,%.16f,%.16f,%zu,%d,%.3f",
+		dt->cp.ct.hm.qb, dt->cp.ct.hm.len, dt->cp.ct.md.len,
+		dt->cp_dt.samples, dt->cp_dt.length, dt->cp_dt.depth,
+		dt->cp_dt.angle_det, dt->cp_dt.angle_rand, dt->cp_dt.steps,
+		wd.size, dt->t_tot);
+
+	return rt;
+}
+
+static int cmd_cmpsit_run(void *data)
+{
+	struct cmd_cmpsit_dt *dt = data;
+
+	return cmpsit_simul(&dt->cp);
+}
+
+#define doc_cmpsit "Run composite algorithm (partially randomized)"
+#define argv0_cmpsit "ph2run [OPTS] cmpsit"
+#define args_doc_cmpsit ""
+
+static struct cmpsit_data *const args_cmpsit = &cmd_cmpsit_dt.cp_dt;
+
+static struct argp_option opts_cmpsit[] = {
+	{ "length", 'l', "VAL", 0, "Deterministic legth (default: 1)", 0 },
+	{ "depth", 'd', "VAL", 0, "Random depth (default: 64)", 0 },
+	{ "steps", 's', "N", 0, "Number of Trotter steps (default: 1)", 0 },
+	{ "angle-det", 'D', "VAL", 0, "Floating point number (default: 1.0)",
+		0 },
+	{ "angle-rand", 'R', "VAL", 0, "Floating point number (default: 1.0)",
+		0 },
+	{ "samples", 'n', "N", 0, "Number of independent samples (default: 1)",
+		0 },
+	{ "seed", 'x', "", 0, "Seed to the pseudo random number generator", 0 },
+	{ 0 }
+};
+
+static error_t opts_parser_cmpsit(int key, char *arg, struct argp_state *state)
+{
+	struct cmpsit_data *dt = state->input;
+
+	switch (key) {
+	case 's':
+		dt->steps = strtoull(arg, nullptr, 10);
+		break;
+	case 'D':
+		dt->angle_det = strtod(arg, nullptr);
+		break;
+	case 'R':
+		dt->angle_rand = strtod(arg, nullptr);
+		break;
+	case 'd':
+		dt->depth = strtoull(arg, nullptr, 10);
+		break;
+	case 'l':
+		dt->length = strtoull(arg, nullptr, 10);
+		break;
+	case 'n':
+		dt->samples = strtoull(arg, nullptr, 10);
+		break;
+	case 'x':
+		dt->seed = strtoull(arg, nullptr, 10);
+		break;
+
+	case ARGP_KEY_ARG:
+		argp_usage(state);
+		break;
+
+	case ARGP_KEY_NO_ARGS:
+		break;
+
+	default:
+		return ARGP_ERR_UNKNOWN;
+	}
+
+	return 0;
+}
+
+static struct argp argp_cmpsit = { opts_cmpsit, opts_parser_cmpsit,
+	args_doc_cmpsit, doc_cmpsit, 0, 0, 0 };
+
+int cmd_cmpsit(void)
+{
+	int rt = -1;
+
+	if (data_exec(cmd_cmpsit_init, &cmd_cmpsit_dt) < 0)
+		goto ex;
+	if (timeit(cmd_cmpsit_run, &cmd_cmpsit_dt, &cmd_cmpsit_dt.t_tot) < 0) {
+		log_error("Simulation error");
+		goto ex;
+	}
+	if (data_exec(cmd_cmpsit_write, &cmd_cmpsit_dt) < 0)
+		goto ex;
+
+	rt = 0; /* Success. */
+ex:
+	log_info("Shut down simulation environment");
+
+	return rt;
+}
 
 int main(int argc, char **argv)
 {
@@ -365,6 +507,7 @@ int main(int argc, char **argv)
 	while (1) {
 		cmd_parse(trott, CMD_TROTT);
 		cmd_parse(qdrift, CMD_QDRIFT);
+		cmd_parse(cmpsit, CMD_CMPSIT);
 	}
 
 	if (world_init(nullptr, nullptr, WD_SEED) != WORLD_READY)
@@ -376,6 +519,9 @@ int main(int argc, char **argv)
 		break;
 	case CMD_QDRIFT:
 		rt = cmd_qdrift();
+		break;
+	case CMD_CMPSIT:
+		rt = cmd_cmpsit();
 		break;
 	default:
 		fprintf(stderr, "Unrecognized command.\n");
