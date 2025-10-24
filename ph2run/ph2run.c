@@ -38,7 +38,12 @@ int timeit(int (*fn)(void *), void *data, double *t)
 const char *argp_program_version = PHASE2_VERSION;
 const char *argp_program_bug_address = "Marek Miller <mlm@math.ku.dk>";
 
-#define doc "Run phase2 sumilations."
+#define doc                                                                    \
+	"Run phase2 sumilations.  CMD can be one of the algorithms:\n"         \
+	"  trott\n"                                                            \
+	"  qdrift\n"                                                           \
+	"  cmpsit\n"                                                           \
+	"\nRun CMD --help for more information"
 #define args_doc "CMD [CMD_OPT]"
 
 static struct args {
@@ -159,7 +164,7 @@ static int cmd_trott_run(void *data)
 	return trott_simul(&dt->tt);
 }
 
-#define doc_trott "Run trotter algo"
+#define doc_trott "Run deterministic Trotter product formula (1st order)."
 #define argv0_trott "ph2run [OPTS] trott"
 #define args_doc_trott ""
 
@@ -167,7 +172,8 @@ static int cmd_trott_run(void *data)
 static struct trott_data *const args_trott = &cmd_trott_dt.tt_dt;
 
 static struct argp_option opts_trott[] = {
-	{ "delta", 'D', "VAL", 0, "Floating point number (default: 1.0)", 0 },
+	{ "delta", 'D', "VAL", 0,
+		"Rotation angle, a floating point number (default: 1.0)", 0 },
 	{ "steps", 's', "N", 0, "Number of Trotter steps", 0 },
 	{ 0 }
 };
@@ -227,7 +233,7 @@ static struct cmd_qdrift_dt {
 	struct qdrift_data qd_dt;
 	double t_tot;
 } cmd_qdrift_dt = {
-	.qd_dt = { .step_size = 1.0, .depth = 64, .samples = 1, .seed = 23 }
+	.qd_dt = { .step_size = 1.0, .depth = 64, .samples = 1, .seed = 1 }
 };
 
 static int cmd_qdrift_init(data_id fid, void *data)
@@ -268,18 +274,21 @@ static int cmd_qdrift_run(void *data)
 	return qdrift_simul(&dt->qd);
 }
 
-#define doc_qdrift "Run qDrift algorithm"
+#define doc_qdrift "Run qDRIFT randomized algorithm."
 #define argv0_qdrift "ph2run [OPTS] qdrift"
 #define args_doc_qdrift ""
 
 static struct qdrift_data *const args_qdrift = &cmd_qdrift_dt.qd_dt;
 
 static struct argp_option opts_qdrift[] = {
-	{ "delta", 'D', "VAL", 0, "Floating point number (default: 1.0)", 0 },
+	{ "delta", 'D', "VAL", 0,
+		"Rotation angle, a floating point number (default: 1.0)", 0 },
 	{ "depth", 'd', "VAL", 0, "Random depth (default: 64)", 0 },
 	{ "samples", 'n', "N", 0, "Number of independent samples (default: 1)",
 		0 },
-	{ "seed", 'x', "", 0, "Seed to the pseudo random number generator", 0 },
+	{ "seed", 'x', "N", 0,
+		"Seed of the pseudo random number generator (default: 1, must differ from zero)",
+		0 },
 	{ 0 }
 };
 
@@ -398,7 +407,8 @@ static int cmd_cmpsit_run(void *data)
 	return cmpsit_simul(&dt->cp);
 }
 
-#define doc_cmpsit "Run composite algorithm (partially randomized)"
+#define doc_cmpsit                                                             \
+	"Run composite algorithm (partially randomized), 2nd order Trotter."
 #define argv0_cmpsit "ph2run [OPTS] cmpsit"
 #define args_doc_cmpsit ""
 
@@ -408,13 +418,16 @@ static struct argp_option opts_cmpsit[] = {
 	{ "length", 'l', "VAL", 0, "Deterministic legth (default: 1)", 0 },
 	{ "depth", 'd', "VAL", 0, "Random depth (default: 64)", 0 },
 	{ "steps", 's', "N", 0, "Number of Trotter steps (default: 1)", 0 },
-	{ "angle-det", 'D', "VAL", 0, "Floating point number (default: 1.0)",
-		0 },
-	{ "angle-rand", 'R', "VAL", 0, "Floating point number (default: 1.0)",
+	{ "angle-det", 'D', "VAL", 0,
+		"Deterministic angle, a floating point number (default: 1.0)", 0 },
+	{ "angle-rand", 'R', "VAL", 0,
+		"Angle for the randomized part, a floating point number (default: 1.0)",
 		0 },
 	{ "samples", 'n', "N", 0, "Number of independent samples (default: 1)",
 		0 },
-	{ "seed", 'x', "", 0, "Seed to the pseudo random number generator", 0 },
+	{ "seed", 'x', "N", 0,
+		"Seed of the pseudo random number generator (default: 1, must differ from zero)",
+		0 },
 	{ 0 }
 };
 
