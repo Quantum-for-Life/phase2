@@ -10,6 +10,8 @@
 #include "phase2/world.h"
 #include "xoshiro256ss.h"
 
+#include "circ_cache.h"
+
 #include "test.h"
 
 #define WD_SEED UINT64_C(0x77e8fe9b90caf912)
@@ -21,27 +23,25 @@ static struct xoshiro256ss RNG;
 void t_cache_00(void)
 {
 	struct paulis p = paulis_new();
-	struct circ_cache ch;
 
-	TEST_ASSERT(circ_cache_init(&ch, 1, 1) == 0, "can't init cache");
-	TEST_ASSERT(ch.len == 0, "init size must be zero");
-	TEST_ASSERT(circ_cache_insert(&ch, p, 0.0) == 0,
-		"cannot insert first code");
-	TEST_ASSERT(ch.len == 1, "cache size should be 1");
+	struct circ_cache *ch = circ_cache_new(1, 1);
+	TEST_ASSERT(ch, "can't init cache");
+	TEST_ASSERT(ch->len == 0, "init size must be zero");
 	TEST_ASSERT(
-		circ_cache_insert(&ch, p, 0.1) == 0, "insert the same code");
-	TEST_ASSERT(ch.len == 2, "cache size should be 2");
+		circ_cache_insert(ch, p, 0.0) == 0, "cannot insert first code");
+	TEST_ASSERT(ch->len == 1, "cache size should be 1");
+	TEST_ASSERT(circ_cache_insert(ch, p, 0.1) == 0, "insert the same code");
+	TEST_ASSERT(ch->len == 2, "cache size should be 2");
 	paulis_set(&p, PAULI_X, 1);
+	TEST_ASSERT(circ_cache_insert(ch, p, 0.0) < 1, "insert different code");
+	TEST_ASSERT(ch->len == 2, "cache size should be 2");
+	circ_cache_flush(ch, nullptr, nullptr);
+	TEST_ASSERT(ch->len == 0, "cache size should be 0");
 	TEST_ASSERT(
-		circ_cache_insert(&ch, p, 0.0) < 1, "insert different code");
-	TEST_ASSERT(ch.len == 2, "cache size should be 2");
-	circ_cache_flush(&ch, nullptr, nullptr);
-	TEST_ASSERT(ch.len == 0, "cache size should be 0");
-	TEST_ASSERT(
-		circ_cache_insert(&ch, p, 0.0) == 0, "insert different code");
-	TEST_ASSERT(ch.len == 1, "cache size should be 1");
+		circ_cache_insert(ch, p, 0.0) == 0, "insert different code");
+	TEST_ASSERT(ch->len == 1, "cache size should be 1");
 
-	circ_cache_free(&ch);
+	circ_cache_free(ch);
 }
 
 int main(void)

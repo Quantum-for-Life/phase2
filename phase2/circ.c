@@ -8,68 +8,7 @@
 #include "phase2/circ.h"
 #include "phase2/paulis.h"
 
-int circ_cache_init(struct circ_cache *ch, uint32_t qb_lo, uint32_t qb_hi)
-{
-	struct paulis *lo =
-		malloc(sizeof(struct paulis) * CIRC_CACHE_CODES_MAX);
-	if (!lo)
-		goto err_lo;
-	double *angles = malloc(sizeof(double) * CIRC_CACHE_CODES_MAX);
-	if (!angles)
-		goto err_angles;
-
-	ch->codes_lo = lo;
-	ch->phis = angles;
-	ch->qb_lo = qb_lo;
-	ch->qb_hi = qb_hi;
-	ch->len = 0;
-
-	return 0;
-
-	// free(phs);
-err_angles:
-	free(lo);
-err_lo:
-	return -1;
-}
-
-void circ_cache_free(struct circ_cache *ch)
-{
-	free(ch->codes_lo);
-	free(ch->phis);
-}
-
-int circ_cache_insert(struct circ_cache *ch, struct paulis code, double phi)
-{
-	struct paulis lo, hi;
-	paulis_split(code, ch->qb_lo, ch->qb_hi, &lo, &hi);
-	if (ch->len == 0) {
-		ch->code_hi = hi;
-		ch->codes_lo[0] = lo;
-		ch->phis[0] = phi;
-		ch->len = 1;
-		return 0;
-	}
-
-	if (ch->len < CIRC_CACHE_CODES_MAX && paulis_eq(ch->code_hi, hi)) {
-		const size_t k = ch->len++;
-		ch->codes_lo[k] = lo;
-		ch->phis[k] = phi;
-		return 0;
-	}
-
-	return -1;
-}
-
-void circ_cache_flush(struct circ_cache *ch,
-	void (*op)(struct paulis, struct paulis *, double *, size_t, void *),
-	void *data)
-{
-	if (ch->len > 0 && op)
-		op(ch->code_hi, ch->codes_lo, ch->phis, ch->len, data);
-	ch->len = 0;
-}
-
+#include "circ_cache.h"
 int circ_hamil_init(struct circ_hamil *hm, uint32_t qb, size_t len)
 {
 	hm->terms = malloc(sizeof *hm->terms * len);
@@ -236,7 +175,8 @@ int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
 		goto err_muldet_init;
 	if (qreg_init(&ct->reg, ct->hm.qb) < 0)
 		goto err_qreg_init;
-	if (circ_cache_init(&ct->cache, ct->reg.qb_lo, ct->reg.qb_hi) < 0)
+	ct->cache = circ_cache_new(ct->reg.qb_lo, ct->reg.qb_hi);
+	if (!ct->cache)
 		goto err_cache_init;
 	if (circ_values_init(&ct->vals, vals_len) < 0)
 		goto err_vals_init;
@@ -245,7 +185,7 @@ int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
 
 	// circ_values_free(&ct->vals);
 err_vals_init:
-	circ_cache_free(&ct->cache);
+	circ_cache_free(ct->cache);
 err_cache_init:
 	qreg_free(&ct->reg);
 err_qreg_init:
@@ -261,7 +201,7 @@ void circ_free(struct circ *ct)
 	circ_values_free(&ct->vals);
 	circ_hamil_free(&ct->hm);
 	circ_muldet_free(&ct->md);
-	circ_cache_free(&ct->cache);
+	circ_cache_free(ct->cache);
 	qreg_free(&ct->reg);
 }
 
@@ -286,7 +226,7 @@ static void circ_flush(struct paulis code_hi, struct paulis *codes_lo,
 static int circ_step_generic(struct circ *ct, const struct circ_hamil *hm,
 	const double omega, bool reverse)
 {
-	struct circ_cache *cache = &ct->cache;
+	struct circ_cache *const ch = ct->cache;
 
 	for (size_t i = 0; i < hm->len; i++) {
 		size_t j = i;
@@ -295,16 +235,16 @@ static int circ_step_generic(struct circ *ct, const struct circ_hamil *hm,
 		const double phi = omega * hm->terms[j].cf;
 		const struct paulis code = hm->terms[j].op;
 
-		if (circ_cache_insert(cache, code, phi) == 0)
+		if (circ_cache_insert(ch, code, phi) == 0)
 			continue;
 
-		log_trace("paulirot, term: %zu, num_codes: %zu", i, cache->len);
-		circ_cache_flush(cache, circ_flush, &ct->reg);
-		if (circ_cache_insert(cache, code, phi) < 0)
+		log_trace("paulirot, term: %zu, num_codes: %zu", i, ch->len);
+		circ_cache_flush(ch, circ_flush, &ct->reg);
+		if (circ_cache_insert(ch, code, phi) < 0)
 			return -1;
 	}
-	log_trace("paulirot, last term group, num_codes: %zu", cache->len);
-	circ_cache_flush(cache, circ_flush, &ct->reg);
+	log_trace("paulirot, last term group, num_codes: %zu", ch->len);
+	circ_cache_flush(ch, circ_flush, &ct->reg);
 
 	return 0;
 }

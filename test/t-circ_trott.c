@@ -10,6 +10,8 @@
 #include "phase2.h"
 #include "xoshiro256ss.h"
 
+#include "circ_cache.h"
+
 #include "test.h"
 
 #define WD_SEED UINT64_C(0x682011f6dd97fc67)
@@ -158,7 +160,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	 * handle to an open data file. */
 	struct trott tt;
 	qreg_init(&tt.ct.reg, NUM_QUBITS);
-	circ_cache_init(&tt.ct.cache, tt.ct.reg.qb_lo, tt.ct.reg.qb_hi);
+	tt.ct.cache = circ_cache_new(tt.ct.reg.qb_lo, tt.ct.reg.qb_hi);
 	tt.dt.delta = HAMIL_DELTA;
 
 	struct circ_hamil *h = &tt.ct.hm;
