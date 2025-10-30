@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "log.h"
 #include "phase2/circ.h"
 #include "phase2/paulis.h"
 #include "phase2/world.h"
@@ -15,7 +16,7 @@
 #include "test.h"
 
 #define WD_SEED UINT64_C(0x77e8fe9b90caf912)
-static struct world WD;
+static struct world_info WD;
 
 #define SEED UINT64_C(0x334b06fc8c7b40ea)
 static struct xoshiro256ss RNG;

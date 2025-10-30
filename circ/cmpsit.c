@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "log.h"
 #include "phase2.h"
 #include "xoshiro256ss.h"
 

@@ -1,5 +1,6 @@
 #include <stdint.h>
 
+#include "log.h"
 #include "phase2/paulis.h"
 #include "phase2/world.h"
 #include "xoshiro256ss.h"
@@ -9,7 +10,7 @@
 #define REPS_MAX (999UL)
 
 #define WD_SEED UINT64_C(0x0094be8e2d4ba8eb)
-static struct world WD;
+static struct world_info WD;
 
 #define SEED UINT64_C(0xa208312e4065b1df)
 static struct xoshiro256ss RNG;

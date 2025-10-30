@@ -15,7 +15,7 @@ extern "C" {
 #define QREG_MAX_WIDTH (64)
 
 struct qreg {
-	struct world wd;
+	struct world_info wd;
 
 	uint32_t qb_lo, qb_hi;
 

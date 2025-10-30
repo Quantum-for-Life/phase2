@@ -56,7 +56,7 @@ ex_create:
 
 int main(void)
 {
-	struct world wd;
+	struct world_info wd;
 	world_init((void *)0, (void *)0, WD_SEED);
 	world_info(&wd);
 

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "log.h"
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 #include "phase2/world.h"
@@ -16,7 +17,7 @@
 static uint32_t NQB_MIN = 1;
 
 #define WD_SEED UINT64_C(0x18c9ee04abeee30c)
-static struct world WD;
+static struct world_info WD;
 
 #define SEED UINT64_C(0x2d1da81dc94cf64f)
 static struct xoshiro256ss RNG;

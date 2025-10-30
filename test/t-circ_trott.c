@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include "circ/trott.h"
+#include "log.h"
 #include "phase2.h"
 #include "xoshiro256ss.h"
 
@@ -15,7 +16,7 @@
 #include "test.h"
 
 #define WD_SEED UINT64_C(0x682011f6dd97fc67)
-static struct world WD;
+static struct world_info WD;
 
 #if PHASE2_BACKEND == 0
 #define MARGIN (1.0e-14)

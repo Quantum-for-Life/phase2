@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "log.h"
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 #include "phase2/world.h"
@@ -13,7 +14,7 @@
 #include "test.h"
 
 #define WD_SEED UINT64_C(0x4809bfb7d258a633)
-static struct world WD;
+static struct world_info WD;
 
 #define WIDTH (64)
 

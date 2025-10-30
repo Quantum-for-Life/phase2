@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "log.h"
 #include "phase2/circ.h"
 #include "phase2/paulis.h"
 

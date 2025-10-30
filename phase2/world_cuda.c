@@ -9,12 +9,10 @@
 
 #include "world_cuda.h"
 
-int world_backend_init(struct world *wd)
-{
-	struct world_cuda *cu = malloc(sizeof *cu);
-	if (!cu)
-		return -1;
+static struct world_cuda cu;
 
+int world_backend_init(const struct world_info *wd)
+{
 	/* Determine the local MPI rank (within the node). */
 	int loc_rank, loc_size;
 	MPI_Comm loc_comm;
@@ -26,15 +24,12 @@ int world_backend_init(struct world *wd)
 	/* Assume one GPU per process. */
 	cudaSetDevice(loc_rank % loc_size);
 
-	cu->loc_rank = loc_rank;
-	cu->loc_size = loc_size;
-	wd->data = cu;
+	cu.loc_rank = loc_rank;
+	cu.loc_size = loc_size;
 
 	return 0;
 }
 
-void world_backend_destroy(struct world *wd)
+void world_backend_destroy(const struct world *wd)
 {
-	struct world_cuda *cu = wd->data;
-	free(cu);
 }

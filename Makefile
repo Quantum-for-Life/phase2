@@ -57,12 +57,10 @@ HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcurl -lsz -lz -ldl -lm
 # are (case-sensitive):
 #
 # 	* qreg      - native engine
-# 	* quest	    - QuEST library
 #	* cuda      - NVIDIA GPU driver and runtime
 #
 # See below for how to specify the dependencies.
 BACKEND		:= qreg
-#BACKEND	:= quest
 #BACKEND	:= cuda
 
 BACKEND_OBJS	:=
@@ -76,20 +74,6 @@ BACKEND_OBJS	+= $(PHASE2DIR)/qreg_qreg.o
 BACKEND_CFLAGS	+=
 BACKEND_LDFLAGS	+=
 BACKEND_LDLIBS	+=
-endif
-
-ifeq ($(BACKEND),quest)
-# Specify QUEST_PREFIX, if you have QuEST installed in a nonstandard location.
-QUEST_PREFIX	:=
-QUEST_INCLUDE	:= $(QUEST_PREFIX)/usr/include/QuEST
-QUEST_LIBDIR	:= $(QUEST_PREFIX)/usr/lib
-BACKEND_N	:= 1
-BACKEND_OBJS	+= $(PHASE2DIR)/qreg_quest.o				\
-			$(PHASE2DIR)/world_quest.o
-BACKEND_CFLAGS	+= -I$(QUEST_INCLUDE)
-BACKEND_LDFLAGS	+= -L$(QUEST_LIBDIR) -Wl,-rpath -Wl,$(QUEST_LIBDIR)
-BACKEND_LDLIBS	+= -lQuEST
-$(BACKEND_OBJS): $(PHASE2DIR)/world_quest.h
 endif
 
 ifeq ($(BACKEND),cuda)

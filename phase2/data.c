@@ -9,7 +9,7 @@
 #include "phase2/world.h"
 #include <complex.h>
 
-static struct world WD;
+static struct world_info WD;
 
 data_id data_open(const char *filename)
 {

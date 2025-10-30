@@ -3,9 +3,6 @@
 
 #include <stdint.h>
 
-#include "log.h"
-#include "xoshiro256ss.h"
-
 enum world_stat {
 	WORLD_UNDEF = -1,
 	WORLD_READY = 0,
@@ -14,30 +11,20 @@ enum world_stat {
 };
 
 #ifndef PHASE2_BACKEND
-#define PHASE2_BAKCEND (0)
+#define PHASE2_BAKCEND 0
 #endif
 
 #if PHASE2_BACKEND == 0
 #define WORLD_BACKEND "qreg"
-#elif PHASE2_BACKEND == 1
-#define WORLD_BACKEND "QuEST"
 #elif PHASE2_BACKEND == 2
 #define WORLD_BACKEND "CUDA"
 #endif /* PHASE2_BACKEND */
 
-/*
- * Global world info stored as static data inside the module.
- * Users can keep a local copy of this when populated by world_info().
- */
-struct world {
+struct world_info {
 	enum world_stat stat;
 	int size;
 	int rank;
-
 	uint64_t seed;
-	struct xoshiro256ss rng;
-
-	void *data; /* opaque handle to alternative engine environments */
 };
 
 /* Initialize the world with command line parameters and a seed for PRNG.
@@ -76,10 +63,6 @@ int world_free(void);
  * Returns:
  *	The same value as stored in wd->stat after the call.
  */
-int world_info(struct world *wd);
-
-int world_backend_init(struct world *wd);
-
-void world_backend_destroy(struct world *wd);
+int world_info(struct world_info *wd);
 
 #endif /* WORLD_H */
