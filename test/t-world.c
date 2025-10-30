@@ -1,5 +1,6 @@
 #include <stdint.h>
 
+#include "log.h"
 #include "phase2/world.h"
 
 #include "test.h"
@@ -8,7 +9,7 @@
 
 int main(void)
 {
-	struct world wd;
+	struct world_info wd;
 
 	world_info(&wd);
 	TEST_ASSERT(wd.stat == WORLD_UNDEF, "wrong status");

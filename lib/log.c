@@ -153,7 +153,7 @@ void log_log(const int level, const char *fmt, ...)
 
 void log_callback(struct log_event *ev)
 {
-	struct world wd;
+	struct world_info wd;
 	if (world_info(&wd) == WORLD_READY && wd.rank > 0)
 		return;
 

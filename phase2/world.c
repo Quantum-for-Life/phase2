@@ -3,15 +3,22 @@
 
 #include "mpi.h"
 
+#include "log.h"
+#include "xoshiro256ss.h"
+
 #include "phase2/world.h"
 
-static struct world WORLD = {
+static struct world_info WORLD = {
 	.stat = WORLD_UNDEF,
 	.size = 0,
 	.rank = 0,
 	.seed = UINT64_C(0x77dd8e60521fb661),
-	.data = nullptr,
 };
+
+static struct xoshiro256ss rng;
+
+int world_backend_init(const struct world_info *wd);
+void world_backend_destroy(const struct world_info *wd);
 
 int world_init(int *argc, char ***argv, uint64_t seed)
 {
@@ -40,17 +47,17 @@ int world_init(int *argc, char ***argv, uint64_t seed)
 	WORLD.rank = rk;
 
 	WORLD.seed = seed;
-	xoshiro256ss_init(&WORLD.rng, WORLD.seed);
+	xoshiro256ss_init(&rng, WORLD.seed);
 	/* Split the state for parrallel distributed computation. */
 	for (int i = 0; i < WORLD.rank; i++)
-		xoshiro256ss_longjump(&WORLD.rng);
+		xoshiro256ss_longjump(&rng);
 
 	if (world_backend_init(&WORLD) < 0)
 		goto err;
 
 	WORLD.stat = WORLD_READY;
 	log_info("*** Init ***");
-	log_info("World size: %d", sz);
+	log_info("World size: %d", WORLD.size);
 	log_info("Backend: %s", WORLD_BACKEND);
 
 	return WORLD.stat;
@@ -73,29 +80,27 @@ int world_free(void)
 	return WORLD.stat;
 }
 
-int world_info(struct world *wd)
+int world_info(struct world_info *wd)
 {
 	if (wd) {
+		wd->stat = WORLD.stat;
 		wd->size = WORLD.size;
 		wd->rank = WORLD.rank;
 		wd->seed = WORLD.seed;
-		wd->rng = WORLD.rng;
-		wd->data = WORLD.data;
-		wd->stat = WORLD.stat;
 	}
 
 	return WORLD.stat;
 }
 
 #if PHASE2_BACKEND == 0 /* qreg */
-inline int world_backend_init(struct world *wd)
+inline int world_backend_init(const struct world_info *wd)
 {
-	wd->data = nullptr;
+	(void)wd;
 
 	return 0;
 }
 
-inline void world_backend_destroy(struct world *wd)
+inline void world_backend_destroy(const struct world_info *wd)
 {
 	(void)wd;
 }

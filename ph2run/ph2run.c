@@ -11,10 +11,11 @@
 #include "circ/cmpsit.h"
 #include "circ/qdrift.h"
 #include "circ/trott.h"
+#include "log.h"
 #include "phase2.h"
 
 #define WD_SEED UINT64_C(0xd326119d4859ebb2)
-static struct world wd;
+static struct world_info wd;
 
 #define str(s) #s
 #define xstr(s) str(s)
