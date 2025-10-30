@@ -160,7 +160,7 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	 * handle to an open data file. */
 	struct trott tt;
 	qreg_init(&tt.ct.reg, NUM_QUBITS);
-	tt.ct.cache = circ_cache_new(tt.ct.reg.qb_lo, tt.ct.reg.qb_hi);
+	circ_cache_init(tt.ct.reg.qb_hi, tt.ct.reg.qb_lo);
 	tt.dt.delta = HAMIL_DELTA;
 
 	struct circ_hamil *h = &tt.ct.hm;

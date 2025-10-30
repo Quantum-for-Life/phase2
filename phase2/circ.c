@@ -9,6 +9,7 @@
 #include "phase2/paulis.h"
 
 #include "circ_cache.h"
+
 int circ_hamil_init(struct circ_hamil *hm, uint32_t qb, size_t len)
 {
 	hm->terms = malloc(sizeof *hm->terms * len);
@@ -175,8 +176,7 @@ int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
 		goto err_muldet_init;
 	if (qreg_init(&ct->reg, ct->hm.qb) < 0)
 		goto err_qreg_init;
-	ct->cache = circ_cache_new(ct->reg.qb_lo, ct->reg.qb_hi);
-	if (!ct->cache)
+	if (circ_cache_init(ct->reg.qb_hi, ct->reg.qb_lo) < 0)
 		goto err_cache_init;
 	if (circ_values_init(&ct->vals, vals_len) < 0)
 		goto err_vals_init;
@@ -185,7 +185,6 @@ int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
 
 	// circ_values_free(&ct->vals);
 err_vals_init:
-	circ_cache_free(ct->cache);
 err_cache_init:
 	qreg_free(&ct->reg);
 err_qreg_init:
@@ -201,7 +200,6 @@ void circ_free(struct circ *ct)
 	circ_values_free(&ct->vals);
 	circ_hamil_free(&ct->hm);
 	circ_muldet_free(&ct->md);
-	circ_cache_free(ct->cache);
 	qreg_free(&ct->reg);
 }
 
@@ -216,7 +214,7 @@ int circ_prepst(struct circ *ct)
 	return 0;
 }
 
-static void circ_flush(struct paulis code_hi, struct paulis *codes_lo,
+static void circ_flush(struct paulis code_hi, const struct paulis *codes_lo,
 	double *phis, size_t ncodes, void *data)
 {
 	struct qreg *reg = data;
@@ -226,8 +224,6 @@ static void circ_flush(struct paulis code_hi, struct paulis *codes_lo,
 static int circ_step_generic(struct circ *ct, const struct circ_hamil *hm,
 	const double omega, bool reverse)
 {
-	struct circ_cache *const ch = ct->cache;
-
 	for (size_t i = 0; i < hm->len; i++) {
 		size_t j = i;
 		if (reverse)
@@ -235,16 +231,18 @@ static int circ_step_generic(struct circ *ct, const struct circ_hamil *hm,
 		const double phi = omega * hm->terms[j].cf;
 		const struct paulis code = hm->terms[j].op;
 
-		if (circ_cache_insert(ch, code, phi) == 0)
+		if (circ_cache_insert(code, phi) == 0)
 			continue;
 
-		log_trace("paulirot, term: %zu, num_codes: %zu", i, ch->len);
-		circ_cache_flush(ch, circ_flush, &ct->reg);
-		if (circ_cache_insert(ch, code, phi) < 0)
+		log_trace("paulirot, term: %zu, num_codes: %zu", i,
+			circ_cache_len());
+		circ_cache_flush(circ_flush, &ct->reg);
+		if (circ_cache_insert(code, phi) < 0)
 			return -1;
 	}
-	log_trace("paulirot, last term group, num_codes: %zu", ch->len);
-	circ_cache_flush(ch, circ_flush, &ct->reg);
+	log_trace(
+		"paulirot, last term group, num_codes: %zu", circ_cache_len());
+	circ_cache_flush(circ_flush, &ct->reg);
 
 	return 0;
 }

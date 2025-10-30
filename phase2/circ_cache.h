@@ -5,20 +5,15 @@
 
 #include "phase2/paulis.h"
 
-#define CIRC_CACHE_CODES_MAX UINT64_C(0x0400)
+int circ_cache_init(int hi, int lo);
 
-struct circ_cache {
-	uint32_t qb_lo, qb_hi;
-	struct paulis *codes_lo, code_hi;
-	double *phis;
-	size_t len;
-};
+int circ_cache_insert(struct paulis pa, double phi);
 
-struct circ_cache *circ_cache_new(uint32_t qb_lo, uint32_t qb_hi);
-void circ_cache_free(struct circ_cache *ch);
-int circ_cache_insert(struct circ_cache *ch, struct paulis code, double phi);
-void circ_cache_flush(struct circ_cache *ch,
-	void (*op)(struct paulis, struct paulis *, double *, size_t, void *),
-	void *data);
+typedef void (*circ_cache_op)(
+	struct paulis, const struct paulis *, double *, size_t, void *);
+
+void circ_cache_flush(circ_cache_op fn, void *data);
+
+size_t circ_cache_len(void);
 
 #endif /* CIRC_CACHE */
