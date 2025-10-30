@@ -32,4 +32,5 @@ int world_backend_init(const struct world_info *wd)
 
 void world_backend_destroy(const struct world *wd)
 {
+	(void)wd;
 }

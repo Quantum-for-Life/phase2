@@ -12,9 +12,6 @@ struct world_cuda {
 	int loc_size;
 };
 
-int world_cuda_init(struct world *wd);
-int world_cuda_destroy(struct world *wd);
-
 #ifdef __cplusplus
 }
 #endif
