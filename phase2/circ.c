@@ -184,7 +184,7 @@ int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
 
 	return 0;
 
-	// circ_values_free(&ct->vals);
+	circ_values_free(&ct->vals);
 err_vals_init:
 err_cache_init:
 	qreg_free(&ct->reg);

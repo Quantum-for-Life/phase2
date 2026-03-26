@@ -248,7 +248,7 @@ int data_multidet_foreach(data_id fid,
 	for (size_t i = 0; i < ndets; i++) {
 		uint64_t idx = 0;
 		for (size_t j = 0; j < nqb; j++) {
-			idx += dets[i * nqb + j] << j;
+			idx += (uint64_t)dets[i * nqb + j] << j;
 		}
 		_Complex double cf = CMPLX(cfs[2 * i], cfs[2 * i + 1]);
 		rc = op(cf, idx, op_data);

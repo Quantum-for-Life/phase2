@@ -69,7 +69,7 @@ int qdrift_init(
 
 	return 0;
 
-	// ranct_free(&qd->ranct);
+	ranct_free(&qd->ranct);
 err_rct_init:
 	circ_free(&qd->ct);
 err_circ_init:

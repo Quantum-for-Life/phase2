@@ -11,7 +11,7 @@ enum world_stat {
 };
 
 #ifndef PHASE2_BACKEND
-#define PHASE2_BAKCEND 0
+#define PHASE2_BACKEND 0
 #endif
 
 #if PHASE2_BACKEND == 0

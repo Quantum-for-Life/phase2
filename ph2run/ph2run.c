@@ -261,7 +261,7 @@ static int cmd_qdrift_write(data_id fid, void *data)
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
 		 "n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%zu,%.3f,%d,%.3f", dt->qd.ct.hm.qb,
+	log_info("> %u,%zu,%zu,%zu,%.6f,%zu,%d,%.3f", dt->qd.ct.hm.qb,
 		dt->qd.ct.hm.len, dt->qd.ct.md.len, dt->qd_dt.samples,
 		dt->qd_dt.step_size, dt->qd_dt.depth, wd.size, dt->t_tot);
 

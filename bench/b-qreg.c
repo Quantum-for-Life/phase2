@@ -77,11 +77,12 @@ static void measure_b_qreg_get(void)
 		struct b_qreg_get q;
 
 		qreg_init(&reg, n);
-		qreg_setamp(&reg, q.i, q.amp);
 
 		q.reg = &reg;
 		q.amp = 0.03 + I * 0.72;
 		q.i = (1 << n) - 1;
+
+		qreg_setamp(&reg, q.i, q.amp);
 
 		bench_mark(&b, REPS_MAX, b_qreg_get, &q);
 		log_info(
