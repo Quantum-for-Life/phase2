@@ -237,11 +237,14 @@ CFLAGS		+= -I$(TESTDIR) -I$(PHASE2DIR) -DPH2_TESTDIR=\"$(TESTDIR)\"
 
 TESTS		:= $(TESTDIR)/t-circ_cache				\
 			$(TESTDIR)/t-circ_trott				\
+			$(TESTDIR)/t-circ				\
+			$(TESTDIR)/t-data_attr				\
 			$(TESTDIR)/t-data_hamil				\
 			$(TESTDIR)/t-data_multidet			\
 			$(TESTDIR)/t-data_open				\
 			$(TESTDIR)/t-data_trott_steps			\
 			$(TESTDIR)/t-paulis				\
+			$(TESTDIR)/t-prob				\
 			$(TESTDIR)/t-qreg				\
 			$(TESTDIR)/t-world
 

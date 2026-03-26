@@ -12,9 +12,17 @@ int main(void)
 {
 	struct world_info wd;
 
+	/* Before init, status must be WORLD_UNDEF. */
 	world_info(&wd);
 	TEST_ASSERT(wd.stat == WORLD_UNDEF, "wrong status");
 
+	/* Zero seed must be rejected. */
+	TEST_ASSERT(world_init(nullptr, nullptr, 0) == WORLD_ERR,
+		"zero seed should fail");
+	world_info(&wd);
+	TEST_ASSERT(wd.stat == WORLD_ERR, "wrong status after zero seed");
+
+	/* Valid initialisation. */
 	TEST_ASSERT(world_init(nullptr, nullptr, WD_SEED) == WORLD_READY,
 		"error initializing the world");
 
