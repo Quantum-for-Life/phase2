@@ -14,3 +14,6 @@ where = ["python"]
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]

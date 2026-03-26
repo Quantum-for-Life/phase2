@@ -55,8 +55,13 @@ passed = 0
 # We set delta=0.3 and coeffs=[1], so the rotation angle is
 # a = delta * coeff = 0.3.
 
+# Note: we use "00" (2 qubits) rather than "0" so that
+# this example also works under mpirun -n 2 (which
+# requires at least 2 qubits).  The extra qubit is
+# identity and does not affect the result.
+
 a = 0.3
-result = phase2.run(["Z0"], [1.0], a, "0")
+result = phase2.run(["Z0"], [1.0], a, "00")
 expected = complex(math.cos(a), math.sin(a))
 
 print("Section 1: Single-qubit Z rotation")
@@ -93,7 +98,7 @@ print()
 # the |1> component.
 
 a = 0.5
-result = phase2.run(["X0"], [1.0], a, "0")
+result = phase2.run(["X0"], [1.0], a, "00")
 expected = complex(math.cos(a), 0.0)
 
 print("Section 2: Single-qubit X rotation")
@@ -173,7 +178,7 @@ delta = 0.3
 a = delta * 1.0  # X rotation angle
 b = delta * 1.0  # Z rotation angle
 
-result = phase2.run(["X0", "Z0"], [1.0, 1.0], delta, "0")
+result = phase2.run(["X0", "Z0"], [1.0, 1.0], delta, "00")
 expected = math.cos(a) * complex(math.cos(b), math.sin(b))
 
 print("Section 4: Non-commuting X then Z (Trotter step)")
