@@ -142,6 +142,29 @@ See also the directory: [./simul](./simul) for an example of a simple
 automated system.
 
 
+Python interface
+----------------
+
+Build the shared library and install the Python package:
+
+```bash
+make shared
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+Then:
+
+```python
+import phase2
+r = phase2.run(["X0", "Z1"], [0.3, -0.2], 1.0, "00")
+```
+
+See [doc/python.md](doc/python.md) for the full API
+reference, Pauli string format, MPI usage, and examples.
+
+
 Documentation
 -------------
 
@@ -149,6 +172,8 @@ Documentation
   covering design rationale, computational kernels (CPU and
   CUDA), algorithms (Trotter, qDRIFT, composite), full API
   reference, and build instructions.
+- [doc/python.md](doc/python.md) — Python interface:
+  installation, API, examples, MPI usage.
 - [doc/simul-h5-specs.md](doc/simul-h5-specs.md) — HDF5
   simulation file format specification.
 
