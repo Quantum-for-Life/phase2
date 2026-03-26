@@ -78,6 +78,11 @@ static int hamil_term_cmp_lex(const void *a, const void *b)
 	return paulis_cmp(x, y);
 }
 
+/*
+ * Lexicographic sort groups terms with the same hi-qubit
+ * Pauli code contiguously, maximising cache hits in
+ * circ_step_generic and minimising MPI exchanges.
+ */
 void circ_hamil_sort_lex(struct circ_hamil *hm)
 {
 	qsort(hm->terms, hm->len, sizeof(struct circ_hamil_term),
@@ -222,6 +227,20 @@ static void circ_flush(struct paulis code_hi, const struct paulis *codes_lo,
 	qreg_paulirot(reg, code_hi, codes_lo, phis, ncodes);
 }
 
+/*
+ * circ_step_generic - apply one Trotter step of the
+ * Hamiltonian evolution exp(i*omega*H).
+ *
+ * Each term is split into hi and lo Pauli codes.  If the
+ * hi code matches the current cache group, the term is
+ * appended (sharing the MPI exchange).  If the hi code
+ * differs or the cache is full, the cache is flushed
+ * (triggering MPI exchange + batched lo-rotations), then
+ * the new term starts a fresh cache group.
+ *
+ * The Hamiltonian should be pre-sorted so that terms with
+ * identical hi codes are contiguous — see circ_hamil_sort_lex.
+ */
 static int circ_step_generic(struct circ *ct, const struct circ_hamil *hm,
 	const double omega, bool reverse)
 {

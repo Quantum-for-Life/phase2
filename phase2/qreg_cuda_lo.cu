@@ -12,6 +12,14 @@ constexpr size_t threadPerBlock = 512;
 
 constexpr cuDoubleComplex half = { .x = 0.5, .y = 0.0 };
 
+/*
+ * kernelMix - GPU equivalent of kernel_mix (see qreg_qreg.c).
+ *
+ * One thread per amplitude.  Grid geometry:
+ *   blocks = ceil(namp / 512),  threads per block = 512.
+ * Each thread applies the eigenspace projection for its
+ * index independently (no inter-thread data dependency).
+ */
 __global__ void kernelMix(cuDoubleComplex *__restrict__ a,
 	cuDoubleComplex *__restrict__ b, cuDoubleComplex bm, size_t n)
 {
@@ -27,7 +35,13 @@ __global__ void kernelMix(cuDoubleComplex *__restrict__ a,
 	b[i] = cuCmul(z2, half);
 }
 
-// Assume z != nullptr
+/*
+ * paulisEffect - device reimplementation of paulis_effect.
+ *
+ * Uses __popcll (hardware population count for 64-bit) in
+ * place of stdc_count_ones_ul.  Caller must ensure z != NULL.
+ * See paulis.c:paulis_effect for the mathematical derivation.
+ */
 __device__ uint64_t paulisEffect(
 	const struct paulis code, const uint64_t i, cuDoubleComplex *z)
 {
@@ -53,6 +67,14 @@ __device__ uint64_t paulisEffect(
 	return i ^ code.pak[0];
 }
 
+/*
+ * kernelPauliRot - GPU equivalent of kernel_rot (qreg_qreg.c).
+ *
+ * One thread per amplitude index.  Same j < i guard: each
+ * coupled pair (i, j) is processed by the thread with the
+ * smaller index only, avoiding write conflicts without
+ * atomics or synchronisation.
+ */
 __global__ void kernelPauliRot(
 	cuDoubleComplex *a, size_t n, struct paulis code, double c, double s)
 {
@@ -84,6 +106,16 @@ __global__ void kernelAdd(cuDoubleComplex *__restrict__ a,
 	a[i] = cuCadd(a[i], b[i]);
 }
 
+/*
+ * qreg_paulirot_lo - host function launching the lo-qubit
+ * rotation kernels on the GPU.
+ *
+ * All kernels are launched sequentially into the default
+ * CUDA stream.  Implicit stream ordering guarantees that
+ * kernelMix completes before kernelPauliRot, and all
+ * rotations complete before kernelAdd.  No explicit
+ * synchronisation is needed between launches.
+ */
 void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
 	const double *angles, const size_t ncodes, double _Complex bm)
 {

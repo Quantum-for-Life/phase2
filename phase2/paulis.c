@@ -15,6 +15,23 @@ inline struct paulis paulis_new(void)
 	return code;
 }
 
+/*
+ * paulis_set - encode a single-qubit Pauli operator into the
+ * bit-packed representation.
+ *
+ * Each n-qubit Pauli string is stored as two 64-bit words:
+ *   pak[0] = "flip bits"  (X component)
+ *   pak[1] = "phase bits" (Z component)
+ *
+ * Bit n of each word encodes qubit n.  The mapping is:
+ *   I = 00   (pak[0]:0, pak[1]:0)
+ *   X = 10   (pak[0]:1, pak[1]:0)
+ *   Z = 01   (pak[0]:0, pak[1]:1)
+ *   Y = 11   (pak[0]:1, pak[1]:1)   (Y = iXZ)
+ *
+ * This is the standard "symplectic" representation used in
+ * stabiliser / Pauli-group literature.
+ */
 void paulis_set(struct paulis *code, const int op, const uint32_t n)
 {
 	const uint64_t n_mask = UINT64_C(1) << n;
@@ -41,6 +58,17 @@ void paulis_set(struct paulis *code, const int op, const uint32_t n)
 	}
 }
 
+/*
+ * paulis_get - decode a single-qubit Pauli from the packed form.
+ *
+ * The two-bit value pa = (pak[1][n] << 1) | pak[0][n] yields:
+ *   0 -> I,  1 -> X,  2 -> Z,  3 -> Y
+ *
+ * Note: case 2 (binary 10) maps to Z, not Y.  The internal
+ * bit layout (flip, phase) means pak[1]=1, pak[0]=0 is Z,
+ * which reads as the integer 2 — easily mistaken for Y if
+ * one assumes a naive I/X/Y/Z = 0/1/2/3 encoding.
+ */
 int paulis_get(const struct paulis code, const uint32_t n)
 {
 	int pa = (code.pak[0] >> n & 1) | ((code.pak[1] >> n & 1) << 1);
@@ -51,7 +79,7 @@ int paulis_get(const struct paulis code, const uint32_t n)
 	case 1:
 		return PAULI_X;
 	case 2:
-		return PAULI_Z; /* sic! */
+		return PAULI_Z; /* see comment above */
 	case 3:
 		return PAULI_Y;
 	default:
@@ -76,6 +104,29 @@ inline void paulis_shr(struct paulis *code, const uint32_t n)
 	code->pak[1] >>= n;
 }
 
+/*
+ * paulis_effect - compute the action of a Pauli string on a
+ * computational basis state:  P|i> = z * |j>.
+ *
+ * Output:
+ *   returns j = i XOR pak[0]   (X/Y bits flip the state)
+ *   multiplies *z by the phase factor i^r, where
+ *     r = (is + 2*mi) mod 4
+ *
+ * Derivation:
+ *   Write P = (product of single-qubit Paulis).  Each Y_k
+ *   contributes a factor of i (since Y = iXZ), and each Z_k
+ *   or Y_k acting on a |1> contributes a factor of -1.
+ *
+ *   is = popcount(pak[0] & pak[1])
+ *      = number of Y factors, each giving i^1.
+ *   mi = popcount(i & pak[1])
+ *      = number of qubits where the state bit is 1 AND the
+ *        operator has a Z or Y component, each giving (-1).
+ *
+ *   Total phase = i^is * (-1)^mi = i^(is + 2*mi).
+ *   Reduce mod 4 to index into {1, i, -1, -i}.
+ */
 uint64_t paulis_effect(
 	const struct paulis code, const uint64_t i, _Complex double *z)
 {

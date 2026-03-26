@@ -61,6 +61,19 @@ static void ranct_calc_cdf(
 	rct->lambda_r = data.norm;
 }
 
+/*
+ * ranct_init - initialise the randomised composite channel.
+ *
+ * Splits the Hamiltonian into deterministic and randomised
+ * parts:
+ *  1. Sort all terms by |coeff| in descending order.
+ *  2. The top L = dt->length terms form the deterministic
+ *     sub-Hamiltonian (sorted lexicographically for cache-
+ *     friendly MPI batching).
+ *  3. The remaining terms form the randomised pool, from
+ *     which terms are importance-sampled via a CDF built
+ *     from their absolute coefficients.
+ */
 static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
 	const struct cmpsit_data *dt)
 {
@@ -187,9 +200,23 @@ static void ranct_hmsmpl_free(struct cmpsit *cp)
 	circ_hamil_free(&cp->ranct.hm_smpl);
 }
 
+/*
+ * cmpsit_simul - run the composite-channel simulation.
+ *
+ * Each Trotter step uses second-order Suzuki-Trotter
+ * decomposition with two independently drawn random
+ * samples per step:
+ *
+ *   1. Draw sample S1, apply forward half-step
+ *      exp(i * 0.5 * S1).
+ *   2. Draw fresh sample S2, apply reverse half-step
+ *      exp(i * 0.5 * S2) (terms in reversed order).
+ *
+ * The two independent samples ensure unbiased stochastic
+ * error cancellation across the symmetric decomposition.
+ */
 int cmpsit_simul(struct cmpsit *cp)
 {
-	/* Second order Trotter */
 	struct circ *ct = &cp->ct;
 	struct circ_values *vals = &ct->vals;
 
@@ -198,7 +225,6 @@ int cmpsit_simul(struct cmpsit *cp)
 	for (size_t i = 0; i < vals->len; i++) {
 		circ_prepst(ct);
 		for (size_t s = 0; s < cp->dt.steps; s++) {
-			/* Second order Suzuki-Trotter */
 			if (hm_sample(cp) < 0)
 				return -1;
 			if (circ_step(&cp->ct, &cp->ranct.hm_smpl, 0.5) < 0)

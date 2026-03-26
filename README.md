@@ -142,6 +142,16 @@ See also the directory: [./simul](./simul) for an example of a simple
 automated system.
 
 
+Documentation
+-------------
+
+- [doc/phase2.md](doc/phase2.md) — comprehensive reference
+  covering design rationale, computational kernels (CPU and
+  CUDA), algorithms (Trotter, qDRIFT, composite), full API
+  reference, and build instructions.
+- [doc/simul-h5-specs.md](doc/simul-h5-specs.md) — HDF5
+  simulation file format specification.
+
 
 Credits and License
 -------------------

@@ -72,7 +72,26 @@ static void exch_waitall(struct qreg *reg)
 	MPI_Waitall(reg->nreqs, reg->reqs_rcv, MPI_STATUSES_IGNORE);
 }
 
-/* These kernels can be easily ported to CUDA. */
+/*
+ * kernel_mix - project local and partner amplitudes into the
+ * +/-1 eigenspaces of the hi-part Pauli operator.
+ *
+ * After MPI exchange, a[] holds this rank's amplitudes and
+ * b[] holds the partner rank's amplitudes.  The hi-part
+ * Pauli acting on the partner rank's index produces phase
+ * bm (a fourth root of unity).
+ *
+ * The mixing step computes:
+ *   a[i] = (a[i] + bm*b[i]) / 2
+ *   b[i] = (a[i] - bm*b[i]) / 2
+ *
+ * This is the projector decomposition:
+ *   (I + bm*P_hi)/2  projects into the +1 eigenspace,
+ *   (I - bm*P_hi)/2  projects into the -1 eigenspace.
+ *
+ * After mixing, rotations are applied independently to
+ * each half, then the halves are recombined via addition.
+ */
 static __inline__ void kernel_mix(
 	const size_t i, c64 *restrict a, c64 *restrict b, const c64 bm)
 {
@@ -84,6 +103,21 @@ static __inline__ void kernel_mix(
 	b[i] = (x - y) / 2.0;
 }
 
+/*
+ * kernel_rot - apply Pauli rotation exp(i*phi*P_lo) to the
+ * local amplitude vector.
+ *
+ * For each basis index i, compute P_lo|i> = z|j>.  The
+ * rotation couples the pair (i, j) as a 2x2 block:
+ *   a[i] <- cos(phi)*a[i] + i*conj(z)*sin(phi)*a[j]
+ *   a[j] <- cos(phi)*a[j] + i*z*sin(phi)*a[i]
+ *
+ * The guard j < i ensures each (i, j) pair is processed
+ * exactly once: when i is the smaller index of the pair.
+ * If P_lo|i> = z|i> (diagonal case, j == i), the guard
+ * still works since j < i is false and the rotation
+ * reduces to a phase.
+ */
 static __inline__ void kernel_rot(const size_t i, c64 *a,
 	const struct paulis code, const double c, const double s)
 {
@@ -103,6 +137,17 @@ static __inline__ void kernel_add(
 	a[i] += b[i];
 }
 
+/*
+ * qreg_paulirot_hi - MPI amplitude exchange for the hi-part
+ * Pauli operator.
+ *
+ * The hi qubits are distributed across MPI ranks.  Applying
+ * paulis_effect to this rank's index gives the partner rank
+ * that holds the paired amplitudes.  Non-blocking send/recv
+ * exchanges the full local amplitude vector with the partner.
+ * The phase bm from applying P_hi to the partner's rank
+ * index is returned for use in kernel_mix.
+ */
 static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi, c64 *bm)
 {
 	paulis_shr(&code_hi, reg->qb_lo);
@@ -113,6 +158,18 @@ static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi, c64 *bm)
 	exch_waitall(reg);
 }
 
+/*
+ * qreg_paulirot_lo - apply batched lo-qubit Pauli rotations.
+ *
+ * Three-phase protocol:
+ *  1. Mix: project amp[] and buf[] (partner data) into the
+ *     +/-1 eigenspaces of the hi-part operator using bm.
+ *  2. Rotate: apply each lo-part rotation to both halves.
+ *     amp[] gets +phi, buf[] gets -phi (opposite sign),
+ *     so the eigenspaces evolve independently.
+ *  3. Add: recombine amp[] += buf[] to reconstruct the
+ *     full state vector on this rank.
+ */
 static void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
 	const double *angles, const size_t ncodes, const c64 bm)
 {

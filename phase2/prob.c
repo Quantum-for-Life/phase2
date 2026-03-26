@@ -23,6 +23,17 @@ void prob_cdf_free(struct prob_cdf *cdf)
 	free(cdf->y);
 }
 
+/*
+ * prob_cdf_from_iter - build a CDF from an iterator over
+ * unnormalised weights.
+ *
+ * Two-pass construction:
+ *  1. Accumulate |f(i)| for each entry and sum into lambda.
+ *  2. Normalise each entry by lambda and compute the
+ *     running sum to form the CDF: y[i] = sum_{k<=i} p(k).
+ *
+ * Returns -1 if lambda ~ 0 (all weights negligible).
+ */
 int prob_cdf_from_iter(struct prob_cdf *cdf, double (*iter)(void *), void *data)
 {
 	/* Calculate PDF. */
@@ -45,6 +56,17 @@ int prob_cdf_from_iter(struct prob_cdf *cdf, double (*iter)(void *), void *data)
 	return 0;
 }
 
+/*
+ * prob_cdf_inverse - sample from the CDF via inverse
+ * transform.
+ *
+ * Hybrid binary/linear search.  The binary phase repeatedly
+ * halves the stride d and advances i only when F(i+d) <= y,
+ * converging to the neighbourhood of the target in O(log n).
+ * The linear scan handles the remaining entries where the
+ * binary stride has reached zero.  Total cost: O(log n + k)
+ * where k is a small constant from the linear tail.
+ */
 size_t prob_cdf_inverse(const struct prob_cdf *cdf, const double y)
 {
 	size_t i = 0, d = cdf->len;

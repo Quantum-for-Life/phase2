@@ -1,3 +1,18 @@
+/*
+ * circ_cache.c - Pauli rotation batch cache.
+ *
+ * Hamiltonian terms that share the same hi-qubit Pauli code
+ * can reuse a single MPI amplitude exchange: the expensive
+ * all-to-all communication depends only on the hi part.
+ * This cache collects consecutive terms with identical hi
+ * codes and batches their lo-qubit rotations into one
+ * exchange + multi-rotation call.
+ *
+ * When a term with a different hi code arrives, or the cache
+ * is full (CACHE_MAX = 1024 terms), the caller must flush
+ * the cache (triggering the MPI exchange and rotations) and
+ * then re-insert.  Overflow returns -1 to signal this.
+ */
 #include "c23_compat.h"
 #include <stdlib.h>
 
