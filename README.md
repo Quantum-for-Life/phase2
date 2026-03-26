@@ -151,14 +151,33 @@ Build the shared library and install the Python package:
 make shared
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e ".[test]"
 ```
 
-Then:
+Run the example:
+
+```bash
+python examples/pauli_rotation.py
+```
+
+Run the test suite:
+
+```bash
+pytest -v
+```
+
+Use from Python:
 
 ```python
 import phase2
 r = phase2.run(["X0", "Z1"], [0.3, -0.2], 1.0, "00")
+```
+
+With MPI (number of ranks must be a power of two, and
+must not exceed half the number of amplitudes):
+
+```bash
+mpirun -n 4 python examples/pauli_rotation.py
 ```
 
 See [doc/python.md](doc/python.md) for the full API

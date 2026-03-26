@@ -65,6 +65,26 @@ To install with test dependencies:
 pip install -e ".[test]"
 ```
 
+### Verify the installation
+
+```sh
+pytest -v
+```
+
+The test suite is at `python/tests/test_phase2.py`.  The
+`testpaths` setting in `pyproject.toml` ensures `pytest`
+finds it automatically.
+
+### Complete setup sequence
+
+```sh
+make shared
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[test]"
+pytest -v
+```
+
 ### 4. Library discovery
 
 The module locates `libphase2.so` by searching, in order:
@@ -190,8 +210,10 @@ mpirun -n 4 python examples/pauli_rotation.py
 **Constraints:**
 
 - The number of MPI ranks must be a power of two.
-- The number of ranks must not exceed `2^nqb`, where `nqb`
-  is the number of qubits (i.e., `len(psi)`).
+- The number of ranks must not exceed `2^(nqb-1)`, where
+  `nqb` is the number of qubits (`len(psi)`).  Each rank
+  must hold at least 2 amplitudes (1 lo-qubit).  For
+  example, `mpirun -n 2` requires at least 2 qubits.
 
 ### Example with environment variable
 
