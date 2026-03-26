@@ -122,6 +122,8 @@ $(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h
 
 # internal API
 $(PHASE2DIR)/circ_cache.o:	$(PHASE2DIR)/circ_cache.h
+$(PHASE2DIR)/phase2_run.o:	$(INCLUDE)/phase2/phase2_run.h		\
+				$(PHASE2DIR)/circ_cache.h
 
 PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/circ_cache.o			\
@@ -190,7 +192,8 @@ LDLIBS		+= $(MPI_LDLIBS)					\
 	check-mpi		\
 	debug			\
 	distclean		\
-	format
+	format			\
+	shared
 
 all: build build-bench build-test
 
@@ -199,6 +202,13 @@ debug: ASFLAGS	+= -DDEBUG -Og -Fdwarf
 debug: CFLAGS	+= -DDEBUG -g -Og
 
 build: $(PROGS)
+
+# --------------------------------------------------------------------------- #
+# Shared library (Python interface)                                           #
+# --------------------------------------------------------------------------- #
+shared: CFLAGS += -fPIC
+shared: $(PHASE2DIR)/phase2_run.o $(PHASE2OBJS) $(LIBOBJS)
+	$(CC) -shared -o libphase2.so $^ $(LDFLAGS) $(LDLIBS)
 
 # --------------------------------------------------------------------------- #
 # Benchmarks                                                                  #
@@ -299,6 +309,7 @@ distclean: clean
 	@$(RM) $(BENCHES)
 	@$(RM) $(TESTS)
 	@$(RM) $(PROGS)
+	@$(RM) libphase2.so
 
 format:
 	@find ./ -name "*.c" 						\
