@@ -6,8 +6,6 @@
 #include "phase2.h"
 #include "xoshiro256ss.h"
 
-#define CMPSIT_TRUNC (9UL)
-
 struct cmpsit_data {
 	uint64_t seed;
 	size_t length;
@@ -21,16 +19,10 @@ struct cmpsit_data {
 /* Sampled circuit. */
 struct cmpsit_ranct {
 	struct circ_hamil hm_det, hm_ran, hm_smpl;
-	struct prob_cdf cdf, cdf_int_trunc;
-	double lambda_r, b_tot;
+	struct prob_cdf cdf;
+	double lambda_r;
 	size_t depth;
 	double angle_rand;
-};
-
-/* Results */
-struct cmpsit_smpl {
-	_Complex double *z;
-	size_t len;
 };
 
 struct cmpsit {
