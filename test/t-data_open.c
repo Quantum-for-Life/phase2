@@ -1,3 +1,4 @@
+#include "c23_compat.h"
 #include <stdint.h>
 
 #include "phase2/data.h"
@@ -38,7 +39,7 @@ err:
 
 int main(void)
 {
-	world_init((void *)0, (void *)0, WD_SEED);
+	world_init(nullptr, nullptr, WD_SEED);
 
 	/* This test generates noisy error messages from HDF5 and it's
 	 * not particularly important.  Disable.

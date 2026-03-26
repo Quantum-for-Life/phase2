@@ -107,29 +107,32 @@ Prepare an input file for the simulation according to the
 [specification](doc/simul-h5-specs.md). Then run:
 
 ```bash
-mpirun -n [NUM_CPUS] ./ph2run/ph2run-trott [SIMUL_FILE] [NUM_STEPS]
+mpirun -n [NUM_CPUS] ./ph2run/ph2run -S [SIMUL_FILE] trott -s [NUM_STEPS]
 ```
 
 or
 
 ```bash
-mpirun -n [NUM_CPUS] ./ph2run/ph2run-qdrift [SIMUL_FILE]
+mpirun -n [NUM_CPUS] ./ph2run/ph2run -S [SIMUL_FILE] qdrift -d [DEPTH] -n [SAMPLES]
 ```
 
 where
 
 - `NUM_CPUS` is the `mpirun` option specifying the number of processes to
   run. This must be a power of 2.
-- `SIMUL_FILE` is the path to the simulation file in the HDF5 format.
-- `NUM_STEPS` is an integer number of Trotter steps the program is going to
-  compute.
+- `SIMUL_FILE` is the path to the simulation file in the HDF5 format
+  (default: `./simul.h5`).
+- `NUM_STEPS` is an integer number of Trotter steps.
+
+Available subcommands: `trott`, `qdrift`, `cmpsit`.  Run
+`./ph2run/ph2run CMD --help` for subcommand-specific options.
 
 Optionally, you can specify the level of log messages for the program to report,
 by setting `PHASE2_LOG` environment variable to be one of: `trace`,
 `debug`, `info`, `warn`, `error`, `fatal`. E.g.,
 
 ```bash
-mpirun -n 8 -x PHASE2_LOG=info ./ph2run-trott simul.h5 100
+mpirun -n 8 -x PHASE2_LOG=info ./ph2run/ph2run -S simul.h5 trott -s 100
 ```
 
 will compute 100 Trotter steps for a Hamiltonian specified in the file
@@ -143,7 +146,7 @@ automated system.
 Credits and License
 -------------------
 
-This software is distributed under the BSD-3Clause License. See [LICENSE](./LICENSE)
+This software is distributed under the BSD 3-Clause License. See [LICENSE](./LICENSE)
 for more information.
 
 Online repository available at: https://github.com/Quantum-for-Life/phase2

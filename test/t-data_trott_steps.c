@@ -2,6 +2,7 @@
  * Test routine: data_trott_write() from data.h by creating a fresh H5 file
  * Check if the values are written correctly.  Remove temporary file.
  */
+#include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
 #include <stdint.h>
@@ -57,7 +58,7 @@ ex_create:
 int main(void)
 {
 	struct world_info wd;
-	world_init((void *)0, (void *)0, WD_SEED);
+	world_init(nullptr, nullptr, WD_SEED);
 	world_info(&wd);
 
 	if (wd.rank == 0)

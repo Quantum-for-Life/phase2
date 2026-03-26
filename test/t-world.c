@@ -1,3 +1,4 @@
+#include "c23_compat.h"
 #include <stdint.h>
 
 #include "log.h"
@@ -14,7 +15,7 @@ int main(void)
 	world_info(&wd);
 	TEST_ASSERT(wd.stat == WORLD_UNDEF, "wrong status");
 
-	TEST_ASSERT(world_init((void *)0, (void *)0, WD_SEED) == WORLD_READY,
+	TEST_ASSERT(world_init(nullptr, nullptr, WD_SEED) == WORLD_READY,
 		"error initializing the world");
 
 	world_info(&wd);

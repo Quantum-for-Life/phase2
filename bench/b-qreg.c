@@ -1,3 +1,4 @@
+#include "c23_compat.h"
 #include <complex.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -202,7 +203,7 @@ int main(int argc, char **argv)
 	(void)argc;
 	(void)argv;
 
-	world_init((void *)0, (void *)0, WD_SEED);
+	world_init(nullptr, nullptr, WD_SEED);
 	world_info(&WD);
 	log_info("Initialize world");
 

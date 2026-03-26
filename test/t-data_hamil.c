@@ -1,3 +1,4 @@
+#include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
 #include <stdint.h>
@@ -255,7 +256,7 @@ static int t_iter(void)
 
 int main(void)
 {
-	world_init((void *)0, (void *)0, WD_SEED);
+	world_init(nullptr, nullptr, WD_SEED);
 
 	if (t_getnums() < 0)
 		TEST_FAIL("getnums");

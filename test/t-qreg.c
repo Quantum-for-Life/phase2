@@ -1,3 +1,4 @@
+#include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
 #include <stddef.h>
@@ -407,7 +408,7 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 
 int main(void)
 {
-	world_init((void *)0, (void *)0, WD_SEED);
+	world_init(nullptr, nullptr, WD_SEED);
 	world_info(&WD);
 	log_info("MPI world size: %d", WD.size);
 

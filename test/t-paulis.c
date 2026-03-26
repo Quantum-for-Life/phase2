@@ -1,3 +1,4 @@
+#include "c23_compat.h"
 #include <complex.h>
 #include <stdint.h>
 
@@ -136,10 +137,10 @@ static void t_paulis_effect_01(void)
 	paulis_set(&ps, PAULI_X, 1);
 	paulis_set(&ps, PAULI_X, 3);
 
-	TEST_EQ(paulis_effect(ps, 0x00, (void *)0), 0x0B); /* 0xB = 0b1011 */
-	TEST_EQ(paulis_effect(ps, 0x01, (void *)0), 0x0A);
-	TEST_EQ(paulis_effect(ps, 0x02, (void *)0), 0x09);
-	TEST_EQ(paulis_effect(ps, 0x03, (void *)0), 0x08);
+	TEST_EQ(paulis_effect(ps, 0x00, nullptr), 0x0B); /* 0xB = 0b1011 */
+	TEST_EQ(paulis_effect(ps, 0x01, nullptr), 0x0A);
+	TEST_EQ(paulis_effect(ps, 0x02, nullptr), 0x09);
+	TEST_EQ(paulis_effect(ps, 0x03, nullptr), 0x08);
 
 	paulis_set(&ps, PAULI_Z, 1);
 
@@ -340,7 +341,7 @@ static void t_paulis_cmp_02_eq(size_t tag)
 
 int main(void)
 {
-	world_init((void *)0, (void *)0, WD_SEED);
+	world_init(nullptr, nullptr, WD_SEED);
 
 	xoshiro256ss_init(&RNG, SEED);
 
