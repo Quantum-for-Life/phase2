@@ -54,7 +54,7 @@ size_t prob_cdf_inverse(const struct prob_cdf *cdf, const double y)
 		if (cdf->y[i + d] <= y)
 			i += d;
 	}
-	while (i < cdf->len && cdf->y[i] <= y)
+	while (i < cdf->len - 1 && cdf->y[i] <= y)
 		i++;
 
 	return i;

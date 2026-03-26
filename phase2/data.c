@@ -171,6 +171,8 @@ int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets)
 		goto ex_md_open;
 
 	const hid_t dsp_id = H5Dget_space(dset_id);
+	if (dsp_id == H5I_INVALID_HID)
+		goto ex_dsp;
 	hsize_t dsp_dims[2];
 	if (H5Sget_simple_extent_dims(dsp_id, dsp_dims, NULL) != 2)
 		goto ex_dims;
@@ -181,6 +183,7 @@ int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets)
 	rt = 0;
 ex_dims:
 	H5Sclose(dsp_id);
+ex_dsp:
 	H5Dclose(dset_id);
 ex_md_open:
 	multidet_close(md);
