@@ -102,4 +102,10 @@ test/t-data_trott_steps
 test/t-paulis
 test/t-qreg
 test/t-world
+test/t-circ
+test/t-data_attr
+test/t-prob
+
+*.egg-info/
+__pycache__/
 
