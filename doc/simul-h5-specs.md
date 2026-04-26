@@ -112,6 +112,29 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
     - *Comment*: Columns specify the real (column 1) and imaginary (column 2)
       part of a complex number. The value of `NUM_STEPS` is specified as a command-line argument.
 
+## Group: `/circ_trott2`
+
+Output of the symmetric (Strang) 2nd-order Trotter product
+formula:
+
+  S_2(δ) = ∏_{k=1..K} exp(-i h_k δ/2) · ∏_{k=K..1} exp(-i h_k δ/2)
+
+Each step applies one forward sweep at `δ/2` followed by one
+reverse sweep at `δ/2` over the same Hamiltonian terms.
+
+- Attribute: `delta`
+    - *Type*: `double`
+    - *Comment*: Coefficient multiplying the time parameter
+      in the symmetric Trotter step.
+
+- Dataset: `values`
+    - *Type*: `double`
+    - *Shape*: `(NUM_STEPS, 2)`
+    - *Comment*: Columns specify the real (column 1) and
+      imaginary (column 2) part of a complex number.  The
+      value of `NUM_STEPS` is specified as a command-line
+      argument.
+
 ## Group: `/circ_qdrift`
 
 

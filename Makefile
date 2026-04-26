@@ -141,10 +141,12 @@ $(PHASE2OBJS):	$(INCLUDE)/phase2.h
 $(CIRCDIR)/cmpsit.o: $(INCLUDE)/circ/cmpsit.h
 $(CIRCDIR)/qdrift.o: $(INCLUDE)/circ/qdrift.h
 $(CIRCDIR)/trott.o: $(INCLUDE)/circ/trott.h
+$(CIRCDIR)/trott2.o: $(INCLUDE)/circ/trott2.h
 
 CIRCOBJS	:= $(CIRCDIR)/cmpsit.o					\
 			$(CIRCDIR)/qdrift.o				\
-			$(CIRCDIR)/trott.o
+			$(CIRCDIR)/trott.o				\
+			$(CIRCDIR)/trott2.o
 
 
 # Library / utilities
@@ -159,8 +161,9 @@ LIBOBJS		:= $(LIBDIR)/log.o					\
 PROGS		:=  $(PH2RUNDIR)/ph2run
 
 $(PH2RUNDIR)/ph2run: $(CIRCDIR)/trott.o					\
+			$(CIRCDIR)/trott2.o				\
 			$(CIRCDIR)/qdrift.o				\
-			$(CIRCDIR)/cmpsit.o	
+			$(CIRCDIR)/cmpsit.o
 
 $(PROGS):	$(PHASE2OBJS)						\
 			$(LIBOBJS)
@@ -247,6 +250,7 @@ CFLAGS		+= -I$(TESTDIR) -I$(PHASE2DIR) -DPH2_TESTDIR=\"$(TESTDIR)\"
 
 TESTS		:= $(TESTDIR)/t-circ_cache				\
 			$(TESTDIR)/t-circ_trott				\
+			$(TESTDIR)/t-circ_trott2			\
 			$(TESTDIR)/t-circ				\
 			$(TESTDIR)/t-data_attr				\
 			$(TESTDIR)/t-data_hamil				\
@@ -264,6 +268,7 @@ $(TESTS):	$(TESTDIR)/test.h					\
 
 $(TESTDIR)/t-circ_cache: $(CIRCDIR)/trott.o
 $(TESTDIR)/t-circ_trott: $(CIRCDIR)/trott.o
+$(TESTDIR)/t-circ_trott2: $(CIRCDIR)/trott2.o
 
 build-test: $(TESTS)
 

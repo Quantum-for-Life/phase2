@@ -11,6 +11,7 @@
 #include "circ/cmpsit.h"
 #include "circ/qdrift.h"
 #include "circ/trott.h"
+#include "circ/trott2.h"
 #include "log.h"
 #include "phase2.h"
 
@@ -119,6 +120,7 @@ enum {
 	CMD_TROTT = 0,
 	CMD_QDRIFT = 1,
 	CMD_CMPSIT = 2,
+	CMD_TROTT2 = 3,
 };
 
 /* Command: "trott" */
@@ -219,6 +221,112 @@ static int cmd_trott(void)
 		goto ex;
 	}
 	if (data_exec(cmd_trott_write, &cmd_trott_dt) < 0)
+		goto ex;
+
+	rt = 0; /* Success. */
+ex:
+	log_info("Shut down simulation environment");
+
+	return rt;
+}
+
+/* Command: "trott2" */
+static struct cmd_trott2_dt {
+	struct trott2 t2;
+	struct trott2_data t2_dt;
+	double t_tot;
+} cmd_trott2_dt = {
+	.t2_dt = { .delta = 1.0, .steps = 1 }
+};
+
+static int cmd_trott2_init(data_id fid, void *data)
+{
+	struct cmd_trott2_dt *const dt = data;
+
+	log_info("*** Circuit: trott2 (Strang 2nd-order) ***");
+	log_info("delta: %f", dt->t2_dt.delta);
+	log_info("num_steps: %zu", dt->t2_dt.steps);
+
+	return trott2_init(&dt->t2, &dt->t2_dt, fid);
+}
+
+static int cmd_trott2_write(data_id fid, void *data)
+{
+	int rt = -1;
+	struct cmd_trott2_dt *const dt = data;
+
+	rt = trott2_write_res(&dt->t2, fid);
+	trott2_free(&dt->t2);
+
+	log_info("> Simulation summary (CSV):");
+	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
+	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", dt->t2.ct.hm.qb,
+		dt->t2.ct.hm.len, dt->t2.ct.md.len, dt->t2_dt.delta,
+		dt->t2_dt.steps, wd.size, dt->t_tot);
+
+	return rt;
+}
+
+static int cmd_trott2_run(void *data)
+{
+	struct cmd_trott2_dt *dt = data;
+
+	return trott2_simul(&dt->t2);
+}
+
+#define doc_trott2 "Run deterministic Trotter product formula (2nd order, Strang)."
+#define argv0_trott2 "ph2run [OPTS] trott2"
+#define args_doc_trott2 ""
+
+static struct trott2_data *const args_trott2 = &cmd_trott2_dt.t2_dt;
+
+static struct argp_option opts_trott2[] = {
+	{ "delta", 'D', "VAL", 0,
+		"Rotation angle, a floating point number (default: 1.0)", 0 },
+	{ "steps", 's', "N", 0, "Number of Trotter steps", 0 },
+	{ 0 }
+};
+
+static error_t opts_parser_trott2(int key, char *arg, struct argp_state *state)
+{
+	struct trott2_data *dt = state->input;
+
+	switch (key) {
+	case 'D':
+		dt->delta = strtod(arg, nullptr);
+		break;
+	case 's':
+		dt->steps = strtoull(arg, nullptr, 10);
+		break;
+
+	case ARGP_KEY_ARG:
+		argp_usage(state);
+		break;
+
+	case ARGP_KEY_NO_ARGS:
+		break;
+
+	default:
+		return ARGP_ERR_UNKNOWN;
+	}
+
+	return 0;
+}
+
+static struct argp argp_trott2 = { opts_trott2, opts_parser_trott2,
+	args_doc_trott2, doc_trott2, 0, 0, 0 };
+
+static int cmd_trott2(void)
+{
+	int rt = -1;
+
+	if (data_exec(cmd_trott2_init, &cmd_trott2_dt) < 0)
+		goto ex;
+	if (timeit(cmd_trott2_run, &cmd_trott2_dt, &cmd_trott2_dt.t_tot) < 0) {
+		log_error("Simulation error");
+		goto ex;
+	}
+	if (data_exec(cmd_trott2_write, &cmd_trott2_dt) < 0)
 		goto ex;
 
 	rt = 0; /* Success. */
@@ -519,6 +627,9 @@ int main(int argc, char **argv)
 	})
 
 	while (1) {
+		/* trott2 must precede trott: strncmp uses strlen("trott")
+		 * so "trott" alone would otherwise swallow "trott2". */
+		cmd_parse(trott2, CMD_TROTT2);
 		cmd_parse(trott, CMD_TROTT);
 		cmd_parse(qdrift, CMD_QDRIFT);
 		cmd_parse(cmpsit, CMD_CMPSIT);
@@ -530,6 +641,9 @@ int main(int argc, char **argv)
 	switch (cmd) {
 	case CMD_TROTT:
 		rt = cmd_trott();
+		break;
+	case CMD_TROTT2:
+		rt = cmd_trott2();
 		break;
 	case CMD_QDRIFT:
 		rt = cmd_qdrift();
