@@ -21,6 +21,10 @@
 #define DATA_CIRCTROTT_DELTA "delta"
 #define DATA_CIRCTROTT_VALUES "values"
 
+#define DATA_CIRCTROTT2 "circ_trott2"
+#define DATA_CIRCTROTT2_DELTA "delta"
+#define DATA_CIRCTROTT2_VALUES "values"
+
 #define DATA_CIRCQDRIFT "circ_qdrift"
 #define DATA_CIRCQDRIFT_DEPTH "depth"
 #define DATA_CIRCQDRIFT_NUMSAMPLES "num_samples"
