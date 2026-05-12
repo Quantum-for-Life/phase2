@@ -21,7 +21,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "phase2/det_small.h"
+#include "det_small.h"
 
 double det_small(const double *A, const uint32_t n)
 {

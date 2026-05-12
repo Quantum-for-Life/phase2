@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "phase2/combinations.h"
+#include "combinations.h"
 #include "phase2/world.h"
 
 #include "test.h"

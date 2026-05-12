@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "phase2/combinations.h"
+#include "combinations.h"
 
 void combinations_init(struct combo *c, const uint32_t n, const uint32_t k)
 {

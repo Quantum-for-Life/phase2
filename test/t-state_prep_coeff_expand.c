@@ -8,9 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "phase2/combinations.h"
+#include "combinations.h"
+#include "det_small.h"
 #include "phase2/data.h"
-#include "phase2/det_small.h"
 #include "phase2/qreg.h"
 #include "phase2/state_prep_coeff.h"
 #include "phase2/world.h"
