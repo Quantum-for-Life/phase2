@@ -1,6 +1,8 @@
 #include "c23_compat.h"
+#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "hdf5.h"
@@ -410,5 +412,339 @@ ex_dset:
 ex_fspace:
 	H5Gclose(grp_id);
 ex_open:
+	return rt;
+}
+
+/*
+ * coeff_matrix readers.  Mirror the multidet pattern (H5Gopen
+ * for the subgroup, H5Aread for each attribute, H5Dread with
+ * H5T_NATIVE_DOUBLE for the C datasets).
+ */
+
+int data_state_prep_kind(const data_id fid, enum stprep_kind *out)
+{
+	const hid_t sp_id = H5Gopen(fid, DATA_STPREP, H5P_DEFAULT);
+	if (sp_id == H5I_INVALID_HID)
+		return -ENOENT;
+
+	const htri_t has_md =
+		H5Lexists(sp_id, DATA_STPREP_MULTIDET, H5P_DEFAULT);
+	const htri_t has_cm =
+		H5Lexists(sp_id, DATA_STPREP_COEFFMAT, H5P_DEFAULT);
+	H5Gclose(sp_id);
+
+	if (has_md < 0 || has_cm < 0)
+		return -EIO;
+	if (has_md && has_cm) {
+		fprintf(stderr,
+			"simul.h5: ambiguous state prep (both "
+			"/state_prep/multidet and "
+			"/state_prep/coeff_matrix present); rebuild pak "
+			"with exactly one\n");
+		return -EINVAL;
+	}
+	if (!has_md && !has_cm) {
+		fprintf(stderr,
+			"simul.h5: no state-prep subgroup found "
+			"(expected /state_prep/multidet or "
+			"/state_prep/coeff_matrix)\n");
+		return -ENOENT;
+	}
+
+	*out = has_md ? STPREP_MULTIDET : STPREP_COEFF_MATRIX;
+	return 0;
+}
+
+struct coeffmat_handle {
+	hid_t stprep_grp_id;
+	hid_t coeffmat_grp_id;
+};
+
+static int coeffmat_open(const data_id fid, struct coeffmat_handle *cm)
+{
+	const hid_t sp_id = H5Gopen(fid, DATA_STPREP, H5P_DEFAULT);
+	if (sp_id == H5I_INVALID_HID)
+		goto err_stprep;
+	const hid_t cm_id = H5Gopen(sp_id, DATA_STPREP_COEFFMAT, H5P_DEFAULT);
+	if (cm_id == H5I_INVALID_HID)
+		goto err_cm;
+
+	cm->stprep_grp_id = sp_id;
+	cm->coeffmat_grp_id = cm_id;
+	return 0;
+
+err_cm:
+	H5Gclose(sp_id);
+err_stprep:
+	return -1;
+}
+
+static void coeffmat_close(struct coeffmat_handle cm)
+{
+	H5Gclose(cm.coeffmat_grp_id);
+	H5Gclose(cm.stprep_grp_id);
+}
+
+static int read_u32_attr(hid_t grp_id, const char *name, uint32_t *out)
+{
+	const hid_t aid = H5Aopen(grp_id, name, H5P_DEFAULT);
+	if (aid == H5I_INVALID_HID)
+		return -1;
+	const int rt = H5Aread(aid, H5T_NATIVE_UINT32, out) < 0 ? -1 : 0;
+	H5Aclose(aid);
+	return rt;
+}
+
+static int read_u8_attr(hid_t grp_id, const char *name, int *out)
+{
+	const hid_t aid = H5Aopen(grp_id, name, H5P_DEFAULT);
+	if (aid == H5I_INVALID_HID)
+		return -1;
+	uint8_t v = 0;
+	const int rt = H5Aread(aid, H5T_NATIVE_UINT8, &v) < 0 ? -1 : 0;
+	H5Aclose(aid);
+	if (rt == 0)
+		*out = v ? 1 : 0;
+	return rt;
+}
+
+static int read_double_attr(hid_t grp_id, const char *name, double *out)
+{
+	const hid_t aid = H5Aopen(grp_id, name, H5P_DEFAULT);
+	if (aid == H5I_INVALID_HID)
+		return -1;
+	const int rt = H5Aread(aid, H5T_NATIVE_DOUBLE, out) < 0 ? -1 : 0;
+	H5Aclose(aid);
+	return rt;
+}
+
+static int validate_C_shape(hid_t grp_id, const char *dset_name,
+	uint32_t n_sites, uint32_t n_occ)
+{
+	const hid_t did = H5Dopen2(grp_id, dset_name, H5P_DEFAULT);
+	if (did == H5I_INVALID_HID)
+		return -1;
+	int rt = -1;
+	const hid_t sid = H5Dget_space(did);
+	if (sid == H5I_INVALID_HID)
+		goto ex_dset;
+	hsize_t dims[2] = { 0, 0 };
+	if (H5Sget_simple_extent_dims(sid, dims, NULL) != 2)
+		goto ex_space;
+	if (dims[0] != n_sites || dims[1] != n_occ)
+		goto ex_space;
+	const hid_t tid = H5Dget_type(did);
+	if (tid == H5I_INVALID_HID)
+		goto ex_space;
+	const H5T_class_t cls = H5Tget_class(tid);
+	const size_t sz = H5Tget_size(tid);
+	H5Tclose(tid);
+	if (cls != H5T_FLOAT || sz != sizeof(double))
+		goto ex_space;
+	rt = 0;
+ex_space:
+	H5Sclose(sid);
+ex_dset:
+	H5Dclose(did);
+	return rt;
+}
+
+int data_coeff_matrix_getnums(const data_id fid, uint32_t *nqb,
+	uint32_t *n_sites, uint32_t *n_alpha, uint32_t *n_beta,
+	int *closed_shell, int *tapered)
+{
+	int rt = -1;
+	struct coeffmat_handle cm;
+	if (coeffmat_open(fid, &cm) < 0)
+		return -1;
+
+	uint32_t v_nqb = 0, v_ns = 0, v_na = 0, v_nb = 0;
+	int v_cs = 0, v_tap = 0;
+
+	if (read_u32_attr(cm.coeffmat_grp_id, DATA_STPREP_COEFFMAT_NQB, &v_nqb)
+		< 0)
+		goto ex;
+	if (read_u32_attr(cm.coeffmat_grp_id, DATA_STPREP_COEFFMAT_NS, &v_ns)
+		< 0)
+		goto ex;
+	if (read_u32_attr(cm.coeffmat_grp_id, DATA_STPREP_COEFFMAT_NA, &v_na)
+		< 0)
+		goto ex;
+	if (read_u32_attr(cm.coeffmat_grp_id, DATA_STPREP_COEFFMAT_NB, &v_nb)
+		< 0)
+		goto ex;
+	if (read_u8_attr(cm.coeffmat_grp_id, DATA_STPREP_COEFFMAT_CS, &v_cs)
+		< 0)
+		goto ex;
+	if (read_u8_attr(cm.coeffmat_grp_id, DATA_STPREP_COEFFMAT_TAP, &v_tap)
+		< 0)
+		goto ex;
+
+	*nqb = v_nqb;
+	*n_sites = v_ns;
+	*n_alpha = v_na;
+	*n_beta = v_nb;
+	*closed_shell = v_cs;
+	*tapered = v_tap;
+	rt = 0;
+ex:
+	coeffmat_close(cm);
+	return rt;
+}
+
+static int read_C_dset(hid_t grp_id, const char *name, uint32_t n_sites,
+	uint32_t n_occ, double *buf)
+{
+	if (validate_C_shape(grp_id, name, n_sites, n_occ) < 0)
+		return -1;
+
+	const hid_t did = H5Dopen2(grp_id, name, H5P_DEFAULT);
+	if (did == H5I_INVALID_HID)
+		return -1;
+	int rt = -1;
+	if (H5Dread(did, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf)
+		< 0)
+		goto ex;
+	rt = 0;
+ex:
+	H5Dclose(did);
+	return rt;
+}
+
+int data_coeff_matrix_read(
+	const data_id fid, double *C_alpha, double *C_beta)
+{
+	int rt = -1;
+
+	uint32_t nqb, n_sites, n_alpha, n_beta;
+	int closed_shell, tapered;
+	if (data_coeff_matrix_getnums(fid, &nqb, &n_sites, &n_alpha, &n_beta,
+		    &closed_shell, &tapered) < 0)
+		return -1;
+
+	if (closed_shell && C_beta != NULL)
+		return -1;
+	if (!closed_shell && C_beta == NULL)
+		return -1;
+
+	struct coeffmat_handle cm;
+	if (coeffmat_open(fid, &cm) < 0)
+		return -1;
+
+	if (read_C_dset(cm.coeffmat_grp_id, DATA_STPREP_COEFFMAT_CA, n_sites,
+		    n_alpha, C_alpha) < 0)
+		goto ex;
+	if (!closed_shell) {
+		if (read_C_dset(cm.coeffmat_grp_id, DATA_STPREP_COEFFMAT_CB,
+			    n_sites, n_beta, C_beta) < 0)
+			goto ex;
+	}
+	rt = 0;
+ex:
+	coeffmat_close(cm);
+	return rt;
+}
+
+int data_coeff_matrix_csf_count(const data_id fid, size_t *n)
+{
+	struct coeffmat_handle cm;
+	if (coeffmat_open(fid, &cm) < 0)
+		return -1;
+
+	int rt = -1;
+	const htri_t has_csf =
+		H5Lexists(cm.coeffmat_grp_id, DATA_STPREP_COEFFMAT_CSF,
+			H5P_DEFAULT);
+	if (has_csf < 0)
+		goto ex;
+	if (!has_csf) {
+		*n = 0;
+		rt = 0;
+		goto ex;
+	}
+
+	const hid_t cg = H5Gopen(cm.coeffmat_grp_id, DATA_STPREP_COEFFMAT_CSF,
+		H5P_DEFAULT);
+	if (cg == H5I_INVALID_HID)
+		goto ex;
+	uint32_t ncomp = 0;
+	if (read_u32_attr(cg, DATA_STPREP_COEFFMAT_CSF_NCOMP, &ncomp) < 0) {
+		H5Gclose(cg);
+		goto ex;
+	}
+	H5Gclose(cg);
+
+	/*
+	 * An explicit `csf/` subgroup with n_components == 0 is
+	 * non-physical: the dispatcher cannot tell it apart from a
+	 * single-block file with no superposition.  Reject early so
+	 * the operator rebuilds the pak instead of running on a
+	 * silently empty state.
+	 */
+	if (ncomp == 0) {
+		fprintf(stderr,
+			"simul.h5: /state_prep/coeff_matrix/csf present "
+			"with n_components=0; remove the csf subgroup "
+			"or list at least one component\n");
+		rt = -EINVAL;
+		goto ex;
+	}
+
+	*n = ncomp;
+	rt = 0;
+ex:
+	coeffmat_close(cm);
+	return rt;
+}
+
+int data_coeff_matrix_csf_read(const data_id fid, const size_t k,
+	double *coefficient, double *C_alpha, double *C_beta)
+{
+	int rt = -1;
+
+	uint32_t nqb, n_sites, n_alpha, n_beta;
+	int closed_shell, tapered;
+	if (data_coeff_matrix_getnums(fid, &nqb, &n_sites, &n_alpha, &n_beta,
+		    &closed_shell, &tapered) < 0)
+		return -1;
+
+	if (closed_shell && C_beta != NULL)
+		return -1;
+	if (!closed_shell && C_beta == NULL)
+		return -1;
+
+	struct coeffmat_handle cm;
+	if (coeffmat_open(fid, &cm) < 0)
+		return -1;
+
+	const hid_t cg = H5Gopen(cm.coeffmat_grp_id, DATA_STPREP_COEFFMAT_CSF,
+		H5P_DEFAULT);
+	if (cg == H5I_INVALID_HID)
+		goto ex_csf;
+
+	char kname[32];
+	snprintf(kname, sizeof kname, "%zu", k);
+	const hid_t cg_k = H5Gopen(cg, kname, H5P_DEFAULT);
+	if (cg_k == H5I_INVALID_HID)
+		goto ex_kgrp;
+
+	if (read_double_attr(cg_k, DATA_STPREP_COEFFMAT_CSF_CF, coefficient)
+		< 0)
+		goto ex_read;
+	if (read_C_dset(cg_k, DATA_STPREP_COEFFMAT_CA, n_sites, n_alpha,
+		    C_alpha) < 0)
+		goto ex_read;
+	if (!closed_shell) {
+		if (read_C_dset(cg_k, DATA_STPREP_COEFFMAT_CB, n_sites,
+			    n_beta, C_beta) < 0)
+			goto ex_read;
+	}
+	rt = 0;
+ex_read:
+	H5Gclose(cg_k);
+ex_kgrp:
+	H5Gclose(cg);
+ex_csf:
+	coeffmat_close(cm);
 	return rt;
 }

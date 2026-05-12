@@ -7,6 +7,7 @@
 #include "phase2/data.h"
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
+#include "phase2/state_prep_coeff.h"
 
 struct circ_hamil {
 	uint32_t qb;
@@ -41,6 +42,8 @@ struct circ {
 	struct circ_cache *cache;
 	struct circ_values vals;
 	struct qreg reg;
+	enum stprep_kind stprep_kind;
+	struct circ_coeff cm;
 };
 
 int circ_hamil_init(struct circ_hamil *hm, uint32_t qb, size_t len);

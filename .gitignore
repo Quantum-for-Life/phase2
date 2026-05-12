@@ -95,6 +95,7 @@ test/t-circ_cache
 test/t-circ_cmpsit
 test/t-circ_qdrift
 test/t-circ_trott
+test/t-circ_trott2
 test/t-data_hamil
 test/t-data_multidet
 test/t-data_open
@@ -103,10 +104,18 @@ test/t-paulis
 test/t-qreg
 test/t-world
 test/t-circ
-test/t-combinations
 test/t-data_attr
-test/t-det_small
 test/t-prob
+test/t-bitstring_index
+test/t-circ_prepst_coeff
+test/t-circ_trott2_coeff
+test/t-circ_trott_coeff
+test/t-combinations
+test/t-data_coeff_matrix
+test/t-det_small
+test/t-state_prep_coeff_csf
+test/t-state_prep_coeff_expand
+test/t-state_prep_coeff_large
 
 *.egg-info/
 __pycache__/

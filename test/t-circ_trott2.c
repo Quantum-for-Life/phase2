@@ -170,7 +170,8 @@ static void t_circ_trott2(size_t tag, size_t ts, size_t md, size_t ht)
 
 	trotter2_mockup();
 
-	struct trott2 t2;
+	struct trott2 t2 = { 0 };
+	t2.ct.stprep_kind = STPREP_MULTIDET;
 	qreg_init(&t2.ct.reg, NUM_QUBITS);
 	circ_cache_init(t2.ct.reg.qb_hi, t2.ct.reg.qb_lo);
 	t2.dt.delta = HAMIL_DELTA;
