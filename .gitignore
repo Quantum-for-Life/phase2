@@ -103,7 +103,9 @@ test/t-paulis
 test/t-qreg
 test/t-world
 test/t-circ
+test/t-combinations
 test/t-data_attr
+test/t-det_small
 test/t-prob
 
 *.egg-info/

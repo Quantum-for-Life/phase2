@@ -114,7 +114,9 @@ BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
 
 # phase2 public API
 $(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h
+$(PHASE2DIR)/combinations.o:	$(INCLUDE)/phase2/combinations.h
 $(PHASE2DIR)/data.o:	$(INCLUDE)/phase2/data.h
+$(PHASE2DIR)/det_small.o:	$(INCLUDE)/phase2/det_small.h
 $(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
 $(PHASE2DIR)/prob.o:	$(INCLUDE)/phase2/prob.h
 $(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h $(PHASE2DIR)/qreg.h
@@ -127,7 +129,9 @@ $(PHASE2DIR)/phase2_run.o:	$(INCLUDE)/phase2/phase2_run.h		\
 
 PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/circ_cache.o			\
+			$(PHASE2DIR)/combinations.o			\
 			$(PHASE2DIR)/data.o				\
+			$(PHASE2DIR)/det_small.o			\
 			$(PHASE2DIR)/paulis.o				\
 			$(PHASE2DIR)/prob.o				\
 			$(PHASE2DIR)/qreg.o				\
@@ -252,11 +256,13 @@ TESTS		:= $(TESTDIR)/t-circ_cache				\
 			$(TESTDIR)/t-circ_trott				\
 			$(TESTDIR)/t-circ_trott2			\
 			$(TESTDIR)/t-circ				\
+			$(TESTDIR)/t-combinations			\
 			$(TESTDIR)/t-data_attr				\
 			$(TESTDIR)/t-data_hamil				\
 			$(TESTDIR)/t-data_multidet			\
 			$(TESTDIR)/t-data_open				\
 			$(TESTDIR)/t-data_trott_steps			\
+			$(TESTDIR)/t-det_small				\
 			$(TESTDIR)/t-paulis				\
 			$(TESTDIR)/t-prob				\
 			$(TESTDIR)/t-qreg				\
