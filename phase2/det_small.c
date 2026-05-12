@@ -14,9 +14,6 @@
  * Edge cases:
  *   n == 0          returns 1.0  (det of the empty matrix).
  *   any pivot == 0  returns 0.0  (singular).
- *
- * Algorithm reference: phase2/doc/state-prep.md "Slater-Condon
- * expansion algorithm" and "Numerical conditioning".
  */
 
 #include "c23_compat.h"

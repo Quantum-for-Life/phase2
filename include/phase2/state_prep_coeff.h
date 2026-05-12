@@ -39,7 +39,8 @@
  * `circ_prepst()`: single-block files go through one call with
  * accumulate=0; CSF files zero the register and accumulate.
  *
- * Algorithm reference: phase2/doc/state-prep.md.
+ * Algorithm reference: phase2/doc/simul-h5-specs.md
+ * (`/state_prep/coeff_matrix` section).
  */
 
 struct circ_coeff_block {

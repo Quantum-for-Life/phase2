@@ -27,10 +27,7 @@
  * time per generated bitstring.
  *
  * Sparsity prune: amplitudes with |c| < SPARSITY_PRUNE are
- * skipped.  This matches the upstream Python reference impl;
- * see phase2/doc/state-prep.md "Sparsity-prune threshold".
- *
- * Algorithm reference: phase2/doc/state-prep.md.
+ * skipped.
  */
 
 #include "c23_compat.h"

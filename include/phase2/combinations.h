@@ -29,9 +29,6 @@
  *   k >  n yields zero tuples (immediate done).
  *
  * The maximum supported subset size is COMBINATIONS_MAX_K.
- *
- * Algorithm reference: phase2/doc/state-prep.md, "Slater-Condon
- * expansion algorithm".
  */
 
 #define COMBINATIONS_MAX_K (32u)

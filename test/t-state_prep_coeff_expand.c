@@ -236,8 +236,9 @@ static void t_boundary_full(void)
  * ascending.  Only rank 0 writes; other ranks remain silent
  * (qreg_getamp broadcasts so rank 0 sees all owned slots).
  *
- * Used by `t-ref-psi_json.py` for the strict bit-for-bit
- * cross-validation against the vendored Python reference.
+ * Used by `t-ref-coeff_matrix.py` for the strict bit-for-bit
+ * cross-validation against the Python reference at
+ * `test/ref/coeff_matrix_reference.py`.
  */
 static int dump_expand(const char *fixture, FILE *out)
 {

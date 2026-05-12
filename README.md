@@ -191,20 +191,18 @@ The `simul.h5` input file now supports two mutually
 exclusive state-prep subtypes:
 
 - `/state_prep/multidet/` — flat list of (bitstring,
-  amplitude) pairs.  Used by every v0.4 Bendazzoli MO
-  campaign and remains the default for small `M`.
+  amplitude) pairs.  Default for small `M`.
 - `/state_prep/coeff_matrix/` — a real `n_sites x n_occ`
-  MO coefficient matrix.  The simulator runs a Slater-Condon
+  coefficient matrix.  The simulator runs a Slater-Condon
   expansion at `circ_prepst()` time and scatters directly
-  into the MPI-distributed register.  Used by the v0.5 PPP
-  AO-basis cells where the dense expansion `M` would
-  otherwise be too large to ship in a pak.
+  into the MPI-distributed register.  For trial states
+  whose dense form `M` would otherwise be too large to
+  ship on disk.
 
 Exactly one subgroup must be present; the file is rejected
 at open time otherwise.  See
-[doc/simul-h5-specs.md](doc/simul-h5-specs.md) for the
-schema and [doc/state-prep.md](doc/state-prep.md) for the
-expansion algorithm.
+[doc/simul-h5-specs.md](doc/simul-h5-specs.md) for both
+schema and expansion algorithm.
 
 Documentation
 -------------
@@ -217,9 +215,6 @@ Documentation
   installation, API, examples, MPI usage.
 - [doc/simul-h5-specs.md](doc/simul-h5-specs.md) — HDF5
   simulation file format specification.
-- [doc/state-prep.md](doc/state-prep.md) — state-prep
-  algorithm reference (Slater-Condon expansion, MPI
-  ownership, tapering, CSF).
 
 
 Credits and License

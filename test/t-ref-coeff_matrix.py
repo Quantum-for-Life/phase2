@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# t-ref-psi_json.py
+# t-ref-coeff_matrix.py
 #
 # Strict cross-validation harness.  For every shipped
 # coeff_matrix fixture:
@@ -7,8 +7,8 @@
 #   1. Invoke the C-side Slater-Condon expansion via
 #      `t-state_prep_coeff_expand --dump <out> <fixture>`
 #      and parse the resulting (idx, re, im) lines.
-#   2. Run the vendored Python reference at
-#      `ref/psi_json_reference.py` against the same C
+#   2. Run the independent Python reference at
+#      `ref/coeff_matrix_reference.py` against the same C
 #      matrices read straight from the fixture H5.
 #   3. Compare the two (idx, amplitude) dicts term by
 #      term: identical index sets and per-index abs-diff
@@ -29,7 +29,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "ref"))
-from psi_json_reference import expand_coeff_matrix  # noqa: E402
+from coeff_matrix_reference import expand_coeff_matrix  # noqa: E402
 
 TOL = 1e-12
 

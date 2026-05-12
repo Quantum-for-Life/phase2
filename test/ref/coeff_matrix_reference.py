@@ -1,16 +1,15 @@
-# psi_json_reference.py
+# coeff_matrix_reference.py
 #
-# Vendored Slater-Condon reference implementation, matching the
-# specification in tmm-chomp issue #14.  Used by phase2's
-# cross-validation harness `t-ref-psi_json.py` to confirm
-# that the C expansion path agrees with the upstream Python
-# reference bit-for-bit (within 1e-12) on every shipped
-# fixture.
+# Independent Python implementation of the Slater-Condon
+# expansion used by `state_prep_coeff_expand` in the C path.
+# Used by `t-ref-coeff_matrix.py` as a verification oracle:
+# the C and Python expansions must agree bit-for-bit (within
+# 1e-12) on every shipped fixture.
 #
-# The function `expand_coeff_matrix` takes (n_sites, n_alpha,
-# n_beta, C_alpha, C_beta_or_None, tapered) and returns a
-# {int_index: float_amplitude} dict using the same bitstring
-# convention as the C `occ_pair_to_idx`:
+# `expand_coeff_matrix(n_sites, n_alpha, n_beta, C_alpha,
+# C_beta_or_None, tapered)` returns a {int_index:
+# float_amplitude} dict using the same bitstring convention as
+# the C `occ_pair_to_idx`:
 #   * alpha qubits at bits [0, n_sites)
 #   * beta  qubits at bits [n_sites, 2*n_sites)
 #   * tapered drops bit 0 and bit n_sites, shifts upper bits down

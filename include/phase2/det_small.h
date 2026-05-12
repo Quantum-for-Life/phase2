@@ -16,9 +16,6 @@
  * The routine is intended for the Slater-Condon expansion
  * (`state_prep_coeff_expand`), where n equals the alpha/beta
  * occupation count (n <= 17 at half-filling N = 34, tapered).
- *
- * Algorithm reference: phase2/doc/state-prep.md, "Slater-Condon
- * expansion algorithm" and "Numerical conditioning".
  */
 
 #define DET_SMALL_MAX_N (32u)

@@ -12,9 +12,6 @@
  * step procedure.  The `done` flag tracks exhaustion.  Calling
  * `combinations_next` after the iterator is exhausted is
  * idempotent (no state change, returns 1).
- *
- * Algorithm reference: phase2/doc/state-prep.md "Slater-Condon
- * expansion algorithm".
  */
 
 #include "c23_compat.h"

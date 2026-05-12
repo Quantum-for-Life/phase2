@@ -326,8 +326,7 @@ inline int circ_step_reverse(
  * time, summing conj(trial(idx)) * evolved(idx) over the
  * amplitudes owned by this rank, then MPI-reduces.  The
  * walk costs O(M_alpha * M_beta) per measurement, on the
- * same order as expansion itself; phase2/doc/state-prep.md
- * "Complexity" discusses the tradeoff.
+ * same order as expansion itself.
  */
 static _Complex double measure_coeff_block(struct qreg *reg,
 	const uint32_t n_sites, const uint32_t n_alpha, const uint32_t n_beta,

@@ -61,8 +61,7 @@ Slater-Condon formula
     c(occ_alpha, occ_beta)
         = det(C_alpha[occ_alpha, :]) * det(C_beta[occ_beta, :])
 
-at `circ_prepst()` time.  See [state-prep.md](state-prep.md)
-for the algorithm in full.
+at `circ_prepst()` time.
 
 Attributes:
 
@@ -152,11 +151,10 @@ produces identical `/circ_trott/values` (see
 
 The tapered convention drops bits 0 and `n_sites` from every
 generated bitstring before it is written into the register.
-This is the same two-position drop that the v0.4 `.inputst`
-tapered files apply at write time on the chemist's side;
-the `coeff_matrix` path replays the drop at expand time
-per generated bitstring, so the schema stays uniform with
-the untapered case.  See `drop_two_bits` in
+A tapered `multidet` file applies the same drop at write
+time; the `coeff_matrix` path replays it at expand time per
+generated bitstring, so the schema stays uniform with the
+untapered case.  See `drop_two_bits` in
 `phase2/state_prep_coeff.c` and the tapered fixture
 `N8_tapered.h5`.
 
