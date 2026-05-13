@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define LOG_SUBSYS "circ"
 #include "log.h"
 #include "phase2/circ.h"
 #include "phase2/paulis.h"

@@ -3,6 +3,7 @@
 
 #include "mpi.h"
 
+#define LOG_SUBSYS "world"
 #include "log.h"
 #include "xoshiro256ss.h"
 

@@ -1,3 +1,5 @@
+#define LOG_SUBSYS "bench"
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <stdint.h>

@@ -12,6 +12,7 @@
 #include "circ/qdrift.h"
 #include "circ/trott.h"
 #include "circ/trott2.h"
+#define LOG_SUBSYS "ph2run"
 #include "log.h"
 #include "phase2.h"
 

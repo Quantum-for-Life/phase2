@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define LOG_SUBSYS "cmpsit"
 #include "log.h"
 #include "phase2.h"
 #include "xoshiro256ss.h"
