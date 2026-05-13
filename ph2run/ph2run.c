@@ -155,7 +155,7 @@ static int cmd_trott_write(data_id fid, void *data)
 
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", dt->tt.ct.hm.qb,
+	log_info("> %u,%zu,%zu,%f,%zu,%d,%.3f", dt->tt.ct.hm.qb,
 		dt->tt.ct.hm.len, dt->tt.ct.md.len, dt->tt_dt.delta,
 		dt->tt_dt.steps, wd.size, dt->t_tot);
 
@@ -166,6 +166,7 @@ static int cmd_trott_run(void *data)
 {
 	struct cmd_trott_dt *dt = data;
 
+	log_info("running simulation: %zu Trotter steps", dt->tt_dt.steps);
 	return trott_simul(&dt->tt);
 }
 
@@ -217,14 +218,20 @@ static int cmd_trott(void)
 {
 	int rt = -1;
 
-	if (data_exec(cmd_trott_init, &cmd_trott_dt) < 0)
-		goto ex;
-	if (timeit(cmd_trott_run, &cmd_trott_dt, &cmd_trott_dt.t_tot) < 0) {
-		log_error("Simulation error");
+	if (data_exec(cmd_trott_init, &cmd_trott_dt) < 0) {
+		log_error("trott: init failed");
 		goto ex;
 	}
-	if (data_exec(cmd_trott_write, &cmd_trott_dt) < 0)
+	if (timeit(cmd_trott_run, &cmd_trott_dt, &cmd_trott_dt.t_tot) < 0) {
+		log_error("trott: simulation failed after %.3f s",
+			cmd_trott_dt.t_tot);
 		goto ex;
+	}
+	log_info("simulation finished in %.3f s", cmd_trott_dt.t_tot);
+	if (data_exec(cmd_trott_write, &cmd_trott_dt) < 0) {
+		log_error("trott: writing results failed");
+		goto ex;
+	}
 
 	rt = 0; /* Success. */
 ex:
@@ -263,7 +270,7 @@ static int cmd_trott2_write(data_id fid, void *data)
 
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%f,%zu,%d,%.3f", dt->t2.ct.hm.qb,
+	log_info("> %u,%zu,%zu,%f,%zu,%d,%.3f", dt->t2.ct.hm.qb,
 		dt->t2.ct.hm.len, dt->t2.ct.md.len, dt->t2_dt.delta,
 		dt->t2_dt.steps, wd.size, dt->t_tot);
 
@@ -274,6 +281,8 @@ static int cmd_trott2_run(void *data)
 {
 	struct cmd_trott2_dt *dt = data;
 
+	log_info("running simulation: %zu symmetric Trotter steps",
+		dt->t2_dt.steps);
 	return trott2_simul(&dt->t2);
 }
 
@@ -324,14 +333,20 @@ static int cmd_trott2(void)
 {
 	int rt = -1;
 
-	if (data_exec(cmd_trott2_init, &cmd_trott2_dt) < 0)
-		goto ex;
-	if (timeit(cmd_trott2_run, &cmd_trott2_dt, &cmd_trott2_dt.t_tot) < 0) {
-		log_error("Simulation error");
+	if (data_exec(cmd_trott2_init, &cmd_trott2_dt) < 0) {
+		log_error("trott2: init failed");
 		goto ex;
 	}
-	if (data_exec(cmd_trott2_write, &cmd_trott2_dt) < 0)
+	if (timeit(cmd_trott2_run, &cmd_trott2_dt, &cmd_trott2_dt.t_tot) < 0) {
+		log_error("trott2: simulation failed after %.3f s",
+			cmd_trott2_dt.t_tot);
 		goto ex;
+	}
+	log_info("simulation finished in %.3f s", cmd_trott2_dt.t_tot);
+	if (data_exec(cmd_trott2_write, &cmd_trott2_dt) < 0) {
+		log_error("trott2: writing results failed");
+		goto ex;
+	}
 
 	rt = 0; /* Success. */
 ex:
@@ -384,6 +399,8 @@ static int cmd_qdrift_run(void *data)
 {
 	struct cmd_qdrift_dt *dt = data;
 
+	log_info("running simulation: %zu samples, depth %zu",
+		dt->qd_dt.samples, dt->qd_dt.depth);
 	return qdrift_simul(&dt->qd);
 }
 
@@ -444,14 +461,20 @@ int cmd_qdrift(void)
 {
 	int rt = -1;
 
-	if (data_exec(cmd_qdrift_init, &cmd_qdrift_dt) < 0)
-		goto ex;
-	if (timeit(cmd_qdrift_run, &cmd_qdrift_dt, &cmd_qdrift_dt.t_tot) < 0) {
-		log_error("Simulation error");
+	if (data_exec(cmd_qdrift_init, &cmd_qdrift_dt) < 0) {
+		log_error("qdrift: init failed");
 		goto ex;
 	}
-	if (data_exec(cmd_qdrift_write, &cmd_qdrift_dt) < 0)
+	if (timeit(cmd_qdrift_run, &cmd_qdrift_dt, &cmd_qdrift_dt.t_tot) < 0) {
+		log_error("qdrift: simulation failed after %.3f s",
+			cmd_qdrift_dt.t_tot);
 		goto ex;
+	}
+	log_info("simulation finished in %.3f s", cmd_qdrift_dt.t_tot);
+	if (data_exec(cmd_qdrift_write, &cmd_qdrift_dt) < 0) {
+		log_error("qdrift: writing results failed");
+		goto ex;
+	}
 
 	rt = 0; /* Success. */
 ex:
@@ -504,7 +527,7 @@ static int cmd_cmpsit_write(data_id fid, void *data)
 	log_info("> Simulation summary (CSV):");
 	log_info("> n_qb,n_terms,n_dets,samples,length,depth,angle_det"
 		 ",angle_rand,steps,n_ranks,t_tot");
-	log_info("> %zu,%zu,%zu,%zu,%zu,%zu,%.16f,%.16f,%zu,%d,%.3f",
+	log_info("> %u,%zu,%zu,%zu,%zu,%zu,%.16f,%.16f,%zu,%d,%.3f",
 		dt->cp.ct.hm.qb, dt->cp.ct.hm.len, dt->cp.ct.md.len,
 		dt->cp_dt.samples, dt->cp_dt.length, dt->cp_dt.depth,
 		dt->cp_dt.angle_det, dt->cp_dt.angle_rand, dt->cp_dt.steps,
@@ -517,6 +540,10 @@ static int cmd_cmpsit_run(void *data)
 {
 	struct cmd_cmpsit_dt *dt = data;
 
+	log_info("running simulation: %zu samples x %zu steps,"
+		 " L=%zu depth=%zu",
+		dt->cp_dt.samples, dt->cp_dt.steps, dt->cp_dt.length,
+		dt->cp_dt.depth);
 	return cmpsit_simul(&dt->cp);
 }
 
@@ -593,14 +620,20 @@ int cmd_cmpsit(void)
 {
 	int rt = -1;
 
-	if (data_exec(cmd_cmpsit_init, &cmd_cmpsit_dt) < 0)
-		goto ex;
-	if (timeit(cmd_cmpsit_run, &cmd_cmpsit_dt, &cmd_cmpsit_dt.t_tot) < 0) {
-		log_error("Simulation error");
+	if (data_exec(cmd_cmpsit_init, &cmd_cmpsit_dt) < 0) {
+		log_error("cmpsit: init failed");
 		goto ex;
 	}
-	if (data_exec(cmd_cmpsit_write, &cmd_cmpsit_dt) < 0)
+	if (timeit(cmd_cmpsit_run, &cmd_cmpsit_dt, &cmd_cmpsit_dt.t_tot) < 0) {
+		log_error("cmpsit: simulation failed after %.3f s",
+			cmd_cmpsit_dt.t_tot);
 		goto ex;
+	}
+	log_info("simulation finished in %.3f s", cmd_cmpsit_dt.t_tot);
+	if (data_exec(cmd_cmpsit_write, &cmd_cmpsit_dt) < 0) {
+		log_error("cmpsit: writing results failed");
+		goto ex;
+	}
 
 	rt = 0; /* Success. */
 ex:
@@ -640,8 +673,20 @@ int main(int argc, char **argv)
 		cmd_parse(cmpsit, CMD_CMPSIT);
 	}
 
-	if (world_init(nullptr, nullptr, WD_SEED) != WORLD_READY)
+	if (world_init(nullptr, nullptr, WD_SEED) != WORLD_READY) {
+		fprintf(stderr, "ph2run: world_init failed\n");
 		exit(-1);
+	}
+
+	if (cmd < 0) {
+		log_error("unrecognised subcommand: %s",
+			args.cmd ? args.cmd : "(none)");
+		world_free();
+		exit(-1);
+	}
+
+	log_info("subcommand: %s", args.cmd);
+	log_info("simul file: %s", args.simul);
 
 	switch (cmd) {
 	case CMD_TROTT:
@@ -656,8 +701,6 @@ int main(int argc, char **argv)
 	case CMD_CMPSIT:
 		rt = cmd_cmpsit();
 		break;
-	default:
-		fprintf(stderr, "Unrecognized command.\n");
 	}
 
 	world_free();

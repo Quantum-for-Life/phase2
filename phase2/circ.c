@@ -157,7 +157,7 @@ void circ_prog_tick(struct circ_prog *prog)
 	const unsigned pc = prog->i * 100 / prog->len;
 	if (pc > prog->pc) {
 		prog->pc = pc;
-		log_info("Progress: %zu%%", prog->pc);
+		log_info("Progress: %u%%", prog->pc);
 	}
 }
 
