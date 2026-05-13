@@ -439,8 +439,8 @@ int data_state_prep_kind(const data_id fid, enum stprep_kind *out)
 		fprintf(stderr,
 			"simul.h5: ambiguous state prep (both "
 			"/state_prep/multidet and "
-			"/state_prep/coeff_matrix present); rebuild pak "
-			"with exactly one\n");
+			"/state_prep/coeff_matrix present); "
+			"rebuild simul.h5 with exactly one\n");
 		return -EINVAL;
 	}
 	if (!has_md && !has_cm) {
