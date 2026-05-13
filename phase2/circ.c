@@ -4,10 +4,12 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "log.h"
 #include "phase2/circ.h"
 #include "phase2/paulis.h"
+#include "phase2/state_prep_coeff.h"
 
 #include "circ_cache.h"
 
@@ -176,10 +178,26 @@ void circ_values_free(struct circ_values *vals)
 
 int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
 {
+	memset(&ct->md, 0, sizeof ct->md);
+	memset(&ct->cm, 0, sizeof ct->cm);
+
 	if (circ_hamil_from_file(&ct->hm, fid) < 0)
 		goto err_hamil_init;
-	if (circ_muldet_from_file(&ct->md, fid) < 0)
-		goto err_muldet_init;
+
+	if (data_state_prep_kind(fid, &ct->stprep_kind) < 0)
+		goto err_stprep_kind;
+
+	switch (ct->stprep_kind) {
+	case STPREP_MULTIDET:
+		if (circ_muldet_from_file(&ct->md, fid) < 0)
+			goto err_stprep_load;
+		break;
+	case STPREP_COEFF_MATRIX:
+		if (circ_coeff_init(&ct->cm, fid) < 0)
+			goto err_stprep_load;
+		break;
+	}
+
 	if (qreg_init(&ct->reg, ct->hm.qb) < 0)
 		goto err_qreg_init;
 	if (circ_cache_init(ct->reg.qb_hi, ct->reg.qb_lo) < 0)
@@ -194,8 +212,16 @@ err_vals_init:
 err_cache_init:
 	qreg_free(&ct->reg);
 err_qreg_init:
-	circ_muldet_free(&ct->md);
-err_muldet_init:
+	switch (ct->stprep_kind) {
+	case STPREP_MULTIDET:
+		circ_muldet_free(&ct->md);
+		break;
+	case STPREP_COEFF_MATRIX:
+		circ_coeff_free(&ct->cm);
+		break;
+	}
+err_stprep_load:
+err_stprep_kind:
 	circ_hamil_free(&ct->hm);
 err_hamil_init:
 	return -1;
@@ -205,19 +231,33 @@ void circ_free(struct circ *ct)
 {
 	circ_values_free(&ct->vals);
 	circ_hamil_free(&ct->hm);
-	circ_muldet_free(&ct->md);
+	switch (ct->stprep_kind) {
+	case STPREP_MULTIDET:
+		circ_muldet_free(&ct->md);
+		break;
+	case STPREP_COEFF_MATRIX:
+		circ_coeff_free(&ct->cm);
+		break;
+	}
 	qreg_free(&ct->reg);
 }
 
 int circ_prepst(struct circ *ct)
 {
-	const struct circ_muldet *md = &ct->md;
-
 	qreg_zero(&ct->reg);
-	for (size_t i = 0; i < md->len; i++)
-		qreg_setamp(&ct->reg, md->dets[i].idx, md->dets[i].cf);
 
-	return 0;
+	switch (ct->stprep_kind) {
+	case STPREP_MULTIDET: {
+		const struct circ_muldet *md = &ct->md;
+		for (size_t i = 0; i < md->len; i++)
+			qreg_setamp(&ct->reg, md->dets[i].idx, md->dets[i].cf);
+		return 0;
+	}
+	case STPREP_COEFF_MATRIX:
+		return state_prep_coeff_expand_all(&ct->reg, &ct->cm);
+	}
+
+	return -1;
 }
 
 static void circ_flush(struct paulis code_hi, const struct paulis *codes_lo,
@@ -279,16 +319,63 @@ inline int circ_step_reverse(
 	return circ_step_generic(ct, hm, omega, true);
 }
 
-_Complex double circ_measure(struct circ *ct)
+/*
+ * Inner product <trial | evolved> for the coeff_matrix path.
+ *
+ * Walks the same Slater-Condon outer product used at expand
+ * time, summing conj(trial(idx)) * evolved(idx) over the
+ * amplitudes owned by this rank, then MPI-reduces.  The
+ * walk costs O(M_alpha * M_beta) per measurement, on the
+ * same order as expansion itself.
+ */
+static _Complex double measure_coeff_block(struct qreg *reg,
+	const uint32_t n_sites, const uint32_t n_alpha, const uint32_t n_beta,
+	const double *C_alpha, const double *C_beta, const double weight,
+	const int tapered)
 {
-	const struct circ_muldet *md = &ct->md;
+	return state_prep_coeff_inner(reg, n_sites, n_alpha, n_beta, C_alpha,
+		C_beta, weight, tapered);
+}
 
+static _Complex double measure_coeff(struct circ *ct)
+{
+	const struct circ_coeff *cm = &ct->cm;
 	_Complex double pr = 0.0;
-	for (size_t i = 0; i < md->len; i++) {
-		_Complex double a;
-		qreg_getamp(&ct->reg, md->dets[i].idx, &a);
-		pr += a * conj(md->dets[i].cf);
+
+	if (cm->n_components == 0) {
+		pr = measure_coeff_block(&ct->reg, cm->n_sites, cm->n_alpha,
+			cm->n_beta, cm->C_alpha,
+			cm->closed_shell ? NULL : cm->C_beta, 1.0,
+			cm->tapered);
+	} else {
+		for (size_t k = 0; k < cm->n_components; k++) {
+			const struct circ_coeff_block *b = &cm->blocks[k];
+			pr += measure_coeff_block(&ct->reg, cm->n_sites,
+				cm->n_alpha, cm->n_beta, b->C_alpha,
+				cm->closed_shell ? NULL : b->C_beta, b->cf,
+				cm->tapered);
+		}
 	}
 
 	return pr;
+}
+
+_Complex double circ_measure(struct circ *ct)
+{
+	switch (ct->stprep_kind) {
+	case STPREP_MULTIDET: {
+		const struct circ_muldet *md = &ct->md;
+		_Complex double pr = 0.0;
+		for (size_t i = 0; i < md->len; i++) {
+			_Complex double a;
+			qreg_getamp(&ct->reg, md->dets[i].idx, &a);
+			pr += a * conj(md->dets[i].cf);
+		}
+		return pr;
+	}
+	case STPREP_COEFF_MATRIX:
+		return measure_coeff(ct);
+	}
+
+	return 0.0;
 }

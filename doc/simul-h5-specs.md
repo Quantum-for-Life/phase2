@@ -6,6 +6,13 @@ applications to obtain ground state energy estimation for a Hamiltonian,
 modelling an electronic system in quantum chemistry by simulating
 an algorithm related to quantum phase estimation (QPE).
 
+The `/state_prep` group now supports two mutually exclusive
+subtypes: the legacy flat multi-determinant list
+(`/state_prep/multidet/`) and the dense Slater-Condon
+coefficient matrix (`/state_prep/coeff_matrix/`).  Dispatch
+between them happens at file open time via
+`data_state_prep_kind`; see "Dispatch rules" below.
+
 # Format and file name
 
 The format of the simulation file is HDF5.
@@ -44,6 +51,112 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
     - *Type*: `unsigned char`
     - *Shape*: `(NUM_TERMS, NUM_QUBITS)`
     - *Comment*: Rows denote computational basis states.
+
+### Group: `/state_prep/coeff_matrix`
+
+Carries a real coefficient matrix `C` (size `n_sites x n_occ`)
+that the simulator expands into a dense superposition via the
+Slater-Condon formula
+
+    c(occ_alpha, occ_beta)
+        = det(C_alpha[occ_alpha, :]) * det(C_beta[occ_beta, :])
+
+at `circ_prepst()` time.
+
+Attributes:
+
+- `n_qubits` (`uint32`): total qubit count of the simulator
+  register.  For an untapered state `n_qubits = 2 * n_sites`;
+  for a tapered state `n_qubits = 2 * n_sites - 2`.
+- `n_sites` (`uint32`): number of spatial orbitals `N`.
+- `n_alpha` (`uint32`): occupation count of the alpha spin
+  block; the column count of `C_alpha`.
+- `n_beta`  (`uint32`): occupation count of the beta spin
+  block; the column count of `C_beta`.
+- `closed_shell` (`uint8`): `1` if `C_beta` is absent and
+  `C_alpha` is reused for the beta block; `0` otherwise.
+- `tapered` (`uint8`): `1` if bits 0 and `n_sites` must be
+  dropped from each generated bitstring (Z₂ + S_z parity
+  reduction); `0` otherwise.
+
+Datasets:
+
+- `C_alpha`: shape `(n_sites, n_alpha)`, dtype
+  `H5T_IEEE_F64LE`.  Row `q` of the matrix gives the MO
+  expansion coefficient for the alpha qubit at site `q`.
+- `C_beta`: shape `(n_sites, n_beta)`, dtype
+  `H5T_IEEE_F64LE`.  Present only if `closed_shell == 0`.
+
+Optional subgroup `csf/` (CSF superposition):
+
+- Attribute `n_components` (`uint32`): number of components.
+  Must be `>= 1`; see the dispatch rules below.
+- Subgroups `0/`, `1/`, ..., one per component.  Each
+  carries:
+    - Attribute `coefficient` (`double`): real weight of the
+      component in the linear combination.
+    - Datasets `C_alpha` and `C_beta` matching the top-level
+      shape contract.
+
+When `csf/` is present the simulator zeroes the register and
+accumulates per-component contributions; the top-level
+`C_alpha`/`C_beta` datasets are still required and are read
+when the file is treated as a single-block state.
+
+A `csf/` subgroup that exists but advertises `n_components
+== 0` is rejected at file-open time
+(`data_coeff_matrix_csf_count` returns `-EINVAL`).  A
+single-block state must omit the `csf/` subgroup outright
+rather than declaring an empty superposition.
+
+### Dispatch rules
+
+The simulator probes both `/state_prep/multidet` and
+`/state_prep/coeff_matrix` once at startup
+(`data_state_prep_kind`).  Exactly one must be present:
+
+| `/state_prep/multidet` | `/state_prep/coeff_matrix` | result |
+|---|---|---|
+| absent | absent | error: no state-prep subgroup found |
+| present | absent | path: `STPREP_MULTIDET` |
+| absent | present | path: `STPREP_COEFF_MATRIX` |
+| present | present | error: ambiguous; rebuild pak |
+
+`STPREP_MULTIDET` and `STPREP_COEFF_MATRIX` are the enum
+values from `enum stprep_kind` in `phase2/include/phase2/data.h`.
+The both-present case is intentionally rejected at file-open
+time so misbuilt paks never reach the time-evolution loop.
+
+A `/state_prep/coeff_matrix/csf` subgroup that exists with
+`n_components == 0` is also rejected (see the
+`csf/` paragraph above): there is no silent fall-through to
+the single-block path.  The three rejected configurations
+for `coeff_matrix` are therefore: both subtypes present,
+neither subtype present, and an explicit empty CSF
+superposition.
+
+### Worked example: N=4 closed-shell Huckel state
+
+The same trial state can be expressed both as multidet and
+coeff_matrix.  For `n_sites = 4`, `n_alpha = n_beta = 2`, the
+matrix is `4 x 2` (8 real numbers); the multidet expansion
+has up to `C(4,2) * C(4,2) = 36` non-zero amplitudes.
+`phase2/test/data/N4_closed.h5` and
+`phase2/test/data/N4_multidet.h5` carry the two encodings
+of the same state; running one Trotter step on both
+produces identical `/circ_trott/values` (see
+`test/t-circ_trott_coeff.c`).
+
+### Tapering
+
+The tapered convention drops bits 0 and `n_sites` from every
+generated bitstring before it is written into the register.
+A tapered `multidet` file applies the same drop at write
+time; the `coeff_matrix` path replays it at expand time per
+generated bitstring, so the schema stays uniform with the
+untapered case.  See `drop_two_bits` in
+`phase2/state_prep_coeff.c` and the tapered fixture
+`N8_tapered.h5`.
 
 ### Group: `/state_prep/mps`
 

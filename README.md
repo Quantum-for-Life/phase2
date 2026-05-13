@@ -184,6 +184,26 @@ See [doc/python.md](doc/python.md) for the full API
 reference, Pauli string format, MPI usage, and examples.
 
 
+Input contract
+--------------
+
+The `simul.h5` input file now supports two mutually
+exclusive state-prep subtypes:
+
+- `/state_prep/multidet/` — flat list of (bitstring,
+  amplitude) pairs.  Default for small `M`.
+- `/state_prep/coeff_matrix/` — a real `n_sites x n_occ`
+  coefficient matrix.  The simulator runs a Slater-Condon
+  expansion at `circ_prepst()` time and scatters directly
+  into the MPI-distributed register.  For trial states
+  whose dense form `M` would otherwise be too large to
+  ship on disk.
+
+Exactly one subgroup must be present; the file is rejected
+at open time otherwise.  See
+[doc/simul-h5-specs.md](doc/simul-h5-specs.md) for both
+schema and expansion algorithm.
+
 Documentation
 -------------
 

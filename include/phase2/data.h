@@ -12,6 +12,19 @@
 #define DATA_STPREP_MULTIDET_COEFFS "coeffs"
 #define DATA_STPREP_MULTIDET_DETS "dets"
 
+#define DATA_STPREP_COEFFMAT "coeff_matrix"
+#define DATA_STPREP_COEFFMAT_CA "C_alpha"
+#define DATA_STPREP_COEFFMAT_CB "C_beta"
+#define DATA_STPREP_COEFFMAT_NQB "n_qubits"
+#define DATA_STPREP_COEFFMAT_NS "n_sites"
+#define DATA_STPREP_COEFFMAT_NA "n_alpha"
+#define DATA_STPREP_COEFFMAT_NB "n_beta"
+#define DATA_STPREP_COEFFMAT_CS "closed_shell"
+#define DATA_STPREP_COEFFMAT_TAP "tapered"
+#define DATA_STPREP_COEFFMAT_CSF "csf"
+#define DATA_STPREP_COEFFMAT_CSF_NCOMP "n_components"
+#define DATA_STPREP_COEFFMAT_CSF_CF "coefficient"
+
 #define DATA_HAMIL "pauli_hamil"
 #define DATA_HAMIL_COEFFS "coeffs"
 #define DATA_HAMIL_NORM "normalization"
@@ -148,6 +161,96 @@ int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets);
  */
 int data_multidet_foreach(data_id fid,
 	int (*op)(_Complex double cf, uint64_t idx, void *), void *op_data);
+
+/**
+ * State-prep subtypes carried in simul.h5.
+ *
+ * Exactly one of /state_prep/multidet or /state_prep/coeff_matrix
+ * must be present; both-present is an error, neither-present is
+ * an error.  See data_state_prep_kind().
+ */
+enum stprep_kind {
+	STPREP_MULTIDET = 1,
+	STPREP_COEFF_MATRIX = 2,
+};
+
+/**
+ * Probe simul.h5 for the active state-prep subtype.
+ *
+ * Inspects the file for /state_prep/multidet and
+ * /state_prep/coeff_matrix and applies the dispatch table:
+ *
+ *  multidet | coeff_matrix | result
+ *  ---------+--------------+--------
+ *  absent   | absent       | -ENOENT
+ *  present  | absent       | STPREP_MULTIDET
+ *  absent   | present      | STPREP_COEFF_MATRIX
+ *  present  | present      | -EINVAL  (ambiguous; rebuild pak)
+ *
+ * On success *out holds the selected kind and the function
+ * returns 0.  On failure *out is unchanged and the function
+ * returns a negative errno-style value.
+ *
+ * Documented further in phase2/doc/simul-h5-specs.md
+ * "dispatch rules".
+ */
+int data_state_prep_kind(data_id fid, enum stprep_kind *out);
+
+/**
+ * Get attributes from /state_prep/coeff_matrix/.
+ *
+ *   nqb          total qubit count (== n_qubits attribute)
+ *   n_sites      spatial-orbital count
+ *   n_alpha      alpha-spin occupation
+ *   n_beta       beta-spin occupation
+ *   closed_shell 0 or 1 (1 => C_beta dataset absent)
+ *   tapered      0 or 1 (1 => bits 0 and n_sites are dropped
+ *                          per generated bitstring)
+ *
+ * Returns 0 on success, -1 on error.  Output values are
+ * unchanged on error.
+ */
+int data_coeff_matrix_getnums(data_id fid, uint32_t *nqb, uint32_t *n_sites,
+	uint32_t *n_alpha, uint32_t *n_beta, int *closed_shell, int *tapered);
+
+/**
+ * Read C_alpha and (optionally) C_beta from the top-level
+ * /state_prep/coeff_matrix/ group.
+ *
+ * Caller must supply buffers sized:
+ *   C_alpha: n_sites * n_alpha doubles  (row-major)
+ *   C_beta : n_sites * n_beta  doubles  (row-major), or NULL
+ *            if closed_shell == 1.
+ *
+ * Passing a non-NULL C_beta on a closed-shell file or NULL on
+ * an open-shell file is a programmer error and returns -1
+ * without touching the buffers.
+ *
+ * Returns 0 on success, -1 on error.
+ */
+int data_coeff_matrix_read(data_id fid, double *C_alpha, double *C_beta);
+
+/**
+ * Count CSF components under /state_prep/coeff_matrix/csf/.
+ *
+ * Sets *n on success and returns 0.  If the csf/ subgroup is
+ * absent, *n is set to 0 and the function returns 0 (the
+ * file encodes a single block, not a CSF superposition).
+ * Returns -1 on read error (csf/ present but malformed).
+ */
+int data_coeff_matrix_csf_count(data_id fid, size_t *n);
+
+/**
+ * Read CSF component k.
+ *
+ * Reads /state_prep/coeff_matrix/csf/<k>/coefficient (scalar)
+ * and the per-component C_alpha / C_beta datasets.  Buffer
+ * shapes match data_coeff_matrix_read().
+ *
+ * Returns 0 on success, -1 on error.
+ */
+int data_coeff_matrix_csf_read(data_id fid, size_t k, double *coefficient,
+	double *C_alpha, double *C_beta);
 
 /**
  * Get the number of qubits and terms for the "hamil" group.

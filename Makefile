@@ -12,8 +12,14 @@ AS		:= nasm
 ASFLAGS		+= -felf64 -w+all -w-reloc-rel-dword -Ox
 CC		?= gcc
 CFLAGS		+= -std=c11 -Wall -Wextra -O3 -march=native -mavx2
+# EXTRA_CFLAGS / EXTRA_LDFLAGS allow command-line overrides
+# (e.g. for sanitizer builds) without clobbering the rest of
+# the build flag pipeline.
+EXTRA_CFLAGS	?=
+EXTRA_LDFLAGS	?=
+CFLAGS		+= $(EXTRA_CFLAGS)
 INCLUDE		:= ./include
-LDFLAGS 	+=
+LDFLAGS 	+= $(EXTRA_LDFLAGS)
 LDLIBS		+= -lm
 LIB64		:= /usr/lib/x86_64-linux-gnu
 
@@ -113,11 +119,18 @@ BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
 
 
 # phase2 public API
-$(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h
+$(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h			\
+			$(INCLUDE)/phase2/state_prep_coeff.h
 $(PHASE2DIR)/data.o:	$(INCLUDE)/phase2/data.h
 $(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
 $(PHASE2DIR)/prob.o:	$(INCLUDE)/phase2/prob.h
 $(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h $(PHASE2DIR)/qreg.h
+$(PHASE2DIR)/state_prep_coeff.o:	$(INCLUDE)/phase2/state_prep_coeff.h	\
+			$(INCLUDE)/combinations.h			\
+			$(INCLUDE)/det_small.h				\
+			$(INCLUDE)/phase2/data.h			\
+			$(INCLUDE)/phase2/qreg.h			\
+			$(PHASE2DIR)/qreg.h
 $(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h
 
 # internal API
@@ -131,6 +144,7 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/paulis.o				\
 			$(PHASE2DIR)/prob.o				\
 			$(PHASE2DIR)/qreg.o				\
+			$(PHASE2DIR)/state_prep_coeff.o			\
 			$(PHASE2DIR)/world.o				\
 			$(BACKEND_OBJS)
 
@@ -150,10 +164,14 @@ CIRCOBJS	:= $(CIRCDIR)/cmpsit.o					\
 
 
 # Library / utilities
+$(LIBDIR)/combinations.o: $(INCLUDE)/combinations.h
+$(LIBDIR)/det_small.o:	$(INCLUDE)/det_small.h
 $(LIBDIR)/log.o:	$(INCLUDE)/log.h
 $(LIBDIR)/xoshiro256ss.o: $(INCLUDE)/xoshiro256ss.h
 
-LIBOBJS		:= $(LIBDIR)/log.o					\
+LIBOBJS		:= $(LIBDIR)/combinations.o				\
+			$(LIBDIR)/det_small.o				\
+			$(LIBDIR)/log.o					\
 			$(LIBDIR)/xoshiro256ss.o
 
 
@@ -248,27 +266,41 @@ bench-mpi: build-bench
 TESTDIR		:= ./test
 CFLAGS		+= -I$(TESTDIR) -I$(PHASE2DIR) -DPH2_TESTDIR=\"$(TESTDIR)\"
 
-TESTS		:= $(TESTDIR)/t-circ_cache				\
+TESTS		:= $(TESTDIR)/t-bitstring_index			\
+			$(TESTDIR)/t-circ_cache				\
+			$(TESTDIR)/t-circ_prepst_coeff			\
 			$(TESTDIR)/t-circ_trott				\
 			$(TESTDIR)/t-circ_trott2			\
+			$(TESTDIR)/t-circ_trott2_coeff			\
+			$(TESTDIR)/t-circ_trott_coeff			\
 			$(TESTDIR)/t-circ				\
+			$(TESTDIR)/t-combinations			\
 			$(TESTDIR)/t-data_attr				\
+			$(TESTDIR)/t-data_coeff_matrix			\
 			$(TESTDIR)/t-data_hamil				\
 			$(TESTDIR)/t-data_multidet			\
 			$(TESTDIR)/t-data_open				\
 			$(TESTDIR)/t-data_trott_steps			\
+			$(TESTDIR)/t-det_small				\
 			$(TESTDIR)/t-paulis				\
 			$(TESTDIR)/t-prob				\
 			$(TESTDIR)/t-qreg				\
+			$(TESTDIR)/t-ref-bendazzoli			\
+			$(TESTDIR)/t-state_prep_coeff_csf		\
+			$(TESTDIR)/t-state_prep_coeff_expand		\
 			$(TESTDIR)/t-world
 
-$(TESTS):	$(TESTDIR)/test.h					\
-		$(TESTDIR)/t-data.h					\
-		$(PHASE2OBJS) $(LIBOBJS)
+TESTS_SLOW	:= $(TESTDIR)/t-state_prep_coeff_large
+
+$(TESTS) $(TESTS_SLOW):	$(TESTDIR)/test.h				\
+			$(TESTDIR)/t-data.h				\
+			$(PHASE2OBJS) $(LIBOBJS)
 
 $(TESTDIR)/t-circ_cache: $(CIRCDIR)/trott.o
 $(TESTDIR)/t-circ_trott: $(CIRCDIR)/trott.o
 $(TESTDIR)/t-circ_trott2: $(CIRCDIR)/trott2.o
+$(TESTDIR)/t-circ_trott_coeff: $(CIRCDIR)/trott.o
+$(TESTDIR)/t-circ_trott2_coeff: $(CIRCDIR)/trott2.o
 
 build-test: $(TESTS)
 
@@ -280,8 +312,69 @@ $(CHECKS): check/%: $(TESTDIR)/%
 	@./$< && echo "$< OK" || (echo "$<: FAIL"; exit 1)
 
 .PHONY: check
-check: $(CHECKS)
+check: $(CHECKS) check-python
 
+# Python harness cross-validates the C expansion path against
+# an independent in-tree reference oracle.  Depends on
+# build-test (for the t-state_prep_coeff_expand binary).
+.PHONY: check-python
+check-python: build-test
+	@python3 $(TESTDIR)/t-ref-coeff_matrix.py	\
+		&& echo "$(TESTDIR)/t-ref-coeff_matrix.py OK"	\
+		|| (echo "$(TESTDIR)/t-ref-coeff_matrix.py: FAIL"; exit 1)
+
+# Slow tests: built but not part of the default check target.
+.PHONY: build-test-slow
+build-test-slow: $(TESTS_SLOW)
+
+CHECKS_SLOW	:= $(TESTS_SLOW:$(TESTDIR)/%=check/%)
+.PHONY: $(CHECKS_SLOW)
+$(CHECKS_SLOW): CFLAGS += -DDEBUG -g -Og
+$(CHECKS_SLOW): check/%: $(TESTDIR)/%
+	@./$< && echo "$< OK" || (echo "$<: FAIL"; exit 1)
+.PHONY: check-slow
+check-slow: $(CHECKS_SLOW)
+test-slow: check-slow
+
+# Sanitizer / valgrind targets.  These rebuild from scratch
+# under the requested instrumentation and re-run the full
+# test suite.
+.PHONY: test-asan test-valgrind test-mpi-asan
+ASAN_FLAGS	:= -fsanitize=address,undefined -fno-omit-frame-pointer -g
+# OpenMPI's startup path triggers internal "leaks" via
+# libevent / libopen-pal that we can't fix from here.  Disable
+# leak detection but keep all the other ASan + UBSan
+# diagnostics active.
+ASAN_OPTIONS_VAL := detect_leaks=0:halt_on_error=1
+
+test-asan:
+	$(MAKE) distclean
+	ASAN_OPTIONS=$(ASAN_OPTIONS_VAL)			\
+	$(MAKE) check						\
+		EXTRA_CFLAGS="$(ASAN_FLAGS)"			\
+		EXTRA_LDFLAGS="$(ASAN_FLAGS)"
+
+test-valgrind: build-test
+	@for tt in $(TESTS); do						\
+		valgrind --quiet --error-exitcode=1			\
+			--leak-check=full				\
+			--errors-for-leak-kinds=all			\
+			--track-origins=yes ./$$tt &&			\
+			echo "$$tt: OK" ||				\
+			( echo "$$tt: FAIL"; exit 1 );			\
+	done
+
+test-mpi-asan:
+	$(MAKE) distclean
+	$(MAKE) build-test					\
+		EXTRA_CFLAGS="$(ASAN_FLAGS)"			\
+		EXTRA_LDFLAGS="$(ASAN_FLAGS)"
+	@for tt in $(TESTDIR)/t-circ_trott_coeff; do			\
+		$(MPIRUN) -n 4 $(MPIFLAGS)				\
+			-x ASAN_OPTIONS=$(ASAN_OPTIONS_VAL) ./$$tt &&	\
+			echo "$$tt: OK" ||				\
+			( echo "$$tt: FAIL"; exit 1 );			\
+	done
 
 #check: build-test
 #	@for tt in $(TESTS); do						\
