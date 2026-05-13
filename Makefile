@@ -285,6 +285,7 @@ TESTS		:= $(TESTDIR)/t-bitstring_index			\
 			$(TESTDIR)/t-paulis				\
 			$(TESTDIR)/t-prob				\
 			$(TESTDIR)/t-qreg				\
+			$(TESTDIR)/t-ref-bendazzoli			\
 			$(TESTDIR)/t-state_prep_coeff_csf		\
 			$(TESTDIR)/t-state_prep_coeff_expand		\
 			$(TESTDIR)/t-world
@@ -311,7 +312,16 @@ $(CHECKS): check/%: $(TESTDIR)/%
 	@./$< && echo "$< OK" || (echo "$<: FAIL"; exit 1)
 
 .PHONY: check
-check: $(CHECKS)
+check: $(CHECKS) check-python
+
+# Python harness cross-validates the C expansion path against
+# an independent in-tree reference oracle.  Depends on
+# build-test (for the t-state_prep_coeff_expand binary).
+.PHONY: check-python
+check-python: build-test
+	@python3 $(TESTDIR)/t-ref-coeff_matrix.py	\
+		&& echo "$(TESTDIR)/t-ref-coeff_matrix.py OK"	\
+		|| (echo "$(TESTDIR)/t-ref-coeff_matrix.py: FAIL"; exit 1)
 
 # Slow tests: built but not part of the default check target.
 .PHONY: build-test-slow

@@ -43,6 +43,12 @@ FIXTURES = [
 
 
 def load_C(path: Path):
+    """Read the full coeff_matrix description from an H5 fixture.
+
+    Returns ``(attrs, top_Ca, top_Cb, csf_blocks)`` where
+    ``csf_blocks`` is ``None`` for single-block fixtures and a
+    list ``[(coefficient, Ca_k, Cb_k), ...]`` for CSF fixtures.
+    """
     with h5py.File(path, "r") as f:
         g = f["state_prep/coeff_matrix"]
         attrs = dict(g.attrs)
@@ -52,7 +58,23 @@ def load_C(path: Path):
             if "C_beta" in g
             else None
         )
-        return attrs, Ca, Cb
+        csf_blocks = None
+        if "csf" in g:
+            csf = g["csf"]
+            n_components = int(csf.attrs["n_components"])
+            csf_blocks = []
+            for k in range(n_components):
+                sub = csf[str(k)]
+                cf = float(sub.attrs["coefficient"])
+                Ca_k = np.asarray(sub["C_alpha"][...],
+                                  dtype=np.float64)
+                Cb_k = (
+                    np.asarray(sub["C_beta"][...],
+                               dtype=np.float64)
+                    if "C_beta" in sub else None
+                )
+                csf_blocks.append((cf, Ca_k, Cb_k))
+        return attrs, Ca, Cb, csf_blocks
 
 
 def c_dump(binary: Path, fixture: Path) -> dict[int, complex]:
@@ -87,16 +109,32 @@ def c_dump(binary: Path, fixture: Path) -> dict[int, complex]:
 
 
 def py_expand(fixture: Path) -> dict[int, complex]:
-    """Run the vendored reference against the fixture C matrices."""
-    attrs, Ca, Cb = load_C(fixture)
-    real = expand_coeff_matrix(
-        int(attrs["n_sites"]),
-        int(attrs["n_alpha"]),
-        int(attrs["n_beta"]),
-        Ca,
-        Cb,
-        bool(int(attrs["tapered"])),
-    )
+    """Run the vendored reference against the fixture C matrices.
+
+    Mirrors phase2's ``state_prep_coeff_expand_all`` dispatch: when
+    a ``csf/`` subgroup is present, the result is the coefficient-
+    weighted sum over per-component expansions; otherwise it is the
+    single-block expansion of the top-level matrices.
+    """
+    attrs, Ca, Cb, csf_blocks = load_C(fixture)
+    n_sites = int(attrs["n_sites"])
+    n_alpha = int(attrs["n_alpha"])
+    n_beta  = int(attrs["n_beta"])
+    tapered = bool(int(attrs["tapered"]))
+    if csf_blocks is None:
+        real = expand_coeff_matrix(
+            n_sites, n_alpha, n_beta, Ca, Cb, tapered,
+        )
+    else:
+        real = {}
+        for cf, Ca_k, Cb_k in csf_blocks:
+            block = expand_coeff_matrix(
+                n_sites, n_alpha, n_beta, Ca_k, Cb_k, tapered,
+                weight=cf,
+            )
+            for idx, amp in block.items():
+                real[idx] = real.get(idx, 0.0) + amp
+        real = {i: a for i, a in real.items() if abs(a) >= 1e-12}
     return {idx: complex(amp, 0.0) for idx, amp in real.items()}
 
 

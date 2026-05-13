@@ -248,50 +248,33 @@ static int dump_expand(const char *fixture, FILE *out)
 		return -1;
 	}
 
-	uint32_t nqb, ns, na, nb;
-	int cs, tap;
-	if (data_coeff_matrix_getnums(fid, &nqb, &ns, &na, &nb, &cs, &tap)
-		< 0) {
-		fprintf(stderr, "dump_expand: getnums failed\n");
-		data_close(fid);
-		return -1;
-	}
-	double *Ca = malloc(sizeof(double) * ns * na);
-	double *Cb = cs ? NULL : malloc(sizeof(double) * ns * nb);
-	if (!Ca || (!cs && !Cb)) {
-		fprintf(stderr, "dump_expand: alloc failed\n");
-		free(Ca);
-		free(Cb);
-		data_close(fid);
-		return -1;
-	}
-	if (data_coeff_matrix_read(fid, Ca, Cb) < 0) {
-		fprintf(stderr, "dump_expand: read failed\n");
-		free(Ca);
-		free(Cb);
+	/* `circ_coeff_init` loads both top-level C matrices and any
+	 * csf/<k>/ subgroups via the same path `circ_prepst` uses; we
+	 * dispatch through `state_prep_coeff_expand_all` so the dump
+	 * covers single-block AND CSF fixtures with one code path. */
+	struct circ_coeff cm;
+	if (circ_coeff_init(&cm, fid) < 0) {
+		fprintf(stderr, "dump_expand: circ_coeff_init failed\n");
 		data_close(fid);
 		return -1;
 	}
 
 	struct qreg reg;
-	if (qreg_init(&reg, nqb) < 0) {
-		free(Ca);
-		free(Cb);
+	if (qreg_init(&reg, cm.n_qubits) < 0) {
+		circ_coeff_free(&cm);
 		data_close(fid);
 		return -1;
 	}
 	qreg_zero(&reg);
 
-	if (state_prep_coeff_expand(&reg, ns, na, nb, Ca, Cb, 1.0, tap, 0)
-		< 0) {
+	if (state_prep_coeff_expand_all(&reg, &cm) < 0) {
 		qreg_free(&reg);
-		free(Ca);
-		free(Cb);
+		circ_coeff_free(&cm);
 		data_close(fid);
 		return -1;
 	}
 
-	const uint64_t namp = UINT64_C(1) << nqb;
+	const uint64_t namp = UINT64_C(1) << cm.n_qubits;
 	for (uint64_t idx = 0; idx < namp; idx++) {
 		_Complex double z;
 		qreg_getamp(&reg, idx, &z);
@@ -308,8 +291,7 @@ static int dump_expand(const char *fixture, FILE *out)
 		fflush(out);
 
 	qreg_free(&reg);
-	free(Ca);
-	free(Cb);
+	circ_coeff_free(&cm);
 	data_close(fid);
 	return 0;
 }
