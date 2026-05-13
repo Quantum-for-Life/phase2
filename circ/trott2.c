@@ -1,22 +1,28 @@
+#define LOG_SUBSYS "trott2"
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "log.h"
 #include "phase2.h"
 
 #include "circ/trott2.h"
 
 int trott2_init(struct trott2 *t2, const struct trott2_data *dt, const data_id fid)
 {
-	if (circ_init(&t2->ct, fid, dt->steps) < 0)
+	if (circ_init(&t2->ct, fid, dt->steps) < 0) {
+		log_error("trott2_init: circ_init failed");
 		return -1;
+	}
 
 	t2->dt = *dt;
 
 	circ_hamil_sort_lex(&t2->ct.hm);
 
+	log_debug("trott2_init: delta=%g steps=%zu", dt->delta, dt->steps);
 	return 0;
 }
 
@@ -37,10 +43,18 @@ int trott2_simul(struct trott2 *t2)
 
 	circ_prepst(ct);
 	for (size_t i = 0; i < vals->len; i++) {
-		if (circ_step(ct, &ct->hm, half) < 0)
+		log_debug("step %zu/%zu fwd", i + 1, vals->len);
+		if (circ_step(ct, &ct->hm, half) < 0) {
+			log_error("trott2_simul: fwd sweep failed at step %zu",
+				i);
 			return -1;
-		if (circ_step_reverse(ct, &ct->hm, half) < 0)
+		}
+		log_debug("step %zu/%zu rev", i + 1, vals->len);
+		if (circ_step_reverse(ct, &ct->hm, half) < 0) {
+			log_error("trott2_simul: rev sweep failed at step %zu",
+				i);
 			return -1;
+		}
 		vals->z[i] = circ_measure(ct);
 
 		circ_prog_tick(&prog);

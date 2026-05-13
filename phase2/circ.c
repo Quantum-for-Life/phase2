@@ -90,6 +90,7 @@ void circ_hamil_sort_lex(struct circ_hamil *hm)
 {
 	qsort(hm->terms, hm->len, sizeof(struct circ_hamil_term),
 		hamil_term_cmp_lex);
+	log_debug("hamil_sort_lex: sorted %zu terms", hm->len);
 }
 
 int circ_muldet_init(struct circ_muldet *md, size_t len)
@@ -182,29 +183,48 @@ int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
 	memset(&ct->md, 0, sizeof ct->md);
 	memset(&ct->cm, 0, sizeof ct->cm);
 
-	if (circ_hamil_from_file(&ct->hm, fid) < 0)
+	if (circ_hamil_from_file(&ct->hm, fid) < 0) {
+		log_error("circ_init: loading Hamiltonian failed");
 		goto err_hamil_init;
+	}
+	log_debug("circ_init: Hamiltonian loaded (%u qubits, %zu terms)",
+		ct->hm.qb, ct->hm.len);
 
-	if (data_state_prep_kind(fid, &ct->stprep_kind) < 0)
+	if (data_state_prep_kind(fid, &ct->stprep_kind) < 0) {
+		log_error("circ_init: state_prep kind probe failed");
 		goto err_stprep_kind;
+	}
 
 	switch (ct->stprep_kind) {
 	case STPREP_MULTIDET:
-		if (circ_muldet_from_file(&ct->md, fid) < 0)
+		if (circ_muldet_from_file(&ct->md, fid) < 0) {
+			log_error("circ_init: loading multidet state failed");
 			goto err_stprep_load;
+		}
+		log_debug("circ_init: multidet state (%zu dets)", ct->md.len);
 		break;
 	case STPREP_COEFF_MATRIX:
-		if (circ_coeff_init(&ct->cm, fid) < 0)
+		if (circ_coeff_init(&ct->cm, fid) < 0) {
+			log_error("circ_init: coeff_matrix init failed");
 			goto err_stprep_load;
+		}
+		log_debug("circ_init: coeff_matrix state (n_components=%zu)",
+			ct->cm.n_components);
 		break;
 	}
 
-	if (qreg_init(&ct->reg, ct->hm.qb) < 0)
+	if (qreg_init(&ct->reg, ct->hm.qb) < 0) {
+		log_error("circ_init: qreg_init failed");
 		goto err_qreg_init;
-	if (circ_cache_init(ct->reg.qb_hi, ct->reg.qb_lo) < 0)
+	}
+	if (circ_cache_init(ct->reg.qb_hi, ct->reg.qb_lo) < 0) {
+		log_error("circ_init: cache_init failed");
 		goto err_cache_init;
-	if (circ_values_init(&ct->vals, vals_len) < 0)
+	}
+	if (circ_values_init(&ct->vals, vals_len) < 0) {
+		log_error("circ_init: values_init failed (len=%zu)", vals_len);
 		goto err_vals_init;
+	}
 
 	return 0;
 

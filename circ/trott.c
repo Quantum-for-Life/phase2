@@ -1,22 +1,28 @@
+#define LOG_SUBSYS "trott"
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "log.h"
 #include "phase2.h"
 
 #include "circ/trott.h"
 
 int trott_init(struct trott *tt, const struct trott_data *dt, const data_id fid)
 {
-	if (circ_init(&tt->ct, fid, dt->steps) < 0)
+	if (circ_init(&tt->ct, fid, dt->steps) < 0) {
+		log_error("trott_init: circ_init failed");
 		return -1;
+	}
 
 	tt->dt = *dt;
 
 	circ_hamil_sort_lex(&tt->ct.hm);
 
+	log_debug("trott_init: delta=%g steps=%zu", dt->delta, dt->steps);
 	return 0;
 }
 
@@ -35,8 +41,11 @@ int trott_simul(struct trott *tt)
 
 	circ_prepst(ct);
 	for (size_t i = 0; i < vals->len; i++) {
-		if (circ_step(ct, &ct->hm, tt->dt.delta) < 0)
+		log_debug("step %zu/%zu", i + 1, vals->len);
+		if (circ_step(ct, &ct->hm, tt->dt.delta) < 0) {
+			log_error("trott_simul: step %zu failed", i);
 			return -1;
+		}
 		vals->z[i] = circ_measure(ct);
 
 		circ_prog_tick(&prog);

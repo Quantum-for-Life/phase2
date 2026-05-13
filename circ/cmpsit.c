@@ -103,11 +103,11 @@ static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
 		goto err_cdf;
 
 	ranct_calc_cdf(rct, hm_tmp.terms + dt->length);
-	log_info("ranct.lambda_r: %.9f", rct->lambda_r);
+	log_debug("ranct.lambda_r: %.9f", rct->lambda_r);
 	rct->depth = dt->depth;
-	log_info("ranct.depth: %zu", rct->depth);
+	log_debug("ranct.depth: %zu", rct->depth);
 	rct->angle_rand = dt->angle_rand;
-	log_info("ranct.tau: %.9f", rct->angle_rand);
+	log_debug("ranct.tau: %.9f", rct->angle_rand);
 
 	circ_hamil_free(&hm_tmp);
 
@@ -221,22 +221,41 @@ int cmpsit_simul(struct cmpsit *cp)
 	struct circ *ct = &cp->ct;
 	struct circ_values *vals = &ct->vals;
 
+	log_debug("simul: samples=%zu steps=%zu length=%zu depth=%zu"
+		  " angle_det=%g angle_rand=%g",
+		vals->len, cp->dt.steps, cp->dt.length, cp->dt.depth,
+		cp->dt.angle_det, cp->dt.angle_rand);
+
 	struct circ_prog prog;
 	circ_prog_init(&prog, vals->len);
 	for (size_t i = 0; i < vals->len; i++) {
+		log_debug("sample %zu/%zu", i + 1, vals->len);
 		circ_prepst(ct);
 		for (size_t s = 0; s < cp->dt.steps; s++) {
-			if (hm_sample(cp) < 0)
+			log_trace("step %zu/%zu fwd half-sweep", s + 1,
+				cp->dt.steps);
+			if (hm_sample(cp) < 0) {
+				log_error("simul: hm_sample failed");
 				return -1;
-			if (circ_step(&cp->ct, &cp->ranct.hm_smpl, 0.5) < 0)
+			}
+			if (circ_step(&cp->ct, &cp->ranct.hm_smpl, 0.5) < 0) {
+				log_error("simul: fwd circ_step failed");
 				return -1;
+			}
 			ranct_hmsmpl_free(cp);
 
-			if (hm_sample(cp) < 0)
+			log_trace("step %zu/%zu rev half-sweep", s + 1,
+				cp->dt.steps);
+			if (hm_sample(cp) < 0) {
+				log_error("simul: hm_sample failed");
 				return -1;
+			}
 			if (circ_step_reverse(
-				    &cp->ct, &cp->ranct.hm_smpl, 0.5) < 0)
+				    &cp->ct, &cp->ranct.hm_smpl, 0.5) < 0) {
+				log_error("simul: rev circ_step_reverse"
+					  " failed");
 				return -1;
+			}
 			ranct_hmsmpl_free(cp);
 		}
 		vals->z[i] = circ_measure(ct);

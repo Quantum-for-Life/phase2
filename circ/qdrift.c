@@ -1,3 +1,5 @@
+#define LOG_SUBSYS "qdrift"
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <float.h>
@@ -7,6 +9,7 @@
 #include <stdlib.h>
 
 #include "container_of.h"
+#include "log.h"
 #include "phase2.h"
 #include "xoshiro256ss.h"
 
@@ -105,15 +108,23 @@ int qdrift_simul(struct qdrift *qd)
 	struct circ *ct = &qd->ct;
 	struct circ_values *vals = &ct->vals;
 
+	log_debug("simul: samples=%zu depth=%zu step_size=%g seed=%lu"
+		  " cdf_len=%zu",
+		vals->len, qd->dt.depth, qd->dt.step_size,
+		(unsigned long)qd->dt.seed, qd->ranct.cdf.len);
+
 	struct circ_prog prog;
 	circ_prog_init(&prog, vals->len);
 	for (size_t i = 0; i < vals->len; i++) {
+		log_debug("sample %zu/%zu", i + 1, vals->len);
 		circ_prepst(ct);
 
 		ranct_sample(qd);
 		if (circ_step(ct, &qd->ranct.hm_ran, asin(qd->dt.step_size)) <
-			0)
+			0) {
+			log_error("simul: circ_step failed at sample %zu", i);
 			return -1;
+		}
 		vals->z[i] = circ_measure(ct);
 
 		circ_prog_tick(&prog);
