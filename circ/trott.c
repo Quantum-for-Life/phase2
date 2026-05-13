@@ -37,7 +37,7 @@ int trott_simul(struct trott *tt)
 	struct circ_values *vals = &ct->vals;
 
 	struct circ_prog prog;
-	circ_prog_init(&prog, vals->len);
+	circ_prog_init(&prog, vals->len, "step");
 
 	circ_prepst(ct);
 	for (size_t i = 0; i < vals->len; i++) {
@@ -49,6 +49,7 @@ int trott_simul(struct trott *tt)
 		vals->z[i] = circ_measure(ct);
 
 		circ_prog_tick(&prog);
+		circ_prog_emit(&prog, LOG_SUBSYS);
 	}
 
 	return 0;

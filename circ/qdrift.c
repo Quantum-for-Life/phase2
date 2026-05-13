@@ -114,7 +114,7 @@ int qdrift_simul(struct qdrift *qd)
 		(unsigned long)qd->dt.seed, qd->ranct.cdf.len);
 
 	struct circ_prog prog;
-	circ_prog_init(&prog, vals->len);
+	circ_prog_init(&prog, vals->len, "sample");
 	for (size_t i = 0; i < vals->len; i++) {
 		log_debug("sample %zu/%zu", i + 1, vals->len);
 		circ_prepst(ct);
@@ -128,6 +128,7 @@ int qdrift_simul(struct qdrift *qd)
 		vals->z[i] = circ_measure(ct);
 
 		circ_prog_tick(&prog);
+		circ_prog_emit(&prog, LOG_SUBSYS);
 	}
 
 	return 0;
