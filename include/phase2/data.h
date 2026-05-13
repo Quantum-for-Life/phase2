@@ -185,7 +185,7 @@ enum stprep_kind {
  *  absent   | absent       | -ENOENT
  *  present  | absent       | STPREP_MULTIDET
  *  absent   | present      | STPREP_COEFF_MATRIX
- *  present  | present      | -EINVAL  (ambiguous; rebuild pak)
+ *  present  | present      | -EINVAL  (ambiguous; rebuild simul.h5)
  *
  * On success *out holds the selected kind and the function
  * returns 0.  On failure *out is unchanged and the function

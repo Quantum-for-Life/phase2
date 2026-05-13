@@ -3,47 +3,34 @@ phase2
 
 [![CI](https://github.com/Quantum-for-Life/phase2/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/Quantum-for-Life/phase2/actions/workflows/CI.yml)
 
-Hamiltonian simulation on CPU and GPU clusters. 🏭
+Full state-vector simulation of Hamiltonian time evolution,
+targeting quantum phase estimation workflows in computational
+chemistry.  Runs on CPU and NVIDIA GPU clusters via MPI and
+HDF5; reference algorithms include 1st- and 2nd-order Trotter,
+qDRIFT, and a composite (partially randomised) integrator.
+
+Reference: arXiv:[2504.17881](https://arxiv.org/abs/2504.17881).
 
 
-Dependencies
-------------
+Install
+-------
 
-To run the simulation, you will need:
-
-- Linux x86-64 platform, GNU C library and C>=11 compiler toolchain
-- [OpenMPI][openmpi-website]
-- Parallel [HDF5][hdf5-website]
-
-Assuming we're on Ubuntu 22.04 or later, you can install the dependencies with:
-
-```bash
-sudo apt install gcc
-sudo apt install libopenmpi-dev openmpi-common
-sudo apt install libhdf5-dev hdf5-tools libhdf5-mpi-dev libhdf5-openmpi-dev
-```
-
-If you want to run the simulation on Euler cluster (ETHZ), just load these
-modules:
+Build dependencies on Ubuntu 22.04 or later:
 
 ```bash
-ml load stack/2024-06
-ml load openmpi/4.1.6
-ml load hdf5/1.14.3
-ml load python/3.11.6
-ml load curl/8.4.0-s6dtj75
-ml load libszip/2.1.1-gz5ijo3
-ml load zlib/1.3-mktm5vz
+sudo apt install gcc libopenmpi-dev openmpi-common \
+                 libhdf5-openmpi-dev hdf5-tools
 ```
 
-[hdf5-website]: https://www.hdfgroup.org/solutions/hdf5/
-[openmpi-website]: https://www.open-mpi.org/
+On the ETH Euler cluster:
 
+```bash
+ml load stack/2024-06 openmpi/4.1.6 hdf5/1.14.3 \
+        python/3.11.6 curl/8.4.0-s6dtj75 \
+        libszip/2.1.1-gz5ijo3 zlib/1.3-mktm5vz
+```
 
-Compiling the source code
--------------------------
-
-Download and compile the source code with:
+Build:
 
 ```bash
 git clone https://github.com/Quantum-for-Life/phase2
@@ -51,39 +38,55 @@ cd phase2
 make
 ```
 
-To run the test suite:
+
+Run
+---
+
+Simulate four 1st-order Trotter steps on the water
+CAS(5,6) test fixture, on two MPI ranks:
 
 ```bash
-make check
+mpirun -n 2 ./ph2run/ph2run -S test/data/H2O_CAS56.h5 \
+       trott -D 0.1 -s 4
 ```
 
-Individual tests can be found in `./test` directory. The compiled applications
-are MPI-aware and can be run in a distributed mode with `mpirun` as well:
+Results land in the `/circ_trott` group of the same HDF5
+file.  Other subcommands — `trott2`, `qdrift`, `cmpsit` —
+share the same `-S FILE` convention; see
+`./ph2run/ph2run --help` and `./ph2run/ph2run CMD --help`
+for the flag surface.
 
-```bash
-make check-mpi
-```
+The MPI rank count must be a power of two and must not
+exceed `2^(nqb-1)`, where `nqb` is the qubit width of the
+register.  Set `PHASE2_LOG` to one of `trace`, `debug`,
+`info`, `warn`, `error`, `fatal` to control log verbosity.
 
-You can specify the number of MPI processes with `MPIRANKS=n` like this:
 
-```bash
-make check-mpi MPIRANKS=16
-```
+State preparation contract
+--------------------------
 
-The default value is `MPIRANKS=2`. This number *must be a power of two*
-and must not exceed the number of cores available.
+`simul.h5` carries exactly one initial-state encoding under
+`/state_prep`:
 
-The system can be configured to use the simulator library
-[QuEST](https://github.com/QuEST-Kit/QuEST) as a backend, instead of the
-internal engine.  Make sure QuEST is compiled in the `DISTRIBUTED` mode.
-Consult [Makefile](./Makefile) for how to configure the build system.
+- `/state_prep/multidet` — explicit list of (bitstring,
+  complex amplitude) pairs.
+- `/state_prep/coeff_matrix` — real `(n_sites, n_occ)`
+  molecular-orbital coefficient matrix.  The simulator
+  expands it on the fly via Slater-Condon, scattering
+  amplitudes directly into the MPI-distributed register.
+  Supports closed/open shell, Z₂ + S_z tapering, and CSF
+  superpositions.
 
-You can also use the software to perform distributed GPU simulation.  You
-will need a CUDA-aware MPI implementation on your system.  Follow 
-[this tutorial](https://github.com/Quantum-for-Life/cuda-aware-mpi-cluster)
-to see how to set up a CUDA-aware MPI cluster.
+The file is rejected at open time if both subgroups are
+present, or if neither is.  See
+[doc/simul-h5-specs.md](doc/simul-h5-specs.md) for the full
+schema, dispatch rules, and tapering convention.
 
-To use GPUs instead of CPUs, recompile the sources:
+
+GPU build
+---------
+
+Build against CUDA-aware OpenMPI:
 
 ```bash
 make clean
@@ -91,61 +94,16 @@ make BACKEND=cuda
 make BACKEND=cuda check
 ```
 
-The software assumes there is one GPU per MPI process available on local nodes.
-
-On Euler, load the `cuda` module along with those specified above:
-
-```bash
-ml load cuda/12.1.1
-```
+Requires one GPU per MPI process and a CUDA-aware MPI
+installation.  Override `CUDA_PREFIX` if the toolkit lives
+outside `/usr/local/cuda`.
 
 
-How to use it
--------------
+Python
+------
 
-Prepare an input file for the simulation according to the
-[specification](doc/simul-h5-specs.md). Then run:
-
-```bash
-mpirun -n [NUM_CPUS] ./ph2run/ph2run -S [SIMUL_FILE] trott -s [NUM_STEPS]
-```
-
-or
-
-```bash
-mpirun -n [NUM_CPUS] ./ph2run/ph2run -S [SIMUL_FILE] qdrift -d [DEPTH] -n [SAMPLES]
-```
-
-where
-
-- `NUM_CPUS` is the `mpirun` option specifying the number of processes to
-  run. This must be a power of 2.
-- `SIMUL_FILE` is the path to the simulation file in the HDF5 format
-  (default: `./simul.h5`).
-- `NUM_STEPS` is an integer number of Trotter steps.
-
-Available subcommands: `trott`, `qdrift`, `cmpsit`.  Run
-`./ph2run/ph2run CMD --help` for subcommand-specific options.
-
-Optionally, you can specify the level of log messages for the program to report,
-by setting `PHASE2_LOG` environment variable to be one of: `trace`,
-`debug`, `info`, `warn`, `error`, `fatal`. E.g.,
-
-```bash
-mpirun -n 8 -x PHASE2_LOG=info ./ph2run/ph2run -S simul.h5 trott -s 100
-```
-
-will compute 100 Trotter steps for a Hamiltonian specified in the file
-`simul.h5` using 8 MPI processes, and write the result back to the same file.
-
-See also the directory: [./simul](./simul) for an example of a simple
-automated system.
-
-
-Python interface
-----------------
-
-Build the shared library and install the Python package:
+`phase2` ships a thin Python wrapper around a single
+overlap-evaluation entry point:
 
 ```bash
 make shared
@@ -154,91 +112,62 @@ source .venv/bin/activate
 pip install -e ".[test]"
 ```
 
-Run the example:
-
-```bash
-python examples/pauli_rotation.py
-```
-
-Run the test suite:
-
-```bash
-pytest -v
-```
-
-Use from Python:
-
 ```python
 import phase2
 r = phase2.run(["X0", "Z1"], [0.3, -0.2], 1.0, "00")
 ```
 
-With MPI (number of ranks must be a power of two, and
-must not exceed half the number of amplitudes):
+With MPI (ranks must be a power of two and at most half the
+number of amplitudes):
 
 ```bash
 mpirun -n 4 python examples/pauli_rotation.py
 ```
 
 See [doc/python.md](doc/python.md) for the full API
-reference, Pauli string format, MPI usage, and examples.
+reference and limitations.
 
 
-Input contract
---------------
+Tests and benchmarks
+--------------------
 
-The `simul.h5` input file now supports two mutually
-exclusive state-prep subtypes:
+```bash
+make check                 # full C test suite
+make check-mpi MPIRANKS=4  # same, under MPI
+make check-python          # cross-check coeff_matrix expansion
+make bench                 # paulis and qreg micro-benchmarks
+make test-asan             # ASan + UBSan build
+make test-valgrind         # leak/UB check via valgrind
+```
 
-- `/state_prep/multidet/` — flat list of (bitstring,
-  amplitude) pairs.  Default for small `M`.
-- `/state_prep/coeff_matrix/` — a real `n_sites x n_occ`
-  coefficient matrix.  The simulator runs a Slater-Condon
-  expansion at `circ_prepst()` time and scatters directly
-  into the MPI-distributed register.  For trial states
-  whose dense form `M` would otherwise be too large to
-  ship on disk.
+Test fixtures live in `test/data/`.
 
-Exactly one subgroup must be present; the file is rejected
-at open time otherwise.  See
-[doc/simul-h5-specs.md](doc/simul-h5-specs.md) for both
-schema and expansion algorithm.
 
 Documentation
 -------------
 
-- [doc/phase2.md](doc/phase2.md) — comprehensive reference
-  covering design rationale, computational kernels (CPU and
-  CUDA), algorithms (Trotter, qDRIFT, composite), full API
-  reference, and build instructions.
-- [doc/python.md](doc/python.md) — Python interface:
-  installation, API, examples, MPI usage.
+- [doc/phase2.md](doc/phase2.md) — reference manual:
+  design, kernels (CPU and CUDA), algorithms, API, build.
+- [doc/python.md](doc/python.md) — Python interface.
 - [doc/simul-h5-specs.md](doc/simul-h5-specs.md) — HDF5
-  simulation file format specification.
+  input/output schema.
 
 
-Credits and License
--------------------
+Citation
+--------
 
-This software is distributed under the BSD 3-Clause License. See [LICENSE](./LICENSE)
-for more information.
+If you use phase2 in published work, cite:
 
-Online repository available at: https://github.com/Quantum-for-Life/phase2
-
-
-### Citation
-
-Please cite this work as:
-
-> Marek Miller, Jakob Gunther, Freek Witteveen, Matthew S. Teynor, Mihael Erakovic,
-> Markus Reiher, Gemma C. Solomon, and Matthias Christandl,
-> *phase2: Full-State Vector Simulation of Quantum Time Evolution at Scale*, arXiv preprint, arXiv:2504.17881.
+> Marek Miller, Jakob Gunther, Freek Witteveen, Matthew S.
+> Teynor, Mihael Erakovic, Markus Reiher, Gemma C. Solomon,
+> and Matthias Christandl, *phase2: Full-State Vector
+> Simulation of Quantum Time Evolution at Scale*,
+> arXiv:2504.17881.
 
 
-### Maintainers
+Maintainer & licence
+--------------------
 
-* Marek Miller <mlm@math.ku.dk>
-
-Report bugs or submit patches via [GitHub Issues].
-
-[GitHub Issues]: https://github.com/Quantum-for-Life/phase2/issues
+Marek Miller <mlm@math.ku.dk>.  BSD 3-Clause — see
+[LICENSE](./LICENSE).  Report bugs and submit patches via
+[GitHub Issues](https://github.com/Quantum-for-Life/phase2/issues).

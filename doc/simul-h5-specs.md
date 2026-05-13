@@ -120,7 +120,7 @@ The simulator probes both `/state_prep/multidet` and
 | absent | absent | error: no state-prep subgroup found |
 | present | absent | path: `STPREP_MULTIDET` |
 | absent | present | path: `STPREP_COEFF_MATRIX` |
-| present | present | error: ambiguous; rebuild pak |
+| present | present | error: ambiguous; rebuild `simul.h5` |
 
 `STPREP_MULTIDET` and `STPREP_COEFF_MATRIX` are the enum
 values from `enum stprep_kind` in `phase2/include/phase2/data.h`.
@@ -233,7 +233,9 @@ formula:
   S_2(δ) = ∏_{k=1..K} exp(-i h_k δ/2) · ∏_{k=K..1} exp(-i h_k δ/2)
 
 Each step applies one forward sweep at `δ/2` followed by one
-reverse sweep at `δ/2` over the same Hamiltonian terms.
+reverse sweep at `δ/2` over the same Hamiltonian terms.  See
+`circ/trott2.c` for the implementation and `doc/phase2.md §5`
+for the algorithm description.
 
 - Attribute: `delta`
     - *Type*: `double`
@@ -268,7 +270,46 @@ reverse sweep at `δ/2` over the same Hamiltonian terms.
     - *Shape*: `(NUM_SAMPLES, 2)`
     - *Comment*: Columns specify the real (column 1) and imaginary (column 2)
       part of a complex number.
-  
+
+## Group: `/circ_cmpsit`
+
+Output of the composite (partially randomised) 2nd-order
+Trotter algorithm.  The Hamiltonian is split into a
+deterministic top-`length` part applied lexicographically
+and a randomised qDRIFT-style part of `depth` rotations per
+step.  See `circ/cmpsit.c` and `doc/phase2.md §5` for the
+algorithm description.
+
+- Attribute: `length`
+    - *Type*: `unsigned long`
+    - *Comment*: Number of deterministic top-|c_k| terms.
+
+- Attribute: `depth`
+    - *Type*: `unsigned long`
+    - *Comment*: Number of randomised terms drawn per step.
+
+- Attribute: `angle_det`
+    - *Type*: `double`
+    - *Comment*: Step size for the deterministic part.
+
+- Attribute: `angle_rand`
+    - *Type*: `double`
+    - *Comment*: Step size for the randomised part.
+
+- Attribute: `steps`
+    - *Type*: `unsigned long`
+    - *Comment*: Number of composite Trotter steps per sample.
+
+- Attribute: `seed`
+    - *Type*: `unsigned long`
+    - *Comment*: PRNG seed used for this run; non-zero.
+
+- Dataset: `values`
+    - *Type*: `double`
+    - *Shape*: `(NUM_SAMPLES, 2)`
+    - *Comment*: Columns specify the real (column 1) and
+      imaginary (column 2) part of a complex number.
+
 [hdf5-data-types]: https://docs.hdfgroup.org/hdf5/v1_14/predefined_datatypes_tables.html
 
 [uuid-rfc]: https://datatracker.ietf.org/doc/html/rfc4122

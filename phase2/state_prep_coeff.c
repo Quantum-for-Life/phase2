@@ -1,33 +1,7 @@
 /*
- * state_prep_coeff - Slater-Condon expansion of a coefficient-
- * matrix trial state into a dense MPI-distributed register.
- *
- * Public API:
- *   int state_prep_coeff_expand(...)
- *   int state_prep_coeff_expand_all(...)
- *   int circ_coeff_init(...)
- *   void circ_coeff_free(...)
- *
- * The expansion walks all (occ_alpha, occ_beta) k-subsets in
- * lex order, precomputes the determinant tables det_alpha[i]
- * and det_beta[j], then runs the outer product.  Each MPI rank
- * does the full outer-product walk but only writes amplitudes
- * it owns (ownership filter via qreg_getihi).
- *
- * Bitstring convention:
- *   * alpha qubits live in bits [0, n_sites)
- *   * beta  qubits live in bits [n_sites, 2*n_sites)
- *   * occ_alpha[i] = q sets bit q
- *   * occ_beta [j] = q sets bit n_sites + q
- *
- * For tapered states (tapered != 0) bits 0 and n_sites are
- * dropped after the bitstring is constructed; the upper bits
- * are shifted down by two.  The dispatcher carries the original
- * untapered C matrices end-to-end; the drop happens at scatter
- * time per generated bitstring.
- *
- * Sparsity prune: amplitudes with |c| < SPARSITY_PRUNE are
- * skipped.
+ * Slater-Condon expansion of a coefficient-matrix trial
+ * state.  See include/phase2/state_prep_coeff.h for the
+ * public API contract; this file holds the implementation.
  */
 
 #include "c23_compat.h"
