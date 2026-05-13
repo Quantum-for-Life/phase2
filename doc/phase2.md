@@ -446,39 +446,48 @@ scaling.
 
 ### 6.2 Subcommands
 
-#### `trott` -- First-order Trotter
+#### `trott` -- 1st-order Trotter
 
     ph2run [OPTS] trott [TROTT_OPTS]
 
 | Flag    | Description                          | Default |
 |---------|--------------------------------------|---------|
-| `-D VAL`| Rotation angle delta                 | 1.0     |
+| `-D VAL`| Trotter step size (delta)            | 1.0     |
 | `-s N`  | Number of Trotter steps              | 1       |
 
-#### `qdrift` -- qDRIFT randomised algorithm
+#### `trott2` -- 2nd-order symmetric (Strang) Trotter
+
+    ph2run [OPTS] trott2 [TROTT2_OPTS]
+
+| Flag    | Description                          | Default |
+|---------|--------------------------------------|---------|
+| `-D VAL`| Trotter step size (delta)            | 1.0     |
+| `-s N`  | Number of Trotter steps              | 1       |
+
+#### `qdrift` -- qDRIFT randomised product formula
 
     ph2run [OPTS] qdrift [QDRIFT_OPTS]
 
 | Flag    | Description                          | Default |
 |---------|--------------------------------------|---------|
-| `-D VAL`| Step size parameter                  | 1.0     |
-| `-d VAL`| Random depth (terms per sample)      | 64      |
+| `-D VAL`| qDRIFT step size                     | 1.0     |
+| `-d N`  | Randomised terms per sample          | 64      |
 | `-n N`  | Number of independent samples        | 1       |
-| `-x N`  | PRNG seed (must be nonzero)          | 1       |
+| `-x N`  | PRNG seed (must be non-zero)         | 1       |
 
-#### `cmpsit` -- Composite (2nd-order, partially random)
+#### `cmpsit` -- Composite (2nd-order, partially randomised)
 
     ph2run [OPTS] cmpsit [CMPSIT_OPTS]
 
 | Flag    | Description                          | Default |
 |---------|--------------------------------------|---------|
-| `-l VAL`| Deterministic length (top-L terms)   | 1       |
-| `-d VAL`| Random depth                         | 64      |
+| `-l N`  | Number of deterministic top-|c_k|    | 1       |
+| `-d N`  | Randomised terms per step            | 64      |
 | `-s N`  | Number of Trotter steps              | 1       |
-| `-D VAL`| Deterministic angle (angle_det)      | 1.0     |
-| `-R VAL`| Randomised angle (angle_rand)        | 1.0     |
+| `-D VAL`| Deterministic step size (angle_det)  | 1.0     |
+| `-R VAL`| Randomised step size (angle_rand)    | 1.0     |
 | `-n N`  | Number of independent samples        | 1       |
-| `-x N`  | PRNG seed (must be nonzero)          | 1       |
+| `-x N`  | PRNG seed (must be non-zero)         | 1       |
 
 ### 6.3 Environment Variables
 
@@ -492,32 +501,53 @@ emitted.
 
 ## 7. Examples
 
-The test suite includes two HDF5 data files:
+The test suite includes several HDF5 input files:
 
-- `test/data/H2O_CAS56.h5`: Water molecule in a CAS(5,6)
-  active space, 10 qubits, 251 Hamiltonian terms,
-  1 determinant.
-- `test/data/case-d9f603dc.h5_solved`: Small 3-qubit test
-  case, 10 terms, 3 determinants.
+- `test/data/H2O_CAS56.h5`: water in a CAS(5,6) active space,
+  10 qubits, 251 Hamiltonian terms, single-determinant
+  reference (`/state_prep/multidet`).
+- `test/data/case-d9f603dc.h5_solved`: 3-qubit toy case,
+  10 terms, 3 determinants.
+- `test/data/N4_closed.h5`: 8-qubit, n_sites=4, closed-shell
+  reference encoded as `/state_prep/coeff_matrix` — exercises
+  the Slater-Condon expansion path.
+- `test/data/bendazzoli/n4_oss_k0/n4_oss_k0.h5`: open-shell
+  CSF superposition (two-component) used by the
+  `t-ref-bendazzoli` reference test.
 
-### 7.1 Trotter simulation (4 steps, 2 MPI ranks)
+### 7.1 Trotter (4 steps, 2 MPI ranks)
 
     mpirun -n 2 ./ph2run/ph2run -S test/data/H2O_CAS56.h5 \
         trott -D 0.1 -s 4
 
-### 7.2 qDRIFT simulation (64 depth, 100 samples)
+### 7.2 Symmetric (Strang) Trotter
+
+    mpirun -n 2 ./ph2run/ph2run -S test/data/H2O_CAS56.h5 \
+        trott2 -D 0.1 -s 4
+
+### 7.3 qDRIFT (depth 64, 100 samples)
 
     mpirun -n 2 ./ph2run/ph2run -S test/data/H2O_CAS56.h5 \
         qdrift -D 0.05 -d 64 -n 100 -x 42
 
-### 7.3 Composite simulation (2nd-order Trotter)
+### 7.4 Composite (2nd-order)
 
     mpirun -n 2 ./ph2run/ph2run                            \
-        -S test/data/case-d9f603dc.h5_solved                \
+        -S test/data/case-d9f603dc.h5_solved               \
         cmpsit -l 3 -d 32 -s 4 -D 0.1 -R 0.05 -n 50 -x 7
 
-All three commands write results back into the respective
-HDF5 groups in the simulation file.
+### 7.5 Coefficient-matrix state prep
+
+    mpirun -n 2 ./ph2run/ph2run -S test/data/N4_closed.h5 \
+        trott -D 0.05 -s 8
+
+The reference state is reconstructed at `circ_prepst` time
+from `/state_prep/coeff_matrix`; no per-determinant
+amplitudes appear in the file (see §3 of
+`doc/simul-h5-specs.md`).
+
+All commands write results back into the respective HDF5
+groups in the simulation file.
 
 ---
 
@@ -1291,7 +1321,31 @@ Write results to the `/circ_trott` group in the HDF5 file.
 
 ---
 
-### 8.8 qDRIFT (`include/circ/qdrift.h`)
+### 8.8 Symmetric Trotter (`include/circ/trott2.h`)
+
+Strang 2nd-order product formula.  One step is a forward
+sweep at `delta/2` followed by a reverse sweep at
+`delta/2`, both expressed through `circ_step` /
+`circ_step_reverse`.
+
+```c
+struct trott2_data { double delta; size_t steps; };
+struct trott2 { struct circ ct; struct trott2_data dt; };
+
+int  trott2_init(struct trott2 *t2,
+        const struct trott2_data *dt, data_id fid);
+void trott2_free(struct trott2 *t2);
+int  trott2_simul(struct trott2 *t2);
+int  trott2_write_res(struct trott2 *t2, data_id fid);
+```
+
+Behaviour mirrors `trott_*` with results written to
+`/circ_trott2`.  See `include/circ/trott2.h` for the
+per-function contract.
+
+---
+
+### 8.9 qDRIFT (`include/circ/qdrift.h`)
 
 ```c
 struct qdrift_data {
@@ -1353,7 +1407,7 @@ file.
 
 ---
 
-### 8.9 Composite (`include/circ/cmpsit.h`)
+### 8.10 Composite (`include/circ/cmpsit.h`)
 
 ```c
 struct cmpsit_data {
@@ -1430,18 +1484,30 @@ structure is fully specified in
 
 Key groups:
 
-- `/state_prep/multidet`: initial state as a
+- `/state_prep/multidet`: initial state as an explicit
   multideterminant expansion (complex coefficients and
   Slater determinants).
+- `/state_prep/coeff_matrix`: initial state as a real
+  `(n_sites, n_occ)` molecular-orbital coefficient matrix.
+  The simulator expands it to a dense superposition at
+  `circ_prepst` time via the Slater-Condon formula.
+  Supports `closed_shell`, `tapered`, and an optional
+  `csf/` subgroup for CSF superpositions.
+- Exactly one of `/state_prep/multidet` or
+  `/state_prep/coeff_matrix` must be present; the
+  dispatch table is documented in
+  [doc/simul-h5-specs.md](simul-h5-specs.md).
 - `/pauli_hamil`: Hamiltonian as a list of real
   coefficients and Pauli strings, with a normalisation
   factor.
-- `/circ_trott`: Trotter simulation results (delta
+- `/circ_trott`: 1st-order Trotter results (delta
   attribute and complex-valued output).
-- `/circ_qdrift`: qDRIFT simulation results (step_size,
-  depth, seed attributes and complex-valued output).
-- `/circ_cmpsit`: Composite simulation results (length,
-  depth, angle_det, angle_rand, steps, seed attributes and
+- `/circ_trott2`: symmetric (Strang) 2nd-order Trotter
+  results (delta attribute and complex-valued output).
+- `/circ_qdrift`: qDRIFT results (step_size, depth,
+  num_samples, seed attributes and complex-valued output).
+- `/circ_cmpsit`: composite results (length, depth,
+  angle_det, angle_rand, steps, seed attributes and
   complex-valued output).
 
 Pauli operators in HDF5 datasets use the standard encoding:
@@ -1495,22 +1561,32 @@ runtime flags can be passed via `MPIFLAGS`:
 
 ### 10.4 Test Suite Overview
 
-The test suite consists of 12 test programs:
+The C test binaries live in `test/` and follow the prefix
+convention `t-<area>[_<aspect>]`:
 
-| Test               | Module tested                    |
-|--------------------|----------------------------------|
-| `t-paulis`         | Pauli string encoding/decoding   |
-| `t-qreg`           | Quantum register init/get/set    |
-| `t-world`          | World init/free lifecycle        |
-| `t-data_open`      | HDF5 file open/close             |
-| `t-data_attr`      | HDF5 attribute read/write        |
-| `t-data_hamil`     | Hamiltonian loading from HDF5    |
-| `t-data_multidet`  | Multidet state loading from HDF5 |
-| `t-data_trott_steps` | Trotter step data I/O          |
-| `t-prob`           | CDF construction and inversion   |
-| `t-circ`           | Circuit infrastructure           |
-| `t-circ_cache`     | Cache batching logic             |
-| `t-circ_trott`     | End-to-end Trotter simulation    |
+| Area              | Coverage                                |
+|-------------------|-----------------------------------------|
+| `t-paulis`        | Pauli string encoding and arithmetic    |
+| `t-qreg`, `t-bitstring_index` | quantum register layout, MPI ownership |
+| `t-world`         | global init / free lifecycle            |
+| `t-data_*`        | HDF5 attr, hamil, multidet, coeff_matrix, trott-step I/O |
+| `t-prob`          | CDF construction and inversion          |
+| `t-combinations`, `t-det_small` | enumerator and determinant primitives |
+| `t-circ`, `t-circ_cache`        | circuit infrastructure and cache batching |
+| `t-circ_trott`, `t-circ_trott2` | end-to-end Trotter / Strang Trotter |
+| `t-circ_trott_coeff`, `t-circ_trott2_coeff` | same, on coeff_matrix inputs |
+| `t-circ_prepst_coeff`           | Slater-Condon state-prep dispatch |
+| `t-state_prep_coeff_*`          | expand, CSF superposition, large reference |
+| `t-ref-bendazzoli`              | precomputed CSF amplitudes reference |
 
-Test data files reside in `test/data/`.  Tests are built
-with `-DDEBUG -g -Og` flags.
+The Python harness `test/t-ref-coeff_matrix.py` cross-checks
+the C expansion against an in-tree reference oracle in
+`test/ref/coeff_matrix_reference.py`; it is run by
+`make check-python`.
+
+Test data files reside in `test/data/`.  The slow test
+`t-state_prep_coeff_large` is built and run separately via
+`make build-test-slow` / `make check-slow`.  Sanitiser and
+valgrind variants are available as `make test-asan`,
+`make test-valgrind`, `make test-mpi-asan`.  Tests are
+built with `-DDEBUG -g -Og` flags.
