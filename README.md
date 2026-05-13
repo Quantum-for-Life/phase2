@@ -156,6 +156,8 @@ Documentation
 Citation
 --------
 
+If you use phase2 in published work, cite:
+
 > Marek Miller, Jakob Gunther, Freek Witteveen, Matthew S.
 > Teynor, Mihael Erakovic, Markus Reiher, Gemma C. Solomon,
 > and Matthias Christandl, *phase2: Full-State Vector
