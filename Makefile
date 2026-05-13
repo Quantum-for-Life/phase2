@@ -4,9 +4,9 @@
 # Specify compile flags and the path to both MPI and HDF5 dynamic libraries   #
 # and headers.                                                                #
 # ----------------------------------------------------------------------------#
-VERSION_MAJOR	:= 0
-VERSION_MINOR	:= 12
-VERSION_PATCH	:= 1
+VERSION_MAJOR	:= 1
+VERSION_MINOR	:= 1
+VERSION_PATCH	:= 0
 
 AS		:= nasm
 ASFLAGS		+= -felf64 -w+all -w-reloc-rel-dword -Ox
