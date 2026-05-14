@@ -58,6 +58,54 @@ static inline void bcast_uchars(unsigned char *buf, size_t n)
 		MPI_Bcast(buf, (int)n, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
 }
 
+/* -- common H5 helpers (rank-0-only callers) -------------------------- */
+
+/* Read a whole dataset by name from an already-open group into `buf`. */
+static int read_dset(
+	hid_t grp_id, const char *name, hid_t native_type, void *buf)
+{
+	const hid_t did = H5Dopen2(grp_id, name, H5P_DEFAULT);
+	if (did == H5I_INVALID_HID) {
+		log_error("read_dset: H5Dopen2(%s) failed", name);
+		return -1;
+	}
+	int rt = -1;
+	if (H5Dread(did, native_type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf) < 0)
+		log_error("read_dset: H5Dread(%s) failed", name);
+	else
+		rt = 0;
+	H5Dclose(did);
+	return rt;
+}
+
+/* Read the two extents of a 2-D dataset by name from an already-open
+ * group.  Sets *out_dims[2] on success. */
+static int get_dset_dims2(
+	hid_t grp_id, const char *name, hsize_t out_dims[2])
+{
+	const hid_t dset_id = H5Dopen2(grp_id, name, H5P_DEFAULT);
+	if (dset_id == H5I_INVALID_HID) {
+		log_error("get_dset_dims2: H5Dopen2(%s) failed", name);
+		return -1;
+	}
+	int rt = -1;
+	const hid_t dsp_id = H5Dget_space(dset_id);
+	if (dsp_id == H5I_INVALID_HID) {
+		log_error("get_dset_dims2(%s): H5Dget_space failed", name);
+		goto ex_dset;
+	}
+	if (H5Sget_simple_extent_dims(dsp_id, out_dims, NULL) != 2) {
+		log_error("get_dset_dims2(%s): not a 2-D dataset", name);
+		goto ex_space;
+	}
+	rt = 0;
+ex_space:
+	H5Sclose(dsp_id);
+ex_dset:
+	H5Dclose(dset_id);
+	return rt;
+}
+
 /* -- file open / close ------------------------------------------------ */
 
 data_id data_open(const char *filename)
@@ -109,6 +157,23 @@ int data_grp_create(data_id fid, const char *grp_name)
 
 	int rt = 0;
 	if (WD.rank == 0) {
+		/* Idempotent: if the group already exists, the
+		 * caller (e.g. re-running ph2run on the same
+		 * simul.h5) gets success without a fresh create. */
+		const htri_t exists = H5Lexists(
+			(hid_t)fid, grp_name, H5P_DEFAULT);
+		if (exists > 0) {
+			log_debug("data_grp_create(%s): already exists",
+				grp_name);
+			goto ex_done;
+		}
+		if (exists < 0) {
+			log_error("data_grp_create(%s): H5Lexists failed",
+				grp_name);
+			rt = -1;
+			goto ex_done;
+		}
+
 		rt = -1;
 		const hid_t lcpl = H5Pcreate(H5P_LINK_CREATE);
 		if (lcpl == H5I_INVALID_HID) {
@@ -141,7 +206,8 @@ int data_grp_create(data_id fid, const char *grp_name)
 	ex_group:
 	ex_prop:
 		H5Pclose(lcpl);
-	ex_lcpl:;
+	ex_lcpl:
+	ex_done:;
 	}
 	bcast_int(&rt);
 	return rt;
@@ -320,32 +386,13 @@ int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets)
 		struct muldet_handle md;
 		if (multidet_open((hid_t)fid, &md) < 0)
 			goto ex_open;
-		const hid_t dset_id = H5Dopen2(md.muldet_grp_id,
-			DATA_STPREP_MULTIDET_DETS, H5P_DEFAULT);
-		if (dset_id == H5I_INVALID_HID) {
-			log_error("data_multidet_getnums: H5Dopen2(%s)"
-				  " failed", DATA_STPREP_MULTIDET_DETS);
+		hsize_t dims[2];
+		if (get_dset_dims2(md.muldet_grp_id,
+			    DATA_STPREP_MULTIDET_DETS, dims) < 0)
 			goto ex_md_open;
-		}
-		const hid_t dsp_id = H5Dget_space(dset_id);
-		if (dsp_id == H5I_INVALID_HID) {
-			log_error("data_multidet_getnums: H5Dget_space failed");
-			goto ex_dsp;
-		}
-		hsize_t dsp_dims[2];
-		if (H5Sget_simple_extent_dims(dsp_id, dsp_dims, NULL) != 2) {
-			log_error("data_multidet_getnums: dets dataset is not"
-				  " 2-D");
-			goto ex_dims;
-		}
-
-		v_ndets = dsp_dims[0];
-		v_nqb = (uint32_t)dsp_dims[1];
+		v_ndets = dims[0];
+		v_nqb = (uint32_t)dims[1];
 		rt = 0;
-	ex_dims:
-		H5Sclose(dsp_id);
-	ex_dsp:
-		H5Dclose(dset_id);
 	ex_md_open:
 		multidet_close(md);
 	ex_open:;
@@ -363,46 +410,18 @@ int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets)
 static int multidet_read_data(
 	hid_t fid, double *cfs, unsigned char *dets)
 {
-	int rt = -1;
 	struct muldet_handle md;
 	if (multidet_open(fid, &md) < 0)
 		return -1;
-
-	const hid_t dset_cfs_id = H5Dopen2(md.muldet_grp_id,
-		DATA_STPREP_MULTIDET_COEFFS, H5P_DEFAULT);
-	if (dset_cfs_id == H5I_INVALID_HID) {
-		log_error("multidet_read_data: H5Dopen2(%s) failed",
-			DATA_STPREP_MULTIDET_COEFFS);
-		goto ex_coeffs_open;
-	}
-	if (H5Dread(dset_cfs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, cfs) < 0) {
-		log_error("multidet_read_data: H5Dread(%s) failed",
-			DATA_STPREP_MULTIDET_COEFFS);
-		goto ex_coeffs_read;
-	}
-
-	const hid_t dset_dets_id = H5Dopen2(md.muldet_grp_id,
-		DATA_STPREP_MULTIDET_DETS, H5P_DEFAULT);
-	if (dset_dets_id == H5I_INVALID_HID) {
-		log_error("multidet_read_data: H5Dopen2(%s) failed",
-			DATA_STPREP_MULTIDET_DETS);
-		goto ex_dets_open;
-	}
-	if (H5Dread(dset_dets_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, dets) < 0) {
-		log_error("multidet_read_data: H5Dread(%s) failed",
-			DATA_STPREP_MULTIDET_DETS);
-		goto ex_dets_read;
-	}
-
+	int rt = -1;
+	if (read_dset(md.muldet_grp_id, DATA_STPREP_MULTIDET_COEFFS,
+		    H5T_NATIVE_DOUBLE, cfs) < 0)
+		goto ex;
+	if (read_dset(md.muldet_grp_id, DATA_STPREP_MULTIDET_DETS,
+		    H5T_NATIVE_UCHAR, dets) < 0)
+		goto ex;
 	rt = 0;
-ex_dets_read:
-	H5Dclose(dset_dets_id);
-ex_dets_open:
-ex_coeffs_read:
-	H5Dclose(dset_cfs_id);
-ex_coeffs_open:
+ex:
 	multidet_close(md);
 	return rt;
 }
@@ -443,8 +462,18 @@ int data_multidet_foreach(data_id fid,
 
 	for (size_t i = 0; i < ndets; i++) {
 		uint64_t idx = 0;
-		for (size_t j = 0; j < nqb; j++)
-			idx += (uint64_t)dets[i * nqb + j] << j;
+		for (size_t j = 0; j < nqb; j++) {
+			const unsigned char bit = dets[i * nqb + j];
+			if (bit > 1) {
+				log_error("data_multidet_foreach: dets[%zu][%zu]"
+					  " = %u is not 0/1; multidet group"
+					  " is malformed",
+					i, j, (unsigned)bit);
+				rt = -1;
+				goto ex_data_read;
+			}
+			idx += (uint64_t)bit << j;
+		}
 		_Complex double cf = CMPLX(cfs[2 * i], cfs[2 * i + 1]);
 		rc = op(cf, idx, op_data);
 		/* Caller short-circuits iteration with a non-zero
@@ -481,33 +510,13 @@ int data_hamil_getnums(data_id fid, uint32_t *nqb, size_t *nterms)
 				DATA_HAMIL);
 			goto ex_grp;
 		}
-		const hid_t dset_id = H5Dopen2(
-			grp_id, DATA_HAMIL_PAULIS, H5P_DEFAULT);
-		if (dset_id == H5I_INVALID_HID) {
-			log_error("data_hamil_getnums: H5Dopen2(%s) failed",
-				DATA_HAMIL_PAULIS);
-			goto ex_dset;
-		}
-		const hid_t dsp_id = H5Dget_space(dset_id);
-		if (dsp_id == H5I_INVALID_HID) {
-			log_error("data_hamil_getnums: H5Dget_space failed");
-			goto ex_dsp;
-		}
-		hsize_t dsp_dims[2];
-		if (H5Sget_simple_extent_dims(dsp_id, dsp_dims, NULL) != 2) {
-			log_error("data_hamil_getnums: paulis dataset is"
-				  " not 2-D");
+		hsize_t dims[2];
+		if (get_dset_dims2(grp_id, DATA_HAMIL_PAULIS, dims) < 0)
 			goto ex_dims;
-		}
-
-		v_nterms = dsp_dims[0];
-		v_nqb = (uint32_t)dsp_dims[1];
+		v_nterms = dims[0];
+		v_nqb = (uint32_t)dims[1];
 		rt = 0;
 	ex_dims:
-		H5Sclose(dsp_id);
-	ex_dsp:
-		H5Dclose(dset_id);
-	ex_dset:
 		H5Gclose(grp_id);
 	ex_grp:;
 	}
@@ -528,49 +537,19 @@ int data_hamil_getnorm(data_id fid, double *norm)
 
 static int hamil_read_data(hid_t fid, double *cfs, unsigned char *paulis)
 {
-	int rt = -1;
 	const hid_t grp_id = H5Gopen(fid, DATA_HAMIL, H5P_DEFAULT);
 	if (grp_id == H5I_INVALID_HID) {
 		log_error("hamil_read_data: H5Gopen(%s) failed", DATA_HAMIL);
-		goto ex_grp;
+		return -1;
 	}
-	const hid_t dset_coeffs_id = H5Dopen2(
-		grp_id, DATA_HAMIL_COEFFS, H5P_DEFAULT);
-	if (dset_coeffs_id == H5I_INVALID_HID) {
-		log_error("hamil_read_data: H5Dopen2(%s) failed",
-			DATA_HAMIL_COEFFS);
-		goto ex_coeffs;
-	}
-	if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, cfs) < 0) {
-		log_error("hamil_read_data: H5Dread(%s) failed",
-			DATA_HAMIL_COEFFS);
-		goto ex_coeffs_read;
-	}
-
-	const hid_t dset_paulis_id = H5Dopen2(
-		grp_id, DATA_HAMIL_PAULIS, H5P_DEFAULT);
-	if (dset_paulis_id == H5I_INVALID_HID) {
-		log_error("hamil_read_data: H5Dopen2(%s) failed",
-			DATA_HAMIL_PAULIS);
-		goto ex_paulis;
-	}
-	if (H5Dread(dset_paulis_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, paulis) < 0) {
-		log_error("hamil_read_data: H5Dread(%s) failed",
-			DATA_HAMIL_PAULIS);
-		goto ex_pauli_read;
-	}
-
+	int rt = -1;
+	if (read_dset(grp_id, DATA_HAMIL_COEFFS, H5T_NATIVE_DOUBLE, cfs) < 0)
+		goto ex;
+	if (read_dset(grp_id, DATA_HAMIL_PAULIS, H5T_NATIVE_UCHAR, paulis) < 0)
+		goto ex;
 	rt = 0;
-ex_pauli_read:
-	H5Dclose(dset_paulis_id);
-ex_paulis:
-ex_coeffs_read:
-	H5Dclose(dset_coeffs_id);
-ex_coeffs:
+ex:
 	H5Gclose(grp_id);
-ex_grp:
 	return rt;
 }
 
@@ -832,57 +811,6 @@ static int read_double_attr(hid_t grp_id, const char *name, double *out)
 	return rt;
 }
 
-static int validate_C_shape(hid_t grp_id, const char *dset_name,
-	uint32_t n_sites, uint32_t n_occ)
-{
-	const hid_t did = H5Dopen2(grp_id, dset_name, H5P_DEFAULT);
-	if (did == H5I_INVALID_HID) {
-		log_error("validate_C_shape: H5Dopen2(%s) failed", dset_name);
-		return -1;
-	}
-	int rt = -1;
-	const hid_t sid = H5Dget_space(did);
-	if (sid == H5I_INVALID_HID) {
-		log_error("validate_C_shape: H5Dget_space(%s) failed",
-			dset_name);
-		goto ex_dset;
-	}
-	hsize_t dims[2] = { 0, 0 };
-	if (H5Sget_simple_extent_dims(sid, dims, NULL) != 2) {
-		log_error("validate_C_shape(%s): dataset is not 2-D",
-			dset_name);
-		goto ex_space;
-	}
-	if (dims[0] != n_sites || dims[1] != n_occ) {
-		log_error("validate_C_shape(%s): shape (%llu,%llu) does"
-			  " not match (%u,%u)",
-			dset_name, (unsigned long long)dims[0],
-			(unsigned long long)dims[1], n_sites, n_occ);
-		goto ex_space;
-	}
-	const hid_t tid = H5Dget_type(did);
-	if (tid == H5I_INVALID_HID) {
-		log_error("validate_C_shape: H5Dget_type(%s) failed",
-			dset_name);
-		goto ex_space;
-	}
-	const H5T_class_t cls = H5Tget_class(tid);
-	const size_t sz = H5Tget_size(tid);
-	H5Tclose(tid);
-	if (cls != H5T_FLOAT || sz != sizeof(double)) {
-		log_error("validate_C_shape(%s): expected double, got"
-			  " class=%d size=%zu",
-			dset_name, (int)cls, sz);
-		goto ex_space;
-	}
-	rt = 0;
-ex_space:
-	H5Sclose(sid);
-ex_dset:
-	H5Dclose(did);
-	return rt;
-}
-
 int data_coeff_matrix_getnums(const data_id fid, uint32_t *nqb,
 	uint32_t *n_sites, uint32_t *n_alpha, uint32_t *n_beta,
 	int *closed_shell, int *tapered)
@@ -943,22 +871,54 @@ int data_coeff_matrix_getnums(const data_id fid, uint32_t *nqb,
 static int read_C_dset(hid_t grp_id, const char *name, uint32_t n_sites,
 	uint32_t n_occ, double *buf)
 {
-	if (validate_C_shape(grp_id, name, n_sites, n_occ) < 0)
-		return -1;
-
 	const hid_t did = H5Dopen2(grp_id, name, H5P_DEFAULT);
 	if (did == H5I_INVALID_HID) {
 		log_error("read_C_dset: H5Dopen2(%s) failed", name);
 		return -1;
 	}
 	int rt = -1;
+
+	const hid_t sid = H5Dget_space(did);
+	if (sid == H5I_INVALID_HID) {
+		log_error("read_C_dset(%s): H5Dget_space failed", name);
+		goto ex_dset;
+	}
+	hsize_t dims[2] = { 0, 0 };
+	if (H5Sget_simple_extent_dims(sid, dims, NULL) != 2) {
+		log_error("read_C_dset(%s): dataset is not 2-D", name);
+		goto ex_space;
+	}
+	if (dims[0] != n_sites || dims[1] != n_occ) {
+		log_error("read_C_dset(%s): shape (%llu,%llu) does not match"
+			  " (%u,%u)",
+			name, (unsigned long long)dims[0],
+			(unsigned long long)dims[1], n_sites, n_occ);
+		goto ex_space;
+	}
+	const hid_t tid = H5Dget_type(did);
+	if (tid == H5I_INVALID_HID) {
+		log_error("read_C_dset(%s): H5Dget_type failed", name);
+		goto ex_space;
+	}
+	const H5T_class_t cls = H5Tget_class(tid);
+	const size_t sz = H5Tget_size(tid);
+	H5Tclose(tid);
+	if (cls != H5T_FLOAT || sz != sizeof(double)) {
+		log_error("read_C_dset(%s): expected double, got class=%d"
+			  " size=%zu",
+			name, (int)cls, sz);
+		goto ex_space;
+	}
+
 	if (H5Dread(did, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf)
 		< 0) {
 		log_error("read_C_dset: H5Dread(%s) failed", name);
-		goto ex;
+		goto ex_space;
 	}
 	rt = 0;
-ex:
+ex_space:
+	H5Sclose(sid);
+ex_dset:
 	H5Dclose(did);
 	return rt;
 }
