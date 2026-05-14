@@ -358,40 +358,7 @@ DEFINE_DATA_ATTR_WRITE(dbl, double, H5T_NATIVE_DOUBLE);
 
 /* -- multidet --------------------------------------------------------- */
 
-struct muldet_handle {
-	hid_t stprep_grp_id;
-	hid_t muldet_grp_id;
-};
-
-static int multidet_open(const hid_t fid, struct muldet_handle *md)
-{
-	const hid_t sp_id = H5Gopen(fid, DATA_STPREP, H5P_DEFAULT);
-	if (sp_id == H5I_INVALID_HID) {
-		log_error("multidet_open: H5Gopen(%s) failed", DATA_STPREP);
-		goto err_stprep;
-	}
-	const hid_t md_id = H5Gopen(sp_id, DATA_STPREP_MULTIDET, H5P_DEFAULT);
-	if (md_id == H5I_INVALID_HID) {
-		log_error("multidet_open: H5Gopen(%s/%s) failed",
-			DATA_STPREP, DATA_STPREP_MULTIDET);
-		goto err_muldet;
-	}
-
-	md->stprep_grp_id = sp_id;
-	md->muldet_grp_id = md_id;
-	return 0;
-
-err_muldet:
-	H5Gclose(sp_id);
-err_stprep:
-	return -1;
-}
-
-static void multidet_close(struct muldet_handle md)
-{
-	H5Gclose(md.muldet_grp_id);
-	H5Gclose(md.stprep_grp_id);
-}
+#define MULTIDET_PATH DATA_STPREP "/" DATA_STPREP_MULTIDET
 
 int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets)
 {
@@ -403,18 +370,21 @@ int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets)
 	size_t v_ndets = 0;
 	if (WD.rank == 0) {
 		rt = -1;
-		struct muldet_handle md;
-		if (multidet_open((hid_t)fid, &md) < 0)
+		const hid_t grp_id = H5Gopen(
+			(hid_t)fid, MULTIDET_PATH, H5P_DEFAULT);
+		if (grp_id == H5I_INVALID_HID) {
+			log_error("data_multidet_getnums: H5Gopen(%s) failed",
+				MULTIDET_PATH);
 			goto ex_open;
+		}
 		hsize_t dims[2];
-		if (get_dset_dims2(md.muldet_grp_id,
-			    DATA_STPREP_MULTIDET_DETS, dims) < 0)
-			goto ex_md_open;
+		if (get_dset_dims2(grp_id, DATA_STPREP_MULTIDET_DETS, dims) < 0)
+			goto ex_grp;
 		v_ndets = dims[0];
 		v_nqb = (uint32_t)dims[1];
 		rt = 0;
-	ex_md_open:
-		multidet_close(md);
+	ex_grp:
+		H5Gclose(grp_id);
 	ex_open:;
 	}
 	bcast_int(&rt);
@@ -430,19 +400,22 @@ int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets)
 static int multidet_read_data(
 	hid_t fid, double *cfs, unsigned char *dets)
 {
-	struct muldet_handle md;
-	if (multidet_open(fid, &md) < 0)
+	const hid_t grp_id = H5Gopen(fid, MULTIDET_PATH, H5P_DEFAULT);
+	if (grp_id == H5I_INVALID_HID) {
+		log_error("multidet_read_data: H5Gopen(%s) failed",
+			MULTIDET_PATH);
 		return -1;
+	}
 	int rt = -1;
-	if (read_dset(md.muldet_grp_id, DATA_STPREP_MULTIDET_COEFFS,
-		    H5T_NATIVE_DOUBLE, cfs) < 0)
+	if (read_dset(grp_id, DATA_STPREP_MULTIDET_COEFFS, H5T_NATIVE_DOUBLE,
+		    cfs) < 0)
 		goto ex;
-	if (read_dset(md.muldet_grp_id, DATA_STPREP_MULTIDET_DETS,
-		    H5T_NATIVE_UCHAR, dets) < 0)
+	if (read_dset(grp_id, DATA_STPREP_MULTIDET_DETS, H5T_NATIVE_UCHAR,
+		    dets) < 0)
 		goto ex;
 	rt = 0;
 ex:
-	multidet_close(md);
+	H5Gclose(grp_id);
 	return rt;
 }
 
@@ -860,40 +833,7 @@ int data_state_prep_kind(const data_id fid, enum stprep_kind *out)
 
 /* -- coeff_matrix ----------------------------------------------------- */
 
-struct coeffmat_handle {
-	hid_t stprep_grp_id;
-	hid_t coeffmat_grp_id;
-};
-
-static int coeffmat_open(const hid_t fid, struct coeffmat_handle *cm)
-{
-	const hid_t sp_id = H5Gopen(fid, DATA_STPREP, H5P_DEFAULT);
-	if (sp_id == H5I_INVALID_HID) {
-		log_error("coeffmat_open: H5Gopen(%s) failed", DATA_STPREP);
-		goto err_stprep;
-	}
-	const hid_t cm_id = H5Gopen(sp_id, DATA_STPREP_COEFFMAT, H5P_DEFAULT);
-	if (cm_id == H5I_INVALID_HID) {
-		log_error("coeffmat_open: H5Gopen(%s/%s) failed",
-			DATA_STPREP, DATA_STPREP_COEFFMAT);
-		goto err_cm;
-	}
-
-	cm->stprep_grp_id = sp_id;
-	cm->coeffmat_grp_id = cm_id;
-	return 0;
-
-err_cm:
-	H5Gclose(sp_id);
-err_stprep:
-	return -1;
-}
-
-static void coeffmat_close(struct coeffmat_handle cm)
-{
-	H5Gclose(cm.coeffmat_grp_id);
-	H5Gclose(cm.stprep_grp_id);
-}
+#define COEFFMAT_PATH DATA_STPREP "/" DATA_STPREP_COEFFMAT
 
 static int read_u32_attr(hid_t grp_id, const char *name, uint32_t *out)
 {
@@ -953,31 +893,29 @@ int data_coeff_matrix_getnums(const data_id fid, uint32_t *nqb,
 	int v_cs = 0, v_tap = 0;
 	if (WD.rank == 0) {
 		rt = -1;
-		struct coeffmat_handle cm;
-		if (coeffmat_open((hid_t)fid, &cm) < 0)
+		const hid_t grp_id = H5Gopen(
+			(hid_t)fid, COEFFMAT_PATH, H5P_DEFAULT);
+		if (grp_id == H5I_INVALID_HID) {
+			log_error("data_coeff_matrix_getnums:"
+				  " H5Gopen(%s) failed", COEFFMAT_PATH);
 			goto ex_open;
+		}
 
-		if (read_u32_attr(cm.coeffmat_grp_id,
-			    DATA_STPREP_COEFFMAT_NQB, &v_nqb) < 0)
-			goto ex;
-		if (read_u32_attr(cm.coeffmat_grp_id,
-			    DATA_STPREP_COEFFMAT_NS, &v_ns) < 0)
-			goto ex;
-		if (read_u32_attr(cm.coeffmat_grp_id,
-			    DATA_STPREP_COEFFMAT_NA, &v_na) < 0)
-			goto ex;
-		if (read_u32_attr(cm.coeffmat_grp_id,
-			    DATA_STPREP_COEFFMAT_NB, &v_nb) < 0)
-			goto ex;
-		if (read_u8_attr(cm.coeffmat_grp_id,
-			    DATA_STPREP_COEFFMAT_CS, &v_cs) < 0)
-			goto ex;
-		if (read_u8_attr(cm.coeffmat_grp_id,
-			    DATA_STPREP_COEFFMAT_TAP, &v_tap) < 0)
-			goto ex;
+		if (read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NQB, &v_nqb) < 0
+			|| read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NS,
+				   &v_ns) < 0
+			|| read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NA,
+				   &v_na) < 0
+			|| read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NB,
+				   &v_nb) < 0
+			|| read_u8_attr(grp_id, DATA_STPREP_COEFFMAT_CS,
+				   &v_cs) < 0
+			|| read_u8_attr(grp_id, DATA_STPREP_COEFFMAT_TAP,
+				   &v_tap) < 0)
+			goto ex_grp;
 		rt = 0;
-	ex:
-		coeffmat_close(cm);
+	ex_grp:
+		H5Gclose(grp_id);
 	ex_open:;
 	}
 	bcast_int(&rt);
@@ -1076,21 +1014,23 @@ int data_coeff_matrix_read(
 	int rt = 0;
 	if (WD.rank == 0) {
 		rt = -1;
-		struct coeffmat_handle cm;
-		if (coeffmat_open((hid_t)fid, &cm) < 0)
+		const hid_t grp_id = H5Gopen(
+			(hid_t)fid, COEFFMAT_PATH, H5P_DEFAULT);
+		if (grp_id == H5I_INVALID_HID) {
+			log_error("data_coeff_matrix_read: H5Gopen(%s) failed",
+				COEFFMAT_PATH);
 			goto ex_open;
-		if (read_C_dset(cm.coeffmat_grp_id, DATA_STPREP_COEFFMAT_CA,
-			    n_sites, n_alpha, C_alpha) < 0)
-			goto ex;
-		if (!closed_shell) {
-			if (read_C_dset(cm.coeffmat_grp_id,
-				    DATA_STPREP_COEFFMAT_CB, n_sites, n_beta,
-				    C_beta) < 0)
-				goto ex;
 		}
+		if (read_C_dset(grp_id, DATA_STPREP_COEFFMAT_CA, n_sites,
+			    n_alpha, C_alpha) < 0)
+			goto ex_grp;
+		if (!closed_shell
+			&& read_C_dset(grp_id, DATA_STPREP_COEFFMAT_CB, n_sites,
+				   n_beta, C_beta) < 0)
+			goto ex_grp;
 		rt = 0;
-	ex:
-		coeffmat_close(cm);
+	ex_grp:
+		H5Gclose(grp_id);
 	ex_open:;
 	}
 	bcast_int(&rt);
@@ -1112,36 +1052,40 @@ int data_coeff_matrix_csf_count(const data_id fid, size_t *n)
 	int present = 0;
 	if (WD.rank == 0) {
 		rt = -1;
-		struct coeffmat_handle cm;
-		if (coeffmat_open((hid_t)fid, &cm) < 0)
+		const hid_t grp_id = H5Gopen(
+			(hid_t)fid, COEFFMAT_PATH, H5P_DEFAULT);
+		if (grp_id == H5I_INVALID_HID) {
+			log_error("data_coeff_matrix_csf_count:"
+				  " H5Gopen(%s) failed", COEFFMAT_PATH);
 			goto ex_open;
+		}
 
-		const htri_t has_csf = H5Lexists(cm.coeffmat_grp_id,
-			DATA_STPREP_COEFFMAT_CSF, H5P_DEFAULT);
+		const htri_t has_csf = H5Lexists(
+			grp_id, DATA_STPREP_COEFFMAT_CSF, H5P_DEFAULT);
 		if (has_csf < 0) {
 			log_error("data_coeff_matrix_csf_count: H5Lexists"
 				  " failed");
-			goto ex;
+			goto ex_grp;
 		}
 		if (!has_csf) {
 			present = 0;
 			ncomp = 0;
 			rt = 0;
-			goto ex;
+			goto ex_grp;
 		}
 		present = 1;
 
-		const hid_t cg = H5Gopen(cm.coeffmat_grp_id,
-			DATA_STPREP_COEFFMAT_CSF, H5P_DEFAULT);
+		const hid_t cg = H5Gopen(grp_id, DATA_STPREP_COEFFMAT_CSF,
+			H5P_DEFAULT);
 		if (cg == H5I_INVALID_HID) {
 			log_error("data_coeff_matrix_csf_count: H5Gopen(%s)"
 				  " failed", DATA_STPREP_COEFFMAT_CSF);
-			goto ex;
+			goto ex_grp;
 		}
 		if (read_u32_attr(
 			    cg, DATA_STPREP_COEFFMAT_CSF_NCOMP, &ncomp) < 0) {
 			H5Gclose(cg);
-			goto ex;
+			goto ex_grp;
 		}
 		H5Gclose(cg);
 
@@ -1155,12 +1099,12 @@ int data_coeff_matrix_csf_count(const data_id fid, size_t *n)
 				  " present with n_components=0; remove the"
 				  " csf subgroup or list at least one"
 				  " component");
-			goto ex;
+			goto ex_grp;
 		}
 
 		rt = 0;
-	ex:
-		coeffmat_close(cm);
+	ex_grp:
+		H5Gclose(grp_id);
 	ex_open:;
 	}
 	bcast_int(&rt);
@@ -1195,47 +1139,29 @@ int data_coeff_matrix_csf_read(const data_id fid, const size_t k,
 	int rt = 0;
 	if (WD.rank == 0) {
 		rt = -1;
-		struct coeffmat_handle cm;
-		if (coeffmat_open((hid_t)fid, &cm) < 0)
-			goto ex_open;
-
-		const hid_t cg = H5Gopen(cm.coeffmat_grp_id,
-			DATA_STPREP_COEFFMAT_CSF, H5P_DEFAULT);
-		if (cg == H5I_INVALID_HID) {
-			log_error("data_coeff_matrix_csf_read[%zu]:"
-				  " H5Gopen(%s) failed",
-				k, DATA_STPREP_COEFFMAT_CSF);
-			goto ex_csf;
-		}
-
-		char kname[32];
-		snprintf(kname, sizeof kname, "%zu", k);
-		const hid_t cg_k = H5Gopen(cg, kname, H5P_DEFAULT);
+		char path[64];
+		snprintf(path, sizeof path, "%s/%s/%zu", COEFFMAT_PATH,
+			DATA_STPREP_COEFFMAT_CSF, k);
+		const hid_t cg_k = H5Gopen((hid_t)fid, path, H5P_DEFAULT);
 		if (cg_k == H5I_INVALID_HID) {
 			log_error("data_coeff_matrix_csf_read[%zu]:"
-				  " H5Gopen(%s/%s) failed",
-				k, DATA_STPREP_COEFFMAT_CSF, kname);
-			goto ex_kgrp;
+				  " H5Gopen(%s) failed", k, path);
+			goto ex_open;
 		}
 
 		if (read_double_attr(cg_k, DATA_STPREP_COEFFMAT_CSF_CF,
 			    coefficient) < 0)
-			goto ex_read;
+			goto ex_kgrp;
 		if (read_C_dset(cg_k, DATA_STPREP_COEFFMAT_CA, n_sites,
 			    n_alpha, C_alpha) < 0)
-			goto ex_read;
-		if (!closed_shell) {
-			if (read_C_dset(cg_k, DATA_STPREP_COEFFMAT_CB,
-				    n_sites, n_beta, C_beta) < 0)
-				goto ex_read;
-		}
+			goto ex_kgrp;
+		if (!closed_shell
+			&& read_C_dset(cg_k, DATA_STPREP_COEFFMAT_CB, n_sites,
+				   n_beta, C_beta) < 0)
+			goto ex_kgrp;
 		rt = 0;
-	ex_read:
-		H5Gclose(cg_k);
 	ex_kgrp:
-		H5Gclose(cg);
-	ex_csf:
-		coeffmat_close(cm);
+		H5Gclose(cg_k);
 	ex_open:;
 	}
 	bcast_int(&rt);
