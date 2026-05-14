@@ -137,7 +137,6 @@ int cmpsit_init(
 	if (circ_init(&cp->ct, fid, dt->samples) < 0)
 		goto err_circ_init;
 	cp->dt = *dt;
-	cp->fid = fid;
 	if (ranct_init(&cp->ranct, &cp->ct.hm, dt) < 0)
 		goto err_ranct_init;
 
@@ -146,8 +145,9 @@ int cmpsit_init(
 	}
 	xoshiro256ss_init(&cp->rng, SEED);
 
-	if (data_circ_init(fid, DATA_CIRCCMPSIT, dt->samples) < 0) {
-		log_error("cmpsit_init: data_circ_init(%s) failed",
+	if (data_circ_writer_init(fid, DATA_CIRCCMPSIT, dt->samples, &cp->wr)
+		< 0) {
+		log_error("cmpsit_init: data_circ_writer_init(%s) failed",
 			DATA_CIRCCMPSIT);
 		goto err_data_init;
 	}
@@ -164,11 +164,13 @@ int cmpsit_init(
 		|| data_attr_write(fid, DATA_CIRCCMPSIT,
 			   DATA_CIRCCMPSIT_SEED, (unsigned long)SEED) < 0) {
 		log_error("cmpsit_init: writing scalar attributes failed");
-		goto err_data_init;
+		goto err_attrs;
 	}
 
 	return 0;
 
+err_attrs:
+	data_circ_writer_close(&cp->wr);
 err_data_init:
 	cmpsit_ranct_free(&cp->ranct);
 err_ranct_init:
@@ -179,6 +181,7 @@ err_circ_init:
 
 void cmpsit_free(struct cmpsit *cp)
 {
+	data_circ_writer_close(&cp->wr);
 	cmpsit_ranct_free(&cp->ranct);
 	circ_free(&cp->ct);
 }
@@ -282,9 +285,7 @@ int cmpsit_simul(struct cmpsit *cp)
 			ranct_hmsmpl_free(cp);
 		}
 		vals->z[i] = circ_measure(ct);
-		if (cp->fid != 0
-			&& data_circ_write_step(cp->fid, DATA_CIRCCMPSIT, i,
-				   vals->z[i]) < 0) {
+		if (data_circ_write_step(&cp->wr, i, vals->z[i]) < 0) {
 			log_error("cmpsit_simul: write_step %zu failed", i);
 			return -1;
 		}

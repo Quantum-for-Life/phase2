@@ -25,7 +25,7 @@ struct trott2_data {
 struct trott2 {
 	struct circ ct;
 	struct trott2_data dt;
-	data_id fid;	/* output file; 0 means "no per-step writes" */
+	struct data_circ_writer wr;
 };
 
 /* Load Hamiltonian and initial state, allocate the register,

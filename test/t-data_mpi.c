@@ -5,10 +5,11 @@
  *      DATA_FOLLOWER_FID on other ranks.
  *   2. The collective Hamiltonian read produces byte-equal
  *      buffers on every rank (Bcast worked).
- *   3. data_circ_init pre-allocates the values dataset with
- *      NaN padding, and data_circ_write_step fills rows one
- *      at a time -- after writing rows 0..k-1, the remaining
- *      rows 0..N-1 are still NaN.  Rank 0 is the only writer.
+ *   3. data_circ_writer_init pre-allocates the values dataset
+ *      with NaN padding and caches the open handle;
+ *      data_circ_write_step fills rows one at a time --
+ *      after writing rows 0..k-1, the remaining rows
+ *      0..N-1 are still NaN.  Rank 0 is the only writer.
  *
  * Run via `make check-mpi MPIRANKS>=2`.  Single-rank
  * invocation also passes (the rank-0 vs follower scenarios
@@ -134,11 +135,13 @@ static void t_nan_padding_and_partial_write(int rank)
 	const data_id fid = data_open(FILENAME);
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open for write test");
 
-	TEST_EQ(data_circ_init(fid, "circ_trott", N_STEPS), 0);
+	struct data_circ_writer wr;
+	TEST_EQ(data_circ_writer_init(fid, "circ_trott", N_STEPS, &wr), 0);
 	for (size_t i = 0; i < N_WRITTEN; i++) {
 		const _Complex double z = CMPLX((double)(i + 1), -(double)i);
-		TEST_EQ(data_circ_write_step(fid, "circ_trott", i, z), 0);
+		TEST_EQ(data_circ_write_step(&wr, i, z), 0);
 	}
+	data_circ_writer_close(&wr);
 	data_close(fid);
 
 	/* Rank 0 re-reads the dataset and asserts the written

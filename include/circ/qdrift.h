@@ -42,7 +42,7 @@ struct qdrift {
 	struct qdrift_data dt;
 	struct qdrift_ranct ranct;
 	struct xoshiro256ss rng;
-	data_id fid;	/* output file; 0 means "no per-step writes" */
+	struct data_circ_writer wr;
 };
 
 /* Load Hamiltonian and initial state, build the |c_k| CDF,

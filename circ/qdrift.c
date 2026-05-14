@@ -60,7 +60,6 @@ int qdrift_init(
 		goto err_circ_init;
 
 	qd->dt = *dt;
-	qd->fid = fid;
 
 	if (ranct_init(&qd->ranct, qd->ct.hm.qb, dt->depth, qd->ct.hm.len) < 0)
 		goto err_rct_init;
@@ -71,8 +70,9 @@ int qdrift_init(
 	}
 	xoshiro256ss_init(&qd->rng, SEED);
 
-	if (data_circ_init(fid, DATA_CIRCQDRIFT, dt->samples) < 0) {
-		log_error("qdrift_init: data_circ_init(%s) failed",
+	if (data_circ_writer_init(fid, DATA_CIRCQDRIFT, dt->samples, &qd->wr)
+		< 0) {
+		log_error("qdrift_init: data_circ_writer_init(%s) failed",
 			DATA_CIRCQDRIFT);
 		goto err_data_init;
 	}
@@ -85,11 +85,13 @@ int qdrift_init(
 		|| data_attr_write(fid, DATA_CIRCQDRIFT,
 			   DATA_CIRCQDRIFT_SEED, (unsigned long)SEED) < 0) {
 		log_error("qdrift_init: writing scalar attributes failed");
-		goto err_data_init;
+		goto err_attrs;
 	}
 
 	return 0;
 
+err_attrs:
+	data_circ_writer_close(&qd->wr);
 err_data_init:
 	ranct_free(&qd->ranct);
 err_rct_init:
@@ -100,6 +102,7 @@ err_circ_init:
 
 void qdrift_free(struct qdrift *qd)
 {
+	data_circ_writer_close(&qd->wr);
 	ranct_free(&qd->ranct);
 	circ_free(&qd->ct);
 }
@@ -146,9 +149,7 @@ int qdrift_simul(struct qdrift *qd)
 		}
 		vals->z[i] = circ_measure(ct);
 
-		if (qd->fid != 0
-			&& data_circ_write_step(qd->fid, DATA_CIRCQDRIFT, i,
-				   vals->z[i]) < 0) {
+		if (data_circ_write_step(&qd->wr, i, vals->z[i]) < 0) {
 			log_error("qdrift_simul: write_step %zu failed", i);
 			return -1;
 		}

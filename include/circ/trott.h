@@ -23,15 +23,15 @@ struct trott_data {
 struct trott {
 	struct circ ct;
 	struct trott_data dt;
-	data_id fid;	/* output file; 0 means "no per-step writes" */
+	struct data_circ_writer wr;
 };
 
 /* Load Hamiltonian and initial state, allocate the register,
  * sort the Hamiltonian lexicographically, create the
  * /circ_trott output group with NaN-padded values dataset
- * and the delta attribute.  Stores `fid` in the struct so
- * trott_simul() can write one row per step.  Returns 0 on
- * success, -1 on error. */
+ * and the delta attribute.  Caches the open dataset in
+ * tt->wr so trott_simul() can write one row per step.
+ * Returns 0 on success, -1 on error. */
 int trott_init(struct trott *tt, const struct trott_data *dt, data_id fid);
 
 /* Release all resources held by `tt`. */

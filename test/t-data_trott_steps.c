@@ -1,10 +1,11 @@
 /*
  * Round-trip the /circ_trott group via the per-step write
- * API: data_circ_init pre-allocates a NaN-padded values
- * dataset; data_circ_write_step hyperslab-writes one row
- * at a time.  Reopen, read back via data_attr_read (delta)
- * and direct H5Dread on rank 0 (the values dataset);
- * confirm bit-for-bit match.
+ * API: data_circ_writer_init pre-allocates a NaN-padded
+ * values dataset and caches the open handle;
+ * data_circ_write_step hyperslab-writes one row at a time.
+ * Reopen, read back via data_attr_read (delta) and direct
+ * H5Dread on rank 0 (the values dataset); confirm
+ * bit-for-bit match.
  */
 #include "c23_compat.h"
 #include <complex.h>
@@ -59,15 +60,16 @@ int main(void)
 		goto ex_dat2_open;
 	}
 
-	if (data_circ_init(fid, DATA_CIRCTROTT, SIZE) < 0)
-		TEST_FAIL("data_circ_init");
+	struct data_circ_writer wr;
+	if (data_circ_writer_init(fid, DATA_CIRCTROTT, SIZE, &wr) < 0)
+		TEST_FAIL("data_circ_writer_init");
 	if (data_attr_write(
 		    fid, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA, delta) < 0)
 		TEST_FAIL("data_attr_write delta");
 	for (size_t i = 0; i < SIZE; i++)
-		if (data_circ_write_step(
-			    fid, DATA_CIRCTROTT, i, tst_vals[i]) < 0)
+		if (data_circ_write_step(&wr, i, tst_vals[i]) < 0)
 			TEST_FAIL("data_circ_write_step %zu", i);
+	data_circ_writer_close(&wr);
 	data_close(fid);
 
 	/* Read delta back through the collective data_attr_read

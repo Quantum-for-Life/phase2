@@ -256,23 +256,44 @@ void data_hamil_free(struct data_hamil *h);
 /*
  * Per-step write API for /circ_{trott,trott2,qdrift,cmpsit}.
  *
- * data_circ_init():
- *   Open or create the named group, pre-allocate a `values`
- *   dataset of shape (n_steps, 2) pre-filled with NaN.  All
- *   ranks call; rank > 0 is a no-op.  Idempotent: a second
- *   call on the same group does nothing (the existing
- *   dataset is reused).
+ * A writer captures (fid, group, values dataset) so per-step
+ * writes do not re-open the dataset each call.  The dset
+ * field stores an hid_t for the open /grp/values dataset on
+ * rank 0; it is unused on followers.
+ *
+ * data_circ_writer_init():
+ *   Create the named group (idempotent) and pre-allocate the
+ *   `values` dataset of shape (n_steps, 2) pre-filled with
+ *   NaN, then leave it open on rank 0 with the handle cached
+ *   in *w.  Passing fid == 0 zeroes the writer and returns
+ *   success: a subsequent data_circ_write_step is a no-op,
+ *   so callers can disable per-step output by passing fid=0.
+ *   All ranks call.
  *
  * data_circ_write_step():
- *   Hyperslab-write one row of the `values` dataset and
- *   H5Fflush.  All ranks call; rank > 0 is a no-op.  A crash
- *   between steps leaves the file consistent up to the last
- *   flushed row; unwritten rows remain NaN.
+ *   Hyperslab-write one row of the cached dataset and
+ *   H5Fflush.  All ranks call; followers and disabled
+ *   writers return 0 without I/O.  A crash between steps
+ *   leaves the file consistent up to the last flushed row;
+ *   unwritten rows remain NaN.
  *
- * Both return 0 on success, -1 on error (with log_error).
+ * data_circ_writer_close():
+ *   Close the cached dataset on rank 0 and zero the writer.
+ *   Safe to call on a disabled or already-closed writer.
+ *
+ * The two write functions return 0 on success, -1 on error
+ * (with log_error).
  */
-int data_circ_init(data_id fid, const char *grp_name, size_t n_steps);
-int data_circ_write_step(data_id fid, const char *grp_name, size_t step_idx,
+struct data_circ_writer {
+	data_id fid;
+	int64_t dset;	/* H5Dopen handle on rank 0; 0 otherwise */
+	size_t n_steps;
+};
+
+int data_circ_writer_init(data_id fid, const char *grp_name, size_t n_steps,
+	struct data_circ_writer *w);
+int data_circ_write_step(struct data_circ_writer *w, size_t step_idx,
 	_Complex double z);
+void data_circ_writer_close(struct data_circ_writer *w);
 
 #endif // PHASE2_DATA_H

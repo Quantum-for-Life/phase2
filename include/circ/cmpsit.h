@@ -49,7 +49,7 @@ struct cmpsit {
 	struct cmpsit_data dt;
 	struct cmpsit_ranct ranct;
 	struct xoshiro256ss rng;
-	data_id fid;	/* output file; 0 means "no per-step writes" */
+	struct data_circ_writer wr;
 };
 
 /* Load the Hamiltonian and initial state, split into
