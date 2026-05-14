@@ -3,15 +3,17 @@
  *
  * Rank 0 owns the file handle and performs every H5 call.
  * Other ranks receive read results via MPI_Bcast and short-
- * circuit on writes.  The architecture means the underlying
- * HDF5 build is the standard (serial) library; no parallel-
- * HDF5 driver is needed.
+ * circuit on writes.  The underlying HDF5 build is standard
+ * (serial); no parallel-HDF5 driver is needed.
+ *
+ * Every error path emits a log_error line naming the failing
+ * H5 operation and the relevant context (group, dataset,
+ * attribute, index).  Return codes are normalised to {0, -1}.
  */
 
 #define LOG_SUBSYS "data"
 
 #include "c23_compat.h"
-#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -109,16 +111,30 @@ int data_grp_create(data_id fid, const char *grp_name)
 	if (WD.rank == 0) {
 		rt = -1;
 		const hid_t lcpl = H5Pcreate(H5P_LINK_CREATE);
-		if (lcpl == H5I_INVALID_HID)
+		if (lcpl == H5I_INVALID_HID) {
+			log_error("data_grp_create(%s): H5Pcreate failed",
+				grp_name);
 			goto ex_lcpl;
-		if (H5Pset_create_intermediate_group(lcpl, 1) < 0)
+		}
+		if (H5Pset_create_intermediate_group(lcpl, 1) < 0) {
+			log_error("data_grp_create(%s):"
+				  " H5Pset_create_intermediate_group failed",
+				grp_name);
 			goto ex_prop;
-		if (H5Pset_char_encoding(lcpl, H5T_CSET_UTF8) < 0)
+		}
+		if (H5Pset_char_encoding(lcpl, H5T_CSET_UTF8) < 0) {
+			log_error("data_grp_create(%s):"
+				  " H5Pset_char_encoding failed",
+				grp_name);
 			goto ex_prop;
+		}
 		const hid_t group = H5Gcreate((hid_t)fid, grp_name, lcpl,
 			H5P_DEFAULT, H5P_DEFAULT);
-		if (group == H5I_INVALID_HID)
+		if (group == H5I_INVALID_HID) {
+			log_error("data_grp_create(%s): H5Gcreate failed",
+				grp_name);
 			goto ex_group;
+		}
 
 		rt = 0;
 		H5Gclose(group);
@@ -140,19 +156,31 @@ int data_grp_create(data_id fid, const char *grp_name)
 		if (world_info(&WD) != WORLD_READY)                            \
 			return -1;                                             \
 		int rt = 0;                                                    \
+		type local = (type)0;                                          \
 		if (WD.rank == 0) {                                            \
 			rt = -1;                                               \
 			const hid_t grp_id = H5Gopen(                          \
 				(hid_t)fid, grp_name, H5P_DEFAULT);            \
-			if (grp_id == H5I_INVALID_HID)                         \
+			if (grp_id == H5I_INVALID_HID) {                       \
+				log_error("data_attr_read(%s/%s):"             \
+					  " H5Gopen failed",                   \
+					grp_name, attr_name);                  \
 				goto ex_grp_id;                                \
+			}                                                      \
 			const hid_t attr_id = H5Aopen(                         \
 				grp_id, attr_name, H5P_DEFAULT);               \
-			if (attr_id == H5I_INVALID_HID)                        \
+			if (attr_id == H5I_INVALID_HID) {                      \
+				log_error("data_attr_read(%s/%s):"             \
+					  " H5Aopen failed",                   \
+					grp_name, attr_name);                  \
 				goto ex_attr_id;                               \
-			if (H5Aread(attr_id, h5_type, a) < 0)                  \
+			}                                                      \
+			if (H5Aread(attr_id, h5_type, &local) < 0) {           \
+				log_error("data_attr_read(%s/%s):"             \
+					  " H5Aread failed",                   \
+					grp_name, attr_name);                  \
 				goto ex_h5aread;                               \
-                                                                               \
+			}                                                      \
 			rt = 0;                                                \
 		ex_h5aread:                                                    \
 			H5Aclose(attr_id);                                     \
@@ -163,7 +191,8 @@ int data_grp_create(data_id fid, const char *grp_name)
 		bcast_int(&rt);                                                \
 		if (rt < 0)                                                    \
 			return -1;                                             \
-		MPI_Bcast(a, 1, mpi_type, 0, MPI_COMM_WORLD);                  \
+		MPI_Bcast(&local, 1, mpi_type, 0, MPI_COMM_WORLD);             \
+		*a = local;                                                    \
 		return 0;                                                      \
 	}
 
@@ -182,23 +211,46 @@ DEFINE_DATA_ATTR_READ(dbl, double, H5T_NATIVE_DOUBLE, MPI_DOUBLE);
 			rt = -1;                                               \
 			const hid_t grp_id = H5Gopen(                          \
 				(hid_t)fid, grp_name, H5P_DEFAULT);            \
-			if (grp_id == H5I_INVALID_HID)                         \
+			if (grp_id == H5I_INVALID_HID) {                       \
+				log_error("data_attr_write(%s/%s):"            \
+					  " H5Gopen failed",                   \
+					grp_name, attr_name);                  \
 				goto ex_group;                                 \
+			}                                                      \
 			const hid_t acpl = H5Pcreate(H5P_ATTRIBUTE_CREATE);    \
-			if (acpl == H5I_INVALID_HID)                           \
+			if (acpl == H5I_INVALID_HID) {                         \
+				log_error("data_attr_write(%s/%s):"            \
+					  " H5Pcreate(acpl) failed",           \
+					grp_name, attr_name);                  \
 				goto ex_acpl;                                  \
-			if (H5Pset_char_encoding(acpl, H5T_CSET_UTF8) < 0)     \
+			}                                                      \
+			if (H5Pset_char_encoding(acpl, H5T_CSET_UTF8) < 0) {   \
+				log_error("data_attr_write(%s/%s):"            \
+					  " H5Pset_char_encoding failed",      \
+					grp_name, attr_name);                  \
 				goto ex_fspace;                                \
+			}                                                      \
 			const hid_t fspace = H5Screate(H5S_SCALAR);            \
-			if (fspace == H5I_INVALID_HID)                         \
+			if (fspace == H5I_INVALID_HID) {                       \
+				log_error("data_attr_write(%s/%s):"            \
+					  " H5Screate failed",                 \
+					grp_name, attr_name);                  \
 				goto ex_fspace;                                \
+			}                                                      \
 			const hid_t attr_id = H5Acreate2(grp_id, attr_name,    \
 				h5_type, fspace, acpl, H5P_DEFAULT);           \
-			if (attr_id == H5I_INVALID_HID)                        \
+			if (attr_id == H5I_INVALID_HID) {                      \
+				log_error("data_attr_write(%s/%s):"            \
+					  " H5Acreate2 failed",                \
+					grp_name, attr_name);                  \
 				goto ex_attr;                                  \
-			if (H5Awrite(attr_id, h5_type, &a) < 0)                \
+			}                                                      \
+			if (H5Awrite(attr_id, h5_type, &a) < 0) {              \
+				log_error("data_attr_write(%s/%s):"            \
+					  " H5Awrite failed",                  \
+					grp_name, attr_name);                  \
 				goto ex_write;                                 \
-                                                                               \
+			}                                                      \
 			rt = 0;                                                \
 		ex_write:                                                      \
 			H5Aclose(attr_id);                                     \
@@ -228,11 +280,16 @@ struct muldet_handle {
 static int multidet_open(const hid_t fid, struct muldet_handle *md)
 {
 	const hid_t sp_id = H5Gopen(fid, DATA_STPREP, H5P_DEFAULT);
-	if (sp_id == H5I_INVALID_HID)
+	if (sp_id == H5I_INVALID_HID) {
+		log_error("multidet_open: H5Gopen(%s) failed", DATA_STPREP);
 		goto err_stprep;
+	}
 	const hid_t md_id = H5Gopen(sp_id, DATA_STPREP_MULTIDET, H5P_DEFAULT);
-	if (md_id == H5I_INVALID_HID)
+	if (md_id == H5I_INVALID_HID) {
+		log_error("multidet_open: H5Gopen(%s/%s) failed",
+			DATA_STPREP, DATA_STPREP_MULTIDET);
 		goto err_muldet;
+	}
 
 	md->stprep_grp_id = sp_id;
 	md->muldet_grp_id = md_id;
@@ -265,14 +322,22 @@ int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets)
 			goto ex_open;
 		const hid_t dset_id = H5Dopen2(md.muldet_grp_id,
 			DATA_STPREP_MULTIDET_DETS, H5P_DEFAULT);
-		if (dset_id == H5I_INVALID_HID)
+		if (dset_id == H5I_INVALID_HID) {
+			log_error("data_multidet_getnums: H5Dopen2(%s)"
+				  " failed", DATA_STPREP_MULTIDET_DETS);
 			goto ex_md_open;
+		}
 		const hid_t dsp_id = H5Dget_space(dset_id);
-		if (dsp_id == H5I_INVALID_HID)
+		if (dsp_id == H5I_INVALID_HID) {
+			log_error("data_multidet_getnums: H5Dget_space failed");
 			goto ex_dsp;
+		}
 		hsize_t dsp_dims[2];
-		if (H5Sget_simple_extent_dims(dsp_id, dsp_dims, NULL) != 2)
+		if (H5Sget_simple_extent_dims(dsp_id, dsp_dims, NULL) != 2) {
+			log_error("data_multidet_getnums: dets dataset is not"
+				  " 2-D");
 			goto ex_dims;
+		}
 
 		v_ndets = dsp_dims[0];
 		v_nqb = (uint32_t)dsp_dims[1];
@@ -305,19 +370,31 @@ static int multidet_read_data(
 
 	const hid_t dset_cfs_id = H5Dopen2(md.muldet_grp_id,
 		DATA_STPREP_MULTIDET_COEFFS, H5P_DEFAULT);
-	if (dset_cfs_id == H5I_INVALID_HID)
+	if (dset_cfs_id == H5I_INVALID_HID) {
+		log_error("multidet_read_data: H5Dopen2(%s) failed",
+			DATA_STPREP_MULTIDET_COEFFS);
 		goto ex_coeffs_open;
+	}
 	if (H5Dread(dset_cfs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, cfs) < 0)
+		    H5P_DEFAULT, cfs) < 0) {
+		log_error("multidet_read_data: H5Dread(%s) failed",
+			DATA_STPREP_MULTIDET_COEFFS);
 		goto ex_coeffs_read;
+	}
 
 	const hid_t dset_dets_id = H5Dopen2(md.muldet_grp_id,
 		DATA_STPREP_MULTIDET_DETS, H5P_DEFAULT);
-	if (dset_dets_id == H5I_INVALID_HID)
+	if (dset_dets_id == H5I_INVALID_HID) {
+		log_error("multidet_read_data: H5Dopen2(%s) failed",
+			DATA_STPREP_MULTIDET_DETS);
 		goto ex_dets_open;
+	}
 	if (H5Dread(dset_dets_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, dets) < 0)
+		    H5P_DEFAULT, dets) < 0) {
+		log_error("multidet_read_data: H5Dread(%s) failed",
+			DATA_STPREP_MULTIDET_DETS);
 		goto ex_dets_read;
+	}
 
 	rt = 0;
 ex_dets_read:
@@ -341,11 +418,17 @@ int data_multidet_foreach(data_id fid,
 		return -1;
 
 	double *cfs = malloc(sizeof *cfs * 2 * ndets);
-	if (!cfs)
+	if (!cfs) {
+		log_error("data_multidet_foreach: alloc cfs (%zu bytes)",
+			sizeof *cfs * 2 * ndets);
 		goto ex_alloc_coeffs;
+	}
 	unsigned char *dets = malloc(sizeof *dets * ndets * nqb);
-	if (!dets)
+	if (!dets) {
+		log_error("data_multidet_foreach: alloc dets (%zu bytes)",
+			sizeof *dets * ndets * nqb);
 		goto ex_alloc_dets;
+	}
 
 	int status = 0;
 	if (WD.rank == 0) {
@@ -393,22 +476,36 @@ int data_hamil_getnums(data_id fid, uint32_t *nqb, size_t *nterms)
 		rt = -1;
 		const hid_t grp_id = H5Gopen(
 			(hid_t)fid, DATA_HAMIL, H5P_DEFAULT);
-		if (grp_id == H5I_INVALID_HID)
+		if (grp_id == H5I_INVALID_HID) {
+			log_error("data_hamil_getnums: H5Gopen(%s) failed",
+				DATA_HAMIL);
 			goto ex_grp;
+		}
 		const hid_t dset_id = H5Dopen2(
 			grp_id, DATA_HAMIL_PAULIS, H5P_DEFAULT);
-		if (dset_id == H5I_INVALID_HID)
+		if (dset_id == H5I_INVALID_HID) {
+			log_error("data_hamil_getnums: H5Dopen2(%s) failed",
+				DATA_HAMIL_PAULIS);
 			goto ex_dset;
+		}
 		const hid_t dsp_id = H5Dget_space(dset_id);
+		if (dsp_id == H5I_INVALID_HID) {
+			log_error("data_hamil_getnums: H5Dget_space failed");
+			goto ex_dsp;
+		}
 		hsize_t dsp_dims[2];
-		if (H5Sget_simple_extent_dims(dsp_id, dsp_dims, NULL) != 2)
+		if (H5Sget_simple_extent_dims(dsp_id, dsp_dims, NULL) != 2) {
+			log_error("data_hamil_getnums: paulis dataset is"
+				  " not 2-D");
 			goto ex_dims;
+		}
 
 		v_nterms = dsp_dims[0];
 		v_nqb = (uint32_t)dsp_dims[1];
 		rt = 0;
 	ex_dims:
 		H5Sclose(dsp_id);
+	ex_dsp:
 		H5Dclose(dset_id);
 	ex_dset:
 		H5Gclose(grp_id);
@@ -433,23 +530,37 @@ static int hamil_read_data(hid_t fid, double *cfs, unsigned char *paulis)
 {
 	int rt = -1;
 	const hid_t grp_id = H5Gopen(fid, DATA_HAMIL, H5P_DEFAULT);
-	if (grp_id == H5I_INVALID_HID)
+	if (grp_id == H5I_INVALID_HID) {
+		log_error("hamil_read_data: H5Gopen(%s) failed", DATA_HAMIL);
 		goto ex_grp;
+	}
 	const hid_t dset_coeffs_id = H5Dopen2(
 		grp_id, DATA_HAMIL_COEFFS, H5P_DEFAULT);
-	if (dset_coeffs_id == H5I_INVALID_HID)
+	if (dset_coeffs_id == H5I_INVALID_HID) {
+		log_error("hamil_read_data: H5Dopen2(%s) failed",
+			DATA_HAMIL_COEFFS);
 		goto ex_coeffs;
+	}
 	if (H5Dread(dset_coeffs_id, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, cfs) < 0)
+		    H5P_DEFAULT, cfs) < 0) {
+		log_error("hamil_read_data: H5Dread(%s) failed",
+			DATA_HAMIL_COEFFS);
 		goto ex_coeffs_read;
+	}
 
 	const hid_t dset_paulis_id = H5Dopen2(
 		grp_id, DATA_HAMIL_PAULIS, H5P_DEFAULT);
-	if (dset_paulis_id == H5I_INVALID_HID)
+	if (dset_paulis_id == H5I_INVALID_HID) {
+		log_error("hamil_read_data: H5Dopen2(%s) failed",
+			DATA_HAMIL_PAULIS);
 		goto ex_paulis;
+	}
 	if (H5Dread(dset_paulis_id, H5T_NATIVE_UCHAR, H5S_ALL, H5S_ALL,
-		    H5P_DEFAULT, paulis) < 0)
+		    H5P_DEFAULT, paulis) < 0) {
+		log_error("hamil_read_data: H5Dread(%s) failed",
+			DATA_HAMIL_PAULIS);
 		goto ex_pauli_read;
+	}
 
 	rt = 0;
 ex_pauli_read:
@@ -474,11 +585,17 @@ int data_hamil_foreach(const data_id fid,
 		return -1;
 
 	double *cfs = malloc(sizeof *cfs * nterms);
-	if (!cfs)
+	if (!cfs) {
+		log_error("data_hamil_foreach: alloc cfs (%zu bytes)",
+			sizeof *cfs * nterms);
 		goto ex_coeffs_alloc;
+	}
 	unsigned char *paulis = malloc(sizeof *paulis * nqb * nterms);
-	if (!paulis)
+	if (!paulis) {
+		log_error("data_hamil_foreach: alloc paulis (%zu bytes)",
+			sizeof *paulis * nqb * nterms);
 		goto ex_paulis_alloc;
+	}
 
 	int status = 0;
 	if (WD.rank == 0) {
@@ -492,8 +609,11 @@ int data_hamil_foreach(const data_id fid,
 	bcast_uchars(paulis, nqb * nterms);
 
 	unsigned char *paustr = malloc(sizeof *paustr * nqb);
-	if (!paustr)
+	if (!paustr) {
+		log_error("data_hamil_foreach: alloc paustr (%zu bytes)",
+			sizeof *paustr * nqb);
 		goto ex_paustr_alloc;
+	}
 
 	for (size_t i = 0; i < nterms; i++) {
 		for (size_t j = 0; j < nqb; j++)
@@ -527,21 +647,34 @@ int data_res_write(data_id fid, const char *grp_name, const char *dset_name,
 		rt = -1;
 		const hid_t grp_id = H5Gopen(
 			(hid_t)fid, grp_name, H5P_DEFAULT);
-		if (grp_id == H5I_INVALID_HID)
+		if (grp_id == H5I_INVALID_HID) {
+			log_error("data_res_write(%s/%s): H5Gopen failed",
+				grp_name, dset_name);
 			goto ex_open;
+		}
 		const hid_t dspace_id = H5Screate_simple(
 			2, (hsize_t[]){ nvals, 2 }, NULL);
-		if (dspace_id == H5I_INVALID_HID)
+		if (dspace_id == H5I_INVALID_HID) {
+			log_error("data_res_write(%s/%s): H5Screate_simple"
+				  " failed (nvals=%zu)",
+				grp_name, dset_name, nvals);
 			goto ex_fspace;
+		}
 
 		const hid_t dset_id = H5Dcreate2(grp_id, dset_name,
 			H5T_IEEE_F64LE, dspace_id, H5P_DEFAULT, H5P_DEFAULT,
 			H5P_DEFAULT);
-		if (dset_id == H5I_INVALID_HID)
+		if (dset_id == H5I_INVALID_HID) {
+			log_error("data_res_write(%s/%s): H5Dcreate2 failed",
+				grp_name, dset_name);
 			goto ex_dset;
+		}
 		if (H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, H5S_ALL, dspace_id,
-			    H5P_DEFAULT, vals) < 0)
+			    H5P_DEFAULT, vals) < 0) {
+			log_error("data_res_write(%s/%s): H5Dwrite failed",
+				grp_name, dset_name);
 			goto ex_dset_write;
+		}
 
 		rt = 0;
 	ex_dset_write:
@@ -566,12 +699,12 @@ int data_state_prep_kind(const data_id fid, enum stprep_kind *out)
 	int rt = 0;
 	int kind = 0;
 	if (WD.rank == 0) {
+		rt = -1;
 		const hid_t sp_id = H5Gopen(
 			(hid_t)fid, DATA_STPREP, H5P_DEFAULT);
 		if (sp_id == H5I_INVALID_HID) {
-			log_error("data_state_prep_kind: "
-				  "/state_prep group missing");
-			rt = -ENOENT;
+			log_error("data_state_prep_kind: %s group missing",
+				DATA_STPREP);
 			goto ex_bcast;
 		}
 
@@ -585,7 +718,6 @@ int data_state_prep_kind(const data_id fid, enum stprep_kind *out)
 			log_error("data_state_prep_kind: H5Lexists failed"
 				  " (has_md=%d has_cm=%d)",
 				(int)has_md, (int)has_cm);
-			rt = -EIO;
 			goto ex_bcast;
 		}
 		if (has_md && has_cm) {
@@ -593,25 +725,25 @@ int data_state_prep_kind(const data_id fid, enum stprep_kind *out)
 				  " /state_prep/multidet and"
 				  " /state_prep/coeff_matrix present);"
 				  " rebuild simul.h5 with exactly one");
-			rt = -EINVAL;
 			goto ex_bcast;
 		}
 		if (!has_md && !has_cm) {
 			log_error("simul.h5: no state-prep subgroup found"
 				  " (expected /state_prep/multidet or"
 				  " /state_prep/coeff_matrix)");
-			rt = -ENOENT;
 			goto ex_bcast;
 		}
 
 		kind = has_md ? STPREP_MULTIDET : STPREP_COEFF_MATRIX;
 		log_debug("data_state_prep_kind: %s",
-			(kind == STPREP_MULTIDET) ? "multidet" : "coeff_matrix");
+			(kind == STPREP_MULTIDET) ? "multidet"
+						  : "coeff_matrix");
+		rt = 0;
 	ex_bcast:;
 	}
 	bcast_int(&rt);
 	if (rt < 0)
-		return rt;
+		return -1;
 	bcast_int(&kind);
 	*out = (enum stprep_kind)kind;
 	return 0;
@@ -627,11 +759,16 @@ struct coeffmat_handle {
 static int coeffmat_open(const hid_t fid, struct coeffmat_handle *cm)
 {
 	const hid_t sp_id = H5Gopen(fid, DATA_STPREP, H5P_DEFAULT);
-	if (sp_id == H5I_INVALID_HID)
+	if (sp_id == H5I_INVALID_HID) {
+		log_error("coeffmat_open: H5Gopen(%s) failed", DATA_STPREP);
 		goto err_stprep;
+	}
 	const hid_t cm_id = H5Gopen(sp_id, DATA_STPREP_COEFFMAT, H5P_DEFAULT);
-	if (cm_id == H5I_INVALID_HID)
+	if (cm_id == H5I_INVALID_HID) {
+		log_error("coeffmat_open: H5Gopen(%s/%s) failed",
+			DATA_STPREP, DATA_STPREP_COEFFMAT);
 		goto err_cm;
+	}
 
 	cm->stprep_grp_id = sp_id;
 	cm->coeffmat_grp_id = cm_id;
@@ -652,33 +789,46 @@ static void coeffmat_close(struct coeffmat_handle cm)
 static int read_u32_attr(hid_t grp_id, const char *name, uint32_t *out)
 {
 	const hid_t aid = H5Aopen(grp_id, name, H5P_DEFAULT);
-	if (aid == H5I_INVALID_HID)
+	if (aid == H5I_INVALID_HID) {
+		log_error("read_u32_attr(%s): H5Aopen failed", name);
 		return -1;
+	}
 	const int rt = H5Aread(aid, H5T_NATIVE_UINT32, out) < 0 ? -1 : 0;
 	H5Aclose(aid);
+	if (rt < 0)
+		log_error("read_u32_attr(%s): H5Aread failed", name);
 	return rt;
 }
 
 static int read_u8_attr(hid_t grp_id, const char *name, int *out)
 {
 	const hid_t aid = H5Aopen(grp_id, name, H5P_DEFAULT);
-	if (aid == H5I_INVALID_HID)
+	if (aid == H5I_INVALID_HID) {
+		log_error("read_u8_attr(%s): H5Aopen failed", name);
 		return -1;
+	}
 	uint8_t v = 0;
 	const int rt = H5Aread(aid, H5T_NATIVE_UINT8, &v) < 0 ? -1 : 0;
 	H5Aclose(aid);
-	if (rt == 0)
-		*out = v ? 1 : 0;
-	return rt;
+	if (rt < 0) {
+		log_error("read_u8_attr(%s): H5Aread failed", name);
+		return -1;
+	}
+	*out = v ? 1 : 0;
+	return 0;
 }
 
 static int read_double_attr(hid_t grp_id, const char *name, double *out)
 {
 	const hid_t aid = H5Aopen(grp_id, name, H5P_DEFAULT);
-	if (aid == H5I_INVALID_HID)
+	if (aid == H5I_INVALID_HID) {
+		log_error("read_double_attr(%s): H5Aopen failed", name);
 		return -1;
+	}
 	const int rt = H5Aread(aid, H5T_NATIVE_DOUBLE, out) < 0 ? -1 : 0;
 	H5Aclose(aid);
+	if (rt < 0)
+		log_error("read_double_attr(%s): H5Aread failed", name);
 	return rt;
 }
 
@@ -686,25 +836,45 @@ static int validate_C_shape(hid_t grp_id, const char *dset_name,
 	uint32_t n_sites, uint32_t n_occ)
 {
 	const hid_t did = H5Dopen2(grp_id, dset_name, H5P_DEFAULT);
-	if (did == H5I_INVALID_HID)
+	if (did == H5I_INVALID_HID) {
+		log_error("validate_C_shape: H5Dopen2(%s) failed", dset_name);
 		return -1;
+	}
 	int rt = -1;
 	const hid_t sid = H5Dget_space(did);
-	if (sid == H5I_INVALID_HID)
+	if (sid == H5I_INVALID_HID) {
+		log_error("validate_C_shape: H5Dget_space(%s) failed",
+			dset_name);
 		goto ex_dset;
+	}
 	hsize_t dims[2] = { 0, 0 };
-	if (H5Sget_simple_extent_dims(sid, dims, NULL) != 2)
+	if (H5Sget_simple_extent_dims(sid, dims, NULL) != 2) {
+		log_error("validate_C_shape(%s): dataset is not 2-D",
+			dset_name);
 		goto ex_space;
-	if (dims[0] != n_sites || dims[1] != n_occ)
+	}
+	if (dims[0] != n_sites || dims[1] != n_occ) {
+		log_error("validate_C_shape(%s): shape (%llu,%llu) does"
+			  " not match (%u,%u)",
+			dset_name, (unsigned long long)dims[0],
+			(unsigned long long)dims[1], n_sites, n_occ);
 		goto ex_space;
+	}
 	const hid_t tid = H5Dget_type(did);
-	if (tid == H5I_INVALID_HID)
+	if (tid == H5I_INVALID_HID) {
+		log_error("validate_C_shape: H5Dget_type(%s) failed",
+			dset_name);
 		goto ex_space;
+	}
 	const H5T_class_t cls = H5Tget_class(tid);
 	const size_t sz = H5Tget_size(tid);
 	H5Tclose(tid);
-	if (cls != H5T_FLOAT || sz != sizeof(double))
+	if (cls != H5T_FLOAT || sz != sizeof(double)) {
+		log_error("validate_C_shape(%s): expected double, got"
+			  " class=%d size=%zu",
+			dset_name, (int)cls, sz);
 		goto ex_space;
+	}
 	rt = 0;
 ex_space:
 	H5Sclose(sid);
@@ -777,12 +947,16 @@ static int read_C_dset(hid_t grp_id, const char *name, uint32_t n_sites,
 		return -1;
 
 	const hid_t did = H5Dopen2(grp_id, name, H5P_DEFAULT);
-	if (did == H5I_INVALID_HID)
+	if (did == H5I_INVALID_HID) {
+		log_error("read_C_dset: H5Dopen2(%s) failed", name);
 		return -1;
+	}
 	int rt = -1;
 	if (H5Dread(did, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf)
-		< 0)
+		< 0) {
+		log_error("read_C_dset: H5Dread(%s) failed", name);
 		goto ex;
+	}
 	rt = 0;
 ex:
 	H5Dclose(did);
@@ -798,10 +972,16 @@ int data_coeff_matrix_read(
 		    &closed_shell, &tapered) < 0)
 		return -1;
 
-	if (closed_shell && C_beta != NULL)
+	if (closed_shell && C_beta != NULL) {
+		log_error("data_coeff_matrix_read: closed_shell=1 but"
+			  " C_beta != NULL");
 		return -1;
-	if (!closed_shell && C_beta == NULL)
+	}
+	if (!closed_shell && C_beta == NULL) {
+		log_error("data_coeff_matrix_read: closed_shell=0 but"
+			  " C_beta == NULL");
 		return -1;
+	}
 
 	int rt = 0;
 	if (WD.rank == 0) {
@@ -848,8 +1028,11 @@ int data_coeff_matrix_csf_count(const data_id fid, size_t *n)
 
 		const htri_t has_csf = H5Lexists(cm.coeffmat_grp_id,
 			DATA_STPREP_COEFFMAT_CSF, H5P_DEFAULT);
-		if (has_csf < 0)
+		if (has_csf < 0) {
+			log_error("data_coeff_matrix_csf_count: H5Lexists"
+				  " failed");
 			goto ex;
+		}
 		if (!has_csf) {
 			present = 0;
 			ncomp = 0;
@@ -860,8 +1043,11 @@ int data_coeff_matrix_csf_count(const data_id fid, size_t *n)
 
 		const hid_t cg = H5Gopen(cm.coeffmat_grp_id,
 			DATA_STPREP_COEFFMAT_CSF, H5P_DEFAULT);
-		if (cg == H5I_INVALID_HID)
+		if (cg == H5I_INVALID_HID) {
+			log_error("data_coeff_matrix_csf_count: H5Gopen(%s)"
+				  " failed", DATA_STPREP_COEFFMAT_CSF);
 			goto ex;
+		}
 		if (read_u32_attr(
 			    cg, DATA_STPREP_COEFFMAT_CSF_NCOMP, &ncomp) < 0) {
 			H5Gclose(cg);
@@ -869,15 +1055,16 @@ int data_coeff_matrix_csf_count(const data_id fid, size_t *n)
 		}
 		H5Gclose(cg);
 
-		/* An explicit csf/ subgroup with n_components==0
-		 * is non-physical (a single-block file must omit
-		 * the subgroup, not declare an empty one). */
+		/* An explicit csf/ subgroup with n_components==0 is
+		 * non-physical: a single-block file must omit the
+		 * subgroup, not declare an empty superposition.
+		 * Reject early so a misbuilt simul.h5 never reaches
+		 * the simulator. */
 		if (ncomp == 0) {
 			log_error("simul.h5: /state_prep/coeff_matrix/csf"
 				  " present with n_components=0; remove the"
 				  " csf subgroup or list at least one"
 				  " component");
-			rt = -EINVAL;
 			goto ex;
 		}
 
@@ -888,7 +1075,7 @@ int data_coeff_matrix_csf_count(const data_id fid, size_t *n)
 	}
 	bcast_int(&rt);
 	if (rt < 0)
-		return rt;
+		return -1;
 	bcast_int(&present);
 	bcast_u32(&ncomp);
 	*n = present ? (size_t)ncomp : 0;
@@ -904,10 +1091,16 @@ int data_coeff_matrix_csf_read(const data_id fid, const size_t k,
 		    &closed_shell, &tapered) < 0)
 		return -1;
 
-	if (closed_shell && C_beta != NULL)
+	if (closed_shell && C_beta != NULL) {
+		log_error("data_coeff_matrix_csf_read[%zu]: closed_shell=1"
+			  " but C_beta != NULL", k);
 		return -1;
-	if (!closed_shell && C_beta == NULL)
+	}
+	if (!closed_shell && C_beta == NULL) {
+		log_error("data_coeff_matrix_csf_read[%zu]: closed_shell=0"
+			  " but C_beta == NULL", k);
 		return -1;
+	}
 
 	int rt = 0;
 	if (WD.rank == 0) {
@@ -918,14 +1111,22 @@ int data_coeff_matrix_csf_read(const data_id fid, const size_t k,
 
 		const hid_t cg = H5Gopen(cm.coeffmat_grp_id,
 			DATA_STPREP_COEFFMAT_CSF, H5P_DEFAULT);
-		if (cg == H5I_INVALID_HID)
+		if (cg == H5I_INVALID_HID) {
+			log_error("data_coeff_matrix_csf_read[%zu]:"
+				  " H5Gopen(%s) failed",
+				k, DATA_STPREP_COEFFMAT_CSF);
 			goto ex_csf;
+		}
 
 		char kname[32];
 		snprintf(kname, sizeof kname, "%zu", k);
 		const hid_t cg_k = H5Gopen(cg, kname, H5P_DEFAULT);
-		if (cg_k == H5I_INVALID_HID)
+		if (cg_k == H5I_INVALID_HID) {
+			log_error("data_coeff_matrix_csf_read[%zu]:"
+				  " H5Gopen(%s/%s) failed",
+				k, DATA_STPREP_COEFFMAT_CSF, kname);
 			goto ex_kgrp;
+		}
 
 		if (read_double_attr(cg_k, DATA_STPREP_COEFFMAT_CSF_CF,
 			    coefficient) < 0)
