@@ -38,24 +38,17 @@ int main(void)
 	world_init(nullptr, nullptr, WD_SEED);
 	world_info(&wd);
 
-	if (wd.rank == 0)
+	/* The data layer is rank-0-only.  Rank 0 creates the file
+	 * via serial HDF5; other ranks hold the follower sentinel. */
+	data_id fid = DATA_FOLLOWER_FID;
+	if (wd.rank == 0) {
 		remove(FILENAME);
-
-	/*
-	 * Set up file access property list with parallel I/O access
-	 */
-	hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
-	H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
-
-	hid_t file_id =
-		H5Fcreate(FILENAME, H5F_ACC_EXCL, H5P_DEFAULT, plist_id);
-	if (file_id == H5I_INVALID_HID)
-		TEST_FAIL("create H5 file");
-
-	H5Pclose(plist_id);
-
-	/* Create group and write attributes */
-	data_id fid = (data_id)file_id;
+		hid_t file_id = H5Fcreate(
+			FILENAME, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
+		if (file_id == H5I_INVALID_HID)
+			TEST_FAIL("create H5 file");
+		fid = (data_id)file_id;
+	}
 
 	if (data_grp_create(fid, GRP_NAME) < 0)
 		TEST_FAIL("data_grp_create");
@@ -69,7 +62,8 @@ int main(void)
 	if (data_attr_write(fid, GRP_NAME, ATTR_DBL, VAL_DBL) < 0)
 		TEST_FAIL("data_attr_write double");
 
-	H5Fclose(file_id);
+	if (wd.rank == 0)
+		H5Fclose((hid_t)fid);
 
 	/* Reopen with data_open and read back */
 	fid = data_open(FILENAME);

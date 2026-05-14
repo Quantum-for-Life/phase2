@@ -4,7 +4,18 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define DATA_INVALID_FID (-1)
+#define DATA_INVALID_FID INT64_C(-1)
+
+/*
+ * Returned by data_open() on ranks != 0.  The data subsystem
+ * is rank-0-only: rank 0 owns the file handle and performs
+ * all H5 calls; other ranks receive read results via MPI_Bcast
+ * and short-circuit on writes.  Callers should treat both
+ * DATA_INVALID_FID (failure) and DATA_FOLLOWER_FID (success on
+ * follower rank) as "do not pass to H5* directly"; the data_*
+ * functions handle both internally.
+ */
+#define DATA_FOLLOWER_FID INT64_C(-2)
 
 /* Group, dataset names */
 #define DATA_STPREP "state_prep"
