@@ -93,8 +93,7 @@ int main(void)
 			TEST_FAIL("open H5 file for readback");
 		const hid_t grp_id = H5Gopen(
 			file_id, DATA_CIRCTROTT, H5P_DEFAULT);
-		const hid_t dset = H5Dopen2(
-			grp_id, DATA_CIRCTROTT_VALUES, H5P_DEFAULT);
+		const hid_t dset = H5Dopen2(grp_id, "values", H5P_DEFAULT);
 		_Complex double val_read[SIZE];
 		if (H5Dread(dset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
 			    H5P_DEFAULT, val_read) < 0)

@@ -31,6 +31,35 @@
 
 static struct world_info WD;
 
+/*
+ * Internal group/dataset/attribute names.  These are
+ * implementation details of the on-disk layout; only the
+ * load functions and writers in this file reference them,
+ * so they live here rather than in the public header.
+ */
+#define DATA_STPREP "state_prep"
+#define DATA_STPREP_MULTIDET "multidet"
+#define DATA_STPREP_MULTIDET_COEFFS "coeffs"
+#define DATA_STPREP_MULTIDET_DETS "dets"
+
+#define DATA_STPREP_COEFFMAT "coeff_matrix"
+#define DATA_STPREP_COEFFMAT_CA "C_alpha"
+#define DATA_STPREP_COEFFMAT_CB "C_beta"
+#define DATA_STPREP_COEFFMAT_NQB "n_qubits"
+#define DATA_STPREP_COEFFMAT_NS "n_sites"
+#define DATA_STPREP_COEFFMAT_NA "n_alpha"
+#define DATA_STPREP_COEFFMAT_NB "n_beta"
+#define DATA_STPREP_COEFFMAT_CS "closed_shell"
+#define DATA_STPREP_COEFFMAT_TAP "tapered"
+#define DATA_STPREP_COEFFMAT_CSF "csf"
+#define DATA_STPREP_COEFFMAT_CSF_NCOMP "n_components"
+#define DATA_STPREP_COEFFMAT_CSF_CF "coefficient"
+
+#define DATA_HAMIL "pauli_hamil"
+#define DATA_HAMIL_COEFFS "coeffs"
+#define DATA_HAMIL_NORM "normalization"
+#define DATA_HAMIL_PAULIS "paulis"
+
 /* -- MPI broadcast helpers -------------------------------------------- */
 
 static inline void bcast_int(int *v)

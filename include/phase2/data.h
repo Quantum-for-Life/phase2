@@ -17,43 +17,23 @@
  */
 #define DATA_FOLLOWER_FID INT64_C(-2)
 
-/* Group, dataset names */
-#define DATA_STPREP "state_prep"
-#define DATA_STPREP_MULTIDET "multidet"
-#define DATA_STPREP_MULTIDET_COEFFS "coeffs"
-#define DATA_STPREP_MULTIDET_DETS "dets"
-
-#define DATA_STPREP_COEFFMAT "coeff_matrix"
-#define DATA_STPREP_COEFFMAT_CA "C_alpha"
-#define DATA_STPREP_COEFFMAT_CB "C_beta"
-#define DATA_STPREP_COEFFMAT_NQB "n_qubits"
-#define DATA_STPREP_COEFFMAT_NS "n_sites"
-#define DATA_STPREP_COEFFMAT_NA "n_alpha"
-#define DATA_STPREP_COEFFMAT_NB "n_beta"
-#define DATA_STPREP_COEFFMAT_CS "closed_shell"
-#define DATA_STPREP_COEFFMAT_TAP "tapered"
-#define DATA_STPREP_COEFFMAT_CSF "csf"
-#define DATA_STPREP_COEFFMAT_CSF_NCOMP "n_components"
-#define DATA_STPREP_COEFFMAT_CSF_CF "coefficient"
-
-#define DATA_HAMIL "pauli_hamil"
-#define DATA_HAMIL_COEFFS "coeffs"
-#define DATA_HAMIL_NORM "normalization"
-#define DATA_HAMIL_PAULIS "paulis"
-
+/*
+ * Group names and per-group scalar attribute names that the
+ * circuit algorithms reference when writing per-step output.
+ * Internal sub-paths (the Hamiltonian dataset names, the
+ * state-prep subgroups, the values dataset under each circ
+ * group) live in phase2/data.c and never leak to callers.
+ */
 #define DATA_CIRCTROTT "circ_trott"
 #define DATA_CIRCTROTT_DELTA "delta"
-#define DATA_CIRCTROTT_VALUES "values"
 
 #define DATA_CIRCTROTT2 "circ_trott2"
 #define DATA_CIRCTROTT2_DELTA "delta"
-#define DATA_CIRCTROTT2_VALUES "values"
 
 #define DATA_CIRCQDRIFT "circ_qdrift"
 #define DATA_CIRCQDRIFT_DEPTH "depth"
 #define DATA_CIRCQDRIFT_NUMSAMPLES "num_samples"
 #define DATA_CIRCQDRIFT_STEPSIZE "step_size"
-#define DATA_CIRCQDRIFT_VALUES "values"
 #define DATA_CIRCQDRIFT_SEED "seed"
 
 #define DATA_CIRCCMPSIT "circ_cmpsit"
@@ -62,7 +42,6 @@
 #define DATA_CIRCCMPSIT_ANGLEDET "angle_det"
 #define DATA_CIRCCMPSIT_ANGLERAND "angle_rand"
 #define DATA_CIRCCMPSIT_STEPS "steps"
-#define DATA_CIRCCMPSIT_VALUES "values"
 #define DATA_CIRCCMPSIT_SEED "seed"
 
 /**
