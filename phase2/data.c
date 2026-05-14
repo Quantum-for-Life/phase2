@@ -79,6 +79,25 @@ static int read_dset(
 	return rt;
 }
 
+/* Read one scalar attribute by name from an already-open
+ * group into the caller-supplied buffer (sized for h5_type). */
+static int read_attr_raw(
+	hid_t grp, const char *name, hid_t h5_type, void *out)
+{
+	const hid_t aid = H5Aopen(grp, name, H5P_DEFAULT);
+	if (aid == H5I_INVALID_HID) {
+		log_error("read_attr(%s): H5Aopen failed", name);
+		return -1;
+	}
+	int rt = -1;
+	if (H5Aread(aid, h5_type, out) < 0)
+		log_error("read_attr(%s): H5Aread failed", name);
+	else
+		rt = 0;
+	H5Aclose(aid);
+	return rt;
+}
+
 /* Read the two extents of a 2-D dataset by name from an already-open
  * group.  Sets *out_dims[2] on success. */
 static int get_dset_dims2(
@@ -254,28 +273,11 @@ int data_grp_create(data_id fid, const char *grp_name)
 				log_error("data_attr_read(%s/%s):"             \
 					  " H5Gopen failed",                   \
 					grp_name, attr_name);                  \
-				goto ex_grp_id;                                \
+			} else {                                               \
+				rt = read_attr_raw(                            \
+					grp_id, attr_name, h5_type, &local);   \
+				H5Gclose(grp_id);                              \
 			}                                                      \
-			const hid_t attr_id = H5Aopen(                         \
-				grp_id, attr_name, H5P_DEFAULT);               \
-			if (attr_id == H5I_INVALID_HID) {                      \
-				log_error("data_attr_read(%s/%s):"             \
-					  " H5Aopen failed",                   \
-					grp_name, attr_name);                  \
-				goto ex_attr_id;                               \
-			}                                                      \
-			if (H5Aread(attr_id, h5_type, &local) < 0) {           \
-				log_error("data_attr_read(%s/%s):"             \
-					  " H5Aread failed",                   \
-					grp_name, attr_name);                  \
-				goto ex_h5aread;                               \
-			}                                                      \
-			rt = 0;                                                \
-		ex_h5aread:                                                    \
-			H5Aclose(attr_id);                                     \
-		ex_attr_id:                                                    \
-			H5Gclose(grp_id);                                      \
-		ex_grp_id:;                                                    \
 		}                                                              \
 		bcast_int(&rt);                                                \
 		if (rt < 0)                                                    \
@@ -837,48 +839,21 @@ int data_state_prep_kind(const data_id fid, enum stprep_kind *out)
 
 static int read_u32_attr(hid_t grp_id, const char *name, uint32_t *out)
 {
-	const hid_t aid = H5Aopen(grp_id, name, H5P_DEFAULT);
-	if (aid == H5I_INVALID_HID) {
-		log_error("read_u32_attr(%s): H5Aopen failed", name);
-		return -1;
-	}
-	const int rt = H5Aread(aid, H5T_NATIVE_UINT32, out) < 0 ? -1 : 0;
-	H5Aclose(aid);
-	if (rt < 0)
-		log_error("read_u32_attr(%s): H5Aread failed", name);
-	return rt;
+	return read_attr_raw(grp_id, name, H5T_NATIVE_UINT32, out);
 }
 
 static int read_u8_attr(hid_t grp_id, const char *name, int *out)
 {
-	const hid_t aid = H5Aopen(grp_id, name, H5P_DEFAULT);
-	if (aid == H5I_INVALID_HID) {
-		log_error("read_u8_attr(%s): H5Aopen failed", name);
-		return -1;
-	}
 	uint8_t v = 0;
-	const int rt = H5Aread(aid, H5T_NATIVE_UINT8, &v) < 0 ? -1 : 0;
-	H5Aclose(aid);
-	if (rt < 0) {
-		log_error("read_u8_attr(%s): H5Aread failed", name);
+	if (read_attr_raw(grp_id, name, H5T_NATIVE_UINT8, &v) < 0)
 		return -1;
-	}
 	*out = v ? 1 : 0;
 	return 0;
 }
 
 static int read_double_attr(hid_t grp_id, const char *name, double *out)
 {
-	const hid_t aid = H5Aopen(grp_id, name, H5P_DEFAULT);
-	if (aid == H5I_INVALID_HID) {
-		log_error("read_double_attr(%s): H5Aopen failed", name);
-		return -1;
-	}
-	const int rt = H5Aread(aid, H5T_NATIVE_DOUBLE, out) < 0 ? -1 : 0;
-	H5Aclose(aid);
-	if (rt < 0)
-		log_error("read_double_attr(%s): H5Aread failed", name);
-	return rt;
+	return read_attr_raw(grp_id, name, H5T_NATIVE_DOUBLE, out);
 }
 
 int data_coeff_matrix_getnums(const data_id fid, uint32_t *nqb,
