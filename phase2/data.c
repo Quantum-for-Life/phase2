@@ -14,6 +14,7 @@
 #define LOG_SUBSYS "data"
 
 #include "c23_compat.h"
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -665,6 +666,171 @@ int data_res_write(data_id fid, const char *grp_name, const char *dset_name,
 	ex_open:;
 	}
 	bcast_int(&rt);
+	return rt;
+}
+
+/* -- per-step write API (/circ_{trott,trott2,qdrift,cmpsit}/values) --- */
+
+#define CIRC_VALUES_DSET "values"
+
+int data_circ_init(data_id fid, const char *grp_name, size_t n_steps)
+{
+	if (world_info(&WD) != WORLD_READY)
+		return -1;
+
+	/* Group create is collective (rank-0 does H5; all bcast). */
+	if (data_grp_create(fid, grp_name) < 0)
+		return -1;
+
+	int rt = 0;
+	if (WD.rank == 0) {
+		rt = -1;
+		const hid_t grp_id = H5Gopen(
+			(hid_t)fid, grp_name, H5P_DEFAULT);
+		if (grp_id == H5I_INVALID_HID) {
+			log_error("data_circ_init(%s): H5Gopen failed",
+				grp_name);
+			goto ex_bcast;
+		}
+
+		/* Idempotence: skip if the dataset already exists. */
+		const htri_t exists = H5Lexists(
+			grp_id, CIRC_VALUES_DSET, H5P_DEFAULT);
+		if (exists < 0) {
+			log_error("data_circ_init(%s): H5Lexists(values)"
+				  " failed", grp_name);
+			goto ex_grp;
+		}
+		if (exists > 0) {
+			log_debug("data_circ_init(%s): values dataset"
+				  " already exists", grp_name);
+			rt = 0;
+			goto ex_grp;
+		}
+
+		const hid_t dspace = H5Screate_simple(
+			2, (hsize_t[]){ n_steps, 2 }, NULL);
+		if (dspace == H5I_INVALID_HID) {
+			log_error("data_circ_init(%s): H5Screate_simple"
+				  " failed (n_steps=%zu)",
+				grp_name, n_steps);
+			goto ex_grp;
+		}
+
+		const hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
+		if (dcpl == H5I_INVALID_HID) {
+			log_error("data_circ_init(%s): H5Pcreate(dcpl)"
+				  " failed", grp_name);
+			goto ex_dspace;
+		}
+		const double nan_val = nan("");
+		if (H5Pset_fill_value(dcpl, H5T_NATIVE_DOUBLE, &nan_val) < 0) {
+			log_error("data_circ_init(%s): H5Pset_fill_value"
+				  " failed", grp_name);
+			goto ex_dcpl;
+		}
+		if (H5Pset_alloc_time(dcpl, H5D_ALLOC_TIME_EARLY) < 0) {
+			log_error("data_circ_init(%s): H5Pset_alloc_time"
+				  " failed", grp_name);
+			goto ex_dcpl;
+		}
+		if (H5Pset_fill_time(dcpl, H5D_FILL_TIME_ALLOC) < 0) {
+			log_error("data_circ_init(%s): H5Pset_fill_time"
+				  " failed", grp_name);
+			goto ex_dcpl;
+		}
+
+		const hid_t dset = H5Dcreate2(grp_id, CIRC_VALUES_DSET,
+			H5T_IEEE_F64LE, dspace, H5P_DEFAULT, dcpl,
+			H5P_DEFAULT);
+		if (dset == H5I_INVALID_HID) {
+			log_error("data_circ_init(%s): H5Dcreate2(values)"
+				  " failed", grp_name);
+			goto ex_dcpl;
+		}
+		H5Dclose(dset);
+
+		/* Flush so the NaN-padded dataset is on disk before
+		 * any per-step write.  Cheap for an empty dataset. */
+		H5Fflush((hid_t)fid, H5F_SCOPE_GLOBAL);
+
+		log_debug("data_circ_init(%s): values shape (%zu, 2),"
+			  " NaN-padded", grp_name, n_steps);
+		rt = 0;
+	ex_dcpl:
+		H5Pclose(dcpl);
+	ex_dspace:
+		H5Sclose(dspace);
+	ex_grp:
+		H5Gclose(grp_id);
+	ex_bcast:;
+	}
+	bcast_int(&rt);
+	return rt;
+}
+
+int data_circ_write_step(data_id fid, const char *grp_name, size_t step_idx,
+	_Complex double z)
+{
+	if (world_info(&WD) != WORLD_READY)
+		return -1;
+	if (WD.rank != 0)
+		return 0;
+
+	int rt = -1;
+	const hid_t grp_id = H5Gopen((hid_t)fid, grp_name, H5P_DEFAULT);
+	if (grp_id == H5I_INVALID_HID) {
+		log_error("data_circ_write_step(%s, %zu): H5Gopen failed",
+			grp_name, step_idx);
+		return -1;
+	}
+	const hid_t dset = H5Dopen2(grp_id, CIRC_VALUES_DSET, H5P_DEFAULT);
+	if (dset == H5I_INVALID_HID) {
+		log_error("data_circ_write_step(%s, %zu): H5Dopen2(values)"
+			  " failed", grp_name, step_idx);
+		goto ex_grp;
+	}
+	const hid_t fspace = H5Dget_space(dset);
+	if (fspace == H5I_INVALID_HID) {
+		log_error("data_circ_write_step(%s, %zu): H5Dget_space"
+			  " failed", grp_name, step_idx);
+		goto ex_dset;
+	}
+	const hsize_t start[2] = { step_idx, 0 };
+	const hsize_t count[2] = { 1, 2 };
+	if (H5Sselect_hyperslab(fspace, H5S_SELECT_SET, start, NULL, count,
+		    NULL) < 0) {
+		log_error("data_circ_write_step(%s, %zu): H5Sselect_hyperslab"
+			  " failed", grp_name, step_idx);
+		goto ex_fspace;
+	}
+	const hid_t mspace = H5Screate_simple(2, count, NULL);
+	if (mspace == H5I_INVALID_HID) {
+		log_error("data_circ_write_step(%s, %zu): H5Screate_simple"
+			  " failed", grp_name, step_idx);
+		goto ex_fspace;
+	}
+	const double row[2] = { creal(z), cimag(z) };
+	if (H5Dwrite(dset, H5T_NATIVE_DOUBLE, mspace, fspace, H5P_DEFAULT, row)
+		< 0) {
+		log_error("data_circ_write_step(%s, %zu): H5Dwrite failed",
+			grp_name, step_idx);
+		goto ex_mspace;
+	}
+	/* Atomic-on-disk: the next H5Fflush call ensures rows
+	 * 0..step_idx are persisted before the simulation moves
+	 * on. */
+	H5Fflush((hid_t)fid, H5F_SCOPE_GLOBAL);
+
+	rt = 0;
+ex_mspace:
+	H5Sclose(mspace);
+ex_fspace:
+	H5Sclose(fspace);
+ex_dset:
+	H5Dclose(dset);
+ex_grp:
+	H5Gclose(grp_id);
 	return rt;
 }
 

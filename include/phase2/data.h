@@ -344,4 +344,26 @@ int data_hamil_foreach(
 int data_res_write(data_id fid, const char *grp_name, const char *dset_name,
 	const _Complex double *vals, size_t nvals);
 
+/*
+ * Per-step write API for /circ_{trott,trott2,qdrift,cmpsit}.
+ *
+ * data_circ_init():
+ *   Open or create the named group, pre-allocate a `values`
+ *   dataset of shape (n_steps, 2) pre-filled with NaN.  All
+ *   ranks call; rank > 0 is a no-op.  Idempotent: a second
+ *   call on the same group does nothing (the existing
+ *   dataset is reused).
+ *
+ * data_circ_write_step():
+ *   Hyperslab-write one row of the `values` dataset and
+ *   H5Fflush.  All ranks call; rank > 0 is a no-op.  A crash
+ *   between steps leaves the file consistent up to the last
+ *   flushed row; unwritten rows remain NaN.
+ *
+ * Both return 0 on success, -1 on error (with log_error).
+ */
+int data_circ_init(data_id fid, const char *grp_name, size_t n_steps);
+int data_circ_write_step(data_id fid, const char *grp_name, size_t step_idx,
+	_Complex double z);
+
 #endif // PHASE2_DATA_H
