@@ -4,6 +4,8 @@
  * public API contract; this file holds the implementation.
  */
 
+#define LOG_SUBSYS "prep"
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
@@ -16,6 +18,7 @@
 
 #include "combinations.h"
 #include "det_small.h"
+#include "log.h"
 #include "phase2/data.h"
 #include "phase2/qreg.h"
 #include "phase2/state_prep_coeff.h"
@@ -255,21 +258,34 @@ _Complex double state_prep_coeff_inner(struct qreg *reg,
 
 int state_prep_coeff_expand_all(struct qreg *reg, const struct circ_coeff *cm)
 {
+	log_debug("expand_all: n_sites=%u n_alpha=%u n_beta=%u"
+		  " closed_shell=%d tapered=%d n_components=%zu",
+		cm->n_sites, cm->n_alpha, cm->n_beta, cm->closed_shell,
+		cm->tapered, cm->n_components);
+
 	if (cm->n_components == 0) {
-		return state_prep_coeff_expand(reg, cm->n_sites, cm->n_alpha,
-			cm->n_beta, cm->C_alpha,
-			cm->closed_shell ? NULL : cm->C_beta, 1.0, cm->tapered,
-			0);
+		if (state_prep_coeff_expand(reg, cm->n_sites, cm->n_alpha,
+			    cm->n_beta, cm->C_alpha,
+			    cm->closed_shell ? NULL : cm->C_beta, 1.0,
+			    cm->tapered, 0) < 0) {
+			log_error("expand_all: single-block expand failed");
+			return -1;
+		}
+		return 0;
 	}
 
 	qreg_zero(reg);
 	for (size_t k = 0; k < cm->n_components; k++) {
 		const struct circ_coeff_block *b = &cm->blocks[k];
+		log_trace("expand_all: block %zu/%zu cf=%.6f", k + 1,
+			cm->n_components, b->cf);
 		if (state_prep_coeff_expand(reg, cm->n_sites, cm->n_alpha,
 			    cm->n_beta, b->C_alpha,
 			    cm->closed_shell ? NULL : b->C_beta, b->cf,
-			    cm->tapered, 1) < 0)
+			    cm->tapered, 1) < 0) {
+			log_error("expand_all: block %zu expand failed", k);
 			return -1;
+		}
 	}
 	return 0;
 }

@@ -1,3 +1,5 @@
+#define LOG_SUBSYS "bench"
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <stdint.h>
@@ -118,8 +120,8 @@ static void measure_b_qreg_zero(void)
 		q.reg = &reg;
 
 		bench_mark(&b, REPS_MAX, b_qreg_zero, &q);
-		log_info("b_qreg_zero [nqb,t_ms]: %2u,%11.6f", n,
-			bench_msrep(b));
+		log_info("b_qreg_zero [nqb,t_ms]: %2lu,%11.6f",
+			(unsigned long)n, bench_msrep(b));
 
 		qreg_free(&reg);
 	}
@@ -189,8 +191,8 @@ static void measure_b_qreg_paulirot(void)
 
 			bench_mark(&b, REPS_MAX, b_qreg_paulirot, &q);
 			log_info("b_qreg_paulirot [nqb,ncodes,t_ms]: "
-				 "%2u,%3u,%11.6f",
-				n, ncodes, bench_msrep(b));
+				 "%2lu,%3zu,%11.6f",
+				(unsigned long)n, ncodes, bench_msrep(b));
 
 			b_qreg_paulirot_destroy(&q);
 			qreg_free(&reg);

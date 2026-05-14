@@ -1,3 +1,5 @@
+#define LOG_SUBSYS "data"
+
 #include "c23_compat.h"
 #include <errno.h>
 #include <stddef.h>
@@ -7,6 +9,7 @@
 
 #include "hdf5.h"
 
+#include "log.h"
 #include "phase2/data.h"
 #include "phase2/world.h"
 #include <complex.h>
@@ -15,20 +18,26 @@ static struct world_info WD;
 
 data_id data_open(const char *filename)
 {
-	if (world_info(&WD) != WORLD_READY)
+	if (world_info(&WD) != WORLD_READY) {
+		log_error("data_open(%s): world not ready", filename);
 		return DATA_INVALID_FID;
+	}
 	const hid_t acc_plist = H5Pcreate(H5P_FILE_ACCESS);
 	H5Pset_fapl_mpio(acc_plist, MPI_COMM_WORLD, MPI_INFO_NULL);
 
 	const hid_t fid = H5Fopen(filename, H5F_ACC_RDWR, acc_plist);
-	if (fid == H5I_INVALID_HID)
+	if (fid == H5I_INVALID_HID) {
+		log_error("data_open(%s): H5Fopen failed", filename);
 		return DATA_INVALID_FID;
+	}
 
+	log_debug("data_open(%s): fid=%lld", filename, (long long)fid);
 	return fid;
 }
 
 void data_close(const data_id fid)
 {
+	log_debug("data_close: fid=%lld", (long long)fid);
 	H5Fclose(fid);
 }
 
@@ -424,8 +433,10 @@ ex_open:
 int data_state_prep_kind(const data_id fid, enum stprep_kind *out)
 {
 	const hid_t sp_id = H5Gopen(fid, DATA_STPREP, H5P_DEFAULT);
-	if (sp_id == H5I_INVALID_HID)
+	if (sp_id == H5I_INVALID_HID) {
+		log_error("data_state_prep_kind: /state_prep group missing");
 		return -ENOENT;
+	}
 
 	const htri_t has_md =
 		H5Lexists(sp_id, DATA_STPREP_MULTIDET, H5P_DEFAULT);
@@ -433,25 +444,28 @@ int data_state_prep_kind(const data_id fid, enum stprep_kind *out)
 		H5Lexists(sp_id, DATA_STPREP_COEFFMAT, H5P_DEFAULT);
 	H5Gclose(sp_id);
 
-	if (has_md < 0 || has_cm < 0)
+	if (has_md < 0 || has_cm < 0) {
+		log_error("data_state_prep_kind: H5Lexists failed"
+			  " (has_md=%d has_cm=%d)",
+			(int)has_md, (int)has_cm);
 		return -EIO;
+	}
 	if (has_md && has_cm) {
-		fprintf(stderr,
-			"simul.h5: ambiguous state prep (both "
-			"/state_prep/multidet and "
-			"/state_prep/coeff_matrix present); "
-			"rebuild simul.h5 with exactly one\n");
+		log_error("simul.h5: ambiguous state prep (both"
+			  " /state_prep/multidet and /state_prep/coeff_matrix"
+			  " present); rebuild simul.h5 with exactly one");
 		return -EINVAL;
 	}
 	if (!has_md && !has_cm) {
-		fprintf(stderr,
-			"simul.h5: no state-prep subgroup found "
-			"(expected /state_prep/multidet or "
-			"/state_prep/coeff_matrix)\n");
+		log_error("simul.h5: no state-prep subgroup found"
+			  " (expected /state_prep/multidet or"
+			  " /state_prep/coeff_matrix)");
 		return -ENOENT;
 	}
 
 	*out = has_md ? STPREP_MULTIDET : STPREP_COEFF_MATRIX;
+	log_debug("data_state_prep_kind: %s",
+		(*out == STPREP_MULTIDET) ? "multidet" : "coeff_matrix");
 	return 0;
 }
 
@@ -682,10 +696,9 @@ int data_coeff_matrix_csf_count(const data_id fid, size_t *n)
 	 * silently empty state.
 	 */
 	if (ncomp == 0) {
-		fprintf(stderr,
-			"simul.h5: /state_prep/coeff_matrix/csf present "
-			"with n_components=0; remove the csf subgroup "
-			"or list at least one component\n");
+		log_error("simul.h5: /state_prep/coeff_matrix/csf present"
+			  " with n_components=0; remove the csf subgroup"
+			  " or list at least one component");
 		rt = -EINVAL;
 		goto ex;
 	}

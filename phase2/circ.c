@@ -1,11 +1,17 @@
+/* clock_gettime for circ_prog timing. */
+#define _POSIX_C_SOURCE 200809L
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
+#define LOG_SUBSYS "circ"
 #include "log.h"
 #include "phase2/circ.h"
 #include "phase2/paulis.h"
@@ -89,6 +95,7 @@ void circ_hamil_sort_lex(struct circ_hamil *hm)
 {
 	qsort(hm->terms, hm->len, sizeof(struct circ_hamil_term),
 		hamil_term_cmp_lex);
+	log_debug("hamil_sort_lex: sorted %zu terms", hm->len);
 }
 
 int circ_muldet_init(struct circ_muldet *md, size_t len)
@@ -141,11 +148,13 @@ static int circ_muldet_from_file(struct circ_muldet *m, const data_id fid)
 	return 0;
 }
 
-void circ_prog_init(struct circ_prog *prog, size_t len)
+void circ_prog_init(struct circ_prog *prog, size_t len, const char *unit)
 {
 	prog->i = 0;
 	prog->len = len;
 	prog->pc = 0;
+	prog->unit = unit ? unit : "step";
+	clock_gettime(CLOCK_MONOTONIC, &prog->t0);
 }
 
 void circ_prog_tick(struct circ_prog *prog)
@@ -155,8 +164,30 @@ void circ_prog_tick(struct circ_prog *prog)
 	const unsigned pc = prog->i * 100 / prog->len;
 	if (pc > prog->pc) {
 		prog->pc = pc;
-		log_info("Progress: %zu%%", prog->pc);
+		log_debug("progress: %u%%", prog->pc);
 	}
+}
+
+void circ_prog_emit(const struct circ_prog *prog, const char *subsys)
+{
+	if (LOG_INFO < log_threshold)
+		return;
+
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	const double elapsed = (now.tv_sec - prog->t0.tv_sec) +
+		(now.tv_nsec - prog->t0.tv_nsec) * 1e-9;
+	const double frac = (prog->len > 0)
+		? (double)prog->i / (double)prog->len
+		: 0.0;
+	const double eta = (frac > 0.0) ? elapsed * (1.0 / frac - 1.0) : 0.0;
+	const unsigned pc = (prog->len > 0)
+		? (unsigned)(prog->i * 100 / prog->len)
+		: 0;
+
+	log_emit(LOG_INFO, subsys ? subsys : LOG_SUBSYS, __FILE__, __LINE__,
+		"%s %zu/%zu (%u%%) elapsed %.2fs eta %.2fs", prog->unit,
+		prog->i, prog->len, pc, elapsed, eta);
 }
 
 int circ_values_init(struct circ_values *vals, size_t len)
@@ -181,29 +212,48 @@ int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
 	memset(&ct->md, 0, sizeof ct->md);
 	memset(&ct->cm, 0, sizeof ct->cm);
 
-	if (circ_hamil_from_file(&ct->hm, fid) < 0)
+	if (circ_hamil_from_file(&ct->hm, fid) < 0) {
+		log_error("circ_init: loading Hamiltonian failed");
 		goto err_hamil_init;
+	}
+	log_debug("circ_init: Hamiltonian loaded (%u qubits, %zu terms)",
+		ct->hm.qb, ct->hm.len);
 
-	if (data_state_prep_kind(fid, &ct->stprep_kind) < 0)
+	if (data_state_prep_kind(fid, &ct->stprep_kind) < 0) {
+		log_error("circ_init: state_prep kind probe failed");
 		goto err_stprep_kind;
+	}
 
 	switch (ct->stprep_kind) {
 	case STPREP_MULTIDET:
-		if (circ_muldet_from_file(&ct->md, fid) < 0)
+		if (circ_muldet_from_file(&ct->md, fid) < 0) {
+			log_error("circ_init: loading multidet state failed");
 			goto err_stprep_load;
+		}
+		log_debug("circ_init: multidet state (%zu dets)", ct->md.len);
 		break;
 	case STPREP_COEFF_MATRIX:
-		if (circ_coeff_init(&ct->cm, fid) < 0)
+		if (circ_coeff_init(&ct->cm, fid) < 0) {
+			log_error("circ_init: coeff_matrix init failed");
 			goto err_stprep_load;
+		}
+		log_debug("circ_init: coeff_matrix state (n_components=%zu)",
+			ct->cm.n_components);
 		break;
 	}
 
-	if (qreg_init(&ct->reg, ct->hm.qb) < 0)
+	if (qreg_init(&ct->reg, ct->hm.qb) < 0) {
+		log_error("circ_init: qreg_init failed");
 		goto err_qreg_init;
-	if (circ_cache_init(ct->reg.qb_hi, ct->reg.qb_lo) < 0)
+	}
+	if (circ_cache_init(ct->reg.qb_hi, ct->reg.qb_lo) < 0) {
+		log_error("circ_init: cache_init failed");
 		goto err_cache_init;
-	if (circ_values_init(&ct->vals, vals_len) < 0)
+	}
+	if (circ_values_init(&ct->vals, vals_len) < 0) {
+		log_error("circ_init: values_init failed (len=%zu)", vals_len);
 		goto err_vals_init;
+	}
 
 	return 0;
 

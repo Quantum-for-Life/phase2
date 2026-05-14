@@ -122,7 +122,7 @@ static void t_prog(void)
 {
 	struct circ_prog prog;
 
-	circ_prog_init(&prog, 100);
+	circ_prog_init(&prog, 100, "step");
 	TEST_EQ(prog.len, (size_t)100);
 	TEST_EQ(prog.i, (size_t)0);
 	TEST_EQ(prog.pc, 0u);

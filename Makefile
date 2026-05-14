@@ -282,6 +282,8 @@ TESTS		:= $(TESTDIR)/t-bitstring_index			\
 			$(TESTDIR)/t-data_open				\
 			$(TESTDIR)/t-data_trott_steps			\
 			$(TESTDIR)/t-det_small				\
+			$(TESTDIR)/t-log				\
+			$(TESTDIR)/t-log_release			\
 			$(TESTDIR)/t-paulis				\
 			$(TESTDIR)/t-prob				\
 			$(TESTDIR)/t-qreg				\
@@ -307,7 +309,16 @@ build-test: $(TESTS)
 CHECKS	:= $(TESTS:$(TESTDIR)/%=check/%)
 
 .PHONY: $(CHECKS)
+# Tests are always built with -DDEBUG so log_trace / log_debug
+# in include/log.h expand to real emits.  t-log_release
+# below cancels this so the release-build strip of
+# trace/debug macros can be verified end-to-end -- the
+# override must come after the blanket -DDEBUG so the
+# trailing -UDEBUG wins on the gcc command line.
+$(TESTS): CFLAGS += -DDEBUG -g -Og
 $(CHECKS): CFLAGS += -DDEBUG -g -Og
+$(TESTDIR)/t-log_release: CFLAGS += -UDEBUG
+check/t-log_release: CFLAGS += -UDEBUG
 $(CHECKS): check/%: $(TESTDIR)/%
 	@./$< && echo "$< OK" || (echo "$<: FAIL"; exit 1)
 

@@ -58,8 +58,11 @@ for the flag surface.
 
 The MPI rank count must be a power of two and must not
 exceed `2^(nqb-1)`, where `nqb` is the qubit width of the
-register.  Set `PHASE2_LOG` to one of `trace`, `debug`,
-`info`, `warn`, `error`, `fatal` to control log verbosity.
+register.  Default log verbosity is `info` on stdout;
+raise with `PHASE2_LOG=debug` (requires `make debug` for
+trace/debug to compile in), enable per-rank logging in
+distributed runs with `PHASE2_LOG_ALL=1`.  See
+[doc/logging.md](doc/logging.md) for the full reference.
 
 
 State preparation contract
@@ -148,6 +151,8 @@ Documentation
 
 - [doc/phase2.md](doc/phase2.md) — reference manual:
   design, kernels (CPU and CUDA), algorithms, API, build.
+- [doc/logging.md](doc/logging.md) — logging subsystem:
+  format, levels, env vars, MPI, policy for new code.
 - [doc/python.md](doc/python.md) — Python interface.
 - [doc/simul-h5-specs.md](doc/simul-h5-specs.md) — HDF5
   input/output schema.

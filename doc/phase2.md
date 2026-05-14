@@ -491,11 +491,22 @@ scaling.
 
 ### 6.3 Environment Variables
 
-**`PHASE2_LOG`**: Controls the logging verbosity.  Accepted
-values (case-sensitive): `trace`, `debug`, `info`, `warn`,
-`error`, `fatal`.  The log level is read once during
-`world_init`.  Default behaviour: info-level messages are
-emitted.
+- **`PHASE2_LOG`** (`info` default): one of `trace`,
+  `debug`, `info`, `warn`, `error`, `fatal`.  Raises
+  verbosity above the default.
+- **`PHASE2_LOG_ALL`** (unset default): any non-empty
+  value opens logging on rank > 0 in MPI runs; rank > 0
+  lines are prefixed `[r=N]`.
+
+Defaults: `info`-and-below on stdout, `warn`-and-above on
+stderr, both line-buffered + flushed per emit (SLURM
+`tail -f` friendly).  Release builds strip `log_trace`
+and `log_debug` to no-ops — rebuild with `make debug` to
+trace a production-class run.
+
+See [doc/logging.md](logging.md) for the full reference
+(format, policy for new code, performance budget,
+multi-rank semantics, examples).
 
 ---
 

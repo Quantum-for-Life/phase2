@@ -13,8 +13,12 @@
  * the cache (triggering the MPI exchange and rotations) and
  * then re-insert.  Overflow returns -1 to signal this.
  */
+#define LOG_SUBSYS "cache"
+
 #include "c23_compat.h"
 #include <stdlib.h>
+
+#include "log.h"
 
 #include "circ_cache.h"
 
@@ -58,8 +62,11 @@ int circ_cache_insert(struct paulis pa, double phi)
 
 void circ_cache_flush(circ_cache_op fn, void *data)
 {
-	if (ch_len > 0 && fn)
+	if (ch_len > 0 && fn) {
+		log_trace("flush: %zu terms (cache_max=%llu)", ch_len,
+			(unsigned long long)CACHE_MAX);
 		fn(pa_hi, pa_lo, phis, ch_len, data);
+	}
 
 	ch_len = 0;
 }

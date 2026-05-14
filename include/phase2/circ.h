@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <time.h>
 
 #include "phase2/data.h"
 #include "phase2/paulis.h"
@@ -27,8 +28,10 @@ struct circ_muldet {
 };
 
 struct circ_prog {
-	unsigned pc; /* percent */
+	unsigned pc;	/* percent of len */
 	size_t i, len;
+	struct timespec t0;	/* wall-clock start for ETA */
+	const char *unit;	/* "step", "sample"; never NULL */
 };
 
 struct circ_values {
@@ -53,8 +56,15 @@ void circ_hamil_sort_lex(struct circ_hamil *hm);
 int circ_muldet_init(struct circ_muldet *md, size_t len);
 void circ_muldet_free(struct circ_muldet *md);
 
-void circ_prog_init(struct circ_prog *prog, size_t len);
+void circ_prog_init(struct circ_prog *prog, size_t len, const char *unit);
 void circ_prog_tick(struct circ_prog *prog);
+/* Format a rich progress line and emit it at info level
+ * through the given subsystem tag:
+ *
+ *   step 17/100 (17%) elapsed 4.31s eta 21.0s
+ *
+ * Callers control cadence; the library does not throttle. */
+void circ_prog_emit(const struct circ_prog *prog, const char *subsys);
 
 int circ_values_init(struct circ_values *vals, size_t len);
 void circ_values_free(struct circ_values *vals);
