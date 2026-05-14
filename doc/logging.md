@@ -43,7 +43,7 @@ right one from the table:
 | fatal  | anywhere       | about to `exit` / `abort` | anything recoverable   |
 
 Full guidance on what counts as "batch boundary" vs
-"per-amplitude" lives in §8 below.
+"per-amplitude" lives in §7 below.
 
 The phase2 library reports mostly **below** info; ph2run
 reports mostly **at** info.  Algorithm files in `circ/`
@@ -148,47 +148,7 @@ the dedicated `test/t-log_release` binary cancels this
 with a trailing `-UDEBUG` to verify the strip.
 
 
-## 7. Performance and volume
-
-Filtered-out fast path (release build of an info-only run
-seeing a trace-level macro):
-
-| Operation                | Cost              |
-| ------------------------ | ----------------- |
-| macro expansion          | `((void)0)`       |
-| load `log_threshold`     | n/a               |
-| function call            | n/a               |
-
-In debug builds the runtime-filtered path is one extern
-load, one compare, one not-taken branch — about **1 ns**
-on a modern x86.
-
-Filtered-in path (line actually written):
-
-| Operation                | Cost              |
-| ------------------------ | ----------------- |
-| `clock_gettime`          | ~30 ns            |
-| `localtime_r`            | ~100 ns           |
-| `snprintf` x 2           | ~1 µs             |
-| `fwrite` + `fflush`      | ~5 µs (TTY)       |
-| total                    | **~5–10 µs**      |
-
-Volume guideline:
-
-| Run                      | Approx. info bytes |
-| ------------------------ | ------------------ |
-| `trott -s 100`           | ~10 KB             |
-| `trott -s 10000`         | ~1 MB              |
-| `qdrift -n 1000`         | ~100 KB            |
-
-These are guidelines, not caps.  The library never
-throttles progress.  Operators who want less output set
-`PHASE2_LOG=warn` (silences info entirely) or redirect /
-truncate at the shell level.  Future ph2run CLI flags may
-add per-N throttling; out of scope today.
-
-
-## 8. Policy for new code (mandatory)
+## 7. Policy for new code
 
 These rules apply to every patch that adds or modifies a
 function:
@@ -223,7 +183,7 @@ This policy is enforced by review until a tooling check
 (clang-tidy, pre-commit grep) lands.
 
 
-## 9. Adding logging to existing code
+## 8. Adding logging to existing code
 
 Quick recipe when editing a file that does not yet emit:
 
@@ -232,14 +192,14 @@ Quick recipe when editing a file that does not yet emit:
    if that is what the file uses).  Pick the name from
    the existing convention: directory-aligned, lowercase,
    no spaces.
-2. Identify the points that match §8 rule 1 (I/O,
+2. Identify the points that match §7 rule 1 (I/O,
    allocation, branches, failure).  Add the right level.
 3. Recompile.  GCC will reject any format-spec mismatch.
 4. Eyeball one run with `PHASE2_LOG=debug` to confirm the
    new lines have the right subsystem tag and level.
 
 
-## 10. Examples
+## 9. Examples
 
 **Small run (info, default).**
 
