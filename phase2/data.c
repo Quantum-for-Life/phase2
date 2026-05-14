@@ -367,8 +367,8 @@ void data_multidet_free(struct data_multidet *m)
 {
 	if (!m)
 		return;
-	free(m->cfs);
-	free(m->dets);
+	free((void *)m->cfs);
+	free((void *)m->dets);
 	m->cfs = NULL;
 	m->dets = NULL;
 }
@@ -476,8 +476,8 @@ void data_hamil_free(struct data_hamil *h)
 {
 	if (!h)
 		return;
-	free(h->cfs);
-	free(h->paulis);
+	free((void *)h->cfs);
+	free((void *)h->paulis);
 	h->cfs = NULL;
 	h->paulis = NULL;
 }
@@ -976,43 +976,49 @@ int data_coeff_matrix_load(const data_id fid, struct data_coeff_matrix *cm)
 	const size_t sz_a = (size_t)cm->n_sites * cm->n_alpha;
 	const size_t sz_b = (size_t)cm->n_sites * cm->n_beta;
 
+	/* Allocate through local mutable pointers; the struct
+	 * fields are const-qualified and assigned only after
+	 * loads + bcasts complete.  On failure we free locally
+	 * and zero the struct. */
+	double *Ca = NULL, *Cb = NULL;
+	struct data_coeff_block *blocks = NULL;
 	if (v_has_csf) {
-		cm->n_components = v_ncomp;
-		cm->blocks = calloc(v_ncomp, sizeof *cm->blocks);
-		if (!cm->blocks) {
+		blocks = calloc(v_ncomp, sizeof *blocks);
+		if (!blocks) {
 			log_error("data_coeff_matrix_load: alloc blocks"
 				  " (n=%u) failed", v_ncomp);
 			goto err_alloc;
 		}
 		for (size_t k = 0; k < v_ncomp; k++) {
-			cm->blocks[k].C_alpha = malloc(
-				sizeof(double) * (sz_a ? sz_a : 1));
-			if (!cm->blocks[k].C_alpha) {
+			double *bca = malloc(sizeof(double) * (sz_a ? sz_a : 1));
+			if (!bca) {
 				log_error("data_coeff_matrix_load: alloc"
 					  " C_alpha[%zu] failed", k);
 				goto err_alloc;
 			}
+			blocks[k].C_alpha = bca;
 			if (!cm->closed_shell) {
-				cm->blocks[k].C_beta = malloc(
+				double *bcb = malloc(
 					sizeof(double) * (sz_b ? sz_b : 1));
-				if (!cm->blocks[k].C_beta) {
+				if (!bcb) {
 					log_error("data_coeff_matrix_load:"
 						  " alloc C_beta[%zu] failed",
 						k);
 					goto err_alloc;
 				}
+				blocks[k].C_beta = bcb;
 			}
 		}
 	} else {
-		cm->C_alpha = malloc(sizeof(double) * (sz_a ? sz_a : 1));
-		if (!cm->C_alpha) {
+		Ca = malloc(sizeof(double) * (sz_a ? sz_a : 1));
+		if (!Ca) {
 			log_error("data_coeff_matrix_load: alloc C_alpha"
 				  " failed");
 			goto err_alloc;
 		}
 		if (!cm->closed_shell) {
-			cm->C_beta = malloc(sizeof(double) * (sz_b ? sz_b : 1));
-			if (!cm->C_beta) {
+			Cb = malloc(sizeof(double) * (sz_b ? sz_b : 1));
+			if (!Cb) {
 				log_error("data_coeff_matrix_load: alloc"
 					  " C_beta failed");
 				goto err_alloc;
@@ -1032,7 +1038,7 @@ int data_coeff_matrix_load(const data_id fid, struct data_coeff_matrix *cm)
 		}
 		if (v_has_csf) {
 			int ok = 1;
-			for (size_t k = 0; k < cm->n_components && ok; k++) {
+			for (size_t k = 0; k < v_ncomp && ok; k++) {
 				char sub[32];
 				snprintf(sub, sizeof sub, "%s/%zu",
 					DATA_STPREP_COEFFMAT_CSF, k);
@@ -1047,17 +1053,19 @@ int data_coeff_matrix_load(const data_id fid, struct data_coeff_matrix *cm)
 				}
 				if (read_double_attr(cg,
 					    DATA_STPREP_COEFFMAT_CSF_CF,
-					    &cm->blocks[k].cf) < 0
+					    &blocks[k].cf) < 0
 					|| read_C_dset(cg,
 						   DATA_STPREP_COEFFMAT_CA,
 						   cm->n_sites, cm->n_alpha,
-						   cm->blocks[k].C_alpha) < 0
+						   (double *)blocks[k].C_alpha)
+						< 0
 					|| (!cm->closed_shell
 						&& read_C_dset(cg,
 							   DATA_STPREP_COEFFMAT_CB,
 							   cm->n_sites,
 							   cm->n_beta,
-							   cm->blocks[k].C_beta)
+							   (double *)blocks[k]
+								   .C_beta)
 							< 0))
 					ok = 0;
 				H5Gclose(cg);
@@ -1066,13 +1074,12 @@ int data_coeff_matrix_load(const data_id fid, struct data_coeff_matrix *cm)
 				rt = 0;
 		} else {
 			if (read_C_dset(grp_id, DATA_STPREP_COEFFMAT_CA,
-				    cm->n_sites, cm->n_alpha, cm->C_alpha)
-					>= 0
+				    cm->n_sites, cm->n_alpha, Ca) >= 0
 				&& (cm->closed_shell
 					|| read_C_dset(grp_id,
 						   DATA_STPREP_COEFFMAT_CB,
 						   cm->n_sites, cm->n_beta,
-						   cm->C_beta) >= 0))
+						   Cb) >= 0))
 				rt = 0;
 		}
 		H5Gclose(grp_id);
@@ -1083,22 +1090,35 @@ int data_coeff_matrix_load(const data_id fid, struct data_coeff_matrix *cm)
 		goto err_alloc;
 
 	if (v_has_csf) {
-		for (size_t k = 0; k < cm->n_components; k++) {
-			MPI_Bcast(&cm->blocks[k].cf, 1, MPI_DOUBLE, 0,
+		for (size_t k = 0; k < v_ncomp; k++) {
+			MPI_Bcast(&blocks[k].cf, 1, MPI_DOUBLE, 0,
 				MPI_COMM_WORLD);
-			bcast_doubles(cm->blocks[k].C_alpha, sz_a);
+			bcast_doubles((double *)blocks[k].C_alpha, sz_a);
 			if (!cm->closed_shell)
-				bcast_doubles(cm->blocks[k].C_beta, sz_b);
+				bcast_doubles((double *)blocks[k].C_beta, sz_b);
 		}
+		cm->n_components = v_ncomp;
+		cm->blocks = blocks;
 	} else {
-		bcast_doubles(cm->C_alpha, sz_a);
+		bcast_doubles(Ca, sz_a);
 		if (!cm->closed_shell)
-			bcast_doubles(cm->C_beta, sz_b);
+			bcast_doubles(Cb, sz_b);
+		cm->C_alpha = Ca;
+		cm->C_beta = Cb;
 	}
 	return 0;
 
 err_alloc:
-	data_coeff_matrix_free(cm);
+	free(Ca);
+	free(Cb);
+	if (blocks) {
+		for (size_t k = 0; k < v_ncomp; k++) {
+			free((void *)blocks[k].C_alpha);
+			free((void *)blocks[k].C_beta);
+		}
+		free(blocks);
+	}
+	memset(cm, 0, sizeof *cm);
 	return -1;
 }
 
@@ -1108,12 +1128,12 @@ void data_coeff_matrix_free(struct data_coeff_matrix *cm)
 		return;
 	if (cm->blocks) {
 		for (size_t k = 0; k < cm->n_components; k++) {
-			free(cm->blocks[k].C_alpha);
-			free(cm->blocks[k].C_beta);
+			free((void *)cm->blocks[k].C_alpha);
+			free((void *)cm->blocks[k].C_beta);
 		}
 		free(cm->blocks);
 	}
-	free(cm->C_alpha);
-	free(cm->C_beta);
+	free((void *)cm->C_alpha);
+	free((void *)cm->C_beta);
 	memset(cm, 0, sizeof *cm);
 }

@@ -131,8 +131,8 @@ int data_attr_write_dbl(data_id fid, const char *grp_name,
 struct data_multidet {
 	uint32_t nqb;
 	size_t ndets;
-	double *cfs;
-	unsigned char *dets;
+	const double *cfs;
+	const unsigned char *dets;
 };
 
 int data_multidet_load(data_id fid, struct data_multidet *m);
@@ -209,8 +209,8 @@ int data_state_prep_kind(data_id fid, enum stprep_kind *out);
  */
 struct data_coeff_block {
 	double cf;
-	double *C_alpha;
-	double *C_beta;
+	const double *C_alpha;
+	const double *C_beta;
 };
 
 struct data_coeff_matrix {
@@ -221,8 +221,8 @@ struct data_coeff_matrix {
 	int closed_shell;
 	int tapered;
 	size_t n_components;
-	double *C_alpha;
-	double *C_beta;
+	const double *C_alpha;
+	const double *C_beta;
 	struct data_coeff_block *blocks;
 };
 
@@ -247,8 +247,8 @@ struct data_hamil {
 	uint32_t nqb;
 	size_t nterms;
 	double norm;
-	double *cfs;
-	unsigned char *paulis;
+	const double *cfs;
+	const unsigned char *paulis;
 };
 
 int data_hamil_load(data_id fid, struct data_hamil *h);
