@@ -19,7 +19,7 @@ Build dependencies on Ubuntu 22.04 or later:
 
 ```bash
 sudo apt install gcc libopenmpi-dev openmpi-common \
-                 libhdf5-openmpi-dev hdf5-tools
+                 libhdf5-dev hdf5-tools
 ```
 
 On the ETH Euler cluster:

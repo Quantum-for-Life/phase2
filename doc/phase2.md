@@ -54,10 +54,7 @@ channel methods on classically tractable system sizes.
 Required packages on Ubuntu/Debian:
 
     sudo apt install gcc make libopenmpi-dev       \
-                     libhdf5-openmpi-dev
-
-The parallel HDF5 build (`libhdf5-openmpi-dev`) is
-essential; the serial variant will not work.
+                     libhdf5-dev
 
 ### 2.2 Build and test
 

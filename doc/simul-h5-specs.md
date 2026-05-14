@@ -214,6 +214,15 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
 
 ## Group: `/circ_trott`
 
+The simulator creates the group and pre-allocates the
+`values` dataset with NaN-padded shape `(NUM_STEPS, 2)` at
+init time; rank 0 then writes one row per Trotter step
+plus `H5Fflush`.  A run that crashes or times out partway
+leaves the file consistent: rows for completed steps carry
+real numbers, the trailing rows remain NaN.  This applies
+identically to `/circ_trott2`, `/circ_qdrift`, and
+`/circ_cmpsit`.
+
 - Attribute: `delta`
     - *Type*: `double`
   - *Comment*: Coefficient multiplying the time parameter in Hamiltonian
