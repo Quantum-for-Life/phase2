@@ -93,33 +93,22 @@ void data_close(data_id);
 
 int data_grp_create(data_id fid, const char *grp_name);
 
-#define DECL_DATA_ATTR_READ(suff, type)                                        \
-	int data_attr_read_##suff(data_id fid, const char *grp_name,           \
-		const char *attr_name, type *a);
-
-DECL_DATA_ATTR_READ(i, int);
-DECL_DATA_ATTR_READ(ul, unsigned long);
-DECL_DATA_ATTR_READ(dbl, double);
+int data_attr_read_dbl(data_id fid, const char *grp_name,
+	const char *attr_name, double *a);
 
 #define data_attr_read(fid, grp_name, attr_name, attr_buf)                     \
 	_Generic((attr_buf),                                                   \
-		int *: data_attr_read_i,                                       \
-		unsigned long *: data_attr_read_ul,                            \
 		double *: data_attr_read_dbl)(                                 \
 		fid, grp_name, attr_name, attr_buf)
 
 /* Create an attribute and write the value of 'a' to it. */
-#define DECL_DATA_ATTR_WRITE(suff, type)                                       \
-	int data_attr_write_##suff(data_id fid, const char *grp_name,          \
-		const char *attr_name, type a)
-
-DECL_DATA_ATTR_WRITE(i, int);
-DECL_DATA_ATTR_WRITE(ul, unsigned long);
-DECL_DATA_ATTR_WRITE(dbl, double);
+int data_attr_write_ul(data_id fid, const char *grp_name,
+	const char *attr_name, unsigned long a);
+int data_attr_write_dbl(data_id fid, const char *grp_name,
+	const char *attr_name, double a);
 
 #define data_attr_write(fid, grp_name, attr_name, attr)                        \
 	_Generic((attr),                                                       \
-		int: data_attr_write_i,                                        \
 		double: data_attr_write_dbl,                                   \
 		unsigned long: data_attr_write_ul)(                            \
 		fid, grp_name, attr_name, attr)

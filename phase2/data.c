@@ -285,8 +285,6 @@ int data_grp_create(data_id fid, const char *grp_name)
 		return 0;                                                      \
 	}
 
-DEFINE_DATA_ATTR_READ(i, int, H5T_NATIVE_INT, MPI_INT);
-DEFINE_DATA_ATTR_READ(ul, unsigned long, H5T_NATIVE_ULONG, MPI_UNSIGNED_LONG);
 DEFINE_DATA_ATTR_READ(dbl, double, H5T_NATIVE_DOUBLE, MPI_DOUBLE);
 
 #define DEFINE_DATA_ATTR_WRITE(suff, type, h5_type)                            \
@@ -355,7 +353,6 @@ DEFINE_DATA_ATTR_READ(dbl, double, H5T_NATIVE_DOUBLE, MPI_DOUBLE);
 		return rt;                                                     \
 	}
 
-DEFINE_DATA_ATTR_WRITE(i, int, H5T_NATIVE_INT);
 DEFINE_DATA_ATTR_WRITE(ul, unsigned long, H5T_NATIVE_ULONG);
 DEFINE_DATA_ATTR_WRITE(dbl, double, H5T_NATIVE_DOUBLE);
 
