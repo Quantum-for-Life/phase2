@@ -46,7 +46,7 @@ struct circ {
 	struct circ_values vals;
 	struct qreg reg;
 	enum stprep_kind stprep_kind;
-	struct circ_coeff cm;
+	struct data_coeff_matrix cm;
 };
 
 int circ_hamil_init(struct circ_hamil *hm, uint32_t qb, size_t len);

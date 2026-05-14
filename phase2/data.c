@@ -828,58 +828,20 @@ static int read_double_attr(hid_t grp_id, const char *name, double *out)
 	return read_attr_raw(grp_id, name, H5T_NATIVE_DOUBLE, out);
 }
 
-int data_coeff_matrix_getnums(const data_id fid, uint32_t *nqb,
-	uint32_t *n_sites, uint32_t *n_alpha, uint32_t *n_beta,
-	int *closed_shell, int *tapered)
+static int read_coeff_attrs(hid_t grp_id, struct data_coeff_matrix *cm)
 {
-	if (world_info(&WD) != WORLD_READY)
+	if (read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NQB, &cm->nqb) < 0
+		|| read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NS,
+			   &cm->n_sites) < 0
+		|| read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NA,
+			   &cm->n_alpha) < 0
+		|| read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NB,
+			   &cm->n_beta) < 0
+		|| read_u8_attr(grp_id, DATA_STPREP_COEFFMAT_CS,
+			   &cm->closed_shell) < 0
+		|| read_u8_attr(grp_id, DATA_STPREP_COEFFMAT_TAP,
+			   &cm->tapered) < 0)
 		return -1;
-
-	int rt = 0;
-	uint32_t v_nqb = 0, v_ns = 0, v_na = 0, v_nb = 0;
-	int v_cs = 0, v_tap = 0;
-	if (WD.rank == 0) {
-		rt = -1;
-		const hid_t grp_id = H5Gopen(
-			(hid_t)fid, COEFFMAT_PATH, H5P_DEFAULT);
-		if (grp_id == H5I_INVALID_HID) {
-			log_error("data_coeff_matrix_getnums:"
-				  " H5Gopen(%s) failed", COEFFMAT_PATH);
-			goto ex_open;
-		}
-
-		if (read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NQB, &v_nqb) < 0
-			|| read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NS,
-				   &v_ns) < 0
-			|| read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NA,
-				   &v_na) < 0
-			|| read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NB,
-				   &v_nb) < 0
-			|| read_u8_attr(grp_id, DATA_STPREP_COEFFMAT_CS,
-				   &v_cs) < 0
-			|| read_u8_attr(grp_id, DATA_STPREP_COEFFMAT_TAP,
-				   &v_tap) < 0)
-			goto ex_grp;
-		rt = 0;
-	ex_grp:
-		H5Gclose(grp_id);
-	ex_open:;
-	}
-	bcast_int(&rt);
-	if (rt < 0)
-		return -1;
-	bcast_u32(&v_nqb);
-	bcast_u32(&v_ns);
-	bcast_u32(&v_na);
-	bcast_u32(&v_nb);
-	bcast_int(&v_cs);
-	bcast_int(&v_tap);
-	*nqb = v_nqb;
-	*n_sites = v_ns;
-	*n_alpha = v_na;
-	*n_beta = v_nb;
-	*closed_shell = v_cs;
-	*tapered = v_tap;
 	return 0;
 }
 
@@ -938,185 +900,220 @@ ex_dset:
 	return rt;
 }
 
-int data_coeff_matrix_read(
-	const data_id fid, double *C_alpha, double *C_beta)
+int data_coeff_matrix_load(const data_id fid, struct data_coeff_matrix *cm)
 {
-	uint32_t nqb, n_sites, n_alpha, n_beta;
-	int closed_shell, tapered;
-	if (data_coeff_matrix_getnums(fid, &nqb, &n_sites, &n_alpha, &n_beta,
-		    &closed_shell, &tapered) < 0)
-		return -1;
-
-	if (closed_shell && C_beta != NULL) {
-		log_error("data_coeff_matrix_read: closed_shell=1 but"
-			  " C_beta != NULL");
-		return -1;
-	}
-	if (!closed_shell && C_beta == NULL) {
-		log_error("data_coeff_matrix_read: closed_shell=0 but"
-			  " C_beta == NULL");
-		return -1;
-	}
-
-	int rt = 0;
-	if (WD.rank == 0) {
-		rt = -1;
-		const hid_t grp_id = H5Gopen(
-			(hid_t)fid, COEFFMAT_PATH, H5P_DEFAULT);
-		if (grp_id == H5I_INVALID_HID) {
-			log_error("data_coeff_matrix_read: H5Gopen(%s) failed",
-				COEFFMAT_PATH);
-			goto ex_open;
-		}
-		if (read_C_dset(grp_id, DATA_STPREP_COEFFMAT_CA, n_sites,
-			    n_alpha, C_alpha) < 0)
-			goto ex_grp;
-		if (!closed_shell
-			&& read_C_dset(grp_id, DATA_STPREP_COEFFMAT_CB, n_sites,
-				   n_beta, C_beta) < 0)
-			goto ex_grp;
-		rt = 0;
-	ex_grp:
-		H5Gclose(grp_id);
-	ex_open:;
-	}
-	bcast_int(&rt);
-	if (rt < 0)
-		return -1;
-	bcast_doubles(C_alpha, (size_t)n_sites * n_alpha);
-	if (!closed_shell)
-		bcast_doubles(C_beta, (size_t)n_sites * n_beta);
-	return 0;
-}
-
-int data_coeff_matrix_csf_count(const data_id fid, size_t *n)
-{
+	memset(cm, 0, sizeof *cm);
 	if (world_info(&WD) != WORLD_READY)
 		return -1;
 
 	int rt = 0;
-	uint32_t ncomp = 0;
-	int present = 0;
+	uint32_t v_ncomp = 0;
+	int v_has_csf = 0;
 	if (WD.rank == 0) {
 		rt = -1;
 		const hid_t grp_id = H5Gopen(
 			(hid_t)fid, COEFFMAT_PATH, H5P_DEFAULT);
 		if (grp_id == H5I_INVALID_HID) {
-			log_error("data_coeff_matrix_csf_count:"
-				  " H5Gopen(%s) failed", COEFFMAT_PATH);
-			goto ex_open;
+			log_error("data_coeff_matrix_load: H5Gopen(%s) failed",
+				COEFFMAT_PATH);
+			goto ex_attrs;
 		}
-
-		const htri_t has_csf = H5Lexists(
+		if (read_coeff_attrs(grp_id, cm) < 0)
+			goto ex_attrs_grp;
+		const htri_t has = H5Lexists(
 			grp_id, DATA_STPREP_COEFFMAT_CSF, H5P_DEFAULT);
-		if (has_csf < 0) {
-			log_error("data_coeff_matrix_csf_count: H5Lexists"
+		if (has < 0) {
+			log_error("data_coeff_matrix_load: H5Lexists(csf)"
 				  " failed");
-			goto ex_grp;
+			goto ex_attrs_grp;
 		}
-		if (!has_csf) {
-			present = 0;
-			ncomp = 0;
-			rt = 0;
-			goto ex_grp;
-		}
-		present = 1;
-
-		const hid_t cg = H5Gopen(grp_id, DATA_STPREP_COEFFMAT_CSF,
-			H5P_DEFAULT);
-		if (cg == H5I_INVALID_HID) {
-			log_error("data_coeff_matrix_csf_count: H5Gopen(%s)"
-				  " failed", DATA_STPREP_COEFFMAT_CSF);
-			goto ex_grp;
-		}
-		if (read_u32_attr(
-			    cg, DATA_STPREP_COEFFMAT_CSF_NCOMP, &ncomp) < 0) {
+		if (has > 0) {
+			v_has_csf = 1;
+			const hid_t cg = H5Gopen(grp_id,
+				DATA_STPREP_COEFFMAT_CSF, H5P_DEFAULT);
+			if (cg == H5I_INVALID_HID) {
+				log_error("data_coeff_matrix_load:"
+					  " H5Gopen(csf) failed");
+				goto ex_attrs_grp;
+			}
+			const int rt_n = read_u32_attr(
+				cg, DATA_STPREP_COEFFMAT_CSF_NCOMP, &v_ncomp);
 			H5Gclose(cg);
-			goto ex_grp;
+			if (rt_n < 0)
+				goto ex_attrs_grp;
+			/* An explicit csf/ subgroup with n_components==0
+			 * is non-physical: a single-block file must omit
+			 * the subgroup, not declare an empty
+			 * superposition.  Reject early so a misbuilt
+			 * simul.h5 never reaches the simulator. */
+			if (v_ncomp == 0) {
+				log_error("simul.h5: /state_prep/coeff_matrix"
+					  "/csf present with n_components=0;"
+					  " remove the csf subgroup or list"
+					  " at least one component");
+				goto ex_attrs_grp;
+			}
 		}
-		H5Gclose(cg);
-
-		/* An explicit csf/ subgroup with n_components==0 is
-		 * non-physical: a single-block file must omit the
-		 * subgroup, not declare an empty superposition.
-		 * Reject early so a misbuilt simul.h5 never reaches
-		 * the simulator. */
-		if (ncomp == 0) {
-			log_error("simul.h5: /state_prep/coeff_matrix/csf"
-				  " present with n_components=0; remove the"
-				  " csf subgroup or list at least one"
-				  " component");
-			goto ex_grp;
-		}
-
 		rt = 0;
-	ex_grp:
+	ex_attrs_grp:
 		H5Gclose(grp_id);
-	ex_open:;
+	ex_attrs:;
 	}
 	bcast_int(&rt);
-	if (rt < 0)
-		return -1;
-	bcast_int(&present);
-	bcast_u32(&ncomp);
-	*n = present ? (size_t)ncomp : 0;
-	return 0;
-}
-
-int data_coeff_matrix_csf_read(const data_id fid, const size_t k,
-	double *coefficient, double *C_alpha, double *C_beta)
-{
-	uint32_t nqb, n_sites, n_alpha, n_beta;
-	int closed_shell, tapered;
-	if (data_coeff_matrix_getnums(fid, &nqb, &n_sites, &n_alpha, &n_beta,
-		    &closed_shell, &tapered) < 0)
-		return -1;
-
-	if (closed_shell && C_beta != NULL) {
-		log_error("data_coeff_matrix_csf_read[%zu]: closed_shell=1"
-			  " but C_beta != NULL", k);
+	if (rt < 0) {
+		memset(cm, 0, sizeof *cm);
 		return -1;
 	}
-	if (!closed_shell && C_beta == NULL) {
-		log_error("data_coeff_matrix_csf_read[%zu]: closed_shell=0"
-			  " but C_beta == NULL", k);
-		return -1;
+	bcast_u32(&cm->nqb);
+	bcast_u32(&cm->n_sites);
+	bcast_u32(&cm->n_alpha);
+	bcast_u32(&cm->n_beta);
+	bcast_int(&cm->closed_shell);
+	bcast_int(&cm->tapered);
+	bcast_int(&v_has_csf);
+	bcast_u32(&v_ncomp);
+
+	const size_t sz_a = (size_t)cm->n_sites * cm->n_alpha;
+	const size_t sz_b = (size_t)cm->n_sites * cm->n_beta;
+
+	if (v_has_csf) {
+		cm->n_components = v_ncomp;
+		cm->blocks = calloc(v_ncomp, sizeof *cm->blocks);
+		if (!cm->blocks) {
+			log_error("data_coeff_matrix_load: alloc blocks"
+				  " (n=%u) failed", v_ncomp);
+			goto err_alloc;
+		}
+		for (size_t k = 0; k < v_ncomp; k++) {
+			cm->blocks[k].C_alpha = malloc(
+				sizeof(double) * (sz_a ? sz_a : 1));
+			if (!cm->blocks[k].C_alpha) {
+				log_error("data_coeff_matrix_load: alloc"
+					  " C_alpha[%zu] failed", k);
+				goto err_alloc;
+			}
+			if (!cm->closed_shell) {
+				cm->blocks[k].C_beta = malloc(
+					sizeof(double) * (sz_b ? sz_b : 1));
+				if (!cm->blocks[k].C_beta) {
+					log_error("data_coeff_matrix_load:"
+						  " alloc C_beta[%zu] failed",
+						k);
+					goto err_alloc;
+				}
+			}
+		}
+	} else {
+		cm->C_alpha = malloc(sizeof(double) * (sz_a ? sz_a : 1));
+		if (!cm->C_alpha) {
+			log_error("data_coeff_matrix_load: alloc C_alpha"
+				  " failed");
+			goto err_alloc;
+		}
+		if (!cm->closed_shell) {
+			cm->C_beta = malloc(sizeof(double) * (sz_b ? sz_b : 1));
+			if (!cm->C_beta) {
+				log_error("data_coeff_matrix_load: alloc"
+					  " C_beta failed");
+				goto err_alloc;
+			}
+		}
 	}
 
-	int rt = 0;
+	rt = 0;
 	if (WD.rank == 0) {
 		rt = -1;
-		char path[64];
-		snprintf(path, sizeof path, "%s/%s/%zu", COEFFMAT_PATH,
-			DATA_STPREP_COEFFMAT_CSF, k);
-		const hid_t cg_k = H5Gopen((hid_t)fid, path, H5P_DEFAULT);
-		if (cg_k == H5I_INVALID_HID) {
-			log_error("data_coeff_matrix_csf_read[%zu]:"
-				  " H5Gopen(%s) failed", k, path);
-			goto ex_open;
+		const hid_t grp_id = H5Gopen(
+			(hid_t)fid, COEFFMAT_PATH, H5P_DEFAULT);
+		if (grp_id == H5I_INVALID_HID) {
+			log_error("data_coeff_matrix_load: H5Gopen(%s) failed"
+				  " (dsets)", COEFFMAT_PATH);
+			goto ex_dsets;
 		}
-
-		if (read_double_attr(cg_k, DATA_STPREP_COEFFMAT_CSF_CF,
-			    coefficient) < 0)
-			goto ex_kgrp;
-		if (read_C_dset(cg_k, DATA_STPREP_COEFFMAT_CA, n_sites,
-			    n_alpha, C_alpha) < 0)
-			goto ex_kgrp;
-		if (!closed_shell
-			&& read_C_dset(cg_k, DATA_STPREP_COEFFMAT_CB, n_sites,
-				   n_beta, C_beta) < 0)
-			goto ex_kgrp;
-		rt = 0;
-	ex_kgrp:
-		H5Gclose(cg_k);
-	ex_open:;
+		if (v_has_csf) {
+			int ok = 1;
+			for (size_t k = 0; k < cm->n_components && ok; k++) {
+				char sub[32];
+				snprintf(sub, sizeof sub, "%s/%zu",
+					DATA_STPREP_COEFFMAT_CSF, k);
+				const hid_t cg = H5Gopen(
+					grp_id, sub, H5P_DEFAULT);
+				if (cg == H5I_INVALID_HID) {
+					log_error("data_coeff_matrix_load:"
+						  " H5Gopen(%s/%s) failed",
+						COEFFMAT_PATH, sub);
+					ok = 0;
+					break;
+				}
+				if (read_double_attr(cg,
+					    DATA_STPREP_COEFFMAT_CSF_CF,
+					    &cm->blocks[k].cf) < 0
+					|| read_C_dset(cg,
+						   DATA_STPREP_COEFFMAT_CA,
+						   cm->n_sites, cm->n_alpha,
+						   cm->blocks[k].C_alpha) < 0
+					|| (!cm->closed_shell
+						&& read_C_dset(cg,
+							   DATA_STPREP_COEFFMAT_CB,
+							   cm->n_sites,
+							   cm->n_beta,
+							   cm->blocks[k].C_beta)
+							< 0))
+					ok = 0;
+				H5Gclose(cg);
+			}
+			if (ok)
+				rt = 0;
+		} else {
+			if (read_C_dset(grp_id, DATA_STPREP_COEFFMAT_CA,
+				    cm->n_sites, cm->n_alpha, cm->C_alpha)
+					>= 0
+				&& (cm->closed_shell
+					|| read_C_dset(grp_id,
+						   DATA_STPREP_COEFFMAT_CB,
+						   cm->n_sites, cm->n_beta,
+						   cm->C_beta) >= 0))
+				rt = 0;
+		}
+		H5Gclose(grp_id);
+	ex_dsets:;
 	}
 	bcast_int(&rt);
 	if (rt < 0)
-		return -1;
-	MPI_Bcast(coefficient, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	bcast_doubles(C_alpha, (size_t)n_sites * n_alpha);
-	if (!closed_shell)
-		bcast_doubles(C_beta, (size_t)n_sites * n_beta);
+		goto err_alloc;
+
+	if (v_has_csf) {
+		for (size_t k = 0; k < cm->n_components; k++) {
+			MPI_Bcast(&cm->blocks[k].cf, 1, MPI_DOUBLE, 0,
+				MPI_COMM_WORLD);
+			bcast_doubles(cm->blocks[k].C_alpha, sz_a);
+			if (!cm->closed_shell)
+				bcast_doubles(cm->blocks[k].C_beta, sz_b);
+		}
+	} else {
+		bcast_doubles(cm->C_alpha, sz_a);
+		if (!cm->closed_shell)
+			bcast_doubles(cm->C_beta, sz_b);
+	}
 	return 0;
+
+err_alloc:
+	data_coeff_matrix_free(cm);
+	return -1;
+}
+
+void data_coeff_matrix_free(struct data_coeff_matrix *cm)
+{
+	if (!cm)
+		return;
+	if (cm->blocks) {
+		for (size_t k = 0; k < cm->n_components; k++) {
+			free(cm->blocks[k].C_alpha);
+			free(cm->blocks[k].C_beta);
+		}
+		free(cm->blocks);
+	}
+	free(cm->C_alpha);
+	free(cm->C_beta);
+	memset(cm, 0, sizeof *cm);
 }

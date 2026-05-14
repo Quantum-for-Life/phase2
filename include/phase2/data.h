@@ -173,60 +173,61 @@ enum stprep_kind {
 int data_state_prep_kind(data_id fid, enum stprep_kind *out);
 
 /**
- * Get attributes from /state_prep/coeff_matrix/.
+ * Raw coefficient-matrix data read from
+ * /state_prep/coeff_matrix.
  *
- *   nqb          total qubit count (== n_qubits attribute)
- *   n_sites      spatial-orbital count
- *   n_alpha      alpha-spin occupation
- *   n_beta       beta-spin occupation
- *   closed_shell 0 or 1 (1 => C_beta dataset absent)
- *   tapered      0 or 1 (1 => bits 0 and n_sites are dropped
- *                          per generated bitstring)
+ *   nqb           total qubit count (== n_qubits attribute)
+ *   n_sites       spatial-orbital count
+ *   n_alpha       alpha-spin occupation
+ *   n_beta        beta-spin occupation
+ *   closed_shell  0 or 1; 1 => C_beta buffers absent
+ *   tapered       0 or 1; 1 => bits 0 and n_sites are dropped
+ *                              per generated bitstring
  *
- * Returns 0 on success, -1 on error.  Output values are
- * unchanged on error.
+ *   n_components  CSF superposition arity.  0 => the trial
+ *                 state is a single block carried by the
+ *                 top-level C_alpha / C_beta arrays;
+ *                 blocks == NULL.  > 0 => the top-level
+ *                 C_alpha / C_beta are NULL and `blocks[]`
+ *                 carries n_components entries, each with
+ *                 its own weight `cf` and C_alpha / C_beta.
+ *   C_alpha       single-block alpha coefficients,
+ *                 n_sites * n_alpha doubles row-major, or
+ *                 NULL when n_components > 0.
+ *   C_beta        single-block beta coefficients,
+ *                 n_sites * n_beta doubles row-major, or
+ *                 NULL when closed_shell or n_components > 0.
+ *   blocks        CSF blocks, n_components entries, or NULL
+ *                 for the single-block case.  Each block's
+ *                 C_alpha / C_beta have the same shapes as
+ *                 the top-level arrays.
+ *
+ * data_coeff_matrix_load() opens the group, reads all
+ * scalars and arrays, validates shapes, and broadcasts to
+ * followers in one call.  data_coeff_matrix_free()
+ * releases every allocation and zeroes the struct.
  */
-int data_coeff_matrix_getnums(data_id fid, uint32_t *nqb, uint32_t *n_sites,
-	uint32_t *n_alpha, uint32_t *n_beta, int *closed_shell, int *tapered);
+struct data_coeff_block {
+	double cf;
+	double *C_alpha;
+	double *C_beta;
+};
 
-/**
- * Read C_alpha and (optionally) C_beta from the top-level
- * /state_prep/coeff_matrix/ group.
- *
- * Caller must supply buffers sized:
- *   C_alpha: n_sites * n_alpha doubles  (row-major)
- *   C_beta : n_sites * n_beta  doubles  (row-major), or NULL
- *            if closed_shell == 1.
- *
- * Passing a non-NULL C_beta on a closed-shell file or NULL on
- * an open-shell file is a programmer error and returns -1
- * without touching the buffers.
- *
- * Returns 0 on success, -1 on error.
- */
-int data_coeff_matrix_read(data_id fid, double *C_alpha, double *C_beta);
+struct data_coeff_matrix {
+	uint32_t nqb;
+	uint32_t n_sites;
+	uint32_t n_alpha;
+	uint32_t n_beta;
+	int closed_shell;
+	int tapered;
+	size_t n_components;
+	double *C_alpha;
+	double *C_beta;
+	struct data_coeff_block *blocks;
+};
 
-/**
- * Count CSF components under /state_prep/coeff_matrix/csf/.
- *
- * Sets *n on success and returns 0.  If the csf/ subgroup is
- * absent, *n is set to 0 and the function returns 0 (the
- * file encodes a single block, not a CSF superposition).
- * Returns -1 on read error (csf/ present but malformed).
- */
-int data_coeff_matrix_csf_count(data_id fid, size_t *n);
-
-/**
- * Read CSF component k.
- *
- * Reads /state_prep/coeff_matrix/csf/<k>/coefficient (scalar)
- * and the per-component C_alpha / C_beta datasets.  Buffer
- * shapes match data_coeff_matrix_read().
- *
- * Returns 0 on success, -1 on error.
- */
-int data_coeff_matrix_csf_read(data_id fid, size_t k, double *coefficient,
-	double *C_alpha, double *C_beta);
+int data_coeff_matrix_load(data_id fid, struct data_coeff_matrix *cm);
+void data_coeff_matrix_free(struct data_coeff_matrix *cm);
 
 /**
  * Raw Hamiltonian data read from /pauli_hamil.

@@ -197,8 +197,8 @@ int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
 		log_debug("circ_init: multidet state (%zu dets)", ct->md.len);
 		break;
 	case STPREP_COEFF_MATRIX:
-		if (circ_coeff_init(&ct->cm, fid) < 0) {
-			log_error("circ_init: coeff_matrix init failed");
+		if (data_coeff_matrix_load(fid, &ct->cm) < 0) {
+			log_error("circ_init: coeff_matrix load failed");
 			goto err_stprep_load;
 		}
 		log_debug("circ_init: coeff_matrix state (n_components=%zu)",
@@ -231,7 +231,7 @@ err_qreg_init:
 		circ_muldet_free(&ct->md);
 		break;
 	case STPREP_COEFF_MATRIX:
-		circ_coeff_free(&ct->cm);
+		data_coeff_matrix_free(&ct->cm);
 		break;
 	}
 err_stprep_load:
@@ -250,7 +250,7 @@ void circ_free(struct circ *ct)
 		circ_muldet_free(&ct->md);
 		break;
 	case STPREP_COEFF_MATRIX:
-		circ_coeff_free(&ct->cm);
+		data_coeff_matrix_free(&ct->cm);
 		break;
 	}
 	qreg_free(&ct->reg);
@@ -353,7 +353,7 @@ static _Complex double measure_coeff_block(struct qreg *reg,
 
 static _Complex double measure_coeff(struct circ *ct)
 {
-	const struct circ_coeff *cm = &ct->cm;
+	const struct data_coeff_matrix *cm = &ct->cm;
 	_Complex double pr = 0.0;
 
 	if (cm->n_components == 0) {
@@ -363,7 +363,7 @@ static _Complex double measure_coeff(struct circ *ct)
 			cm->tapered);
 	} else {
 		for (size_t k = 0; k < cm->n_components; k++) {
-			const struct circ_coeff_block *b = &cm->blocks[k];
+			const struct data_coeff_block *b = &cm->blocks[k];
 			pr += measure_coeff_block(&ct->reg, cm->n_sites,
 				cm->n_alpha, cm->n_beta, b->C_alpha,
 				cm->closed_shell ? NULL : b->C_beta, b->cf,

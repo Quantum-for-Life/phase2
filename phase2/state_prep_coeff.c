@@ -256,7 +256,8 @@ _Complex double state_prep_coeff_inner(struct qreg *reg,
 	return CMPLX(total[0], total[1]);
 }
 
-int state_prep_coeff_expand_all(struct qreg *reg, const struct circ_coeff *cm)
+int state_prep_coeff_expand_all(
+	struct qreg *reg, const struct data_coeff_matrix *cm)
 {
 	log_debug("expand_all: n_sites=%u n_alpha=%u n_beta=%u"
 		  " closed_shell=%d tapered=%d n_components=%zu",
@@ -276,7 +277,7 @@ int state_prep_coeff_expand_all(struct qreg *reg, const struct circ_coeff *cm)
 
 	qreg_zero(reg);
 	for (size_t k = 0; k < cm->n_components; k++) {
-		const struct circ_coeff_block *b = &cm->blocks[k];
+		const struct data_coeff_block *b = &cm->blocks[k];
 		log_trace("expand_all: block %zu/%zu cf=%.6f", k + 1,
 			cm->n_components, b->cf);
 		if (state_prep_coeff_expand(reg, cm->n_sites, cm->n_alpha,
@@ -288,98 +289,4 @@ int state_prep_coeff_expand_all(struct qreg *reg, const struct circ_coeff *cm)
 		}
 	}
 	return 0;
-}
-
-int circ_coeff_init(struct circ_coeff *cm, const data_id fid)
-{
-	memset(cm, 0, sizeof *cm);
-
-	if (data_coeff_matrix_getnums(fid, &cm->n_qubits, &cm->n_sites,
-		    &cm->n_alpha, &cm->n_beta, &cm->closed_shell,
-		    &cm->tapered) < 0)
-		return -1;
-
-	size_t n_comp = 0;
-	if (data_coeff_matrix_csf_count(fid, &n_comp) < 0)
-		return -1;
-
-	const size_t sz_a = (size_t)cm->n_sites * cm->n_alpha;
-	const size_t sz_b = (size_t)cm->n_sites * cm->n_beta;
-
-	cm->C_alpha = malloc(sizeof(double) * (sz_a ? sz_a : 1));
-	if (!cm->C_alpha)
-		goto err_ca;
-	if (!cm->closed_shell) {
-		cm->C_beta = malloc(sizeof(double) * (sz_b ? sz_b : 1));
-		if (!cm->C_beta)
-			goto err_cb;
-	}
-
-	if (n_comp == 0) {
-		if (data_coeff_matrix_read(fid, cm->C_alpha, cm->C_beta) < 0)
-			goto err_read;
-		cm->n_components = 0;
-		return 0;
-	}
-
-	cm->n_components = n_comp;
-	cm->blocks = calloc(n_comp, sizeof *cm->blocks);
-	if (!cm->blocks)
-		goto err_blocks;
-
-	for (size_t k = 0; k < n_comp; k++) {
-		cm->blocks[k].C_alpha =
-			malloc(sizeof(double) * (sz_a ? sz_a : 1));
-		if (!cm->blocks[k].C_alpha)
-			goto err_inner;
-		if (!cm->closed_shell) {
-			cm->blocks[k].C_beta =
-				malloc(sizeof(double) * (sz_b ? sz_b : 1));
-			if (!cm->blocks[k].C_beta)
-				goto err_inner;
-		}
-		if (data_coeff_matrix_csf_read(fid, k, &cm->blocks[k].cf,
-			    cm->blocks[k].C_alpha,
-			    cm->closed_shell ? NULL
-					     : cm->blocks[k].C_beta) < 0)
-			goto err_inner;
-	}
-	return 0;
-
-err_inner:
-	for (size_t k = 0; k < n_comp; k++) {
-		free(cm->blocks[k].C_alpha);
-		free(cm->blocks[k].C_beta);
-	}
-	free(cm->blocks);
-	cm->blocks = NULL;
-err_blocks:
-err_read:
-	if (cm->C_beta) {
-		free(cm->C_beta);
-		cm->C_beta = NULL;
-	}
-err_cb:
-	free(cm->C_alpha);
-	cm->C_alpha = NULL;
-err_ca:
-	return -1;
-}
-
-void circ_coeff_free(struct circ_coeff *cm)
-{
-	if (!cm)
-		return;
-	if (cm->blocks) {
-		for (size_t k = 0; k < cm->n_components; k++) {
-			free(cm->blocks[k].C_alpha);
-			free(cm->blocks[k].C_beta);
-		}
-		free(cm->blocks);
-		cm->blocks = NULL;
-	}
-	free(cm->C_alpha);
-	cm->C_alpha = NULL;
-	free(cm->C_beta);
-	cm->C_beta = NULL;
 }

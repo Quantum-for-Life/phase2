@@ -20,8 +20,8 @@ static void t_two_component(void)
 	data_id fid = data_open(PH2_TESTDIR "/data/N4_csf.h5");
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open csf");
 
-	struct circ_coeff cm;
-	TEST_EQ(circ_coeff_init(&cm, fid), 0);
+	struct data_coeff_matrix cm;
+	TEST_EQ(data_coeff_matrix_load(fid, &cm), 0);
 	TEST_EQ(cm.n_components, 2u);
 	TEST_ASSERT(fabs(cm.blocks[0].cf - 0.6) < 1e-15,
 		"csf coef0=%f", cm.blocks[0].cf);
@@ -29,14 +29,14 @@ static void t_two_component(void)
 		"csf coef1=%f", cm.blocks[1].cf);
 
 	struct qreg reg;
-	TEST_EQ(qreg_init(&reg, cm.n_qubits), 0);
+	TEST_EQ(qreg_init(&reg, cm.nqb), 0);
 	qreg_zero(&reg);
 	TEST_EQ(state_prep_coeff_expand_all(&reg, &cm), 0);
 
 	/* Sanity: the superposed state must have at least one
 	 * non-zero amplitude. */
 	double sumsq = 0.0;
-	const uint64_t namp = UINT64_C(1) << cm.n_qubits;
+	const uint64_t namp = UINT64_C(1) << cm.nqb;
 	for (uint64_t i = 0; i < namp; i++) {
 		_Complex double z;
 		qreg_getamp(&reg, i, &z);
@@ -45,7 +45,7 @@ static void t_two_component(void)
 	TEST_ASSERT(sumsq > 0.01, "CSF state is zero (sumsq=%f)", sumsq);
 
 	qreg_free(&reg);
-	circ_coeff_free(&cm);
+	data_coeff_matrix_free(&cm);
 	data_close(fid);
 }
 
@@ -57,13 +57,13 @@ static void t_single_block_csf_equiv(void)
 	data_id fid = data_open(PH2_TESTDIR "/data/N4_closed.h5");
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open closed");
 
-	struct circ_coeff cm;
-	TEST_EQ(circ_coeff_init(&cm, fid), 0);
+	struct data_coeff_matrix cm;
+	TEST_EQ(data_coeff_matrix_load(fid, &cm), 0);
 	TEST_EQ(cm.n_components, 0u);
 
 	struct qreg r0, r1;
-	TEST_EQ(qreg_init(&r0, cm.n_qubits), 0);
-	TEST_EQ(qreg_init(&r1, cm.n_qubits), 0);
+	TEST_EQ(qreg_init(&r0, cm.nqb), 0);
+	TEST_EQ(qreg_init(&r1, cm.nqb), 0);
 	qreg_zero(&r0);
 	qreg_zero(&r1);
 
@@ -72,7 +72,7 @@ static void t_single_block_csf_equiv(void)
 			cm.n_beta, cm.C_alpha, NULL, 1.0, cm.tapered, 0),
 		0);
 
-	const uint64_t namp = UINT64_C(1) << cm.n_qubits;
+	const uint64_t namp = UINT64_C(1) << cm.nqb;
 	for (uint64_t i = 0; i < namp; i++) {
 		_Complex double a, b;
 		qreg_getamp(&r0, i, &a);
@@ -84,7 +84,7 @@ static void t_single_block_csf_equiv(void)
 
 	qreg_free(&r1);
 	qreg_free(&r0);
-	circ_coeff_free(&cm);
+	data_coeff_matrix_free(&cm);
 	data_close(fid);
 }
 
@@ -92,16 +92,17 @@ static void t_csf_empty_rejected(void)
 {
 	/*
 	 * A coeff_matrix fixture whose csf/ subgroup exists but
-	 * advertises n_components=0 is malformed.  circ_coeff_init
-	 * must refuse to populate the struct.
+	 * advertises n_components=0 is malformed.
+	 * data_coeff_matrix_load must refuse to populate the
+	 * struct.
 	 */
 	data_id fid = data_open(PH2_TESTDIR "/data/N4_csf_empty.h5");
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open csf-empty");
 
-	struct circ_coeff cm;
-	const int rc = circ_coeff_init(&cm, fid);
-	TEST_ASSERT(rc < 0, "circ_coeff_init must reject empty csf/, got %d",
-		rc);
+	struct data_coeff_matrix cm;
+	const int rc = data_coeff_matrix_load(fid, &cm);
+	TEST_ASSERT(rc < 0,
+		"data_coeff_matrix_load must reject empty csf/, got %d", rc);
 
 	data_close(fid);
 }

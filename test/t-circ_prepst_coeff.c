@@ -27,7 +27,7 @@ static void t_norm_and_structure(void)
 
 	double sumsq = 0.0;
 	int nonzero = 0;
-	const uint64_t namp = UINT64_C(1) << ct.cm.n_qubits;
+	const uint64_t namp = UINT64_C(1) << ct.cm.nqb;
 	for (uint64_t i = 0; i < namp; i++) {
 		_Complex double z;
 		qreg_getamp(&ct.reg, i, &z);

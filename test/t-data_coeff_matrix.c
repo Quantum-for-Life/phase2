@@ -49,28 +49,24 @@ static void t_closed(void)
 	data_id fid = data_open(F_N4_CLOSED);
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open closed");
 
-	uint32_t nqb, ns, na, nb;
-	int cs, tap;
-	TEST_EQ(data_coeff_matrix_getnums(fid, &nqb, &ns, &na, &nb, &cs, &tap),
-		0);
-	TEST_EQ(nqb, 8u);
-	TEST_EQ(ns, 4u);
-	TEST_EQ(na, 2u);
-	TEST_EQ(nb, 2u);
-	TEST_EQ(cs, 1);
-	TEST_EQ(tap, 0);
-
-	double Ca[4 * 2];
-	TEST_EQ(data_coeff_matrix_read(fid, Ca, NULL), 0);
+	struct data_coeff_matrix cm;
+	TEST_EQ(data_coeff_matrix_load(fid, &cm), 0);
+	TEST_EQ(cm.nqb, 8u);
+	TEST_EQ(cm.n_sites, 4u);
+	TEST_EQ(cm.n_alpha, 2u);
+	TEST_EQ(cm.n_beta, 2u);
+	TEST_EQ(cm.closed_shell, 1);
+	TEST_EQ(cm.tapered, 0);
+	TEST_EQ(cm.n_components, (size_t)0);
+	TEST_ASSERT(cm.C_alpha != NULL, "C_alpha must be allocated");
+	TEST_ASSERT(cm.C_beta == NULL, "closed shell: C_beta must be NULL");
+	TEST_ASSERT(cm.blocks == NULL, "single block: blocks must be NULL");
 	double sumsq = 0.0;
-	for (int i = 0; i < 8; i++)
-		sumsq += Ca[i] * Ca[i];
+	for (size_t i = 0; i < (size_t)cm.n_sites * cm.n_alpha; i++)
+		sumsq += cm.C_alpha[i] * cm.C_alpha[i];
 	TEST_ASSERT(sumsq > 0.1, "C_alpha looks empty (sumsq=%f)", sumsq);
 
-	size_t n_comp;
-	TEST_EQ(data_coeff_matrix_csf_count(fid, &n_comp), 0);
-	TEST_EQ(n_comp, 0u);
-
+	data_coeff_matrix_free(&cm);
 	data_close(fid);
 }
 
@@ -79,22 +75,16 @@ static void t_open(void)
 	data_id fid = data_open(F_N4_OPEN);
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open open-shell");
 
-	uint32_t nqb, ns, na, nb;
-	int cs, tap;
-	TEST_EQ(data_coeff_matrix_getnums(fid, &nqb, &ns, &na, &nb, &cs, &tap),
-		0);
-	TEST_EQ(cs, 0);
-	TEST_EQ(na, 2u);
-	TEST_EQ(nb, 1u);
+	struct data_coeff_matrix cm;
+	TEST_EQ(data_coeff_matrix_load(fid, &cm), 0);
+	TEST_EQ(cm.closed_shell, 0);
+	TEST_EQ(cm.n_alpha, 2u);
+	TEST_EQ(cm.n_beta, 1u);
+	TEST_EQ(cm.n_components, (size_t)0);
+	TEST_ASSERT(cm.C_alpha != NULL, "C_alpha must be allocated");
+	TEST_ASSERT(cm.C_beta != NULL, "open shell: C_beta must be allocated");
 
-	double Ca[4 * 2];
-	double Cb[4 * 1];
-	TEST_EQ(data_coeff_matrix_read(fid, Ca, Cb), 0);
-
-	/* Passing the wrong shape of NULL is a programmer error. */
-	TEST_ASSERT(data_coeff_matrix_read(fid, Ca, NULL) < 0,
-		"open-shell must require C_beta buffer");
-
+	data_coeff_matrix_free(&cm);
 	data_close(fid);
 }
 
@@ -103,14 +93,13 @@ static void t_tapered(void)
 	data_id fid = data_open(F_N8_TAP);
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open tapered");
 
-	uint32_t nqb, ns, na, nb;
-	int cs, tap;
-	TEST_EQ(data_coeff_matrix_getnums(fid, &nqb, &ns, &na, &nb, &cs, &tap),
-		0);
-	TEST_EQ(nqb, 14u);
-	TEST_EQ(ns, 8u);
-	TEST_EQ(tap, 1);
+	struct data_coeff_matrix cm;
+	TEST_EQ(data_coeff_matrix_load(fid, &cm), 0);
+	TEST_EQ(cm.nqb, 14u);
+	TEST_EQ(cm.n_sites, 8u);
+	TEST_EQ(cm.tapered, 1);
 
+	data_coeff_matrix_free(&cm);
 	data_close(fid);
 }
 
@@ -119,17 +108,22 @@ static void t_csf(void)
 	data_id fid = data_open(F_N4_CSF);
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open csf");
 
-	size_t n_comp;
-	TEST_EQ(data_coeff_matrix_csf_count(fid, &n_comp), 0);
-	TEST_EQ(n_comp, 2u);
+	struct data_coeff_matrix cm;
+	TEST_EQ(data_coeff_matrix_load(fid, &cm), 0);
+	TEST_EQ(cm.n_components, (size_t)2);
+	TEST_ASSERT(cm.blocks != NULL, "csf: blocks must be allocated");
+	TEST_ASSERT(cm.C_alpha == NULL,
+		"csf: top-level C_alpha must be NULL (use blocks[k])");
+	TEST_ASSERT(cm.C_beta == NULL,
+		"csf: top-level C_beta must be NULL (use blocks[k])");
+	TEST_ASSERT(fabs(cm.blocks[0].cf - 0.6) < 1e-15, "csf[0].cf=%f",
+		cm.blocks[0].cf);
+	TEST_ASSERT(fabs(cm.blocks[1].cf - 0.8) < 1e-15, "csf[1].cf=%f",
+		cm.blocks[1].cf);
+	TEST_ASSERT(cm.blocks[0].C_alpha != NULL, "csf[0].C_alpha allocated");
+	TEST_ASSERT(cm.blocks[1].C_alpha != NULL, "csf[1].C_alpha allocated");
 
-	double cf0, cf1;
-	double Ca0[4 * 2], Ca1[4 * 2];
-	TEST_EQ(data_coeff_matrix_csf_read(fid, 0, &cf0, Ca0, NULL), 0);
-	TEST_EQ(data_coeff_matrix_csf_read(fid, 1, &cf1, Ca1, NULL), 0);
-	TEST_ASSERT(fabs(cf0 - 0.6) < 1e-15, "csf[0].coef=%f", cf0);
-	TEST_ASSERT(fabs(cf1 - 0.8) < 1e-15, "csf[1].coef=%f", cf1);
-
+	data_coeff_matrix_free(&cm);
 	data_close(fid);
 }
 
@@ -143,9 +137,11 @@ static void t_csf_empty(void)
 	data_id fid = data_open(F_N4_CSF_EMPTY);
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open csf-empty");
 
-	size_t n_comp = 999;
-	const int rc = data_coeff_matrix_csf_count(fid, &n_comp);
+	struct data_coeff_matrix cm;
+	const int rc = data_coeff_matrix_load(fid, &cm);
 	TEST_ASSERT(rc < 0, "csf n_components=0 must error, got %d", rc);
+	TEST_ASSERT(cm.C_alpha == NULL && cm.blocks == NULL,
+		"failed load must leave the struct empty");
 
 	data_close(fid);
 }
