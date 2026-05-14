@@ -48,13 +48,12 @@ MPI_CFLAGS	:= -I$(LIB64)/openmpi/include
 MPI_LDFLAGS	:= -L$(LIB64)/openmpi/lib
 MPI_LDLIBS	:= -lmpi
 
-# Make sure you use the _parallel_ version of HDF5.
-# You can find the correct paths for your system by querying:
+# Standard (serial) HDF5.  Find the correct paths via:
 #
-# $ h5pcc -shlib -show
+# $ h5cc -shlib -show
 #
-HDF5_CFLAGS	:= -I/usr/include/hdf5/openmpi
-HDF5_LDFLAGS	:= -L$(LIB64)/hdf5/openmpi -Wl,-rpath -Wl,$(LIB64)/hdf5/openmpi
+HDF5_CFLAGS	:= -I/usr/include/hdf5/serial
+HDF5_LDFLAGS	:= -L$(LIB64)/hdf5/serial -Wl,-rpath -Wl,$(LIB64)/hdf5/serial
 HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcurl -lsz -lz -ldl -lm
 
 # Backends
@@ -280,6 +279,9 @@ TESTS		:= $(TESTDIR)/t-bitstring_index			\
 			$(TESTDIR)/t-data_hamil				\
 			$(TESTDIR)/t-data_multidet			\
 			$(TESTDIR)/t-data_open				\
+			$(TESTDIR)/t-data_dets_validate			\
+			$(TESTDIR)/t-data_idempotence			\
+			$(TESTDIR)/t-data_mpi				\
 			$(TESTDIR)/t-data_trott_steps			\
 			$(TESTDIR)/t-det_small				\
 			$(TESTDIR)/t-log				\

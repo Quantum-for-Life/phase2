@@ -16,18 +16,50 @@
 #define MARGIN (1.0e-13)
 #define STEPS (2)
 
+/* The data layer is rank-0-only and opens files RDWR, so a
+ * test running on a committed fixture would mutate the file
+ * via the per-step writes that trott_simul issues now.  Copy
+ * the fixture to /tmp first, work on the copy, delete on the
+ * way out. */
+static void copy_to_tmp(const char *src, const char *dst)
+{
+	struct world_info wd;
+	world_info(&wd);
+	if (wd.rank != 0)
+		return;
+	FILE *in = fopen(src, "rb");
+	TEST_ASSERT(in != NULL, "copy_to_tmp: open src %s", src);
+	FILE *out = fopen(dst, "wb");
+	TEST_ASSERT(out != NULL, "copy_to_tmp: open dst %s", dst);
+	char buf[4096];
+	size_t n;
+	while ((n = fread(buf, 1, sizeof buf, in)) > 0)
+		TEST_ASSERT(fwrite(buf, 1, n, out) == n,
+			"copy_to_tmp: short write to %s", dst);
+	fclose(in);
+	fclose(out);
+}
+
 static _Complex double run_trott(const char *src)
 {
+	const char *tmp = "/tmp/t-circ_trott_coeff.tmp.h5";
+	copy_to_tmp(src, tmp);
+
 	struct trott tt;
 	struct trott_data td = { .delta = 0.4, .steps = STEPS };
 
-	data_id fid = data_open(src);
-	TEST_ASSERT(fid != DATA_INVALID_FID, "open %s", src);
+	data_id fid = data_open(tmp);
+	TEST_ASSERT(fid != DATA_INVALID_FID, "open %s", tmp);
 	TEST_EQ(trott_init(&tt, &td, fid), 0);
 	TEST_EQ(trott_simul(&tt), 0);
 	const _Complex double v = tt.ct.vals.z[STEPS - 1];
 	trott_free(&tt);
 	data_close(fid);
+
+	struct world_info wd;
+	world_info(&wd);
+	if (wd.rank == 0)
+		remove(tmp);
 	return v;
 }
 
