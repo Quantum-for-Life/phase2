@@ -62,15 +62,6 @@ static int build_bad_multidet(void)
 	return 0;
 }
 
-static int op_should_not_run(_Complex double cf, uint64_t idx, void *ud)
-{
-	(void)cf;
-	(void)idx;
-	(void)ud;
-	TEST_FAIL("op called despite malformed dets");
-	return 0;
-}
-
 int main(void)
 {
 	struct world_info wd;
@@ -83,10 +74,12 @@ int main(void)
 	const data_id fid = data_open(FILENAME);
 	TEST_ASSERT(fid != DATA_INVALID_FID, "data_open");
 
-	const int rt = data_multidet_foreach(fid, op_should_not_run, NULL);
+	struct data_multidet m = { 0 };
+	const int rt = data_multidet_load(fid, &m);
 	TEST_ASSERT(rt < 0,
-		"data_multidet_foreach must reject dets[1]=2 (got rt=%d)",
-		rt);
+		"data_multidet_load must reject dets[1]=2 (got rt=%d)", rt);
+	TEST_ASSERT(m.cfs == NULL && m.dets == NULL,
+		"failed load must leave the struct without dangling buffers");
 
 	data_close(fid);
 	if (wd.rank == 0)

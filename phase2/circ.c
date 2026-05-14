@@ -36,45 +36,23 @@ void circ_hamil_free(struct circ_hamil *hm)
 		free(hm->terms);
 }
 
-struct hamil_iter_data {
-	size_t i;
-	double norm;
-	struct circ_hamil *hamil;
-};
-
-static int hamil_iter(double cf, unsigned char *ops, void *iter_data)
-{
-	struct hamil_iter_data *id = iter_data;
-	struct circ_hamil *h = id->hamil;
-	const size_t i = id->i++;
-	const uint32_t nqb = h->qb;
-
-	h->terms[i].cf = cf * id->norm;
-	struct paulis op = paulis_new();
-	for (uint32_t j = 0; j < nqb; j++)
-		paulis_set(&op, ops[j], j);
-	h->terms[i].op = op;
-
-	return 0;
-}
-
 static int circ_hamil_from_file(struct circ_hamil *h, const data_id fid)
 {
-	uint32_t nqb;
-	size_t nterms;
-	double norm;
-
-	if (data_hamil_getnums(fid, &nqb, &nterms) < 0)
+	struct data_hamil raw;
+	if (data_hamil_load(fid, &raw) < 0)
 		return -1;
-	if (data_hamil_getnorm(fid, &norm) < 0)
+	if (circ_hamil_init(h, raw.nqb, raw.nterms) < 0) {
+		data_hamil_free(&raw);
 		return -1;
-	if (circ_hamil_init(h, nqb, nterms) < 0)
-		return -1;
-
-	struct hamil_iter_data id = { .i = 0, .norm = norm, .hamil = h };
-	if (data_hamil_foreach(fid, hamil_iter, &id) != 0)
-		return -1;
-
+	}
+	for (size_t i = 0; i < raw.nterms; i++) {
+		h->terms[i].cf = raw.cfs[i] * raw.norm;
+		struct paulis op = paulis_new();
+		for (uint32_t j = 0; j < raw.nqb; j++)
+			paulis_set(&op, raw.paulis[i * raw.nqb + j], j);
+		h->terms[i].op = op;
+	}
+	data_hamil_free(&raw);
 	return 0;
 }
 
@@ -114,37 +92,23 @@ void circ_muldet_free(struct circ_muldet *md)
 		free(md->dets);
 }
 
-struct iter_muldet_data {
-	size_t i;
-	struct circ_muldet *muldet;
-};
-
-static int iter_muldet(_Complex double cf, const uint64_t idx, void *iter_data)
-{
-	struct iter_muldet_data *id = iter_data;
-	struct circ_muldet *m = id->muldet;
-	const size_t i = id->i++;
-
-	m->dets[i].cf = cf;
-	m->dets[i].idx = idx;
-
-	return 0;
-}
-
 static int circ_muldet_from_file(struct circ_muldet *m, const data_id fid)
 {
-	uint32_t nqb;
-	size_t ndets;
-
-	if (data_multidet_getnums(fid, &nqb, &ndets) < 0)
+	struct data_multidet raw;
+	if (data_multidet_load(fid, &raw) < 0)
 		return -1;
-	if (circ_muldet_init(m, ndets) < 0)
+	if (circ_muldet_init(m, raw.ndets) < 0) {
+		data_multidet_free(&raw);
 		return -1;
-
-	struct iter_muldet_data id = { .i = 0, .muldet = m };
-	if (data_multidet_foreach(fid, iter_muldet, &id) < 0)
-		return -1;
-
+	}
+	for (size_t i = 0; i < raw.ndets; i++) {
+		uint64_t idx = 0;
+		for (size_t j = 0; j < raw.nqb; j++)
+			idx += (uint64_t)raw.dets[i * raw.nqb + j] << j;
+		m->dets[i].cf = CMPLX(raw.cfs[2 * i], raw.cfs[2 * i + 1]);
+		m->dets[i].idx = idx;
+	}
+	data_multidet_free(&raw);
 	return 0;
 }
 

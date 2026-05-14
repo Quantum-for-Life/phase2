@@ -40,7 +40,7 @@
 static char *FILENAME = "/tmp/t-data_mpi.h5";
 
 /* Rank 0 builds a tiny pauli_hamil group; the test then
- * reads it through data_hamil_foreach on every rank and
+ * reads it through data_hamil_load on every rank and
  * confirms every rank ends up with the same bytes. */
 static int build_hamil_fixture(void)
 {
@@ -50,6 +50,14 @@ static int build_hamil_fixture(void)
 		return -1;
 	const hid_t g = H5Gcreate(f, "pauli_hamil", H5P_DEFAULT, H5P_DEFAULT,
 		H5P_DEFAULT);
+
+	const hid_t asp = H5Screate(H5S_SCALAR);
+	const hid_t aid = H5Acreate2(g, "normalization", H5T_IEEE_F64LE, asp,
+		H5P_DEFAULT, H5P_DEFAULT);
+	const double anv = 1.0;
+	H5Awrite(aid, H5T_NATIVE_DOUBLE, &anv);
+	H5Aclose(aid);
+	H5Sclose(asp);
 
 	const hsize_t cd[1] = { N_TERMS };
 	const hid_t csp = H5Screate_simple(1, cd, NULL);
@@ -80,21 +88,6 @@ static int build_hamil_fixture(void)
 	return 0;
 }
 
-struct accum {
-	double cfs[N_TERMS];
-	unsigned char paulis[N_TERMS * N_QB];
-	size_t i;
-};
-
-static int op_collect(double cf, unsigned char *paulis, void *ud)
-{
-	struct accum *a = ud;
-	a->cfs[a->i] = cf;
-	memcpy(&a->paulis[a->i * N_QB], paulis, N_QB);
-	a->i++;
-	return 0;
-}
-
 static void t_open_follower_sentinel(int rank)
 {
 	const data_id fid = data_open(FILENAME);
@@ -113,24 +106,26 @@ static void t_bcast_buffers_match(void)
 	const data_id fid = data_open(FILENAME);
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open for bcast test");
 
-	struct accum a = { 0 };
-	TEST_EQ(data_hamil_foreach(fid, op_collect, &a), 0);
-	TEST_EQ(a.i, (size_t)N_TERMS);
+	struct data_hamil h;
+	TEST_EQ(data_hamil_load(fid, &h), 0);
+	TEST_EQ(h.nqb, (uint32_t)N_QB);
+	TEST_EQ(h.nterms, (size_t)N_TERMS);
 
-	/* Send rank-0's buffer to all ranks, compare against
-	 * what each rank just iterated. */
+	/* Send rank-0's buffer to all ranks via a second bcast,
+	 * compare against what each rank loaded. */
 	double ref_cfs[N_TERMS];
 	unsigned char ref_pa[N_TERMS * N_QB];
-	memcpy(ref_cfs, a.cfs, sizeof ref_cfs);
-	memcpy(ref_pa, a.paulis, sizeof ref_pa);
+	memcpy(ref_cfs, h.cfs, sizeof ref_cfs);
+	memcpy(ref_pa, h.paulis, sizeof ref_pa);
 	MPI_Bcast(ref_cfs, N_TERMS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(ref_pa, N_TERMS * N_QB, MPI_UNSIGNED_CHAR, 0,
 		MPI_COMM_WORLD);
-	TEST_ASSERT(memcmp(ref_cfs, a.cfs, sizeof ref_cfs) == 0,
+	TEST_ASSERT(memcmp(ref_cfs, h.cfs, sizeof ref_cfs) == 0,
 		"hamil coeffs differ between rank 0 and this rank");
-	TEST_ASSERT(memcmp(ref_pa, a.paulis, sizeof ref_pa) == 0,
+	TEST_ASSERT(memcmp(ref_pa, h.paulis, sizeof ref_pa) == 0,
 		"hamil paulis differ between rank 0 and this rank");
 
+	data_hamil_free(&h);
 	data_close(fid);
 }
 

@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "hdf5.h"
 #include "mpi.h"
@@ -362,10 +363,22 @@ DEFINE_DATA_ATTR_WRITE(dbl, double, H5T_NATIVE_DOUBLE);
 
 #define MULTIDET_PATH DATA_STPREP "/" DATA_STPREP_MULTIDET
 
-int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets)
+void data_multidet_free(struct data_multidet *m)
+{
+	if (!m)
+		return;
+	free(m->cfs);
+	free(m->dets);
+	m->cfs = NULL;
+	m->dets = NULL;
+}
+
+int data_multidet_load(data_id fid, struct data_multidet *m)
 {
 	if (world_info(&WD) != WORLD_READY)
 		return -1;
+
+	memset(m, 0, sizeof *m);
 
 	int rt = 0;
 	uint32_t v_nqb = 0;
@@ -375,237 +388,181 @@ int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets)
 		const hid_t grp_id = H5Gopen(
 			(hid_t)fid, MULTIDET_PATH, H5P_DEFAULT);
 		if (grp_id == H5I_INVALID_HID) {
-			log_error("data_multidet_getnums: H5Gopen(%s) failed",
+			log_error("data_multidet_load: H5Gopen(%s) failed",
 				MULTIDET_PATH);
-			goto ex_open;
+			goto ex_dims;
 		}
 		hsize_t dims[2];
-		if (get_dset_dims2(grp_id, DATA_STPREP_MULTIDET_DETS, dims) < 0)
-			goto ex_grp;
+		if (get_dset_dims2(grp_id, DATA_STPREP_MULTIDET_DETS, dims)
+			< 0) {
+			H5Gclose(grp_id);
+			goto ex_dims;
+		}
+		H5Gclose(grp_id);
 		v_ndets = dims[0];
 		v_nqb = (uint32_t)dims[1];
 		rt = 0;
-	ex_grp:
-		H5Gclose(grp_id);
-	ex_open:;
+	ex_dims:;
 	}
 	bcast_int(&rt);
 	if (rt < 0)
 		return -1;
 	bcast_u32(&v_nqb);
 	bcast_sz(&v_ndets);
-	*nqb = v_nqb;
-	*ndets = v_ndets;
-	return 0;
-}
 
-static int multidet_read_data(
-	hid_t fid, double *cfs, unsigned char *dets)
-{
-	const hid_t grp_id = H5Gopen(fid, MULTIDET_PATH, H5P_DEFAULT);
-	if (grp_id == H5I_INVALID_HID) {
-		log_error("multidet_read_data: H5Gopen(%s) failed",
-			MULTIDET_PATH);
+	double *cfs = malloc(sizeof *cfs * 2 * v_ndets);
+	unsigned char *dets = malloc(sizeof *dets * v_ndets * v_nqb);
+	if (!cfs || !dets) {
+		log_error("data_multidet_load: alloc failed"
+			  " (ndets=%zu, nqb=%u)", v_ndets, v_nqb);
+		free(cfs);
+		free(dets);
 		return -1;
 	}
-	int rt = -1;
-	if (read_dset(grp_id, DATA_STPREP_MULTIDET_COEFFS, H5T_NATIVE_DOUBLE,
-		    cfs) < 0)
-		goto ex;
-	if (read_dset(grp_id, DATA_STPREP_MULTIDET_DETS, H5T_NATIVE_UCHAR,
-		    dets) < 0)
-		goto ex;
-	rt = 0;
-ex:
-	H5Gclose(grp_id);
-	return rt;
-}
 
-int data_multidet_foreach(data_id fid,
-	int (*op)(_Complex double cf, uint64_t idx, void *), void *op_data)
-{
-	int rt = -1, rc = 0;
-	uint32_t nqb;
-	size_t ndets;
-
-	if (data_multidet_getnums(fid, &nqb, &ndets) < 0)
-		return -1;
-
-	double *cfs = malloc(sizeof *cfs * 2 * ndets);
-	if (!cfs) {
-		log_error("data_multidet_foreach: alloc cfs (%zu bytes)",
-			sizeof *cfs * 2 * ndets);
-		goto ex_alloc_coeffs;
-	}
-	unsigned char *dets = malloc(sizeof *dets * ndets * nqb);
-	if (!dets) {
-		log_error("data_multidet_foreach: alloc dets (%zu bytes)",
-			sizeof *dets * ndets * nqb);
-		goto ex_alloc_dets;
-	}
-
-	int status = 0;
 	if (WD.rank == 0) {
-		if (multidet_read_data((hid_t)fid, cfs, dets) < 0)
-			status = -1;
-	}
-	bcast_int(&status);
-	if (status < 0)
-		goto ex_data_read;
-	bcast_doubles(cfs, 2 * ndets);
-	bcast_uchars(dets, ndets * nqb);
-
-	for (size_t i = 0; i < ndets; i++) {
-		uint64_t idx = 0;
-		for (size_t j = 0; j < nqb; j++) {
-			const unsigned char bit = dets[i * nqb + j];
-			if (bit > 1) {
-				log_error("data_multidet_foreach: dets[%zu][%zu]"
-					  " = %u is not 0/1; multidet group"
-					  " is malformed",
-					i, j, (unsigned)bit);
+		const hid_t grp_id = H5Gopen(
+			(hid_t)fid, MULTIDET_PATH, H5P_DEFAULT);
+		if (grp_id == H5I_INVALID_HID) {
+			log_error("data_multidet_load: H5Gopen(%s) failed",
+				MULTIDET_PATH);
+			rt = -1;
+		} else {
+			if (read_dset(grp_id, DATA_STPREP_MULTIDET_COEFFS,
+				    H5T_NATIVE_DOUBLE, cfs) < 0
+				|| read_dset(grp_id, DATA_STPREP_MULTIDET_DETS,
+					   H5T_NATIVE_UCHAR, dets) < 0)
 				rt = -1;
-				goto ex_data_read;
-			}
-			idx += (uint64_t)bit << j;
+			H5Gclose(grp_id);
 		}
-		_Complex double cf = CMPLX(cfs[2 * i], cfs[2 * i + 1]);
-		rc = op(cf, idx, op_data);
-		/* Caller short-circuits iteration with a non-zero
-		 * return; that isn't an error. */
-		if (rc != 0)
-			break;
 	}
-	rt = rc;
+	bcast_int(&rt);
+	if (rt < 0) {
+		free(cfs);
+		free(dets);
+		return -1;
+	}
+	bcast_doubles(cfs, 2 * v_ndets);
+	bcast_uchars(dets, v_ndets * v_nqb);
 
-ex_data_read:
-	free(dets);
-ex_alloc_dets:
-	free(cfs);
-ex_alloc_coeffs:
-	return rt;
+	/* Bit-validate the determinant occupations on every rank
+	 * (cheap, ndets*nqb bytes) so a malformed multidet group
+	 * fails fast instead of corrupting downstream indices. */
+	for (size_t i = 0; i < v_ndets; i++) {
+		for (size_t j = 0; j < v_nqb; j++) {
+			const unsigned char bit = dets[i * v_nqb + j];
+			if (bit > 1) {
+				log_error("data_multidet_load: dets[%zu][%zu]"
+					  " = %u is not 0/1; multidet group"
+					  " is malformed", i, j,
+					(unsigned)bit);
+				free(cfs);
+				free(dets);
+				return -1;
+			}
+		}
+	}
+
+	m->nqb = v_nqb;
+	m->ndets = v_ndets;
+	m->cfs = cfs;
+	m->dets = dets;
+	return 0;
 }
 
 /* -- pauli_hamil ------------------------------------------------------ */
 
-int data_hamil_getnums(data_id fid, uint32_t *nqb, size_t *nterms)
+void data_hamil_free(struct data_hamil *h)
+{
+	if (!h)
+		return;
+	free(h->cfs);
+	free(h->paulis);
+	h->cfs = NULL;
+	h->paulis = NULL;
+}
+
+int data_hamil_load(data_id fid, struct data_hamil *h)
 {
 	if (world_info(&WD) != WORLD_READY)
 		return -1;
 
+	memset(h, 0, sizeof *h);
+
 	int rt = 0;
 	uint32_t v_nqb = 0;
 	size_t v_nterms = 0;
+	double v_norm = 0.0;
 	if (WD.rank == 0) {
 		rt = -1;
 		const hid_t grp_id = H5Gopen(
 			(hid_t)fid, DATA_HAMIL, H5P_DEFAULT);
 		if (grp_id == H5I_INVALID_HID) {
-			log_error("data_hamil_getnums: H5Gopen(%s) failed",
+			log_error("data_hamil_load: H5Gopen(%s) failed",
 				DATA_HAMIL);
-			goto ex_grp;
+			goto ex_dims;
 		}
 		hsize_t dims[2];
-		if (get_dset_dims2(grp_id, DATA_HAMIL_PAULIS, dims) < 0)
+		if (get_dset_dims2(grp_id, DATA_HAMIL_PAULIS, dims) < 0
+			|| read_attr_raw(grp_id, DATA_HAMIL_NORM,
+				   H5T_NATIVE_DOUBLE, &v_norm) < 0) {
+			H5Gclose(grp_id);
 			goto ex_dims;
+		}
+		H5Gclose(grp_id);
 		v_nterms = dims[0];
 		v_nqb = (uint32_t)dims[1];
 		rt = 0;
-	ex_dims:
-		H5Gclose(grp_id);
-	ex_grp:;
+	ex_dims:;
 	}
 	bcast_int(&rt);
 	if (rt < 0)
 		return -1;
 	bcast_u32(&v_nqb);
 	bcast_sz(&v_nterms);
-	*nqb = v_nqb;
-	*nterms = v_nterms;
-	return 0;
-}
+	MPI_Bcast(&v_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-int data_hamil_getnorm(data_id fid, double *norm)
-{
-	return data_attr_read_dbl(fid, DATA_HAMIL, DATA_HAMIL_NORM, norm);
-}
-
-static int hamil_read_data(hid_t fid, double *cfs, unsigned char *paulis)
-{
-	const hid_t grp_id = H5Gopen(fid, DATA_HAMIL, H5P_DEFAULT);
-	if (grp_id == H5I_INVALID_HID) {
-		log_error("hamil_read_data: H5Gopen(%s) failed", DATA_HAMIL);
+	double *cfs = malloc(sizeof *cfs * v_nterms);
+	unsigned char *paulis = malloc(sizeof *paulis * v_nterms * v_nqb);
+	if (!cfs || !paulis) {
+		log_error("data_hamil_load: alloc failed"
+			  " (nterms=%zu, nqb=%u)", v_nterms, v_nqb);
+		free(cfs);
+		free(paulis);
 		return -1;
 	}
-	int rt = -1;
-	if (read_dset(grp_id, DATA_HAMIL_COEFFS, H5T_NATIVE_DOUBLE, cfs) < 0)
-		goto ex;
-	if (read_dset(grp_id, DATA_HAMIL_PAULIS, H5T_NATIVE_UCHAR, paulis) < 0)
-		goto ex;
-	rt = 0;
-ex:
-	H5Gclose(grp_id);
-	return rt;
-}
 
-int data_hamil_foreach(const data_id fid,
-	int (*op)(double, unsigned char *, void *), void *op_data)
-{
-	int rt = -1, rc = 0;
-	uint32_t nqb;
-	size_t nterms;
-
-	if (data_hamil_getnums(fid, &nqb, &nterms) < 0)
-		return -1;
-
-	double *cfs = malloc(sizeof *cfs * nterms);
-	if (!cfs) {
-		log_error("data_hamil_foreach: alloc cfs (%zu bytes)",
-			sizeof *cfs * nterms);
-		goto ex_coeffs_alloc;
-	}
-	unsigned char *paulis = malloc(sizeof *paulis * nqb * nterms);
-	if (!paulis) {
-		log_error("data_hamil_foreach: alloc paulis (%zu bytes)",
-			sizeof *paulis * nqb * nterms);
-		goto ex_paulis_alloc;
-	}
-
-	int status = 0;
 	if (WD.rank == 0) {
-		if (hamil_read_data((hid_t)fid, cfs, paulis) < 0)
-			status = -1;
+		const hid_t grp_id = H5Gopen(
+			(hid_t)fid, DATA_HAMIL, H5P_DEFAULT);
+		if (grp_id == H5I_INVALID_HID) {
+			log_error("data_hamil_load: H5Gopen(%s) failed",
+				DATA_HAMIL);
+			rt = -1;
+		} else {
+			if (read_dset(grp_id, DATA_HAMIL_COEFFS,
+				    H5T_NATIVE_DOUBLE, cfs) < 0
+				|| read_dset(grp_id, DATA_HAMIL_PAULIS,
+					   H5T_NATIVE_UCHAR, paulis) < 0)
+				rt = -1;
+			H5Gclose(grp_id);
+		}
 	}
-	bcast_int(&status);
-	if (status < 0)
-		goto ex_hamil_read;
-	bcast_doubles(cfs, nterms);
-	bcast_uchars(paulis, nqb * nterms);
-
-	unsigned char *paustr = malloc(sizeof *paustr * nqb);
-	if (!paustr) {
-		log_error("data_hamil_foreach: alloc paustr (%zu bytes)",
-			sizeof *paustr * nqb);
-		goto ex_paustr_alloc;
+	bcast_int(&rt);
+	if (rt < 0) {
+		free(cfs);
+		free(paulis);
+		return -1;
 	}
+	bcast_doubles(cfs, v_nterms);
+	bcast_uchars(paulis, v_nterms * v_nqb);
 
-	for (size_t i = 0; i < nterms; i++) {
-		for (size_t j = 0; j < nqb; j++)
-			paustr[j] = paulis[i * nqb + j];
-		rc = op(cfs[i], paustr, op_data);
-		if (rc != 0)
-			break;
-	}
-
-	rt = rc;
-	free(paustr);
-ex_paustr_alloc:
-ex_hamil_read:
-	free(paulis);
-ex_paulis_alloc:
-	free(cfs);
-ex_coeffs_alloc:
-	return rt;
+	h->nqb = v_nqb;
+	h->nterms = v_nterms;
+	h->norm = v_norm;
+	h->cfs = cfs;
+	h->paulis = paulis;
+	return 0;
 }
 
 /* -- per-step write API (/circ_{trott,trott2,qdrift,cmpsit}/values) --- */

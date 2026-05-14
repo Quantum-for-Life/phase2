@@ -114,53 +114,29 @@ int data_attr_write_dbl(data_id fid, const char *grp_name,
 		fid, grp_name, attr_name, attr)
 
 /**
- * Get the number of qubits and terms for the "multidet" group.
+ * Raw multidet data read from /state_prep/multidet.
  *
- * After a successful call, the value pointed to by the argument
- * "num_qubits" stores the number of qubits saved for the "multidet"
- * group.  Similarly, the argument "num_dets" stores the number of terms
- * in the multidet representation.  If the value cannot be read, the
- * function returns '-1', and the value of the variables poited to
- * remains unchanged.
+ *   nqb   total qubit count of the determinants
+ *   ndets number of determinants
+ *   cfs   flat double array of shape (ndets, 2), real and
+ *         imaginary parts of the complex coefficients
+ *   dets  flat byte array of shape (ndets, nqb); each entry
+ *         is the occupation of one qubit and is validated
+ *         to be 0 or 1 at load time
  *
- * Arguments:
- *
- *  fid			Open file id obtained from data_open()
- *  num_qubits
- *  num_dets	Pointer to a variable where the result will be stored.
- *
- * Return value:
- *
- *   0			if the value was successfully retrieved
- *  -1			in case of error
+ * data_multidet_load() allocates cfs and dets and fills the
+ * scalars; data_multidet_free() releases them.  The struct
+ * remains owned by the caller.
  */
-int data_multidet_getnums(data_id fid, uint32_t *nqb, size_t *ndets);
+struct data_multidet {
+	uint32_t nqb;
+	size_t ndets;
+	double *cfs;
+	unsigned char *dets;
+};
 
-/**
- * Perform action "op" on each determinant in "multidet" group.
- *
- * Call user-supplied "op" function on each Slater determinant in the
- * "multidet" group.  The operator "op" takes as arguments a complex
- * coeffitient and the "index" of the determinant (given the qubit
- * values in the binary reresentation, the least significant bit
- * represented by qubit 0); and a generic pointer to the data specified
- * by the user.
- *
- * The return value of the operator "op" controls the iteration.  If
- * "op" returns "0", the iteration will continue with the next element.
- * If the return value is non-zero, the iteration will stop and the
- * value is returned to the caller.  By convention, a negative value
- * should indicate an error, whereas a positive value means that the
- * iteration simply terminated early no error.
- *
- * Return value:
- *
- *   0      if the full iteration completed sucessfully
- *  -1      if the data could not be retrieved,
- *  or a user-defined value, if the iteration was terminated early
- */
-int data_multidet_foreach(data_id fid,
-	int (*op)(_Complex double cf, uint64_t idx, void *), void *op_data);
+int data_multidet_load(data_id fid, struct data_multidet *m);
+void data_multidet_free(struct data_multidet *m);
 
 /**
  * State-prep subtypes carried in simul.h5.
@@ -253,82 +229,29 @@ int data_coeff_matrix_csf_read(data_id fid, size_t k, double *coefficient,
 	double *C_alpha, double *C_beta);
 
 /**
- * Get the number of qubits and terms for the "hamil" group.
+ * Raw Hamiltonian data read from /pauli_hamil.
  *
- * After a successful call, the value pointed to by the argument
- * "num_qubits" stores the number of qubits saved for the "hamil" group.
- * Similarly, the argument "num_terms" stores the number of terms of the
- * hamiltonian.  If the values cannot be read, the function returns
- * '-1', and the value of the variables poited to remains unchanged.
+ *   nqb     qubit count of the Pauli strings
+ *   nterms  number of terms in the Hamiltonian
+ *   norm    normalisation factor; coefficients should be
+ *           multiplied by this value before use
+ *   cfs     flat double array of length nterms
+ *   paulis  flat byte array of shape (nterms, nqb), single-
+ *           qubit Pauli operators encoded as 0=I, 1=X, 2=Y, 3=Z
  *
- * Arguments:
- *
- *  fid			Open file id obtained from data_open()
- *  num_qubits
- *  num_terms	Pointer to a variable where the result will be stored.
- *
- * Return value:
- *
- *   0			if the value was successfully retrieved
- *  -1			in case of error
+ * data_hamil_load() allocates cfs and paulis and fills the
+ * scalars; data_hamil_free() releases them.
  */
-int data_hamil_getnums(data_id fid, uint32_t *nqb, size_t *nterms);
+struct data_hamil {
+	uint32_t nqb;
+	size_t nterms;
+	double norm;
+	double *cfs;
+	unsigned char *paulis;
+};
 
-/**
- * Get the normalization factor for the "hamil" group.
- *
- * After a successful call, the value pointed to by the argument "norm"
- * stores the normalization factor for the "hamil" group.  If the value
- * cannot be read, the function returns '-1', and the value of the
- * variable poited to remains unchanged.
- *
- * Arguments:
- *
- *  fid			Open file id obtained from data_open()
- *  norm		Pointer to a variable where the result will be
- * stored.
- *
- * Return value:
- *
- *   0			if the value was successfully retrieved
- *  -1			in case of error
- */
-int data_hamil_getnorm(data_id fid, double *norm);
-
-/**
- * Perform action "op" on each term of the Hamiltonian in "pauli_hamil"
- *group.
- *
- * Call user-supplied "op" function on each term of the Hamiltonian. The
- * operator "op" takes as arguments a real coeffitient and the array of
- *length num_qubits (see function data_hamil_getnums()) filled with
- *values representing Pauli operators:
- *
- *	0 - I (identity)
- *	1 - Pauli X
- *	2 - Pauli Y
- *	3 - Pauli Z
- *
- * and a generic pointer to the data specified by the user.  The value
- *of the array will change with each iteration.  After the iteration
- *finished, the pointer to the array no longer refers to valid memory.
- *Any attempt to store and use it later is undefined behaviour.
- *
- * The return value of the operator "op" controls the iteration.  If
- *"op" returns "0", the iteration will continue with the next element.
- *If the return value is non-zero, the iteration will stop and the value
- *is returned to the caller.  By convention, a negative value should
- *indicate an error, whereas a positive value means that the iteration
- *simply terminated early no error.
- *
- * Return value:
- *
- *   0      if the full iteration completed sucessfully
- *  -1      if the data could not be retrieved,
- *  or a user-defined value, if the iteration was terminated early
- */
-int data_hamil_foreach(
-	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
+int data_hamil_load(data_id fid, struct data_hamil *h);
+void data_hamil_free(struct data_hamil *h);
 
 /*
  * Per-step write API for /circ_{trott,trott2,qdrift,cmpsit}.
