@@ -1,6 +1,10 @@
 /*
- * Test routine: data_trott_write() from data.h by creating a fresh H5 file
- * Check if the values are written correctly.  Remove temporary file.
+ * Round-trip the /circ_trott group via the per-step write
+ * API: data_circ_init pre-allocates a NaN-padded values
+ * dataset; data_circ_write_step hyperslab-writes one row
+ * at a time.  Reopen, read back via data_attr_read (delta)
+ * and direct H5Dread on rank 0 (the values dataset);
+ * confirm bit-for-bit match.
  */
 #include "c23_compat.h"
 #include <complex.h>
@@ -38,20 +42,14 @@ int main(void)
 	world_init(nullptr, nullptr, WD_SEED);
 	world_info(&wd);
 
-	/* Rank 0 sets up the file and its main group via direct H5
-	 * (serial driver).  Then all ranks reopen via data_open and
-	 * the collective data_* calls write the rest. */
+	/* Rank 0 creates an empty file; data_circ_init creates
+	 * the /circ_trott group + values dataset. */
 	if (wd.rank == 0) {
 		remove(FILENAME);
 		const hid_t file_id = H5Fcreate(FILENAME, H5F_ACC_EXCL,
 			H5P_DEFAULT, H5P_DEFAULT);
 		if (file_id == H5I_INVALID_HID)
 			TEST_FAIL("create H5 file");
-		const hid_t grp_id = H5Gcreate(file_id, DATA_CIRCTROTT,
-			H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-		if (grp_id == H5I_INVALID_HID)
-			TEST_FAIL("create main group");
-		H5Gclose(grp_id);
 		H5Fclose(file_id);
 	}
 
@@ -61,12 +59,15 @@ int main(void)
 		goto ex_dat2_open;
 	}
 
+	if (data_circ_init(fid, DATA_CIRCTROTT, SIZE) < 0)
+		TEST_FAIL("data_circ_init");
 	if (data_attr_write(
 		    fid, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA, delta) < 0)
 		TEST_FAIL("data_attr_write delta");
-
-	data_res_write(
-		fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES, tst_vals, SIZE);
+	for (size_t i = 0; i < SIZE; i++)
+		if (data_circ_write_step(
+			    fid, DATA_CIRCTROTT, i, tst_vals[i]) < 0)
+			TEST_FAIL("data_circ_write_step %zu", i);
 	data_close(fid);
 
 	/* Read delta back through the collective data_attr_read
@@ -82,7 +83,7 @@ int main(void)
 	data_close(fid);
 
 	/* Read the values dataset directly on rank 0 to confirm
-	 * data_res_write actually persisted them. */
+	 * data_circ_write_step persisted every row. */
 	if (wd.rank == 0) {
 		const hid_t file_id = H5Fopen(
 			FILENAME, H5F_ACC_RDONLY, H5P_DEFAULT);

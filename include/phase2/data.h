@@ -341,9 +341,6 @@ int data_hamil_getnorm(data_id fid, double *norm);
 int data_hamil_foreach(
 	data_id fid, int (*op)(double, unsigned char *, void *), void *op_data);
 
-int data_res_write(data_id fid, const char *grp_name, const char *dset_name,
-	const _Complex double *vals, size_t nvals);
-
 /*
  * Per-step write API for /circ_{trott,trott2,qdrift,cmpsit}.
  *

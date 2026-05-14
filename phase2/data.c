@@ -636,61 +636,6 @@ ex_coeffs_alloc:
 	return rt;
 }
 
-/* -- results write (legacy; superseded by data_circ_*) ---------------- */
-
-int data_res_write(data_id fid, const char *grp_name, const char *dset_name,
-	const _Complex double *vals, const size_t nvals)
-{
-	if (world_info(&WD) != WORLD_READY)
-		return -1;
-
-	int rt = 0;
-	if (WD.rank == 0) {
-		rt = -1;
-		const hid_t grp_id = H5Gopen(
-			(hid_t)fid, grp_name, H5P_DEFAULT);
-		if (grp_id == H5I_INVALID_HID) {
-			log_error("data_res_write(%s/%s): H5Gopen failed",
-				grp_name, dset_name);
-			goto ex_open;
-		}
-		const hid_t dspace_id = H5Screate_simple(
-			2, (hsize_t[]){ nvals, 2 }, NULL);
-		if (dspace_id == H5I_INVALID_HID) {
-			log_error("data_res_write(%s/%s): H5Screate_simple"
-				  " failed (nvals=%zu)",
-				grp_name, dset_name, nvals);
-			goto ex_fspace;
-		}
-
-		const hid_t dset_id = H5Dcreate2(grp_id, dset_name,
-			H5T_IEEE_F64LE, dspace_id, H5P_DEFAULT, H5P_DEFAULT,
-			H5P_DEFAULT);
-		if (dset_id == H5I_INVALID_HID) {
-			log_error("data_res_write(%s/%s): H5Dcreate2 failed",
-				grp_name, dset_name);
-			goto ex_dset;
-		}
-		if (H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, H5S_ALL, dspace_id,
-			    H5P_DEFAULT, vals) < 0) {
-			log_error("data_res_write(%s/%s): H5Dwrite failed",
-				grp_name, dset_name);
-			goto ex_dset_write;
-		}
-
-		rt = 0;
-	ex_dset_write:
-		H5Dclose(dset_id);
-	ex_dset:
-		H5Sclose(dspace_id);
-	ex_fspace:
-		H5Gclose(grp_id);
-	ex_open:;
-	}
-	bcast_int(&rt);
-	return rt;
-}
-
 /* -- per-step write API (/circ_{trott,trott2,qdrift,cmpsit}/values) --- */
 
 #define CIRC_VALUES_DSET "values"
