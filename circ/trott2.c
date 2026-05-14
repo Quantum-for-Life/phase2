@@ -19,8 +19,22 @@ int trott2_init(struct trott2 *t2, const struct trott2_data *dt, const data_id f
 	}
 
 	t2->dt = *dt;
+	t2->fid = fid;
 
 	circ_hamil_sort_lex(&t2->ct.hm);
+
+	if (data_circ_init(fid, DATA_CIRCTROTT2, dt->steps) < 0) {
+		log_error("trott2_init: data_circ_init(%s) failed",
+			DATA_CIRCTROTT2);
+		circ_free(&t2->ct);
+		return -1;
+	}
+	if (data_attr_write_dbl(fid, DATA_CIRCTROTT2, DATA_CIRCTROTT2_DELTA,
+		    dt->delta) < 0) {
+		log_error("trott2_init: write delta attribute failed");
+		circ_free(&t2->ct);
+		return -1;
+	}
 
 	log_debug("trott2_init: delta=%g steps=%zu", dt->delta, dt->steps);
 	return 0;
@@ -57,29 +71,16 @@ int trott2_simul(struct trott2 *t2)
 		}
 		vals->z[i] = circ_measure(ct);
 
+		if (t2->fid != 0
+			&& data_circ_write_step(t2->fid, DATA_CIRCTROTT2, i,
+				   vals->z[i]) < 0) {
+			log_error("trott2_simul: write_step %zu failed", i);
+			return -1;
+		}
+
 		circ_prog_tick(&prog);
 		circ_prog_emit(&prog, LOG_SUBSYS);
 	}
 
 	return 0;
-}
-
-int trott2_write_res(struct trott2 *t2, data_id fid)
-{
-	int rt = -1;
-
-	if (data_grp_create(fid, DATA_CIRCTROTT2) < 0)
-		goto data_grp_create;
-	if (data_attr_write_dbl(fid, DATA_CIRCTROTT2, DATA_CIRCTROTT2_DELTA,
-		    t2->dt.delta) < 0)
-		goto data_attr_write;
-	if (data_res_write(fid, DATA_CIRCTROTT2, DATA_CIRCTROTT2_VALUES,
-		    t2->ct.vals.z, t2->ct.vals.len) < 0)
-		goto data_res_write;
-
-	rt = 0;
-data_res_write:
-data_attr_write:
-data_grp_create:
-	return rt;
 }

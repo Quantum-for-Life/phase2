@@ -42,23 +42,23 @@ struct qdrift {
 	struct qdrift_data dt;
 	struct qdrift_ranct ranct;
 	struct xoshiro256ss rng;
+	data_id fid;	/* output file; 0 means "no per-step writes" */
 };
 
 /* Load Hamiltonian and initial state, build the |c_k| CDF,
- * seed the PRNG.  Returns 0 on success, -1 on error. */
+ * seed the PRNG, create the /circ_qdrift output group with
+ * NaN-padded values dataset and the scalar attributes
+ * (step_size, depth, num_samples, seed).  Returns 0 on
+ * success, -1 on error. */
 int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt, data_id fid);
 
 /* Release all resources held by `qd`. */
 void qdrift_free(struct qdrift *qd);
 
-/* Run `dt.samples` independent samples of depth `dt.depth`
- * and store per-sample overlaps in `ct.vals`.  Returns 0 on
- * success, -1 on error. */
+/* Run `dt.samples` independent samples; per-sample overlap
+ * is stored in `ct.vals` and written to
+ * /circ_qdrift/values[i] one row at a time (rank-0-only,
+ * fflush per sample).  Returns 0 on success, -1 on error. */
 int qdrift_simul(struct qdrift *qd);
-
-/* Write step_size, depth, num_samples, seed attributes and
- * the overlap series to /circ_qdrift.  Returns 0 on success,
- * -1 on error. */
-int qdrift_write_res(struct qdrift *qd, data_id fid);
 
 #endif // QDRIFT_H

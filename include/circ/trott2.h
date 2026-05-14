@@ -25,22 +25,23 @@ struct trott2_data {
 struct trott2 {
 	struct circ ct;
 	struct trott2_data dt;
+	data_id fid;	/* output file; 0 means "no per-step writes" */
 };
 
-/* Load Hamiltonian and initial state from `fid`, allocate
- * the register, sort the Hamiltonian lexicographically.
- * Returns 0 on success, -1 on error. */
+/* Load Hamiltonian and initial state, allocate the register,
+ * sort the Hamiltonian lexicographically, create the
+ * /circ_trott2 output group with NaN-padded values dataset
+ * and the delta attribute.  Returns 0 on success, -1 on
+ * error. */
 int trott2_init(struct trott2 *t2, const struct trott2_data *dt, data_id fid);
 
 /* Release all resources held by `t2`. */
 void trott2_free(struct trott2 *t2);
 
-/* Run `dt.steps` symmetric Trotter steps and store overlaps
- * in `ct.vals`.  Returns 0 on success, -1 on error. */
+/* Run `dt.steps` symmetric Trotter steps; per-step overlap
+ * goes to `ct.vals` in memory and to /circ_trott2/values[i]
+ * on disk (rank 0 only, fflush per step).  Returns 0 on
+ * success, -1 on error. */
 int trott2_simul(struct trott2 *t2);
-
-/* Write `delta` attribute and overlap series to the
- * /circ_trott2 group.  Returns 0 on success, -1 on error. */
-int trott2_write_res(struct trott2 *t2, data_id fid);
 
 #endif // TROTT2_H

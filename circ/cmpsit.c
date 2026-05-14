@@ -137,6 +137,7 @@ int cmpsit_init(
 	if (circ_init(&cp->ct, fid, dt->samples) < 0)
 		goto err_circ_init;
 	cp->dt = *dt;
+	cp->fid = fid;
 	if (ranct_init(&cp->ranct, &cp->ct.hm, dt) < 0)
 		goto err_ranct_init;
 
@@ -145,8 +146,30 @@ int cmpsit_init(
 	}
 	xoshiro256ss_init(&cp->rng, SEED);
 
+	if (data_circ_init(fid, DATA_CIRCCMPSIT, dt->samples) < 0) {
+		log_error("cmpsit_init: data_circ_init(%s) failed",
+			DATA_CIRCCMPSIT);
+		goto err_data_init;
+	}
+	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_LENGTH,
+		    dt->length) < 0
+		|| data_attr_write(fid, DATA_CIRCCMPSIT,
+			   DATA_CIRCCMPSIT_DEPTH, dt->depth) < 0
+		|| data_attr_write(fid, DATA_CIRCCMPSIT,
+			   DATA_CIRCCMPSIT_ANGLEDET, dt->angle_det) < 0
+		|| data_attr_write(fid, DATA_CIRCCMPSIT,
+			   DATA_CIRCCMPSIT_ANGLERAND, dt->angle_rand) < 0
+		|| data_attr_write(fid, DATA_CIRCCMPSIT,
+			   DATA_CIRCCMPSIT_STEPS, dt->steps) < 0
+		|| data_attr_write(fid, DATA_CIRCCMPSIT,
+			   DATA_CIRCCMPSIT_SEED, (unsigned long)SEED) < 0) {
+		log_error("cmpsit_init: writing scalar attributes failed");
+		goto err_data_init;
+	}
+
 	return 0;
 
+err_data_init:
 	cmpsit_ranct_free(&cp->ranct);
 err_ranct_init:
 	circ_free(&cp->ct);
@@ -259,43 +282,15 @@ int cmpsit_simul(struct cmpsit *cp)
 			ranct_hmsmpl_free(cp);
 		}
 		vals->z[i] = circ_measure(ct);
+		if (cp->fid != 0
+			&& data_circ_write_step(cp->fid, DATA_CIRCCMPSIT, i,
+				   vals->z[i]) < 0) {
+			log_error("cmpsit_simul: write_step %zu failed", i);
+			return -1;
+		}
 		circ_prog_tick(&prog);
 		circ_prog_emit(&prog, LOG_SUBSYS);
 	}
 
 	return 0;
-}
-
-int cmpsit_write_res(struct cmpsit *cp, data_id fid)
-{
-	int rt = -1;
-
-	if (data_grp_create(fid, DATA_CIRCCMPSIT) < 0)
-		goto data_res_write;
-	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_LENGTH,
-		    cp->dt.length) < 0)
-		goto data_res_write;
-	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_DEPTH,
-		    cp->dt.depth) < 0)
-		goto data_res_write;
-	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_ANGLEDET,
-		    cp->dt.angle_det) < 0)
-		goto data_res_write;
-	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_ANGLERAND,
-		    cp->dt.angle_rand) < 0)
-		goto data_res_write;
-	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_STEPS,
-		    cp->dt.steps) < 0)
-		goto data_res_write;
-	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_SEED, SEED) <
-		0)
-		goto data_res_write;
-	if (data_res_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_VALUES,
-		    cp->ct.vals.z, cp->ct.vals.len) < 0)
-		goto data_res_write;
-
-	rt = 0;
-
-data_res_write:
-	return rt;
 }

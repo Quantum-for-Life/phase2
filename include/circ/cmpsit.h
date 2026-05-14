@@ -49,25 +49,24 @@ struct cmpsit {
 	struct cmpsit_data dt;
 	struct cmpsit_ranct ranct;
 	struct xoshiro256ss rng;
+	data_id fid;	/* output file; 0 means "no per-step writes" */
 };
 
 /* Load the Hamiltonian and initial state, split into
  * deterministic / randomised parts, sort the deterministic
  * part lexicographically, build the randomised CDF, seed the
- * PRNG.  Returns 0 on success, -1 on error. */
+ * PRNG, create the /circ_cmpsit output group with NaN-padded
+ * values dataset and the scalar attributes.  Returns 0 on
+ * success, -1 on error. */
 int cmpsit_init(struct cmpsit *cp, const struct cmpsit_data *dt, data_id fid);
 
 /* Release all resources held by `cp`. */
 void cmpsit_free(struct cmpsit *cp);
 
-/* Run `dt.samples` independent samples of `dt.steps` steps
- * and store per-sample overlaps in `ct.vals`.  Returns 0 on
- * success, -1 on error. */
+/* Run `dt.samples` independent samples; per-sample overlap
+ * is stored in `ct.vals` and written to
+ * /circ_cmpsit/values[i] one row at a time (rank-0-only,
+ * fflush per sample).  Returns 0 on success, -1 on error. */
 int cmpsit_simul(struct cmpsit *cp);
-
-/* Write length, depth, angle_det, angle_rand, steps, seed
- * attributes and the overlap series to /circ_cmpsit.
- * Returns 0 on success, -1 on error. */
-int cmpsit_write_res(struct cmpsit *cp, data_id fid);
 
 #endif // CMPSIT_H

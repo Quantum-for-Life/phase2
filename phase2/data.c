@@ -158,21 +158,43 @@ int data_grp_create(data_id fid, const char *grp_name)
 
 	int rt = 0;
 	if (WD.rank == 0) {
-		/* Idempotent: if the group already exists, the
-		 * caller (e.g. re-running ph2run on the same
-		 * simul.h5) gets success without a fresh create. */
-		const htri_t exists = H5Lexists(
+		/* Idempotent: if a real group already exists at this
+		 * path, the caller (e.g. re-running ph2run on the
+		 * same simul.h5) gets success without a fresh create.
+		 * Stale dangling soft links (left over from old fixture
+		 * builds) are unlinked so the create can proceed. */
+		const htri_t lexists = H5Lexists(
 			(hid_t)fid, grp_name, H5P_DEFAULT);
-		if (exists > 0) {
-			log_debug("data_grp_create(%s): already exists",
-				grp_name);
-			goto ex_done;
-		}
-		if (exists < 0) {
+		if (lexists < 0) {
 			log_error("data_grp_create(%s): H5Lexists failed",
 				grp_name);
 			rt = -1;
 			goto ex_done;
+		}
+		if (lexists > 0) {
+			const htri_t oexists = H5Oexists_by_name(
+				(hid_t)fid, grp_name, H5P_DEFAULT);
+			if (oexists > 0) {
+				log_debug("data_grp_create(%s): already exists",
+					grp_name);
+				goto ex_done;
+			}
+			if (oexists < 0) {
+				log_error("data_grp_create(%s):"
+					  " H5Oexists_by_name failed",
+					grp_name);
+				rt = -1;
+				goto ex_done;
+			}
+			/* Dangling link -- unlink and proceed. */
+			if (H5Ldelete((hid_t)fid, grp_name, H5P_DEFAULT) < 0) {
+				log_error("data_grp_create(%s): H5Ldelete of"
+					  " dangling link failed", grp_name);
+				rt = -1;
+				goto ex_done;
+			}
+			log_debug("data_grp_create(%s): removed dangling"
+				  " link", grp_name);
 		}
 
 		rt = -1;
