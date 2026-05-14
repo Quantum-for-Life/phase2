@@ -376,20 +376,28 @@ int main(void)
 {
 	world_init(nullptr, nullptr, WD_SEED);
 
-	t_default_level();
-	t_parse_levels();
-	t_parse_garbage();
-	t_threshold_filters();
-	t_stream_split();
-	t_format_shape();
-	t_subsystem_explicit();
-	t_subsystem_missing();
-	t_printf_passthrough();
-	t_long_message();
-	t_rank_prefix_off();
-	t_init_idempotent();
-	t_filtered_perf();
-	t_trace_debug_emit_in_debug_build();
+	/* Most assertions below check captured emit output; rank > 0
+	 * is silent unless PHASE2_LOG_ALL is set, so the assertions
+	 * would spuriously fail under mpirun.  Run them on rank 0
+	 * only.  Other ranks still go through world_init/free so the
+	 * MPI life cycle stays balanced. */
+	struct world_info wd;
+	if (world_info(&wd) == WORLD_READY && wd.rank == 0) {
+		t_default_level();
+		t_parse_levels();
+		t_parse_garbage();
+		t_threshold_filters();
+		t_stream_split();
+		t_format_shape();
+		t_subsystem_explicit();
+		t_subsystem_missing();
+		t_printf_passthrough();
+		t_long_message();
+		t_rank_prefix_off();
+		t_init_idempotent();
+		t_filtered_perf();
+		t_trace_debug_emit_in_debug_build();
+	}
 
 	world_free();
 	return 0;

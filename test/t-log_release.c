@@ -122,8 +122,14 @@ int main(void)
 {
 	world_init(nullptr, nullptr, WD_SEED);
 
-	t_trace_debug_stripped();
-	t_info_still_works();
+	/* The assertions check captured stdout; rank > 0 is silent
+	 * by default, so the info-survives-release check would
+	 * spuriously fail under mpirun.  Run on rank 0 only. */
+	struct world_info wd;
+	if (world_info(&wd) == WORLD_READY && wd.rank == 0) {
+		t_trace_debug_stripped();
+		t_info_still_works();
+	}
 
 	world_free();
 	return 0;
