@@ -1,6 +1,8 @@
 #ifndef TEST_H
 #define TEST_H
 
+#include <complex.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -67,6 +69,38 @@
 	do {                                                                   \
 		TEST_ASSERT((a) == (b), "expected %s == %s", TEST_XSTR(a),     \
 			TEST_XSTR(b));                                         \
+	} while (0)
+
+/*
+ * Tolerance-based equality for doubles.  Aborts when
+ * |a - b| > eps; the failure message carries the
+ * stringified expressions plus their observed values
+ * and the violated diff.
+ */
+#define TEST_NEAR(a, b, eps)                                                   \
+	do {                                                                   \
+		const double _a = (a), _b = (b), _eps = (eps);                 \
+		if (fabs(_a - _b) > _eps)                                      \
+			TEST_FAIL("|%s - %s| = %g > %g (%g vs %g)",            \
+				TEST_XSTR(a), TEST_XSTR(b), fabs(_a - _b),     \
+				_eps, _a, _b);                                 \
+	} while (0)
+
+/*
+ * Tolerance-based equality for _Complex doubles.  Same
+ * shape as TEST_NEAR but uses cabs and prints both
+ * components on failure.
+ */
+#define TEST_CNEAR(a, b, eps)                                                  \
+	do {                                                                   \
+		const _Complex double _a = (a), _b = (b);                      \
+		const double _eps = (eps);                                     \
+		if (cabs(_a - _b) > _eps)                                      \
+			TEST_FAIL("|%s - %s| = %g > %g"                        \
+				  " ((%g+%gi) vs (%g+%gi))",                   \
+				TEST_XSTR(a), TEST_XSTR(b), cabs(_a - _b),     \
+				_eps, creal(_a), cimag(_a), creal(_b),         \
+				cimag(_b));                                    \
 	} while (0)
 
 #endif /* TEST_H */

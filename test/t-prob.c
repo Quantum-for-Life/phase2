@@ -41,8 +41,7 @@ static void t_prob_cdf_uniform(void)
 			"CDF not monotone at k=%zu", k);
 
 	/* Last element must be 1.0 (within floating-point tolerance). */
-	TEST_ASSERT(fabs(cdf.y[3] - 1.0) < DBL_EPSILON,
-		"CDF last element %f != 1.0", cdf.y[3]);
+	TEST_NEAR(cdf.y[3], 1.0, DBL_EPSILON);
 
 	/* Inverse: y=0 maps to index 0. */
 	TEST_EQ(prob_cdf_inverse(&cdf, 0.0), (size_t)0);
@@ -71,8 +70,7 @@ static void t_prob_cdf_single(void)
 	TEST_EQ(prob_cdf_init(&cdf, 1), 0);
 	TEST_EQ(prob_cdf_from_iter(&cdf, iter_cb, &d), 0);
 
-	TEST_ASSERT(fabs(cdf.y[0] - 1.0) < DBL_EPSILON,
-		"single-element CDF should be 1.0");
+	TEST_NEAR(cdf.y[0], 1.0, DBL_EPSILON);
 
 	TEST_EQ(prob_cdf_inverse(&cdf, 0.0), (size_t)0);
 	TEST_EQ(prob_cdf_inverse(&cdf, 0.5), (size_t)0);
@@ -95,12 +93,9 @@ static void t_prob_cdf_known(void)
 	TEST_EQ(prob_cdf_init(&cdf, 3), 0);
 	TEST_EQ(prob_cdf_from_iter(&cdf, iter_cb, &d), 0);
 
-	TEST_ASSERT(fabs(cdf.y[0] - 0.25) < 1e-12,
-		"CDF[0] = %f, expected 0.25", cdf.y[0]);
-	TEST_ASSERT(fabs(cdf.y[1] - 0.75) < 1e-12,
-		"CDF[1] = %f, expected 0.75", cdf.y[1]);
-	TEST_ASSERT(fabs(cdf.y[2] - 1.0) < 1e-12,
-		"CDF[2] = %f, expected 1.0", cdf.y[2]);
+	TEST_NEAR(cdf.y[0], 0.25, 1e-12);
+	TEST_NEAR(cdf.y[1], 0.75, 1e-12);
+	TEST_NEAR(cdf.y[2], 1.0, 1e-12);
 
 	/* y=0.0: below all CDF values, returns 0. */
 	TEST_EQ(prob_cdf_inverse(&cdf, 0.0), (size_t)0);
@@ -136,12 +131,9 @@ static void t_prob_cdf_negative(void)
 	TEST_EQ(prob_cdf_init(&cdf, 3), 0);
 	TEST_EQ(prob_cdf_from_iter(&cdf, iter_cb, &d), 0);
 
-	TEST_ASSERT(fabs(cdf.y[0] - 0.25) < 1e-12,
-		"CDF[0] = %f, expected 0.25", cdf.y[0]);
-	TEST_ASSERT(fabs(cdf.y[1] - 0.75) < 1e-12,
-		"CDF[1] = %f, expected 0.75", cdf.y[1]);
-	TEST_ASSERT(fabs(cdf.y[2] - 1.0) < 1e-12,
-		"CDF[2] = %f, expected 1.0", cdf.y[2]);
+	TEST_NEAR(cdf.y[0], 0.25, 1e-12);
+	TEST_NEAR(cdf.y[1], 0.75, 1e-12);
+	TEST_NEAR(cdf.y[2], 1.0, 1e-12);
 
 	prob_cdf_free(&cdf);
 }

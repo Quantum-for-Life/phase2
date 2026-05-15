@@ -86,10 +86,8 @@ int main(void)
 	const double nsq = creal(inner);
 	fprintf(stderr, "N=14 <psi|psi>: %.6f (imag=%.2e)\n", nsq,
 		cimag(inner));
-	TEST_ASSERT(fabs(nsq - 1.0) < 1e-10,
-		"N=14 trial state not unit norm: <psi|psi>=%.12f", nsq);
-	TEST_ASSERT(fabs(cimag(inner)) < 1e-10,
-		"N=14 <psi|psi> has non-zero imag part: %.3e", cimag(inner));
+	TEST_NEAR(nsq, 1.0, 1e-10);
+	TEST_NEAR(cimag(inner), 0.0, 1e-10);
 
 	qreg_free(&reg);
 	world_free();

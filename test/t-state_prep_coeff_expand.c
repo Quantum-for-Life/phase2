@@ -200,7 +200,7 @@ static void t_boundary_zero(void)
 		0);
 	_Complex double z;
 	qreg_getamp(&reg, 0, &z);
-	TEST_ASSERT(fabs(creal(z) - 1.0) < 1e-14, "vacuum amp[0]=%f", creal(z));
+	TEST_NEAR(creal(z), 1.0, 1e-14);
 	qreg_free(&reg);
 }
 
@@ -223,8 +223,7 @@ static void t_boundary_full(void)
 	const uint64_t target = 0xfu;
 	_Complex double z;
 	qreg_getamp(&reg, target, &z);
-	TEST_ASSERT(fabs(creal(z) - 1.0) < 1e-14, "full amp got %f+%fi",
-		creal(z), cimag(z));
+	TEST_NEAR(creal(z), 1.0, 1e-14);
 	qreg_free(&reg);
 }
 

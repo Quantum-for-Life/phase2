@@ -66,10 +66,7 @@ static void t_n4_equivalence(void)
 	const _Complex double v_md = run_trott(
 		PH2_TESTDIR "/data/N4_multidet.h5");
 
-	TEST_ASSERT(cabs(v_cm - v_md) < MARGIN,
-		"trott eq: cm=%f+%fi md=%f+%fi diff=%g", creal(v_cm),
-		cimag(v_cm), creal(v_md), cimag(v_md),
-		cabs(v_cm - v_md));
+	TEST_CNEAR(v_cm, v_md, MARGIN);
 }
 
 static void t_smoke(const char *src)

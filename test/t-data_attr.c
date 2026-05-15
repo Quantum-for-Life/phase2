@@ -73,9 +73,7 @@ int main(void)
 	double rd_dbl;
 	if (data_attr_read(fid, GRP_NAME, ATTR_DBL, &rd_dbl) < 0)
 		TEST_FAIL("data_attr_read double");
-	TEST_ASSERT(fabs(rd_dbl - VAL_DBL) < MARGIN,
-		"double mismatch: got %.17g, expected %.17g",
-		rd_dbl, VAL_DBL);
+	TEST_NEAR(rd_dbl, VAL_DBL, MARGIN);
 
 	data_close(fid);
 

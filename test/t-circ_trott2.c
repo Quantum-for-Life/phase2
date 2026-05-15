@@ -139,8 +139,7 @@ static void t_trotter2_mockup_sanity_check(void)
 	trotter2_mockup();
 
 	/* Two half-steps of the identity term collapse to exp(i). */
-	TEST_ASSERT(cabs(TROTT_VALS[0] - cexp(CMPLX(0.0, 1.0))) < MARGIN,
-		"trott2 mockup sanity check");
+	TEST_CNEAR(TROTT_VALS[0], cexp(CMPLX(0.0, 1.0)), MARGIN);
 }
 
 static void t_circ_trott2(size_t tag, size_t ts, size_t md, size_t ht)
