@@ -317,7 +317,28 @@ $(TESTDIR)/t-circ_trott2: $(CIRCDIR)/trott2.o
 $(TESTDIR)/t-circ_trott_coeff: $(CIRCDIR)/trott.o
 $(TESTDIR)/t-circ_trott2_coeff: $(CIRCDIR)/trott2.o
 
-build-test: $(TESTS)
+build-test: check-tests-coverage $(TESTS)
+
+# Guard against a t-*.c file being added to test/ but
+# forgotten in TESTS / TESTS_SLOW above -- a silent
+# omission would otherwise produce a partial suite that
+# CI cannot tell from a full one.
+.PHONY: check-tests-coverage
+check-tests-coverage:
+	@tmp=$$(mktemp -d);					\
+	ls $(TESTDIR)/t-*.c 2>/dev/null				\
+		| sed 's|\.c$$||' | sort > $$tmp/expected;	\
+	for t in $(TESTS) $(TESTS_SLOW); do echo $$t; done	\
+		| sort > $$tmp/declared;			\
+	missing=$$(comm -23 $$tmp/expected $$tmp/declared);	\
+	rc=0;							\
+	if [ -n "$$missing" ]; then				\
+		echo "test/: t-*.c files not in TESTS:";	\
+		echo "$$missing";				\
+		rc=1;						\
+	fi;							\
+	rm -rf $$tmp;						\
+	exit $$rc
 
 CHECKS	:= $(TESTS:$(TESTDIR)/%=check/%)
 
