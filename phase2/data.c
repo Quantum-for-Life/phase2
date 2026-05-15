@@ -394,22 +394,12 @@ DEFINE_DATA_ATTR_WRITE(dbl, double, H5T_NATIVE_DOUBLE);
 
 #define MULTIDET_PATH DATA_STPREP "/" DATA_STPREP_MULTIDET
 
-void data_multidet_free(struct data_multidet *m)
-{
-	if (!m)
-		return;
-	free((void *)m->cfs);
-	free((void *)m->dets);
-	m->cfs = NULL;
-	m->dets = NULL;
-}
-
-int data_multidet_load(data_id fid, struct data_multidet *m)
+int circ_muldet_load(data_id fid, struct circ_muldet *md)
 {
 	if (world_info(&WD) != WORLD_READY)
 		return -1;
 
-	memset(m, 0, sizeof *m);
+	memset(md, 0, sizeof *md);
 
 	int rt = 0;
 	uint32_t v_nqb = 0;
@@ -419,7 +409,7 @@ int data_multidet_load(data_id fid, struct data_multidet *m)
 		const hid_t grp_id = H5Gopen(
 			(hid_t)fid, MULTIDET_PATH, H5P_DEFAULT);
 		if (grp_id == H5I_INVALID_HID) {
-			log_error("data_multidet_load: H5Gopen(%s) failed",
+			log_error("circ_muldet_load: H5Gopen(%s) failed",
 				MULTIDET_PATH);
 			goto ex_dims;
 		}
@@ -444,7 +434,7 @@ int data_multidet_load(data_id fid, struct data_multidet *m)
 	double *cfs = malloc(sizeof *cfs * 2 * v_ndets);
 	unsigned char *dets = malloc(sizeof *dets * v_ndets * v_nqb);
 	if (!cfs || !dets) {
-		log_error("data_multidet_load: alloc failed"
+		log_error("circ_muldet_load: alloc failed"
 			  " (ndets=%zu, nqb=%u)", v_ndets, v_nqb);
 		free(cfs);
 		free(dets);
@@ -455,7 +445,7 @@ int data_multidet_load(data_id fid, struct data_multidet *m)
 		const hid_t grp_id = H5Gopen(
 			(hid_t)fid, MULTIDET_PATH, H5P_DEFAULT);
 		if (grp_id == H5I_INVALID_HID) {
-			log_error("data_multidet_load: H5Gopen(%s) failed",
+			log_error("circ_muldet_load: H5Gopen(%s) failed",
 				MULTIDET_PATH);
 			rt = -1;
 		} else {
@@ -483,7 +473,7 @@ int data_multidet_load(data_id fid, struct data_multidet *m)
 		for (size_t j = 0; j < v_nqb; j++) {
 			const unsigned char bit = dets[i * v_nqb + j];
 			if (bit > 1) {
-				log_error("data_multidet_load: dets[%zu][%zu]"
+				log_error("circ_muldet_load: dets[%zu][%zu]"
 					  " = %u is not 0/1; multidet group"
 					  " is malformed", i, j,
 					(unsigned)bit);
@@ -494,10 +484,22 @@ int data_multidet_load(data_id fid, struct data_multidet *m)
 		}
 	}
 
-	m->nqb = v_nqb;
-	m->ndets = v_ndets;
-	m->cfs = cfs;
-	m->dets = dets;
+	if (circ_muldet_init(md, v_ndets) < 0) {
+		log_error("circ_muldet_load: circ_muldet_init failed"
+			  " (ndets=%zu)", v_ndets);
+		free(cfs);
+		free(dets);
+		return -1;
+	}
+	for (size_t i = 0; i < v_ndets; i++) {
+		md->dets[i].cf = CMPLX(cfs[2 * i], cfs[2 * i + 1]);
+		uint64_t idx = 0;
+		for (uint32_t j = 0; j < v_nqb; j++)
+			idx |= (uint64_t)dets[i * v_nqb + j] << j;
+		md->dets[i].idx = idx;
+	}
+	free(cfs);
+	free(dets);
 	return 0;
 }
 

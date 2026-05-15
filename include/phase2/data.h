@@ -95,29 +95,23 @@ int data_attr_write_dbl(data_id fid, const char *grp_name,
 		fid, grp_name, attr_name, attr)
 
 /**
- * Raw multidet data read from /state_prep/multidet.
+ * Load /state_prep/multidet into a packed circ_muldet.
  *
- *   nqb   total qubit count of the determinants
- *   ndets number of determinants
- *   cfs   flat double array of shape (ndets, 2), real and
- *         imaginary parts of the complex coefficients
- *   dets  flat byte array of shape (ndets, nqb); each entry
- *         is the occupation of one qubit and is validated
- *         to be 0 or 1 at load time
+ * Rank 0 reads the dimensions, the complex coefficients and
+ * the per-qubit determinant bytes from disk and broadcasts to
+ * followers in one collective call.  The destination dets
+ * array is allocated through circ_muldet_init() and each row
+ * is packed in place into { uint64_t idx; _Complex double cf }
+ * (LSB = qubit 0).  Determinant bytes are validated to be 0
+ * or 1; a stray value rejects the load and leaves *md zeroed.
  *
- * data_multidet_load() allocates cfs and dets and fills the
- * scalars; data_multidet_free() releases them.  The struct
- * remains owned by the caller.
+ * Release with circ_muldet_free() (declared in phase2/circ.h).
+ *
+ * Returns 0 on success, -1 on error.
  */
-struct data_multidet {
-	uint32_t nqb;
-	size_t ndets;
-	const double *cfs;
-	const unsigned char *dets;
-};
+struct circ_muldet;
 
-int data_multidet_load(data_id fid, struct data_multidet *m);
-void data_multidet_free(struct data_multidet *m);
+int circ_muldet_load(data_id fid, struct circ_muldet *md);
 
 /*
  * State-prep dispatch and coefficient-matrix loader.

@@ -1,14 +1,16 @@
 /*
- * Test data_multidet_load on every committed fixture
- * carrying a /state_prep/multidet group.  Asserts: nqb,
- * ndets, and (for the second fixture) the exact contents
- * of the basis-state indices and complex coefficients.
+ * Test circ_muldet_load on every committed fixture carrying
+ * a /state_prep/multidet group.  Asserts: packed length, that
+ * each packed idx fits in the fixture's qubit count, and (for
+ * the second fixture) the exact contents of the basis-state
+ * indices and complex coefficients.
  */
 #include "c23_compat.h"
 #include <complex.h>
 #include <stdint.h>
 #include <stdio.h>
 
+#include "phase2/circ.h"
 #include "phase2/data.h"
 #include "phase2/world.h"
 
@@ -32,37 +34,34 @@ static int t_dims(void)
 			break;
 		}
 
-		struct data_multidet m;
-		if (data_multidet_load(fid, &m) < 0) {
-			TEST_FAIL("data_multidet_load on %s", td.filename);
+		struct circ_muldet md;
+		if (circ_muldet_load(fid, &md) < 0) {
+			TEST_FAIL("circ_muldet_load on %s", td.filename);
 			rc = -1;
 			data_close(fid);
 			break;
 		}
-		if (m.nqb != td.num_qubits) {
-			TEST_FAIL("wrong number of qubits: %zu vs %zu",
-				(size_t)m.nqb, td.num_qubits);
-			rc = -1;
-		}
-		if (m.ndets != td.num_dets) {
+		if (md.len != td.num_dets) {
 			TEST_FAIL("wrong number of dets: %zu vs %zu",
-				m.ndets, td.num_dets);
+				md.len, td.num_dets);
 			rc = -1;
 		}
-		data_multidet_free(&m);
+		const uint64_t qb_mask = (td.num_qubits >= 64)
+			? UINT64_MAX
+			: ((UINT64_C(1) << td.num_qubits) - 1);
+		for (size_t j = 0; j < md.len; j++) {
+			if (md.dets[j].idx & ~qb_mask) {
+				TEST_FAIL("idx[%zu]=0x%llx exceeds %zu qubits",
+					j,
+					(unsigned long long)md.dets[j].idx,
+					td.num_qubits);
+				rc = -1;
+			}
+		}
+		circ_muldet_free(&md);
 		data_close(fid);
 	}
 	return rc;
-}
-
-/* Build the basis-state index (LSB = qubit 0) from a row of
- * the raw `dets` byte array, the way circ.c unpacks it. */
-static uint64_t pack_idx(const unsigned char *row, uint32_t nqb)
-{
-	uint64_t idx = 0;
-	for (uint32_t j = 0; j < nqb; j++)
-		idx += (uint64_t)row[j] << j;
-	return idx;
 }
 
 static int t_arrays(void)
@@ -74,9 +73,9 @@ static int t_arrays(void)
 		return -1;
 	}
 
-	struct data_multidet m;
-	if (data_multidet_load(fid, &m) < 0) {
-		TEST_FAIL("data_multidet_load");
+	struct circ_muldet md;
+	if (circ_muldet_load(fid, &md) < 0) {
+		TEST_FAIL("circ_muldet_load");
 		data_close(fid);
 		return -1;
 	}
@@ -86,21 +85,18 @@ static int t_arrays(void)
 	const _Complex double exp_coeff[] = { CMPLX(0.108292, 0.333811),
 		CMPLX(0.0491404, 0.613936), CMPLX(0.565802, 0.421163) };
 
-	if (m.ndets != 3) {
-		TEST_FAIL("expected 3 dets, got %zu", m.ndets);
+	if (md.len != 3) {
+		TEST_FAIL("expected 3 dets, got %zu", md.len);
 		rc = -1;
 	} else {
-		for (size_t i = 0; i < m.ndets; i++) {
-			const uint64_t idx = pack_idx(
-				&m.dets[i * m.nqb], m.nqb);
-			if (idx != exp_idx[i]) {
+		for (size_t i = 0; i < md.len; i++) {
+			if (md.dets[i].idx != exp_idx[i]) {
 				TEST_FAIL("idx[%zu]: %lu vs %lu",
-					i, (unsigned long)idx,
+					i, (unsigned long)md.dets[i].idx,
 					(unsigned long)exp_idx[i]);
 				rc = -1;
 			}
-			const _Complex double cf = CMPLX(
-				m.cfs[2 * i], m.cfs[2 * i + 1]);
+			const _Complex double cf = md.dets[i].cf;
 			if (cabs(cf - exp_coeff[i]) > MARGIN) {
 				TEST_FAIL("coeff[%zu]: %f+%fi vs %f+%fi",
 					i, creal(cf), cimag(cf),
@@ -111,7 +107,7 @@ static int t_arrays(void)
 		}
 	}
 
-	data_multidet_free(&m);
+	circ_muldet_free(&md);
 	data_close(fid);
 	return rc;
 }

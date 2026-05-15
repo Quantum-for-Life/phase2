@@ -72,26 +72,6 @@ void circ_muldet_free(struct circ_muldet *md)
 		free(md->dets);
 }
 
-static int circ_muldet_from_file(struct circ_muldet *m, const data_id fid)
-{
-	struct data_multidet raw;
-	if (data_multidet_load(fid, &raw) < 0)
-		return -1;
-	if (circ_muldet_init(m, raw.ndets) < 0) {
-		data_multidet_free(&raw);
-		return -1;
-	}
-	for (size_t i = 0; i < raw.ndets; i++) {
-		uint64_t idx = 0;
-		for (size_t j = 0; j < raw.nqb; j++)
-			idx += (uint64_t)raw.dets[i * raw.nqb + j] << j;
-		m->dets[i].cf = CMPLX(raw.cfs[2 * i], raw.cfs[2 * i + 1]);
-		m->dets[i].idx = idx;
-	}
-	data_multidet_free(&raw);
-	return 0;
-}
-
 void circ_prog_init(struct circ_prog *prog, size_t len, const char *unit)
 {
 	prog->i = 0;
@@ -170,7 +150,7 @@ int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
 
 	switch (ct->stprep_kind) {
 	case STPREP_MULTIDET:
-		if (circ_muldet_from_file(&ct->md, fid) < 0) {
+		if (circ_muldet_load(fid, &ct->md) < 0) {
 			log_error("circ_init: loading multidet state failed");
 			goto err_stprep_load;
 		}
