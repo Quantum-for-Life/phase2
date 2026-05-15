@@ -1534,20 +1534,23 @@ happens during data loading in `circ_hamil_load`.
 
 ### 10.1 Make Targets
 
-| Target        | Description                           |
-|---------------|---------------------------------------|
-| `all`         | Build everything (programs, benchmarks, tests) |
-| `build`       | Build `ph2run` and dependencies       |
-| `build-test`  | Build the test suite                  |
-| `build-bench` | Build benchmarks                      |
-| `check`       | Run all tests (single rank)           |
-| `check-mpi`   | Run all tests under MPI               |
-| `bench`       | Run benchmarks (single rank)          |
-| `bench-mpi`   | Run benchmarks under MPI              |
-| `debug`       | Build with debug flags (-g -Og)       |
-| `clean`       | Remove object files                   |
-| `distclean`   | Remove object files, binaries, tests  |
-| `format`      | Run clang-format on all sources       |
+| Target                 | Description                           |
+|------------------------|---------------------------------------|
+| `all`                  | Build everything (programs, benchmarks, tests) |
+| `build`                | Build `ph2run` and dependencies       |
+| `build-test`           | Build the test suite + runner         |
+| `build-bench`          | Build benchmarks                      |
+| `check`                | Run the full test suite (parallel, cargo-style) |
+| `check-mpi`            | Run the suite under `mpirun -n MPIRANKS` |
+| `check-slow`           | Run TESTS_SLOW (excluded from default `check`) |
+| `check-<filter>`       | Run the subset matching `<filter>*` (`check-data`) |
+| `check-tests-coverage` | Guard: every `test/t-*.c` is in TESTS / TESTS_SLOW |
+| `bench`                | Run benchmarks (single rank)          |
+| `bench-mpi`            | Run benchmarks under MPI              |
+| `debug`                | Build with debug flags (-g -Og)       |
+| `clean`                | Remove object files                   |
+| `distclean`            | Remove object files, binaries, tests  |
+| `format`               | Run clang-format on all sources       |
 
 ### 10.2 Backend Selection
 
@@ -1591,15 +1594,17 @@ convention `t-<area>[_<aspect>]`:
 | `t-circ_prepst_coeff`           | Slater-Condon state-prep dispatch |
 | `t-state_prep_coeff_*`          | expand, CSF superposition, large reference |
 | `t-ref-bendazzoli`              | precomputed CSF amplitudes reference |
+| `t-run`                         | self-tests for the parallel runner   |
 
 The Python harness `test/t-ref-coeff_matrix.py` cross-checks
 the C expansion against an in-tree reference oracle in
-`test/ref/coeff_matrix_reference.py`; it is run by
-`make check-python`.
+`test/ref/coeff_matrix_reference.py`; the unified `check`
+target runs it alongside the C tests.
 
-Test data files reside in `test/data/`.  The slow test
-`t-state_prep_coeff_large` is built and run separately via
-`make build-test-slow` / `make check-slow`.  Sanitiser and
-valgrind variants are available as `make test-asan`,
-`make test-valgrind`, `make test-mpi-asan`.  Tests are
-built with `-DDEBUG -g -Og` flags.
+`make check` and friends delegate to the cargo-style
+parallel runner at `test/run` -- per-test stdout/stderr
+capture, TTY-aware colour, fnmatch filtering, MPI wrap.
+See [doc/testing.md](testing.md) for the full subsystem
+reference: macro contract, fixture pattern, runner flags,
+recipes for adding tests, sanitiser / valgrind targets.
+Test data files reside in `test/data/`.

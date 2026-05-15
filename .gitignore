@@ -98,6 +98,12 @@ test/t-*
 !test/t-*.h
 !test/t-*.py
 
+# Parallel runner binary and its fixture binaries; the
+# fixture .c sources stay tracked.
+test/run
+test/run-fixtures/*
+!test/run-fixtures/*.c
+
 *.egg-info/
 __pycache__/
 

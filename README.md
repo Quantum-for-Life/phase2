@@ -135,15 +135,17 @@ Tests and benchmarks
 --------------------
 
 ```bash
-make check                 # full C test suite
-make check-mpi MPIRANKS=4  # same, under MPI
-make check-python          # cross-check coeff_matrix expansion
+make check                 # full test suite (parallel, cargo-style)
+make check-mpi MPIRANKS=4  # same, each test under mpirun -n 4
+make check-data            # subset filter (e.g. check-paulis, check-circ)
 make bench                 # paulis and qreg micro-benchmarks
 make test-asan             # ASan + UBSan build
 make test-valgrind         # leak/UB check via valgrind
 ```
 
-Test fixtures live in `test/data/`.
+Test fixtures live in `test/data/`.  See
+[doc/testing.md](doc/testing.md) for the harness
+contract, runner flags, and recipes for adding tests.
 
 
 Documentation
@@ -153,6 +155,8 @@ Documentation
   design, kernels (CPU and CUDA), algorithms, API, build.
 - [doc/logging.md](doc/logging.md) — logging subsystem:
   format, levels, env vars, MPI, policy for new code.
+- [doc/testing.md](doc/testing.md) — test subsystem:
+  harness, parallel runner, conventions, recipes.
 - [doc/python.md](doc/python.md) — Python interface.
 - [doc/simul-h5-specs.md](doc/simul-h5-specs.md) — HDF5
   input/output schema.

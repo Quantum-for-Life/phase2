@@ -24,10 +24,8 @@ static void t_two_component(void)
 	struct data_coeff_matrix cm;
 	TEST_EQ(data_coeff_matrix_load(fid, &cm), 0);
 	TEST_EQ(cm.n_components, 2u);
-	TEST_ASSERT(fabs(cm.blocks[0].cf - 0.6) < 1e-15,
-		"csf coef0=%f", cm.blocks[0].cf);
-	TEST_ASSERT(fabs(cm.blocks[1].cf - 0.8) < 1e-15,
-		"csf coef1=%f", cm.blocks[1].cf);
+	TEST_NEAR(cm.blocks[0].cf, 0.6, 1e-15);
+	TEST_NEAR(cm.blocks[1].cf, 0.8, 1e-15);
 
 	struct qreg reg;
 	TEST_EQ(qreg_init(&reg, cm.nqb), 0);

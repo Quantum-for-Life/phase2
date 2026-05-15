@@ -273,6 +273,7 @@ bench-mpi: build-bench
 # Testing                                                                     #
 # --------------------------------------------------------------------------- #
 TESTDIR		:= ./test
+RUNFIXDIR	:= $(TESTDIR)/run-fixtures
 CFLAGS		+= -I$(TESTDIR) -I$(PHASE2DIR) -DPH2_TESTDIR=\"$(TESTDIR)\"
 
 TESTS		:= $(TESTDIR)/t-bitstring_index			\
@@ -301,9 +302,30 @@ TESTS		:= $(TESTDIR)/t-bitstring_index			\
 			$(TESTDIR)/t-prob				\
 			$(TESTDIR)/t-qreg				\
 			$(TESTDIR)/t-ref-bendazzoli			\
+			$(TESTDIR)/t-run				\
 			$(TESTDIR)/t-state_prep_coeff_csf		\
 			$(TESTDIR)/t-state_prep_coeff_expand		\
 			$(TESTDIR)/t-world
+
+# Synthetic fixtures used by t-run to drive the runner
+# against controlled pass / fail / signal / banner
+# outcomes.  Each fixture is a tiny self-contained C
+# program with no phase2 / MPI / HDF5 deps.
+RUNFIX		:= $(RUNFIXDIR)/pass					\
+			$(RUNFIXDIR)/fail				\
+			$(RUNFIXDIR)/sleep				\
+			$(RUNFIXDIR)/abort				\
+			$(RUNFIXDIR)/banner
+
+$(RUNFIXDIR)/%: $(RUNFIXDIR)/%.c
+	$(CC) -std=c11 -Wall -Wextra -O2 -o $@ $<
+
+# t-run is a meta-test: it shells out to ./test/run, so
+# both the runner and its fixtures must exist before
+# t-run is invoked.  Use order-only prereqs (after `|`)
+# so the implicit %: %.c link line does not try to feed
+# the runner / fixture binaries to ld.
+$(TESTDIR)/t-run: | $(TESTDIR)/run $(RUNFIX)
 
 TESTS_SLOW	:= $(TESTDIR)/t-state_prep_coeff_large
 
@@ -317,47 +339,63 @@ $(TESTDIR)/t-circ_trott2: $(CIRCDIR)/trott2.o
 $(TESTDIR)/t-circ_trott_coeff: $(CIRCDIR)/trott.o
 $(TESTDIR)/t-circ_trott2_coeff: $(CIRCDIR)/trott2.o
 
-build-test: $(TESTS)
+build-test: check-tests-coverage $(TESTS) $(TESTDIR)/run
 
-CHECKS	:= $(TESTS:$(TESTDIR)/%=check/%)
+# Parallel cargo-style runner.  Standalone C binary, no
+# phase2 / MPI / HDF5 dependencies.  Build with the test
+# CFLAGS so any DEBUG / sanitiser flags apply consistently.
+$(TESTDIR)/run: $(TESTDIR)/run.c
+	$(CC) -std=c11 -Wall -Wextra -O2 -o $@ $<
 
-.PHONY: $(CHECKS)
-# Tests are always built with -DDEBUG so log_trace / log_debug
-# in include/log.h expand to real emits.  t-log_release
-# below cancels this so the release-build strip of
-# trace/debug macros can be verified end-to-end -- the
-# override must come after the blanket -DDEBUG so the
-# trailing -UDEBUG wins on the gcc command line.
+# Guard against a t-*.c file being added to test/ but
+# forgotten in TESTS / TESTS_SLOW above -- a silent
+# omission would otherwise produce a partial suite that
+# CI cannot tell from a full one.
+.PHONY: check-tests-coverage
+check-tests-coverage:
+	@tmp=$$(mktemp -d);					\
+	ls $(TESTDIR)/t-*.c 2>/dev/null				\
+		| sed 's|\.c$$||' | sort > $$tmp/expected;	\
+	for t in $(TESTS) $(TESTS_SLOW); do echo $$t; done	\
+		| sort > $$tmp/declared;			\
+	missing=$$(comm -23 $$tmp/expected $$tmp/declared);	\
+	rc=0;							\
+	if [ -n "$$missing" ]; then				\
+		echo "test/: t-*.c files not in TESTS:";	\
+		echo "$$missing";				\
+		rc=1;						\
+	fi;							\
+	rm -rf $$tmp;						\
+	exit $$rc
+
+# Tests are always built with -DDEBUG so log_trace /
+# log_debug in include/log.h expand to real emits.
+# t-log_release cancels this so the release-build strip
+# of trace/debug macros can be verified end-to-end --
+# the override must come after the blanket -DDEBUG so
+# the trailing -UDEBUG wins on the gcc command line.
 $(TESTS): CFLAGS += -DDEBUG -g -Og
-$(CHECKS): CFLAGS += -DDEBUG -g -Og
 $(TESTDIR)/t-log_release: CFLAGS += -UDEBUG
-check/t-log_release: CFLAGS += -UDEBUG
-$(CHECKS): check/%: $(TESTDIR)/%
-	@./$< && echo "$< OK" || (echo "$<: FAIL"; exit 1)
 
+# All check targets delegate to test/run; the runner
+# fans the suite out across cores, captures per-test
+# stdout/stderr, and prints a cargo-style summary.
+# See test/run.c for the harness contract.
 .PHONY: check
-check: $(CHECKS) check-python
+check: build-test
+	@./$(TESTDIR)/run -- $(TESTS)				\
+		$(TESTDIR)/t-ref-coeff_matrix.py
 
-# Python harness cross-validates the C expansion path against
-# an independent in-tree reference oracle.  Depends on
-# build-test (for the t-state_prep_coeff_expand binary).
-.PHONY: check-python
-check-python: build-test
-	@python3 $(TESTDIR)/t-ref-coeff_matrix.py	\
-		&& echo "$(TESTDIR)/t-ref-coeff_matrix.py OK"	\
-		|| (echo "$(TESTDIR)/t-ref-coeff_matrix.py: FAIL"; exit 1)
-
-# Slow tests: built but not part of the default check target.
+# Slow tests: built but not part of the default check
+# target.
 .PHONY: build-test-slow
 build-test-slow: $(TESTS_SLOW)
 
-CHECKS_SLOW	:= $(TESTS_SLOW:$(TESTDIR)/%=check/%)
-.PHONY: $(CHECKS_SLOW)
-$(CHECKS_SLOW): CFLAGS += -DDEBUG -g -Og
-$(CHECKS_SLOW): check/%: $(TESTDIR)/%
-	@./$< && echo "$< OK" || (echo "$<: FAIL"; exit 1)
 .PHONY: check-slow
-check-slow: $(CHECKS_SLOW)
+check-slow: build-test-slow $(TESTDIR)/run
+	@./$(TESTDIR)/run -- $(TESTS_SLOW)
+
+.PHONY: test-slow
 test-slow: check-slow
 
 # Sanitizer / valgrind targets.  These rebuild from scratch
@@ -400,19 +438,23 @@ test-mpi-asan:
 			( echo "$$tt: FAIL"; exit 1 );			\
 	done
 
-#check: build-test
-#	@for tt in $(TESTS); do						\
-#		./$$tt &&						\
-#			echo "$$tt: OK" ||				\
-#			( echo "$$tt: FAIL"; exit 1 );			\
-#	done
-
+.PHONY: check-mpi
 check-mpi: build-test
-	@for tt in $(TESTS); do						\
-		$(MPIRUN) -n $(MPIRANKS) $(MPIFLAGS) ./$$tt && 		\
-			echo "$$tt: OK" ||				\
-			( echo "$$tt: FAIL"; exit 1 );			\
-	done
+	@./$(TESTDIR)/run --mpiranks=$(MPIRANKS) -- $(TESTS)
+
+# Pattern target: `make check-<filter>` runs the
+# subset of the suite whose effective names match
+# `<filter>*` (fnmatch glob).  The effective name is
+# the basename without the `t-` prefix and the `.py`
+# suffix.  Examples:
+#   make check-data    -> all t-data_*
+#   make check-paulis  -> just t-paulis
+#   make check-circ    -> all t-circ*
+# Explicit targets (check-mpi, check-slow,
+# check-tests-coverage) win over this pattern.
+check-%: build-test
+	@./$(TESTDIR)/run --filter='$**' -- $(TESTS)		\
+		$(TESTDIR)/t-ref-coeff_matrix.py
 
 
 # --------------------------------------------------------------------------- #
@@ -430,6 +472,8 @@ clean:
 distclean: clean
 	@$(RM) $(BENCHES)
 	@$(RM) $(TESTS)
+	@$(RM) $(TESTDIR)/run
+	@$(RM) $(RUNFIX)
 	@$(RM) $(PROGS)
 	@$(RM) libphase2.so
 

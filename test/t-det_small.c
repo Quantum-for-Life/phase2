@@ -92,8 +92,7 @@ static void t_edge_cases(void)
 	};
 	const double dU = det_small(U, 4);
 	const double exp = 2.0 * -1.0 * 5.0 * -3.0;
-	TEST_ASSERT(fabs(dU - exp) < 1e-12, "upper-triangular det, got %f",
-		dU);
+	TEST_NEAR(dU, exp, 1e-12);
 }
 
 static void t_random(uint32_t n, size_t trials)

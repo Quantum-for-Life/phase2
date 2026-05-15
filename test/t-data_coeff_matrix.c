@@ -117,10 +117,8 @@ static void t_csf(void)
 		"csf: top-level C_alpha must be NULL (use blocks[k])");
 	TEST_ASSERT(cm.C_beta == NULL,
 		"csf: top-level C_beta must be NULL (use blocks[k])");
-	TEST_ASSERT(fabs(cm.blocks[0].cf - 0.6) < 1e-15, "csf[0].cf=%f",
-		cm.blocks[0].cf);
-	TEST_ASSERT(fabs(cm.blocks[1].cf - 0.8) < 1e-15, "csf[1].cf=%f",
-		cm.blocks[1].cf);
+	TEST_NEAR(cm.blocks[0].cf, 0.6, 1e-15);
+	TEST_NEAR(cm.blocks[1].cf, 0.8, 1e-15);
 	TEST_ASSERT(cm.blocks[0].C_alpha != NULL, "csf[0].C_alpha allocated");
 	TEST_ASSERT(cm.blocks[1].C_alpha != NULL, "csf[1].C_alpha allocated");
 
