@@ -1,14 +1,34 @@
 /*
- * data -- HDF5 I/O layer between simul.h5 and the simulator.
+ * data -- HDF5 I/O layer between simul.h5 and the
+ * simulator.
  *
- * Rank 0 owns the file handle and performs every H5 call.
- * Other ranks receive read results via MPI_Bcast and short-
- * circuit on writes.  The underlying HDF5 build is standard
- * (serial); no parallel-HDF5 driver is needed.
+ * Rank-0 ownership.  Rank 0 holds the H5 file handle and
+ * performs every H5 call.  Followers receive read results
+ * via MPI_Bcast and short-circuit on writes.  The
+ * underlying HDF5 build is standard (serial); no
+ * parallel-HDF5 driver is needed.
  *
- * Every error path emits a log_error line naming the failing
- * H5 operation and the relevant context (group, dataset,
- * attribute, index).  Return codes are normalised to {0, -1}.
+ * Bcast invariant.  On a collective entry point, every
+ * rank must reach the *same number* of MPI_Bcast calls
+ * even when rank 0 takes a failure path.  The pattern is:
+ * rank 0 sets a status int, all ranks BCAST(&rt, 1,
+ * MPI_INT), all ranks branch on rt.  A rank-0-only goto
+ * that bypasses a bcast would deadlock the followers --
+ * which is why each loader has explicit `rt = -1`
+ * settings before every potentially-failing call inside
+ * the rank-0 block.
+ *
+ * Buffer ownership.  Load functions allocate through
+ * local mutable pointers and assign them to the public
+ * carrier struct (struct data_coeff_matrix etc., defined
+ * in phase2/circ.h) at the end via const-qualified
+ * fields.  The free helpers in phase2/circ.c cast back
+ * through void * to release.
+ *
+ * Logging.  Every error path emits one log_error line
+ * naming the failing H5 operation and the relevant
+ * context (group, dataset, attribute, index).  Return
+ * codes are normalised to {0, -1}.
  */
 
 #define LOG_SUBSYS "data"
@@ -145,6 +165,13 @@ ex_dset:
 
 /* -- file open / close ------------------------------------------------ */
 
+/*
+ * Open simul.h5 RDWR.  Only rank 0 holds the underlying
+ * H5 file handle; followers receive DATA_FOLLOWER_FID
+ * and pass it through subsequent collective data_* calls
+ * without dereferencing it.  Returns DATA_INVALID_FID on
+ * open failure; callers compare against this sentinel.
+ */
 data_id data_open(const char *filename)
 {
 	if (world_info(&WD) != WORLD_READY) {
@@ -173,6 +200,13 @@ data_id data_open(const char *filename)
 	}
 	return DATA_FOLLOWER_FID;
 }
+
+/*
+ * Close a file id returned by data_open.  Safe to call
+ * on DATA_INVALID_FID and DATA_FOLLOWER_FID -- the
+ * function inspects both sentinels and skips the
+ * H5Fclose on follower ranks.
+ */
 
 void data_close(const data_id fid)
 {
@@ -388,6 +422,25 @@ DEFINE_DATA_ATTR_WRITE(dbl, double, H5T_NATIVE_DOUBLE);
 
 #define MULTIDET_PATH DATA_STPREP "/" DATA_STPREP_MULTIDET
 
+/*
+ * Load /state_prep/multidet into a packed struct
+ * circ_muldet (idx, cf) view.
+ *
+ * Phases:
+ *  1. rank 0 opens the group and reads the dimensions
+ *     of the dets dataset; ndets and nqb broadcast.
+ *  2. every rank malloc's the raw cfs (2*ndets doubles)
+ *     and dets (ndets*nqb bytes) buffers, since the
+ *     bcast must land into already-allocated memory.
+ *  3. rank 0 reads the two datasets; the group handle
+ *     stays open from step 1 to avoid a redundant
+ *     H5Gopen.
+ *  4. every rank receives the bcast, validates that
+ *     each occupation byte is in {0, 1} (rejecting a
+ *     malformed multidet group with -1 + log_error),
+ *     then packs into the {idx, cf} form circ
+ *     consumes.
+ */
 int circ_muldet_load(data_id fid, struct circ_muldet *md)
 {
 	if (world_info(&WD) != WORLD_READY)
@@ -493,6 +546,18 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md)
 
 /* -- pauli_hamil ------------------------------------------------------ */
 
+/*
+ * Load /pauli_hamil into a packed struct circ_hamil
+ * (cf, struct paulis) view ready for circ_step.
+ *
+ * Phases mirror circ_muldet_load: rank-0 dim read +
+ * bcast, all-ranks malloc, rank-0 dataset read + bcast,
+ * all-ranks packing.  Packing scales each coefficient by
+ * the on-disk normalisation attribute and converts the
+ * per-qubit byte array (0=I, 1=X, 2=Y, 3=Z) into the
+ * struct paulis bitstring representation via
+ * paulis_set().
+ */
 int circ_hamil_load(data_id fid, struct circ_hamil *hm)
 {
 	if (world_info(&WD) != WORLD_READY)
@@ -657,6 +722,19 @@ ex_dspace:
 	return dset;
 }
 
+/*
+ * Initialise a writer at /grp/values.  The constructor
+ * handles both first-run (create + NaN-pad) and re-run
+ * (reuse the existing dataset) paths.  Two collective
+ * BCAST calls bracket the rank-0 work so a follower
+ * never returns success while rank 0 saw an error.
+ *
+ * fid == 0 is the documented "no per-step writes"
+ * sentinel: the writer is zeroed and every subsequent
+ * write_step / writer_close returns without I/O.  This
+ * lets a caller drive trott_simul / qdrift_simul / etc.
+ * with output disabled (in-memory smoke tests).
+ */
 int data_circ_writer_init(data_id fid, const char *grp_name, size_t n_steps,
 	struct data_circ_writer *w)
 {
@@ -666,7 +744,7 @@ int data_circ_writer_init(data_id fid, const char *grp_name, size_t n_steps,
 	if (world_info(&WD) != WORLD_READY)
 		return -1;
 
-	/* Group create is collective (rank-0 does H5; all bcast). */
+	/* data_grp_create runs the bcast internally. */
 	if (data_grp_create(fid, grp_name) < 0)
 		return -1;
 
@@ -724,6 +802,15 @@ int data_circ_writer_init(data_id fid, const char *grp_name, size_t n_steps,
 	return 0;
 }
 
+/*
+ * Write one row of the cached /grp/values dataset and
+ * H5Fflush.  The flush is the per-step atomicity
+ * guarantee: a crash between steps leaves rows
+ * 0..step_idx-1 on disk and rows step_idx..n_steps-1
+ * as NaN, so a SLURM timeout produces a useful partial
+ * log instead of a corrupt file.  Followers and
+ * disabled writers short-circuit without I/O.
+ */
 int data_circ_write_step(struct data_circ_writer *w, size_t step_idx,
 	_Complex double z)
 {
@@ -785,6 +872,14 @@ void data_circ_writer_close(struct data_circ_writer *w)
 
 /* -- state-prep dispatch ---------------------------------------------- */
 
+/*
+ * Probe simul.h5 to determine which state-prep
+ * subgroup the file carries.  Both-present and
+ * neither-present are rejected with a log_error line;
+ * the caller (ph2run/circ) is expected to fail-fast on
+ * the misbuilt file rather than guess which payload to
+ * load.  See doc/simul-h5-specs.md "dispatch rules".
+ */
 int data_state_prep_kind(const data_id fid, enum stprep_kind *out)
 {
 	if (world_info(&WD) != WORLD_READY)
@@ -1167,6 +1262,31 @@ static void bcast_coeff_dsets(const struct data_coeff_matrix *cm,
 	}
 }
 
+/*
+ * Load /state_prep/coeff_matrix into a struct
+ * data_coeff_matrix.
+ *
+ * The five-phase orchestration:
+ *
+ *   1. read_coeff_meta   -- rank-0 attribute reads
+ *      determine nqb / n_sites / n_alpha / n_beta /
+ *      closed_shell / tapered, and probe whether a
+ *      CSF subgroup is present plus its arity.
+ *   2. bcast_coeff_meta  -- followers receive those
+ *      scalars so they can size the same allocations
+ *      rank 0 will fill.
+ *   3. alloc_coeff_buffers -- all ranks allocate
+ *      either a single-block (Ca, Cb) layout or a
+ *      CSF blocks[] array.
+ *   4. read_coeff_dsets  -- rank 0 reads the C arrays
+ *      into the pre-allocated buffers.
+ *   5. bcast_coeff_dsets -- followers receive the C
+ *      arrays.
+ *
+ * Each phase has its own collective failure point.  If
+ * any rank fails, every rank frees what it allocated
+ * and returns the struct to its zero-initialised state.
+ */
 int data_coeff_matrix_load(const data_id fid, struct data_coeff_matrix *cm)
 {
 	memset(cm, 0, sizeof *cm);
@@ -1206,6 +1326,11 @@ int data_coeff_matrix_load(const data_id fid, struct data_coeff_matrix *cm)
 	}
 	bcast_coeff_dsets(cm, has_csf, ncomp, Ca, Cb, blocks);
 
+	/* Cast through const: the struct fields are
+	 * const-qualified to the public consumer, but data.c
+	 * owns the lifetime via data_coeff_matrix_free in
+	 * phase2/circ.c (which casts back to void * to call
+	 * free). */
 	cm->C_alpha = Ca;
 	cm->C_beta = Cb;
 	cm->blocks = blocks;
