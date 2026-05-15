@@ -18,10 +18,6 @@
  *     ---- t-data_mpi stderr ----
  *     <captured>
  *
- *     by subsystem:
- *       data     9 passed  (1/9 failed)
- *       ...
- *
  *     test result: FAILED. 30 passed; 1 failed; \
  *         finished in 6.32s
  *
@@ -47,11 +43,6 @@
  *    (--mpiranks=N) Python tests are skipped: they are
  *    rank-0 cross-validators and don't make sense under
  *    mpirun.
- *
- *  - Subsystem is the prefix between `t-` and the next
- *    `_` (or the rest of the name if no underscore):
- *    t-data_mpi.c -> "data"; t-paulis.c -> "paulis".
- *    Used for the by-subsystem rollup at the end.
  *
  *  - Colour is on iff stdout is a TTY (or FORCE_COLOR is
  *    set).  --no-color forces plain output.  The plain
@@ -219,8 +210,6 @@ struct test_result {
 	const char *path;	/* exactly as supplied on argv */
 	char *name;		/* basename(path) minus t- prefix
 				 * and .py suffix; owned */
-	char *subsys;		/* prefix of name up to first `_`;
-				 * owned (substring of name) */
 	bool is_python;		/* path ends in `.py` */
 	bool dispatched;	/* spawned? */
 	bool reaped;		/* completed and recorded? */
@@ -260,28 +249,6 @@ static char *make_name(const char *path)
 	out[cut] = '\0';
 	return out;
 }
-
-/*
- * Subsystem = the prefix of the effective name up to
- * the first `_`.  Falls back to the whole name when
- * there's no underscore (e.g. "paulis", "world").  The
- * returned pointer is a substring of `name`; lifetime
- * follows it.
- */
-static char *make_subsys(char *name)
-{
-	const char *under = strchr(name, '_');
-	if (!under)
-		return name;
-	const size_t cut = (size_t)(under - name);
-	char *out = malloc(cut + 1);
-	if (!out)
-		die("malloc");
-	memcpy(out, name, cut);
-	out[cut] = '\0';
-	return out;
-}
-
 
 /* -- filtering ------------------------------------------------------- */
 
@@ -527,8 +494,8 @@ static void dump_file(const char *label, const char *path)
 
 /*
  * After the run completes, print captured output of
- * each failed test, the by-subsystem rollup, and the
- * final pass/fail summary line.
+ * each failed test and the final pass/fail summary
+ * line.
  */
 static int print_summary(const struct test_result *tests, size_t n_tests,
 	double total, const struct opts *o)
@@ -565,34 +532,6 @@ static int print_summary(const struct test_result *tests, size_t n_tests,
 			if (!tests[i].passed)
 				printf("    t-%s\n", tests[i].name);
 		}
-	}
-
-	/* By-subsystem rollup: count passes + fails per
-	 * unique subsys.  O(n^2) over a tiny n -- no need
-	 * for a hash. */
-	printf("\nby subsystem:\n");
-	bool printed[256] = { 0 };
-	for (size_t i = 0; i < n_tests; i++) {
-		if (printed[i])
-			continue;
-		size_t p = 0, f = 0;
-		for (size_t j = i; j < n_tests; j++) {
-			if (printed[j])
-				continue;
-			if (strcmp(tests[j].subsys, tests[i].subsys) != 0)
-				continue;
-			printed[j] = true;
-			if (tests[j].passed)
-				p++;
-			else
-				f++;
-		}
-		const char *col = (f > 0) ? r_on : g_on;
-		printf("  %-20s %s%zu passed%s",
-			tests[i].subsys, col, p, off);
-		if (f > 0)
-			printf("  %s(%zu/%zu failed)%s", r_on, f, p + f, off);
-		fputc('\n', stdout);
 	}
 
 	const char *verdict_col = (failed == 0) ? g_on : r_on;
@@ -678,7 +617,6 @@ int main(int argc, char **argv)
 			.is_python = py,
 		};
 		tests[n_tests].name = make_name(p);
-		tests[n_tests].subsys = make_subsys(tests[n_tests].name);
 		n_tests++;
 	}
 	filter_tests(tests, &n_tests, o.filter);
@@ -728,11 +666,6 @@ int main(int argc, char **argv)
 
 	cleanup_tmpdir(tmpdir, tests, n_tests);
 	for (size_t i = 0; i < n_tests; i++) {
-		/* subsys may point into name; only free if we
-		 * allocated a separate buffer (i.e. underscore
-		 * was present in name). */
-		if (tests[i].subsys != tests[i].name)
-			free(tests[i].subsys);
 		free(tests[i].name);
 		free(tests[i].out_path);
 		free(tests[i].err_path);
