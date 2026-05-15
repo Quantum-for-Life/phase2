@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "phase2/circ.h"
 #include "phase2/data.h"
 #include "phase2/world.h"
 

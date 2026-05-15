@@ -4,8 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "phase2/data.h"
 #include "phase2/qreg.h"
+
+struct data_coeff_matrix;
 
 /*
  * state_prep_coeff - Slater-Condon expansion of a coefficient-

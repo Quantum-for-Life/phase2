@@ -39,6 +39,70 @@ struct circ_values {
 	size_t len;
 };
 
+/*
+ * State-prep subtypes carried in simul.h5.
+ *
+ * Exactly one of /state_prep/multidet or /state_prep/coeff_matrix
+ * must be present; both-present is an error, neither-present is
+ * an error.  See data_state_prep_kind() in phase2/data.h.
+ */
+enum stprep_kind {
+	STPREP_MULTIDET = 1,
+	STPREP_COEFF_MATRIX = 2,
+};
+
+/*
+ * Raw coefficient-matrix data read from
+ * /state_prep/coeff_matrix.
+ *
+ *   nqb           total qubit count (== n_qubits attribute)
+ *   n_sites       spatial-orbital count
+ *   n_alpha       alpha-spin occupation
+ *   n_beta        beta-spin occupation
+ *   closed_shell  0 or 1; 1 => C_beta buffers absent
+ *   tapered       0 or 1; 1 => bits 0 and n_sites are dropped
+ *                              per generated bitstring
+ *
+ *   n_components  CSF superposition arity.  0 => the trial
+ *                 state is a single block carried by the
+ *                 top-level C_alpha / C_beta arrays;
+ *                 blocks == NULL.  > 0 => the top-level
+ *                 C_alpha / C_beta are NULL and `blocks[]`
+ *                 carries n_components entries, each with
+ *                 its own weight `cf` and C_alpha / C_beta.
+ *   C_alpha       single-block alpha coefficients,
+ *                 n_sites * n_alpha doubles row-major, or
+ *                 NULL when n_components > 0.
+ *   C_beta        single-block beta coefficients,
+ *                 n_sites * n_beta doubles row-major, or
+ *                 NULL when closed_shell or n_components > 0.
+ *   blocks        CSF blocks, n_components entries, or NULL
+ *                 for the single-block case.  Each block's
+ *                 C_alpha / C_beta have the same shapes as
+ *                 the top-level arrays.
+ *
+ * Loaded by data_coeff_matrix_load() (see phase2/data.h) and
+ * released by data_coeff_matrix_free().
+ */
+struct data_coeff_block {
+	double cf;
+	const double *C_alpha;
+	const double *C_beta;
+};
+
+struct data_coeff_matrix {
+	uint32_t nqb;
+	uint32_t n_sites;
+	uint32_t n_alpha;
+	uint32_t n_beta;
+	int closed_shell;
+	int tapered;
+	size_t n_components;
+	const double *C_alpha;
+	const double *C_beta;
+	struct data_coeff_block *blocks;
+};
+
 struct circ {
 	struct circ_hamil hm;
 	struct circ_muldet md;

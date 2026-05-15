@@ -120,13 +120,14 @@ BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
 # phase2 public API
 $(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h			\
 			$(INCLUDE)/phase2/state_prep_coeff.h
-$(PHASE2DIR)/data.o:	$(INCLUDE)/phase2/data.h
+$(PHASE2DIR)/data.o:	$(INCLUDE)/phase2/circ.h $(INCLUDE)/phase2/data.h
 $(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
 $(PHASE2DIR)/prob.o:	$(INCLUDE)/phase2/prob.h
 $(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h $(PHASE2DIR)/qreg.h
 $(PHASE2DIR)/state_prep_coeff.o:	$(INCLUDE)/phase2/state_prep_coeff.h	\
 			$(INCLUDE)/combinations.h			\
 			$(INCLUDE)/det_small.h				\
+			$(INCLUDE)/phase2/circ.h			\
 			$(INCLUDE)/phase2/data.h			\
 			$(INCLUDE)/phase2/qreg.h			\
 			$(PHASE2DIR)/qreg.h

@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "phase2/circ.h"
 #include "phase2/data.h"
 #include "phase2/qreg.h"
 #include "phase2/state_prep_coeff.h"

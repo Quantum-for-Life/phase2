@@ -117,23 +117,18 @@ struct data_multidet {
 int data_multidet_load(data_id fid, struct data_multidet *m);
 void data_multidet_free(struct data_multidet *m);
 
-/**
- * State-prep subtypes carried in simul.h5.
+/*
+ * State-prep dispatch and coefficient-matrix loader.
  *
- * Exactly one of /state_prep/multidet or /state_prep/coeff_matrix
- * must be present; both-present is an error, neither-present is
- * an error.  See data_state_prep_kind().
- */
-enum stprep_kind {
-	STPREP_MULTIDET = 1,
-	STPREP_COEFF_MATRIX = 2,
-};
-
-/**
- * Probe simul.h5 for the active state-prep subtype.
+ * `enum stprep_kind`, `struct data_coeff_block` and
+ * `struct data_coeff_matrix` are carrier types consumed by the
+ * circuit layer; their definitions live in phase2/circ.h so the
+ * algorithm header owns the in-memory representation.  data.h
+ * only forward-declares them to keep the I/O surface here while
+ * avoiding an include cycle with phase2/state_prep_coeff.h.
  *
- * Inspects the file for /state_prep/multidet and
- * /state_prep/coeff_matrix and applies the dispatch table:
+ * data_state_prep_kind() inspects the file for
+ * /state_prep/multidet and /state_prep/coeff_matrix:
  *
  *  multidet | coeff_matrix | result
  *  ---------+--------------+--------
@@ -143,68 +138,20 @@ enum stprep_kind {
  *  present  | present      | -EINVAL  (ambiguous; rebuild simul.h5)
  *
  * On success *out holds the selected kind and the function
- * returns 0.  On failure *out is unchanged and the function
- * returns a negative errno-style value.
+ * returns 0.  On failure *out is unchanged.
+ *
+ * data_coeff_matrix_load() opens /state_prep/coeff_matrix,
+ * reads all scalars and arrays, validates shapes, and
+ * broadcasts to followers in one call.  data_coeff_matrix_free()
+ * releases every allocation and zeroes the struct.
  *
  * Documented further in phase2/doc/simul-h5-specs.md
  * "dispatch rules".
  */
+enum stprep_kind;
+struct data_coeff_matrix;
+
 int data_state_prep_kind(data_id fid, enum stprep_kind *out);
-
-/**
- * Raw coefficient-matrix data read from
- * /state_prep/coeff_matrix.
- *
- *   nqb           total qubit count (== n_qubits attribute)
- *   n_sites       spatial-orbital count
- *   n_alpha       alpha-spin occupation
- *   n_beta        beta-spin occupation
- *   closed_shell  0 or 1; 1 => C_beta buffers absent
- *   tapered       0 or 1; 1 => bits 0 and n_sites are dropped
- *                              per generated bitstring
- *
- *   n_components  CSF superposition arity.  0 => the trial
- *                 state is a single block carried by the
- *                 top-level C_alpha / C_beta arrays;
- *                 blocks == NULL.  > 0 => the top-level
- *                 C_alpha / C_beta are NULL and `blocks[]`
- *                 carries n_components entries, each with
- *                 its own weight `cf` and C_alpha / C_beta.
- *   C_alpha       single-block alpha coefficients,
- *                 n_sites * n_alpha doubles row-major, or
- *                 NULL when n_components > 0.
- *   C_beta        single-block beta coefficients,
- *                 n_sites * n_beta doubles row-major, or
- *                 NULL when closed_shell or n_components > 0.
- *   blocks        CSF blocks, n_components entries, or NULL
- *                 for the single-block case.  Each block's
- *                 C_alpha / C_beta have the same shapes as
- *                 the top-level arrays.
- *
- * data_coeff_matrix_load() opens the group, reads all
- * scalars and arrays, validates shapes, and broadcasts to
- * followers in one call.  data_coeff_matrix_free()
- * releases every allocation and zeroes the struct.
- */
-struct data_coeff_block {
-	double cf;
-	const double *C_alpha;
-	const double *C_beta;
-};
-
-struct data_coeff_matrix {
-	uint32_t nqb;
-	uint32_t n_sites;
-	uint32_t n_alpha;
-	uint32_t n_beta;
-	int closed_shell;
-	int tapered;
-	size_t n_components;
-	const double *C_alpha;
-	const double *C_beta;
-	struct data_coeff_block *blocks;
-};
-
 int data_coeff_matrix_load(data_id fid, struct data_coeff_matrix *cm);
 void data_coeff_matrix_free(struct data_coeff_matrix *cm);
 
