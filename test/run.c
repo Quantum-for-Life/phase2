@@ -459,7 +459,7 @@ static void print_status(const struct test_result *r, const struct opts *o,
 		printf(" %sok%s", g_on, off);
 	else
 		printf(" %sFAILED%s", r_on, off);
-	printf(" %s(%.2fs)%s\n", d_on, r->elapsed, off);
+	printf(" %s(%.3fs)%s\n", d_on, r->elapsed, off);
 	fflush(stdout);
 }
 
