@@ -120,7 +120,8 @@ BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
 # phase2 public API
 $(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h			\
 			$(INCLUDE)/phase2/state_prep_coeff.h
-$(PHASE2DIR)/data.o:	$(INCLUDE)/phase2/circ.h $(INCLUDE)/phase2/data.h
+$(PH2RUNDIR)/data.o:	$(INCLUDE)/phase2/circ.h $(INCLUDE)/ph2run/data.h	\
+			$(INCLUDE)/phase2/paulis.h
 $(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
 $(PHASE2DIR)/prob.o:	$(INCLUDE)/phase2/prob.h
 $(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h $(PHASE2DIR)/qreg.h
@@ -128,7 +129,6 @@ $(PHASE2DIR)/state_prep_coeff.o:	$(INCLUDE)/phase2/state_prep_coeff.h	\
 			$(INCLUDE)/combinations.h			\
 			$(INCLUDE)/det_small.h				\
 			$(INCLUDE)/phase2/circ.h			\
-			$(INCLUDE)/phase2/data.h			\
 			$(INCLUDE)/phase2/qreg.h			\
 			$(PHASE2DIR)/qreg.h
 $(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h
@@ -140,7 +140,6 @@ $(PHASE2DIR)/phase2_run.o:	$(INCLUDE)/phase2/phase2_run.h		\
 
 PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/circ_cache.o			\
-			$(PHASE2DIR)/data.o				\
 			$(PHASE2DIR)/paulis.o				\
 			$(PHASE2DIR)/prob.o				\
 			$(PHASE2DIR)/qreg.o				\
@@ -149,6 +148,8 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(BACKEND_OBJS)
 
 $(PHASE2OBJS):	$(INCLUDE)/phase2.h
+
+PH2RUN_DATA_OBJS := $(PH2RUNDIR)/data.o
 
 
 # Circuits
@@ -184,7 +185,8 @@ $(PH2RUNDIR)/ph2run: $(CIRCDIR)/trott.o					\
 			$(CIRCDIR)/cmpsit.o
 
 $(PROGS):	$(PHASE2OBJS)						\
-			$(LIBOBJS)
+			$(LIBOBJS)					\
+			$(PH2RUN_DATA_OBJS)
 
 # Update flags
 VERSION		:= $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
@@ -228,7 +230,8 @@ build: $(PROGS)
 # Shared library (Python interface)                                           #
 # --------------------------------------------------------------------------- #
 shared: CFLAGS += -fPIC
-shared: $(PHASE2DIR)/phase2_run.o $(PHASE2OBJS) $(LIBOBJS)
+shared: $(PHASE2DIR)/phase2_run.o $(PHASE2OBJS) $(LIBOBJS)	\
+	$(PH2RUN_DATA_OBJS)
 	$(CC) -shared -o libphase2.so $^ $(LDFLAGS) $(LDLIBS)
 
 # --------------------------------------------------------------------------- #
@@ -242,7 +245,7 @@ BENCHES		:= $(BENCHDIR)/b-paulis					\
 
 $(BENCHES):	$(BENCHDIR)/bench.h					\
 		$(BENCHDIR)/bench.o					\
-		$(PHASE2OBJS) $(LIBOBJS)
+		$(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)
 
 build-bench: $(BENCHES)
 
@@ -299,7 +302,7 @@ TESTS_SLOW	:= $(TESTDIR)/t-state_prep_coeff_large
 
 $(TESTS) $(TESTS_SLOW):	$(TESTDIR)/test.h				\
 			$(TESTDIR)/t-data.h				\
-			$(PHASE2OBJS) $(LIBOBJS)
+			$(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)
 
 $(TESTDIR)/t-circ_cache: $(CIRCDIR)/trott.o
 $(TESTDIR)/t-circ_trott: $(CIRCDIR)/trott.o

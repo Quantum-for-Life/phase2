@@ -11,7 +11,7 @@
 #include "combinations.h"
 #include "det_small.h"
 #include "phase2/circ.h"
-#include "phase2/data.h"
+#include "ph2run/data.h"
 #include "phase2/qreg.h"
 #include "phase2/state_prep_coeff.h"
 #include "phase2/world.h"

@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <time.h>
 
-#include "phase2/data.h"
+#include "ph2run/data.h"
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 #include "phase2/state_prep_coeff.h"
@@ -44,7 +44,7 @@ struct circ_values {
  *
  * Exactly one of /state_prep/multidet or /state_prep/coeff_matrix
  * must be present; both-present is an error, neither-present is
- * an error.  See data_state_prep_kind() in phase2/data.h.
+ * an error.  See data_state_prep_kind() in ph2run/data.h.
  */
 enum stprep_kind {
 	STPREP_MULTIDET = 1,
@@ -81,7 +81,7 @@ enum stprep_kind {
  *                 C_alpha / C_beta have the same shapes as
  *                 the top-level arrays.
  *
- * Loaded by data_coeff_matrix_load() (see phase2/data.h) and
+ * Loaded by data_coeff_matrix_load() (see ph2run/data.h) and
  * released by data_coeff_matrix_free().
  */
 struct data_coeff_block {

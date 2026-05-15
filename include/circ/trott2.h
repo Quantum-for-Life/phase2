@@ -2,7 +2,7 @@
 #define TROTT2_H
 
 #include "phase2/circ.h"
-#include "phase2/data.h"
+#include "ph2run/data.h"
 
 /*
  * Symmetric (Strang) 2nd-order Trotter product formula:

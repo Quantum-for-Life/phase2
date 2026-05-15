@@ -2,7 +2,7 @@
 #define TROTT_H
 
 #include "phase2/circ.h"
-#include "phase2/data.h"
+#include "ph2run/data.h"
 
 /*
  * 1st-order Lie-Trotter product formula:

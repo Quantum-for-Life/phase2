@@ -15,7 +15,7 @@
 
 #include <hdf5.h>
 
-#include "phase2/data.h"
+#include "ph2run/data.h"
 #include "phase2/world.h"
 
 #include "test.h"

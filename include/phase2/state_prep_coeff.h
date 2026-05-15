@@ -21,7 +21,7 @@ struct data_coeff_matrix;
  *           const struct data_coeff_matrix *cm);
  *
  * The trial state is loaded from disk by data_coeff_matrix_load
- * (see phase2/data.h) and consumed here.
+ * (see ph2run/data.h) and consumed here.
  *
  * `state_prep_coeff_expand` walks the cartesian product of
  * alpha and beta k-subsets, evaluates the Slater-Condon product
