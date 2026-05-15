@@ -202,6 +202,8 @@ int circ_hamil_load(data_id fid, struct circ_hamil *hm);
 struct data_circ_writer {
 	data_id fid;
 	int64_t dset;	/* H5Dopen handle on rank 0; 0 otherwise */
+	int64_t mspace;	/* (1, 2) memory dataspace cached at init;
+			 * reused for every per-step write. */
 	size_t n_steps;
 };
 

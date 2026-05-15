@@ -389,10 +389,10 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md)
 	int rt = 0;
 	uint32_t v_nqb = 0;
 	size_t v_ndets = 0;
+	hid_t grp_id = H5I_INVALID_HID;
 	if (WD.rank == 0) {
 		rt = -1;
-		const hid_t grp_id = H5Gopen(
-			(hid_t)fid, MULTIDET_PATH, H5P_DEFAULT);
+		grp_id = H5Gopen((hid_t)fid, MULTIDET_PATH, H5P_DEFAULT);
 		if (grp_id == H5I_INVALID_HID) {
 			log_error("circ_muldet_load: H5Gopen(%s) failed",
 				MULTIDET_PATH);
@@ -400,19 +400,19 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md)
 		}
 		hsize_t dims[2];
 		if (get_dset_dims2(grp_id, DATA_STPREP_MULTIDET_DETS, dims)
-			< 0) {
-			H5Gclose(grp_id);
+			< 0)
 			goto ex_dims;
-		}
-		H5Gclose(grp_id);
 		v_ndets = dims[0];
 		v_nqb = (uint32_t)dims[1];
 		rt = 0;
 	ex_dims:;
 	}
 	BCAST(&rt, 1, MPI_INT);
-	if (rt < 0)
+	if (rt < 0) {
+		if (WD.rank == 0 && grp_id != H5I_INVALID_HID)
+			H5Gclose(grp_id);
 		return -1;
+	}
 	BCAST(&v_nqb, 1, MPI_UINT32_T);
 	BCAST(&v_ndets, 1, MPI_UNSIGNED_LONG);
 
@@ -421,26 +421,20 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md)
 	if (!cfs || !dets) {
 		log_error("circ_muldet_load: alloc failed"
 			  " (ndets=%zu, nqb=%u)", v_ndets, v_nqb);
+		if (WD.rank == 0)
+			H5Gclose(grp_id);
 		free(cfs);
 		free(dets);
 		return -1;
 	}
 
 	if (WD.rank == 0) {
-		const hid_t grp_id = H5Gopen(
-			(hid_t)fid, MULTIDET_PATH, H5P_DEFAULT);
-		if (grp_id == H5I_INVALID_HID) {
-			log_error("circ_muldet_load: H5Gopen(%s) failed",
-				MULTIDET_PATH);
+		if (read_dset(grp_id, DATA_STPREP_MULTIDET_COEFFS,
+			    H5T_NATIVE_DOUBLE, cfs) < 0
+			|| read_dset(grp_id, DATA_STPREP_MULTIDET_DETS,
+				   H5T_NATIVE_UCHAR, dets) < 0)
 			rt = -1;
-		} else {
-			if (read_dset(grp_id, DATA_STPREP_MULTIDET_COEFFS,
-				    H5T_NATIVE_DOUBLE, cfs) < 0
-				|| read_dset(grp_id, DATA_STPREP_MULTIDET_DETS,
-					   H5T_NATIVE_UCHAR, dets) < 0)
-				rt = -1;
-			H5Gclose(grp_id);
-		}
+		H5Gclose(grp_id);
 	}
 	BCAST(&rt, 1, MPI_INT);
 	if (rt < 0) {
@@ -499,10 +493,10 @@ int circ_hamil_load(data_id fid, struct circ_hamil *hm)
 	uint32_t v_nqb = 0;
 	size_t v_nterms = 0;
 	double v_norm = 0.0;
+	hid_t grp_id = H5I_INVALID_HID;
 	if (WD.rank == 0) {
 		rt = -1;
-		const hid_t grp_id = H5Gopen(
-			(hid_t)fid, DATA_HAMIL, H5P_DEFAULT);
+		grp_id = H5Gopen((hid_t)fid, DATA_HAMIL, H5P_DEFAULT);
 		if (grp_id == H5I_INVALID_HID) {
 			log_error("circ_hamil_load: H5Gopen(%s) failed",
 				DATA_HAMIL);
@@ -511,48 +505,42 @@ int circ_hamil_load(data_id fid, struct circ_hamil *hm)
 		hsize_t dims[2];
 		if (get_dset_dims2(grp_id, DATA_HAMIL_PAULIS, dims) < 0
 			|| read_attr_raw(grp_id, DATA_HAMIL_NORM,
-				   H5T_NATIVE_DOUBLE, &v_norm) < 0) {
-			H5Gclose(grp_id);
+				   H5T_NATIVE_DOUBLE, &v_norm) < 0)
 			goto ex_dims;
-		}
-		H5Gclose(grp_id);
 		v_nterms = dims[0];
 		v_nqb = (uint32_t)dims[1];
 		rt = 0;
 	ex_dims:;
 	}
 	BCAST(&rt, 1, MPI_INT);
-	if (rt < 0)
+	if (rt < 0) {
+		if (WD.rank == 0 && grp_id != H5I_INVALID_HID)
+			H5Gclose(grp_id);
 		return -1;
+	}
 	BCAST(&v_nqb, 1, MPI_UINT32_T);
 	BCAST(&v_nterms, 1, MPI_UNSIGNED_LONG);
-	MPI_Bcast(&v_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	BCAST(&v_norm, 1, MPI_DOUBLE);
 
 	double *cfs = malloc(sizeof *cfs * v_nterms);
 	unsigned char *paulis = malloc(sizeof *paulis * v_nterms * v_nqb);
 	if (!cfs || !paulis) {
 		log_error("circ_hamil_load: alloc failed"
 			  " (nterms=%zu, nqb=%u)", v_nterms, v_nqb);
+		if (WD.rank == 0)
+			H5Gclose(grp_id);
 		free(cfs);
 		free(paulis);
 		return -1;
 	}
 
 	if (WD.rank == 0) {
-		const hid_t grp_id = H5Gopen(
-			(hid_t)fid, DATA_HAMIL, H5P_DEFAULT);
-		if (grp_id == H5I_INVALID_HID) {
-			log_error("circ_hamil_load: H5Gopen(%s) failed",
-				DATA_HAMIL);
+		if (read_dset(grp_id, DATA_HAMIL_COEFFS,
+			    H5T_NATIVE_DOUBLE, cfs) < 0
+			|| read_dset(grp_id, DATA_HAMIL_PAULIS,
+				   H5T_NATIVE_UCHAR, paulis) < 0)
 			rt = -1;
-		} else {
-			if (read_dset(grp_id, DATA_HAMIL_COEFFS,
-				    H5T_NATIVE_DOUBLE, cfs) < 0
-				|| read_dset(grp_id, DATA_HAMIL_PAULIS,
-					   H5T_NATIVE_UCHAR, paulis) < 0)
-				rt = -1;
-			H5Gclose(grp_id);
-		}
+		H5Gclose(grp_id);
 	}
 	BCAST(&rt, 1, MPI_INT);
 	if (rt < 0) {
@@ -692,9 +680,25 @@ int data_circ_writer_init(data_id fid, const char *grp_name, size_t n_steps,
 			H5Dclose(dset_out);
 		return -1;
 	}
+	hid_t mspace_out = H5I_INVALID_HID;
+	if (WD.rank == 0) {
+		mspace_out = H5Screate_simple(2,
+			(hsize_t[]){ 1, 2 }, NULL);
+		if (mspace_out == H5I_INVALID_HID) {
+			log_error("data_circ_writer_init(%s):"
+				  " H5Screate_simple(mspace) failed",
+				grp_name);
+			H5Dclose(dset_out);
+			rt = -1;
+		}
+	}
+	BCAST(&rt, 1, MPI_INT);
+	if (rt < 0)
+		return -1;
 	w->fid = fid;
 	w->n_steps = n_steps;
 	w->dset = (WD.rank == 0) ? (int64_t)dset_out : 0;
+	w->mspace = (WD.rank == 0) ? (int64_t)mspace_out : 0;
 	return 0;
 }
 
@@ -710,6 +714,7 @@ int data_circ_write_step(struct data_circ_writer *w, size_t step_idx,
 
 	int rt = -1;
 	const hid_t dset = (hid_t)w->dset;
+	const hid_t mspace = (hid_t)w->mspace;
 	const hid_t fspace = H5Dget_space(dset);
 	if (fspace == H5I_INVALID_HID) {
 		log_error("data_circ_write_step(%zu): H5Dget_space failed",
@@ -724,26 +729,18 @@ int data_circ_write_step(struct data_circ_writer *w, size_t step_idx,
 			  " failed", step_idx);
 		goto ex_fspace;
 	}
-	const hid_t mspace = H5Screate_simple(2, count, NULL);
-	if (mspace == H5I_INVALID_HID) {
-		log_error("data_circ_write_step(%zu): H5Screate_simple failed",
-			step_idx);
-		goto ex_fspace;
-	}
 	const double row[2] = { creal(z), cimag(z) };
 	if (H5Dwrite(dset, H5T_NATIVE_DOUBLE, mspace, fspace, H5P_DEFAULT, row)
 		< 0) {
 		log_error("data_circ_write_step(%zu): H5Dwrite failed",
 			step_idx);
-		goto ex_mspace;
+		goto ex_fspace;
 	}
 	/* Atomic-on-disk: rows 0..step_idx are persisted before
 	 * the simulation moves on. */
 	H5Fflush((hid_t)w->fid, H5F_SCOPE_GLOBAL);
 
 	rt = 0;
-ex_mspace:
-	H5Sclose(mspace);
 ex_fspace:
 	H5Sclose(fspace);
 	return rt;
@@ -755,8 +752,12 @@ void data_circ_writer_close(struct data_circ_writer *w)
 		return;
 	if (world_info(&WD) != WORLD_READY)
 		return;
-	if (WD.rank == 0 && w->dset > 0)
-		H5Dclose((hid_t)w->dset);
+	if (WD.rank == 0) {
+		if (w->dset > 0)
+			H5Dclose((hid_t)w->dset);
+		if (w->mspace > 0)
+			H5Sclose((hid_t)w->mspace);
+	}
 	memset(w, 0, sizeof *w);
 }
 
