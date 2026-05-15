@@ -11,35 +11,17 @@
 #include "ph2run/data.h"
 #include "phase2.h"
 
+#include "t-data.h"
 #include "test.h"
 
 #define WD_SEED UINT64_C(0xd1bc44e2918887aa)
 #define MARGIN (1.0e-13)
 #define STEPS (2)
 
-static void copy_to_tmp(const char *src, const char *dst)
-{
-	struct world_info wd;
-	world_info(&wd);
-	if (wd.rank != 0)
-		return;
-	FILE *in = fopen(src, "rb");
-	TEST_ASSERT(in != NULL, "copy_to_tmp: open src %s", src);
-	FILE *out = fopen(dst, "wb");
-	TEST_ASSERT(out != NULL, "copy_to_tmp: open dst %s", dst);
-	char buf[4096];
-	size_t n;
-	while ((n = fread(buf, 1, sizeof buf, in)) > 0)
-		TEST_ASSERT(fwrite(buf, 1, n, out) == n,
-			"copy_to_tmp: short write to %s", dst);
-	fclose(in);
-	fclose(out);
-}
-
 static _Complex double run_trott2(const char *src)
 {
 	const char *tmp = "/tmp/t-circ_trott2_coeff.tmp.h5";
-	copy_to_tmp(src, tmp);
+	test_fixture_copy(src, tmp);
 
 	struct trott2 tt;
 	struct trott2_data td = { .delta = 0.35, .steps = STEPS };
