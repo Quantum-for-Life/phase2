@@ -147,6 +147,23 @@ LIBOBJS		:= $(BUILDDIR)/lib/combinations.o			\
 			$(BUILDDIR)/lib/log.o				\
 			$(BUILDDIR)/lib/xoshiro256ss.o
 
+# Manifest of every .c / .cu source that the build
+# system knows how to compile.  Used by the
+# `check-srcs-coverage` drift guard to fail the
+# build when a new source file is added to a
+# subsystem directory but not wired into an OBJS
+# variable.
+DECLARED_SRCS	:= $(patsubst $(BUILDDIR)/%.o,%.c,			\
+			$(PHASE2OBJS) $(CIRCOBJS)			\
+			$(LIBOBJS) $(PH2RUN_DATA_OBJS))			\
+		   phase2/phase2_run.c					\
+		   ph2run/ph2run.c					\
+		   bench/bench.c					\
+		   bench/b-paulis.c bench/b-qreg.c			\
+		   phase2/qreg_cuda.c					\
+		   phase2/qreg_cuda_lo.cu				\
+		   phase2/world_cuda.c
+
 # Generic compile rules.  Two variants:
 #  - $(BUILDDIR)/%.o:  regular objects.
 #  - $(BUILDDIR)/shared/%.o:  same sources rebuilt
@@ -210,7 +227,7 @@ debug: build build-bench build-test
 debug: ASFLAGS	+= -DDEBUG -Og -Fdwarf
 debug: CFLAGS	+= -DDEBUG -g -Og
 
-build: $(PROGS)
+build: check-srcs-coverage $(PROGS)
 
 # --------------------------------------------------------------------------- #
 # Shared library (Python interface)                                           #
@@ -351,6 +368,30 @@ check-tests-coverage:
 	rc=0;							\
 	if [ -n "$$missing" ]; then				\
 		echo "test/: t-*.c files not in TESTS:";	\
+		echo "$$missing";				\
+		rc=1;						\
+	fi;							\
+	rm -rf $$tmp;						\
+	exit $$rc
+
+# Drift guard for the subsystem source dirs (phase2,
+# circ, lib, ph2run, bench).  Enumerate every .c /
+# .cu in those directories and verify each appears
+# in DECLARED_SRCS.  A new source dropped into one
+# of them but not wired into an OBJS variable fails
+# the build immediately.
+.PHONY: check-srcs-coverage
+check-srcs-coverage:
+	@tmp=$$(mktemp -d);					\
+	ls phase2/*.c phase2/*.cu				\
+	   circ/*.c lib/*.c ph2run/*.c bench/*.c		\
+	   2>/dev/null | sort > $$tmp/expected;			\
+	for s in $(DECLARED_SRCS); do echo $$s; done		\
+		| sort -u > $$tmp/declared;			\
+	missing=$$(comm -23 $$tmp/expected $$tmp/declared);	\
+	rc=0;							\
+	if [ -n "$$missing" ]; then				\
+		echo "build: .c sources not in DECLARED_SRCS:";	\
 		echo "$$missing";				\
 		rc=1;						\
 	fi;							\
