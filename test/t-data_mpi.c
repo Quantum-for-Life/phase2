@@ -3,7 +3,7 @@
  *
  *   1. data_open returns a real fid on rank 0 and
  *      DATA_FOLLOWER_FID on other ranks.
- *   2. The collective Hamiltonian read via circ_hamil_load
+ *   2. The collective Hamiltonian read via data_hamil_load
  *      produces byte-equal packed terms on every rank
  *      (Bcast worked).
  *   3. data_circ_writer_init pre-allocates the values dataset
@@ -44,7 +44,7 @@
 static char *FILENAME = "/tmp/t-data_mpi.h5";
 
 /* Rank 0 builds a tiny pauli_hamil group; the test then
- * reads it through circ_hamil_load on every rank and
+ * reads it through data_hamil_load on every rank and
  * confirms every rank ends up with the same packed terms. */
 static int build_hamil_fixture(void)
 {
@@ -111,7 +111,7 @@ static void t_bcast_buffers_match(void)
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open for bcast test");
 
 	struct circ_hamil hm;
-	TEST_EQ(circ_hamil_load(fid, &hm), 0);
+	TEST_EQ(data_hamil_load(fid, &hm), 0);
 	TEST_EQ(hm.qb, (uint32_t)N_QB);
 	TEST_EQ(hm.len, (size_t)N_TERMS);
 

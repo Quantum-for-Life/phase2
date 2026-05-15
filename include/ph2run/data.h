@@ -111,7 +111,7 @@ int data_attr_write_dbl(data_id fid, const char *grp_name,
  */
 struct circ_muldet;
 
-int circ_muldet_load(data_id fid, struct circ_muldet *md);
+int data_muldet_load(data_id fid, struct circ_muldet *md);
 
 /*
  * State-prep dispatch and coefficient-matrix loader.
@@ -166,7 +166,7 @@ int data_coeff_matrix_load(data_id fid, struct data_coeff_matrix *cm);
  *
  * Returns 0 on success, -1 on error.
  */
-int circ_hamil_load(data_id fid, struct circ_hamil *hm);
+int data_hamil_load(data_id fid, struct circ_hamil *hm);
 
 /*
  * Per-step write API for /circ_{trott,trott2,qdrift,cmpsit}.

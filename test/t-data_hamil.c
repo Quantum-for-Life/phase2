@@ -1,5 +1,5 @@
 /*
- * Test the circ_hamil_load API on every committed fixture
+ * Test the data_hamil_load API on every committed fixture
  * carrying a /pauli_hamil group.  Asserts: qb, len, and (for
  * the second fixture) per-term coefficient and packed Pauli
  * operator.  Coefficients are scaled by the on-disk norm at
@@ -38,8 +38,8 @@ static int t_dims_and_packing(void)
 		}
 
 		struct circ_hamil hm;
-		if (circ_hamil_load(fid, &hm) < 0) {
-			TEST_FAIL("circ_hamil_load on %s", td.filename);
+		if (data_hamil_load(fid, &hm) < 0) {
+			TEST_FAIL("data_hamil_load on %s", td.filename);
 			rc = -1;
 			data_close(fid);
 			break;
@@ -70,8 +70,8 @@ static int t_terms(void)
 	}
 
 	struct circ_hamil hm;
-	if (circ_hamil_load(fid, &hm) < 0) {
-		TEST_FAIL("circ_hamil_load on %s", td.filename);
+	if (data_hamil_load(fid, &hm) < 0) {
+		TEST_FAIL("data_hamil_load on %s", td.filename);
 		data_close(fid);
 		return -1;
 	}

@@ -441,7 +441,7 @@ DEFINE_DATA_ATTR_WRITE(dbl, double, H5T_NATIVE_DOUBLE);
  *     then packs into the {idx, cf} form circ
  *     consumes.
  */
-int circ_muldet_load(data_id fid, struct circ_muldet *md)
+int data_muldet_load(data_id fid, struct circ_muldet *md)
 {
 	if (world_info(&WD) != WORLD_READY)
 		return -1;
@@ -456,7 +456,7 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md)
 		rt = -1;
 		grp_id = H5Gopen((hid_t)fid, MULTIDET_PATH, H5P_DEFAULT);
 		if (grp_id == H5I_INVALID_HID) {
-			log_error("circ_muldet_load: H5Gopen(%s) failed",
+			log_error("data_muldet_load: H5Gopen(%s) failed",
 				MULTIDET_PATH);
 			goto ex_dims;
 		}
@@ -481,7 +481,7 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md)
 	double *cfs = malloc(sizeof *cfs * 2 * v_ndets);
 	unsigned char *dets = malloc(sizeof *dets * v_ndets * v_nqb);
 	if (!cfs || !dets) {
-		log_error("circ_muldet_load: alloc failed"
+		log_error("data_muldet_load: alloc failed"
 			  " (ndets=%zu, nqb=%u)", v_ndets, v_nqb);
 		if (WD.rank == 0)
 			H5Gclose(grp_id);
@@ -514,7 +514,7 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md)
 		for (size_t j = 0; j < v_nqb; j++) {
 			const unsigned char bit = dets[i * v_nqb + j];
 			if (bit > 1) {
-				log_error("circ_muldet_load: dets[%zu][%zu]"
+				log_error("data_muldet_load: dets[%zu][%zu]"
 					  " = %u is not 0/1; multidet group"
 					  " is malformed", i, j,
 					(unsigned)bit);
@@ -526,7 +526,7 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md)
 	}
 
 	if (circ_muldet_init(md, v_ndets) < 0) {
-		log_error("circ_muldet_load: circ_muldet_init failed"
+		log_error("data_muldet_load: circ_muldet_init failed"
 			  " (ndets=%zu)", v_ndets);
 		free(cfs);
 		free(dets);
@@ -550,7 +550,7 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md)
  * Load /pauli_hamil into a packed struct circ_hamil
  * (cf, struct paulis) view ready for circ_step.
  *
- * Phases mirror circ_muldet_load: rank-0 dim read +
+ * Phases mirror data_muldet_load: rank-0 dim read +
  * bcast, all-ranks malloc, rank-0 dataset read + bcast,
  * all-ranks packing.  Packing scales each coefficient by
  * the on-disk normalisation attribute and converts the
@@ -558,7 +558,7 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md)
  * struct paulis bitstring representation via
  * paulis_set().
  */
-int circ_hamil_load(data_id fid, struct circ_hamil *hm)
+int data_hamil_load(data_id fid, struct circ_hamil *hm)
 {
 	if (world_info(&WD) != WORLD_READY)
 		return -1;
@@ -572,7 +572,7 @@ int circ_hamil_load(data_id fid, struct circ_hamil *hm)
 		rt = -1;
 		grp_id = H5Gopen((hid_t)fid, DATA_HAMIL, H5P_DEFAULT);
 		if (grp_id == H5I_INVALID_HID) {
-			log_error("circ_hamil_load: H5Gopen(%s) failed",
+			log_error("data_hamil_load: H5Gopen(%s) failed",
 				DATA_HAMIL);
 			goto ex_dims;
 		}
@@ -599,7 +599,7 @@ int circ_hamil_load(data_id fid, struct circ_hamil *hm)
 	double *cfs = malloc(sizeof *cfs * v_nterms);
 	unsigned char *paulis = malloc(sizeof *paulis * v_nterms * v_nqb);
 	if (!cfs || !paulis) {
-		log_error("circ_hamil_load: alloc failed"
+		log_error("data_hamil_load: alloc failed"
 			  " (nterms=%zu, nqb=%u)", v_nterms, v_nqb);
 		if (WD.rank == 0)
 			H5Gclose(grp_id);

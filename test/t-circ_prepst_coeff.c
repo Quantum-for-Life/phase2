@@ -22,7 +22,7 @@ static void t_norm_and_structure(void)
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open closed");
 
 	struct circ_hamil hm;
-	TEST_EQ(circ_hamil_load(fid, &hm), 0);
+	TEST_EQ(data_hamil_load(fid, &hm), 0);
 	enum stprep_kind k;
 	TEST_EQ(data_state_prep_kind(fid, &k), 0);
 	TEST_EQ((int)k, (int)STPREP_COEFF_MATRIX);

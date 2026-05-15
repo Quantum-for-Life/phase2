@@ -1,5 +1,5 @@
 /*
- * Test circ_muldet_load on every committed fixture carrying
+ * Test data_muldet_load on every committed fixture carrying
  * a /state_prep/multidet group.  Asserts: packed length, that
  * each packed idx fits in the fixture's qubit count, and (for
  * the second fixture) the exact contents of the basis-state
@@ -35,8 +35,8 @@ static int t_dims(void)
 		}
 
 		struct circ_muldet md;
-		if (circ_muldet_load(fid, &md) < 0) {
-			TEST_FAIL("circ_muldet_load on %s", td.filename);
+		if (data_muldet_load(fid, &md) < 0) {
+			TEST_FAIL("data_muldet_load on %s", td.filename);
 			rc = -1;
 			data_close(fid);
 			break;
@@ -74,8 +74,8 @@ static int t_arrays(void)
 	}
 
 	struct circ_muldet md;
-	if (circ_muldet_load(fid, &md) < 0) {
-		TEST_FAIL("circ_muldet_load");
+	if (data_muldet_load(fid, &md) < 0) {
+		TEST_FAIL("data_muldet_load");
 		data_close(fid);
 		return -1;
 	}

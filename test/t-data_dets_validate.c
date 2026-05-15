@@ -1,5 +1,5 @@
 /*
- * t-data_dets_validate -- verify that circ_muldet_load rejects
+ * t-data_dets_validate -- verify that data_muldet_load rejects
  * determinant bytes outside {0, 1} with a -1 return and a
  * log_error line (instead of silently corrupting the basis-
  * state index).
@@ -76,9 +76,9 @@ int main(void)
 	TEST_ASSERT(fid != DATA_INVALID_FID, "data_open");
 
 	struct circ_muldet md = { 0 };
-	const int rt = circ_muldet_load(fid, &md);
+	const int rt = data_muldet_load(fid, &md);
 	TEST_ASSERT(rt < 0,
-		"circ_muldet_load must reject dets[1]=2 (got rt=%d)", rt);
+		"data_muldet_load must reject dets[1]=2 (got rt=%d)", rt);
 	TEST_ASSERT(md.dets == NULL && md.len == 0,
 		"failed load must leave the struct without dangling buffers");
 

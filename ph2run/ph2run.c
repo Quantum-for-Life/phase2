@@ -52,13 +52,13 @@ static int cmd_inputs_load(struct cmd_inputs *io, const char *file,
 	if (io->fid == DATA_INVALID_FID)
 		return -1;
 
-	if (circ_hamil_load(io->fid, &io->hm) < 0)
+	if (data_hamil_load(io->fid, &io->hm) < 0)
 		goto err_hm;
 	if (data_state_prep_kind(io->fid, &io->sp_kind) < 0)
 		goto err_sp;
 	switch (io->sp_kind) {
 	case STPREP_MULTIDET:
-		if (circ_muldet_load(io->fid, &io->md) < 0)
+		if (data_muldet_load(io->fid, &io->md) < 0)
 			goto err_sp;
 		break;
 	case STPREP_COEFF_MATRIX:

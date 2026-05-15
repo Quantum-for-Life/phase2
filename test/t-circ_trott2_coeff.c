@@ -48,7 +48,7 @@ static _Complex double run_trott2(const char *src)
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open %s", tmp);
 
 	struct circ_hamil hm;
-	TEST_EQ(circ_hamil_load(fid, &hm), 0);
+	TEST_EQ(data_hamil_load(fid, &hm), 0);
 	enum stprep_kind k;
 	TEST_EQ(data_state_prep_kind(fid, &k), 0);
 	struct circ_muldet md = { 0 };
@@ -56,7 +56,7 @@ static _Complex double run_trott2(const char *src)
 	const void *sp = nullptr;
 	switch (k) {
 	case STPREP_MULTIDET:
-		TEST_EQ(circ_muldet_load(fid, &md), 0);
+		TEST_EQ(data_muldet_load(fid, &md), 0);
 		sp = &md;
 		break;
 	case STPREP_COEFF_MATRIX:
