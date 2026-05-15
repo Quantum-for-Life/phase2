@@ -273,6 +273,7 @@ bench-mpi: build-bench
 # Testing                                                                     #
 # --------------------------------------------------------------------------- #
 TESTDIR		:= ./test
+RUNFIXDIR	:= $(TESTDIR)/run-fixtures
 CFLAGS		+= -I$(TESTDIR) -I$(PHASE2DIR) -DPH2_TESTDIR=\"$(TESTDIR)\"
 
 TESTS		:= $(TESTDIR)/t-bitstring_index			\
@@ -301,9 +302,30 @@ TESTS		:= $(TESTDIR)/t-bitstring_index			\
 			$(TESTDIR)/t-prob				\
 			$(TESTDIR)/t-qreg				\
 			$(TESTDIR)/t-ref-bendazzoli			\
+			$(TESTDIR)/t-run				\
 			$(TESTDIR)/t-state_prep_coeff_csf		\
 			$(TESTDIR)/t-state_prep_coeff_expand		\
 			$(TESTDIR)/t-world
+
+# Synthetic fixtures used by t-run to drive the runner
+# against controlled pass / fail / signal / banner
+# outcomes.  Each fixture is a tiny self-contained C
+# program with no phase2 / MPI / HDF5 deps.
+RUNFIX		:= $(RUNFIXDIR)/pass					\
+			$(RUNFIXDIR)/fail				\
+			$(RUNFIXDIR)/sleep				\
+			$(RUNFIXDIR)/abort				\
+			$(RUNFIXDIR)/banner
+
+$(RUNFIXDIR)/%: $(RUNFIXDIR)/%.c
+	$(CC) -std=c11 -Wall -Wextra -O2 -o $@ $<
+
+# t-run is a meta-test: it shells out to ./test/run, so
+# both the runner and its fixtures must exist before
+# t-run is invoked.  Use order-only prereqs (after `|`)
+# so the implicit %: %.c link line does not try to feed
+# the runner / fixture binaries to ld.
+$(TESTDIR)/t-run: | $(TESTDIR)/run $(RUNFIX)
 
 TESTS_SLOW	:= $(TESTDIR)/t-state_prep_coeff_large
 
@@ -458,6 +480,7 @@ distclean: clean
 	@$(RM) $(BENCHES)
 	@$(RM) $(TESTS)
 	@$(RM) $(TESTDIR)/run
+	@$(RM) $(RUNFIX)
 	@$(RM) $(PROGS)
 	@$(RM) libphase2.so
 
