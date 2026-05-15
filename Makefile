@@ -317,7 +317,13 @@ $(TESTDIR)/t-circ_trott2: $(CIRCDIR)/trott2.o
 $(TESTDIR)/t-circ_trott_coeff: $(CIRCDIR)/trott.o
 $(TESTDIR)/t-circ_trott2_coeff: $(CIRCDIR)/trott2.o
 
-build-test: check-tests-coverage $(TESTS)
+build-test: check-tests-coverage $(TESTS) $(TESTDIR)/run
+
+# Parallel cargo-style runner.  Standalone C binary, no
+# phase2 / MPI / HDF5 dependencies.  Build with the test
+# CFLAGS so any DEBUG / sanitiser flags apply consistently.
+$(TESTDIR)/run: $(TESTDIR)/run.c
+	$(CC) -std=c11 -Wall -Wextra -O2 -o $@ $<
 
 # Guard against a t-*.c file being added to test/ but
 # forgotten in TESTS / TESTS_SLOW above -- a silent
@@ -451,6 +457,7 @@ clean:
 distclean: clean
 	@$(RM) $(BENCHES)
 	@$(RM) $(TESTS)
+	@$(RM) $(TESTDIR)/run
 	@$(RM) $(PROGS)
 	@$(RM) libphase2.so
 
