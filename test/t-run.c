@@ -39,18 +39,22 @@
 
 #include "test.h"
 
-#ifndef PH2_TESTDIR
-#define PH2_TESTDIR "./test"
-#endif
-
-#define FIXDIR     PH2_TESTDIR "/run-fixtures"
+/*
+ * Runner binary, fixture binaries, and PH2_TESTDIR
+ * (used by sibling tests) all live under build/.
+ * t-run is invoked by the runner with cwd = repo
+ * root (see test/Makefile's `check` target), so
+ * relative paths under ./build/test work.
+ */
+#define TBIN       "./build/test"
+#define FIXDIR     TBIN "/run-fixtures"
 #define FIX_PASS   FIXDIR "/pass"
 #define FIX_FAIL   FIXDIR "/fail"
 #define FIX_SLEEP  FIXDIR "/sleep"
 #define FIX_ABORT  FIXDIR "/abort"
 #define FIX_BANNER FIXDIR "/banner"
 
-#define RUN_BIN    "./test/run"
+#define RUN_BIN    TBIN "/run"
 
 
 /* -- popen wrapper --------------------------------------------------- */

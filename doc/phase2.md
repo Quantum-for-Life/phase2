@@ -1640,16 +1640,20 @@ values visible to sub-makes.  Section 3 is
 phase2`, ...) and the user-visible high-level
 targets.
 
-Every compiled `.o` and `.d` lands under
+Every compile artefact -- objects, header-dep files,
+final binaries, the shared library -- lands under
 `$(BUILDDIR)/<srcdir>/`, mirroring the source tree:
 
-    phase2/circ.c  ->  build/phase2/circ.o + build/phase2/circ.d
-    lib/log.c      ->  build/lib/log.o     + build/lib/log.d
+    phase2/circ.c    ->  build/phase2/circ.o + build/phase2/circ.d
+    lib/log.c        ->  build/lib/log.o     + build/lib/log.d
+    ph2run/ph2run.c  ->  build/ph2run/ph2run (binary)
+    test/t-paulis.c  ->  build/test/t-paulis (binary)
+    bench/b-paulis.c ->  build/bench/b-paulis (binary)
+    test/run.c       ->  build/test/run (binary)
+    (shared lib)     ->  build/libphase2.so
 
-Final binaries stay next to their sources
-(`ph2run/ph2run`, `test/t-paulis`, `bench/b-paulis`,
-`test/run`, `libphase2.so` at the repo root).  Only
-intermediate `.o` and `.d` move under `build/`.
+Source directories stay clean -- no `.o`, no
+binaries.  `make clean` is a single `rm -rf build/`.
 
 Header dependencies are tracked automatically via
 `gcc -MMD -MP`: every compile emits a

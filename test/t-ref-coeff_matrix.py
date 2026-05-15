@@ -176,7 +176,10 @@ def compare(name: str, c_amps, py_amps) -> bool:
 
 
 def main():
-    binary = HERE / "t-state_prep_coeff_expand"
+    # The build places compiled artefacts under build/<srcdir>/.
+    # HERE is test/, so the helper binary lives at
+    # <repo>/build/test/t-state_prep_coeff_expand.
+    binary = HERE.parent / "build" / "test" / "t-state_prep_coeff_expand"
     if not binary.is_file() or not os.access(binary, os.X_OK):
         print(
             f"missing or non-executable {binary};"

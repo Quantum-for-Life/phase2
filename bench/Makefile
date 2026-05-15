@@ -14,8 +14,9 @@ SUBSYS := bench
 include $(TOPDIR)/build-rules.mk
 
 # Per-benchmark source files; each builds to a binary
-# at $(BENCHDIR)/<name>.
-PROGS := b-paulis b-qreg
+# at $(BUILDDIR)/bench/<name>.
+PROG_NAMES := b-paulis b-qreg
+PROGS      := $(PROG_NAMES:%=$(BUILDDIR)/bench/%)
 
 # Shared support code linked into every benchmark.
 SHARED_SRCS := bench.c
@@ -27,16 +28,18 @@ CFLAGS += -I.
 .PHONY: all check-srcs-coverage clean
 all: $(PROGS)
 
-# Per-binary link rule.  b-NAME built from b-NAME.c +
-# bench.o + every upstream subsys object set.
-$(PROGS): %: %.c bench.h $(SHARED_OBJS) \
-              $(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $< $(SHARED_OBJS) \
-	      $(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS) \
+# Per-binary link rule.  $(BUILDDIR)/bench/b-NAME built
+# from b-NAME.c + bench.o + every upstream subsys
+# object set.
+$(PROGS): $(BUILDDIR)/bench/%: %.c bench.h $(SHARED_OBJS)	\
+                               $(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)
+	@$(MKDIR) $(@D)
+	$(CC) $(CFLAGS) $(LDFLAGS) $< $(SHARED_OBJS)		\
+	      $(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)	\
 	      $(LDLIBS) -o $@
 
 check-srcs-coverage:
-	@declared=" $(SHARED_SRCS) $(PROGS:%=%.c) ";			\
+	@declared=" $(SHARED_SRCS) $(PROG_NAMES:%=%.c) ";		\
 	rc=0;								\
 	for s in *.c; do						\
 		[ -f "$$s" ] || continue;				\
@@ -46,6 +49,7 @@ check-srcs-coverage:
 	done;								\
 	exit $$rc
 
+# Bench binaries live under $(BUILDDIR)/bench/; top-level
+# `make clean` wipes $(BUILDDIR) wholesale.
 clean:
-	@$(RM) -r $(BUILDDIR)/bench
-	@$(RM) $(PROGS)
+	@:

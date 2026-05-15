@@ -45,24 +45,34 @@ make test-mpi-asan
 
 ## 2. Layout
 
+Sources live under `test/`; compiled binaries land
+under `build/test/` (mirrors the source tree, kept
+out of git).
+
 ```
-test/
+test/                  (sources)
   test.h               -- macro core (TEST_FAIL, TEST_ASSERT, ...)
   t-<subsys>[_<aspect>].c   -- one binary per logical unit
   t-data.h             -- per-subsystem fixture helpers (model)
   t-ref-coeff_matrix.py     -- Python cross-validator
-  run.c                -- the parallel runner (built to test/run)
+  run.c                -- the parallel runner
   t-run.c              -- self-tests for the runner
-  run-fixtures/        -- synthetic fixtures driven by t-run
+  run-fixtures/*.c     -- synthetic fixtures driven by t-run
   data/                -- on-disk HDF5 fixtures for the C tests
   ref/                 -- in-tree Python reference oracles
+
+build/test/            (binaries -- emitted by the build)
+  t-<subsys>[_<aspect>]      -- test binary
+  run                  -- parallel runner
+  run-fixtures/{pass,fail,sleep,abort,banner}   -- t-run fixtures
 ```
 
 C binaries follow the prefix convention
 `t-<subsys>[_<aspect>].c`.  Examples:
 `t-paulis.c`, `t-data_hamil.c`, `t-circ_trott_coeff.c`.
-The matching binary lands under the same name and is
-listed in the Makefile's `TESTS` variable.
+The matching binary lands at
+`build/test/<same-name>` and is listed in the
+Makefile's `TESTS` variable.
 
 The slow test (`t-state_prep_coeff_large`) is declared
 in `TESTS_SLOW` and is excluded from default `check`.
@@ -144,14 +154,15 @@ intentional; the kernel reaps it.
 
 ## 5. The runner
 
-`test/run` is a standalone single-file C program
-(libc + POSIX only, no phase2 / MPI / HDF5 deps).
-It takes a list of test paths and runs them in
-parallel, capturing per-test output, and prints a
-cargo-style summary.
+The runner source is `test/run.c`; the build emits
+the binary at `build/test/run`.  Standalone
+single-file C program (libc + POSIX only, no
+phase2 / MPI / HDF5 deps).  It takes a list of
+test paths and runs them in parallel, capturing
+per-test output, and prints a cargo-style summary.
 
 ```
-./test/run [OPTIONS] -- TEST...
+./build/test/run [OPTIONS] -- TEST...
 ```
 
 | Flag             | Default      | Effect                              |
@@ -165,7 +176,7 @@ cargo-style summary.
 
 The *effective name* is the basename of the test path
 with the leading `t-` and any `.py` suffix stripped:
-`./test/t-data_mpi -> "data_mpi"`,
+`./build/test/t-data_mpi -> "data_mpi"`,
 `./test/t-ref-coeff_matrix.py -> "ref-coeff_matrix"`.
 Filter examples: `--filter='data*'`,
 `--filter='*coeff*'`, `--filter='paulis'`.

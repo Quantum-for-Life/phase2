@@ -22,7 +22,7 @@ SOBJS :=
 
 # Program source (linked into the ph2run binary).
 PROG_SRC := ph2run.c
-PROG_BIN := ph2run
+PROG_BIN := $(BUILDDIR)/ph2run/ph2run
 
 .PHONY: all data check-srcs-coverage clean
 all:  $(PROG_BIN)
@@ -33,6 +33,7 @@ data: $(OBJS)
 # the env (PHASE2OBJS, CIRCOBJS, LIBOBJS) exported by
 # the top-level Makefile.
 $(PROG_BIN): $(PROG_SRC) $(OBJS) $(PHASE2OBJS) $(CIRCOBJS) $(LIBOBJS)
+	@$(MKDIR) $(@D)
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 check-srcs-coverage:
@@ -46,6 +47,7 @@ check-srcs-coverage:
 	done;								\
 	exit $$rc
 
+# ph2run binary lives under $(BUILDDIR)/ph2run/; top-level
+# `make clean` wipes $(BUILDDIR) wholesale.
 clean:
-	@$(RM) -r $(BUILDDIR)/ph2run
-	@$(RM) $(PROG_BIN)
+	@:

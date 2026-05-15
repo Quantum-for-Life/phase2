@@ -233,7 +233,8 @@ SHARED_OBJS    := $(BUILDDIR)/shared/phase2/phase2_run.o		\
                              $(PHASE2OBJS) $(LIBOBJS))
 
 shared: $(SHARED_OBJS)
-	$(CC) -shared -o $(TOPDIR)/libphase2.so $^		\
+	@$(MKDIR) $(BUILDDIR)
+	$(CC) -shared -o $(BUILDDIR)/libphase2.so $^		\
 	      $(SHARED_LDFLAGS) $(SHARED_LDLIBS)
 
 # Dispatch the -fPIC compiles into the relevant subsys's `shared` target.
@@ -262,14 +263,14 @@ check-%: test-build
 
 # --- Benchmarks ------------------------------------------------------------ #
 bench-run: bench
-	@for bb in $(BENCHDIR)/b-paulis $(BENCHDIR)/b-qreg; do		\
+	@for bb in $(BUILDDIR)/bench/b-paulis $(BUILDDIR)/bench/b-qreg; do \
 		./$$bb &&						\
 			echo "$$bb: OK" ||				\
 			( echo "$$bb: FAIL"; exit 1 );			\
 	done
 
 bench-mpi: bench
-	@for bb in $(BENCHDIR)/b-paulis $(BENCHDIR)/b-qreg; do		\
+	@for bb in $(BUILDDIR)/bench/b-paulis $(BUILDDIR)/bench/b-qreg; do \
 		$(MPIRUN) -n $(MPIRANKS) $(MPIFLAGS) ./$$bb &&		\
 			echo "$$bb: OK" ||				\
 			( echo "$$bb: FAIL"; exit 1 );			\
@@ -310,15 +311,13 @@ test-mpi-asan:
 	+@$(MAKE) -C $(TESTDIR) test-mpi-asan
 
 # --- Clean ----------------------------------------------------------------- #
+# Every compile artefact (objects, .d, binaries, libphase2.so) lives under
+# $(BUILDDIR), so `clean` is a single recursive remove.  `distclean` is an
+# alias kept for habit.
 clean:
 	@$(RM) -r $(BUILDDIR)
-	+@$(MAKE) -C $(TESTDIR) clean
 
 distclean: clean
-	+@$(MAKE) -C $(PH2RUNDIR) clean
-	+@$(MAKE) -C $(BENCHDIR) clean
-	+@$(MAKE) -C $(TESTDIR) distclean
-	@$(RM) $(TOPDIR)/libphase2.so
 
 # --- Misc ------------------------------------------------------------------ #
 format:
