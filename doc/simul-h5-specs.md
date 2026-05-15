@@ -104,10 +104,10 @@ accumulates per-component contributions; the top-level
 when the file is treated as a single-block state.
 
 A `csf/` subgroup that exists but advertises `n_components
-== 0` is rejected at file-open time
-(`data_coeff_matrix_csf_count` returns `-EINVAL`).  A
-single-block state must omit the `csf/` subgroup outright
-rather than declaring an empty superposition.
+== 0` is rejected at load time (`data_coeff_matrix_load`
+returns `-1` with a `log_error` line).  A single-block
+state must omit the `csf/` subgroup outright rather than
+declaring an empty superposition.
 
 ### Dispatch rules
 
