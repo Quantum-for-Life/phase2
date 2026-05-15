@@ -625,6 +625,27 @@ int data_hamil_load(data_id fid, struct circ_hamil *hm)
 	BCAST(cfs, v_nterms, MPI_DOUBLE);
 	BCAST(paulis, v_nterms * v_nqb, MPI_UNSIGNED_CHAR);
 
+	/* Validate the per-qubit Pauli operator bytes on every
+	 * rank (cheap, nterms*nqb bytes).  Without this a
+	 * corrupt simul.h5 with bytes > 3 would silently
+	 * truncate to one of {I, X, Y, Z} inside paulis_set
+	 * and the simulator would produce nonsense results
+	 * with no diagnostic. */
+	for (size_t i = 0; i < v_nterms; i++) {
+		for (uint32_t j = 0; j < v_nqb; j++) {
+			const unsigned char b = paulis[i * v_nqb + j];
+			if (b > 3) {
+				log_error("data_hamil_load: paulis[%zu][%u] ="
+					  " %u is not I/X/Y/Z; pauli_hamil"
+					  " group is malformed",
+					i, j, (unsigned)b);
+				free(cfs);
+				free(paulis);
+				return -1;
+			}
+		}
+	}
+
 	if (circ_hamil_init(hm, v_nqb, v_nterms) < 0) {
 		free(cfs);
 		free(paulis);
