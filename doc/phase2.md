@@ -1545,11 +1545,12 @@ happens during data loading in `circ_hamil_load`.
 | `check-slow`           | Run TESTS_SLOW (excluded from default `check`) |
 | `check-<filter>`       | Run the subset matching `<filter>*` (`check-data`) |
 | `check-tests-coverage` | Guard: every `test/t-*.c` is in TESTS / TESTS_SLOW |
+| `check-srcs-coverage`  | Guard: every subsys-dir source is in DECLARED_SRCS |
 | `bench`                | Run benchmarks (single rank)          |
 | `bench-mpi`            | Run benchmarks under MPI              |
 | `debug`                | Build with debug flags (-g -Og)       |
-| `clean`                | Remove object files                   |
-| `distclean`            | Remove object files, binaries, tests  |
+| `clean`                | Remove the `build/` tree              |
+| `distclean`            | Also remove binaries and `libphase2.so` |
 | `format`               | Run clang-format on all sources       |
 
 ### 10.2 Backend Selection
@@ -1608,3 +1609,49 @@ See [doc/testing.md](testing.md) for the full subsystem
 reference: macro contract, fixture pattern, runner flags,
 recipes for adding tests, sanitiser / valgrind targets.
 Test data files reside in `test/data/`.
+
+### 10.5 Build Organisation
+
+The Makefile is a single top-level driver.  Every
+compiled object and header-dep file lands under
+`build/<srcdir>/`, mirroring the source tree:
+
+    phase2/circ.c  ->  build/phase2/circ.o + build/phase2/circ.d
+    lib/log.c      ->  build/lib/log.o     + build/lib/log.d
+    ...
+
+Final binaries stay next to their sources
+(`ph2run/ph2run`, `test/t-paulis`, `bench/b-paulis`,
+`test/run`, `libphase2.so` at the repo root).  Only
+intermediate `.o` and `.d` move under `build/`.
+
+Header dependencies are tracked automatically via
+`gcc -MMD -MP`: every compile emits a
+`build/<dir>/<x>.d` describing which headers the
+`.c` `#include`'d transitively, with empty fallback
+rules for each header so a renamed header doesn't
+break the build.  The Makefile `-include`s the dep
+files at the foot of the file; the wildcard is
+silently empty on first build.  The result is that
+touching a header reliably rebuilds every dependent
+object -- there are no hand-declared per-object
+header prereqs to keep in sync.
+
+The shared library (`libphase2.so`) compiles the
+same sources with `-fPIC` into a disjoint tree at
+`build/shared/<srcdir>/`.  Running `make build` and
+`make shared` (in either order) cannot mix PIC and
+non-PIC objects, because the two layouts live on
+different paths.
+
+The `check-srcs-coverage` rule (a prerequisite of
+`build`) is a drift guard: it enumerates every
+`.c` and `.cu` under `phase2/`, `circ/`, `lib/`,
+`ph2run/`, `bench/` and fails the build if any of
+them is missing from the `DECLARED_SRCS` manifest.
+Mirrors `check-tests-coverage` on the test side.
+
+`make clean` collapses to `rm -rf build/` plus the
+`test/*.d` stragglers from the test binaries' own
+`-MMD` output.  `make distclean` additionally
+removes the binaries and `libphase2.so`.
