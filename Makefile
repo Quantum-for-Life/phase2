@@ -1,488 +1,336 @@
-# --------------------------------------------------------------------------- #
-# Configuration                                                               #
-#                                                                             #
-# Specify compile flags and the path to both MPI and HDF5 dynamic libraries   #
-# and headers.                                                                #
-# ----------------------------------------------------------------------------#
-VERSION_MAJOR	:= 1
-VERSION_MINOR	:= 1
-VERSION_PATCH	:= 0
-
-AS		:= nasm
-ASFLAGS		+= -felf64 -w+all -w-reloc-rel-dword -Ox
-CC		?= gcc
-CFLAGS		+= -std=c11 -Wall -Wextra -O3 -march=native -mavx2
-# EXTRA_CFLAGS / EXTRA_LDFLAGS allow command-line overrides
-# (e.g. for sanitizer builds) without clobbering the rest of
-# the build flag pipeline.
-EXTRA_CFLAGS	?=
-EXTRA_LDFLAGS	?=
-CFLAGS		+= $(EXTRA_CFLAGS)
-INCLUDE		:= ./include
-LDFLAGS 	+= $(EXTRA_LDFLAGS)
-LDLIBS		+= -lm
-LIB64		:= /usr/lib/x86_64-linux-gnu
-
-MPIRUN		:= mpirun
-MPIFLAGS	:=
-MPIRANKS	?= 2
-
-RM		= rm -fv
-MKDIR		= mkdir -p
+# ========================================================================== #
+#                                                                            #
+#   phase2 -- top-level build orchestrator                                   #
+#                                                                            #
+#   Three sections below:                                                    #
+#     1. USER CONFIGURATION -- toolchain, library paths, backend.            #
+#     2. INTERNAL           -- subsystem layout, derived vars, exports.      #
+#     3. TARGETS            -- dispatch + high-level user-facing targets.    #
+#                                                                            #
+#   Per-subsystem build rules live in $(SUBSYS)/Makefile.  Shared compile    #
+#   patterns live in build-rules.mk.  A user porting phase2 to a new        #
+#   machine edits Section 1 only.                                           #
+#                                                                            #
+# ========================================================================== #
 
 
-# --------------------------------------------------------------------------- #
-# Build dependencies                                                          #
-# --------------------------------------------------------------------------- #
-CIRCDIR		:= ./circ
-PHASE2DIR	:= ./phase2
-PH2RUNDIR	:= ./ph2run
-LIBDIR		:= ./lib
+# ========================================================================== #
+# Section 1: USER CONFIGURATION                                              #
+# ========================================================================== #
+# Edit values below to match your toolchain and library install paths.       #
+# No edits should be needed elsewhere in this Makefile (or in the           #
+# per-subsystem Makefiles) for a typical port.                              #
+# -------------------------------------------------------------------------- #
 
-# If you're unsure where to find the compiled MPI libraries or headers,
-# but have OpenMPI installed in your system, you can query:
-#
-# $ mpicc -showme
-#
-MPI_CFLAGS	:= -I$(LIB64)/openmpi/include
-MPI_LDFLAGS	:= -L$(LIB64)/openmpi/lib
-MPI_LDLIBS	:= -lmpi
+# --- Toolchain ------------------------------------------------------------- #
+CC              ?= gcc
+CFLAGS          += -std=c11 -Wall -Wextra -O3 -march=native -mavx2 -MMD -MP
+# EXTRA_CFLAGS / EXTRA_LDFLAGS allow command-line overrides (e.g. sanitiser
+# builds) without clobbering the rest of the flag pipeline.
+EXTRA_CFLAGS    ?=
+EXTRA_LDFLAGS   ?=
 
-# Standard (serial) HDF5.  Find the correct paths via:
-#
-# $ h5cc -shlib -show
-#
-HDF5_CFLAGS	:= -I/usr/include/hdf5/serial
-HDF5_LDFLAGS	:= -L$(LIB64)/hdf5/serial -Wl,-rpath -Wl,$(LIB64)/hdf5/serial
-HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcurl -lsz -lz -ldl -lm
+# --- System library root --------------------------------------------------- #
+# Most Debian/Ubuntu installs put MPI and HDF5 dynamic libs under
+# /usr/lib/x86_64-linux-gnu.  Adjust if your distro differs.
+LIB64           := /usr/lib/x86_64-linux-gnu
 
-# Backends
-#
-# You can specify which backend the qreg API should use.  Available options
-# are (case-sensitive):
-#
-# 	* qreg      - native engine
-#	* cuda      - NVIDIA GPU driver and runtime
-#
-# See below for how to specify the dependencies.
-BACKEND		:= qreg
-#BACKEND	:= cuda
+# --- MPI ------------------------------------------------------------------- #
+# Default: OpenMPI from the system package.  Query paths via `mpicc -showme`
+# if your install lives elsewhere.
+MPI_CFLAGS      := -I$(LIB64)/openmpi/include
+MPI_LDFLAGS     := -L$(LIB64)/openmpi/lib
+MPI_LDLIBS      := -lmpi
+MPIRUN          := mpirun
+MPIFLAGS        :=
+MPIRANKS        ?= 2
 
-BACKEND_OBJS	:=
-BACKEND_CFLAGS	:=
-BACKEND_LDFLAGS	:=
-BACKEND_LDLIBS	:=
+# --- HDF5 (serial) --------------------------------------------------------- #
+# Query paths via `h5cc -shlib -show` if unsure.
+HDF5_CFLAGS     := -I/usr/include/hdf5/serial
+HDF5_LDFLAGS    := -L$(LIB64)/hdf5/serial -Wl,-rpath -Wl,$(LIB64)/hdf5/serial
+HDF5_LDLIBS     := -lhdf5 -lhdf5_hl -lcurl -lsz -lz -ldl -lm
+
+# --- Backend (qreg = CPU, cuda = NVIDIA GPU) ------------------------------- #
+BACKEND         := qreg
+# CUDA toolkit path (only relevant when BACKEND=cuda).
+CUDA_PREFIX     ?= /usr/local/cuda
+NVCC            ?= nvcc
+NVCCFLAGS       += -O3 -dopt=on -arch=native
+# Compile for NVIDIA H100 instead of the build host:
+#NVCCFLAGS       += -O3 -dopt=on -arch=sm_90a
+
+# --- Build output ---------------------------------------------------------- #
+# Every .o and .d lands under $(BUILDDIR)/<srcdir>/, mirroring the source
+# tree.  Final binaries stay next to their sources (ph2run/ph2run, ...).
+BUILDDIR        := $(CURDIR)/build
+
+# --- Version --------------------------------------------------------------- #
+VERSION_MAJOR   := 1
+VERSION_MINOR   := 1
+VERSION_PATCH   := 0
+VERSION         := $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
+
+
+# ========================================================================== #
+# Section 2: INTERNAL                                                        #
+# ========================================================================== #
+# Derived variables, subsystem layout, and the export contract that makes   #
+# values from Section 1 visible to per-subsystem Makefiles.  Edit only when #
+# adding or removing a subsystem.                                           #
+# -------------------------------------------------------------------------- #
+
+# --- Tree layout ----------------------------------------------------------- #
+TOPDIR          := $(CURDIR)
+INCLUDE         := $(TOPDIR)/include
+CIRCDIR         := $(TOPDIR)/circ
+PHASE2DIR       := $(TOPDIR)/phase2
+LIBDIR          := $(TOPDIR)/lib
+PH2RUNDIR       := $(TOPDIR)/ph2run
+BENCHDIR        := $(TOPDIR)/bench
+TESTDIR         := $(TOPDIR)/test
+
+# --- Backend-conditional objects + flags ----------------------------------- #
+BACKEND_OBJS    :=
+BACKEND_CFLAGS  :=
+BACKEND_LDFLAGS :=
+BACKEND_LDLIBS  :=
 
 ifeq ($(BACKEND),qreg)
-BACKEND_N	:= 0
-BACKEND_OBJS	+= $(PHASE2DIR)/qreg_qreg.o
-BACKEND_CFLAGS	+=
-BACKEND_LDFLAGS	+=
-BACKEND_LDLIBS	+=
+BACKEND_N       := 0
+BACKEND_OBJS    += $(BUILDDIR)/phase2/qreg_qreg.o
 endif
 
 ifeq ($(BACKEND),cuda)
-NVCC		?= nvcc
-NVCCFLAGS	+= -O3 -dopt=on -arch=native
-## Compile for NVIDIA H100
-## https://docs.nvidia.com/cuda/hopper-compatibility-guide/index.html
-#NVCCFLAGS      += -O3 -dopt=on -arch=sm_90a
-CUDA_PREFIX	:=/usr/local/cuda
-CUDA_INCLUDE	:=$(CUDA_PREFIX)/include
-CUDA_LIBDIR	:=$(CUDA_PREFIX)/lib64
-BACKEND_N	:= 2
-BACKEND_OBJS	+= $(PHASE2DIR)/qreg_cuda.o				\
-		   	$(PHASE2DIR)/qreg_cuda_lo.o			\
-			$(PHASE2DIR)/qreg_cuda_lo_dlink.o		\
-			$(PHASE2DIR)/world_cuda.o
-BACKEND_CFLAGS	+= -I$(CUDA_INCLUDE)
-BACKEND_LDFLAGS	+= -L$(CUDA_LIBDIR) -Wl,-rpath -Wl,$(CUDA_LIBDIR)
-BACKEND_LDLIBS	+= -lcudart -lstdc++
-
-$(BACKEND_OBJS): $(PHASE2DIR)/qreg_cuda.h				\
-       			$(PHASE2DIR)/world_cuda.h
-
-NVCCFLAGS	+= $(MPI_CFLAGS) $(HDF5_CFLAGS)
-$(PHASE2DIR)/qreg_cuda_lo.o: $(PHASE2DIR)/qreg_cuda_lo.cu
-	$(NVCC) $(NVCCFLAGS) $(BACKEND_CFLAGS) 				\
-	       -I$(INCLUDE) -c $< -o $@
-
-$(PHASE2DIR)/qreg_cuda_lo_dlink.o: $(PHASE2DIR)/qreg_cuda_lo.o
-	$(NVCC) $(NVCCFLAGS) -dlink $< -o $@
-
+BACKEND_N       := 2
+CUDA_INCLUDE    := $(CUDA_PREFIX)/include
+CUDA_LIBDIR     := $(CUDA_PREFIX)/lib64
+BACKEND_OBJS    += $(BUILDDIR)/phase2/qreg_cuda.o		\
+                   $(BUILDDIR)/phase2/qreg_cuda_lo.o		\
+                   $(BUILDDIR)/phase2/qreg_cuda_lo_dlink.o	\
+                   $(BUILDDIR)/phase2/world_cuda.o
+BACKEND_CFLAGS  += -I$(CUDA_INCLUDE)
+BACKEND_LDFLAGS += -L$(CUDA_LIBDIR) -Wl,-rpath -Wl,$(CUDA_LIBDIR)
+BACKEND_LDLIBS  += -lcudart -lstdc++
+NVCCFLAGS       += $(MPI_CFLAGS) $(HDF5_CFLAGS)
 endif
 
-$(BACKEND_OBJS): $(PHASE2DIR)/qreg.h
+BACKEND_CFLAGS  += -DPHASE2_BACKEND=$(BACKEND_N)
 
-BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
+# --- Object set unions ----------------------------------------------------- #
+# Each subsys's Makefile derives its own OBJS from its SRCS list; these
+# union aliases let downstream subsystems (ph2run, bench, test) reference
+# all upstream objects in one place.  Kept in sync with the SRCS lists in
+# each subsys Makefile by the per-subsys check-srcs-coverage drift guard.
+PHASE2OBJS      := $(BUILDDIR)/phase2/circ.o			\
+                   $(BUILDDIR)/phase2/circ_cache.o		\
+                   $(BUILDDIR)/phase2/paulis.o			\
+                   $(BUILDDIR)/phase2/prob.o			\
+                   $(BUILDDIR)/phase2/qreg.o			\
+                   $(BUILDDIR)/phase2/state_prep_coeff.o	\
+                   $(BUILDDIR)/phase2/world.o			\
+                   $(BACKEND_OBJS)
+CIRCOBJS        := $(BUILDDIR)/circ/cmpsit.o			\
+                   $(BUILDDIR)/circ/qdrift.o			\
+                   $(BUILDDIR)/circ/trott.o			\
+                   $(BUILDDIR)/circ/trott2.o
+LIBOBJS         := $(BUILDDIR)/lib/combinations.o		\
+                   $(BUILDDIR)/lib/det_small.o			\
+                   $(BUILDDIR)/lib/log.o			\
+                   $(BUILDDIR)/lib/xoshiro256ss.o
+PH2RUN_DATA_OBJS := $(BUILDDIR)/ph2run/data.o
 
+# --- CFLAGS / LDFLAGS / LDLIBS pipeline ------------------------------------ #
+CFLAGS          += -I$(INCLUDE) $(MPI_CFLAGS) $(HDF5_CFLAGS)	\
+                   $(BACKEND_CFLAGS)				\
+                   -DPHASE2_VERSION=\"$(VERSION)\"		\
+                   $(EXTRA_CFLAGS)
+LDFLAGS         += $(MPI_LDFLAGS) $(HDF5_LDFLAGS)		\
+                   $(BACKEND_LDFLAGS) $(EXTRA_LDFLAGS)
+LDLIBS          += -lm $(MPI_LDLIBS) $(HDF5_LDLIBS) $(BACKEND_LDLIBS)
 
-# phase2 public API
-$(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h			\
-			$(INCLUDE)/phase2/state_prep_coeff.h
-$(PH2RUNDIR)/data.o:	$(INCLUDE)/phase2/circ.h $(INCLUDE)/ph2run/data.h	\
-			$(INCLUDE)/phase2/paulis.h
-$(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
-$(PHASE2DIR)/prob.o:	$(INCLUDE)/phase2/prob.h
-$(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h $(PHASE2DIR)/qreg.h
-$(PHASE2DIR)/state_prep_coeff.o:	$(INCLUDE)/phase2/state_prep_coeff.h	\
-			$(INCLUDE)/combinations.h			\
-			$(INCLUDE)/det_small.h				\
-			$(INCLUDE)/phase2/circ.h			\
-			$(INCLUDE)/phase2/qreg.h			\
-			$(PHASE2DIR)/qreg.h
-$(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h
+# --- Helpers --------------------------------------------------------------- #
+RM              := rm -fv
+MKDIR           := mkdir -p
 
-# internal API
-$(PHASE2DIR)/circ_cache.o:	$(PHASE2DIR)/circ_cache.h
-$(PHASE2DIR)/phase2_run.o:	$(INCLUDE)/phase2/phase2_run.h		\
-				$(PHASE2DIR)/circ_cache.h
-
-PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
-			$(PHASE2DIR)/circ_cache.o			\
-			$(PHASE2DIR)/paulis.o				\
-			$(PHASE2DIR)/prob.o				\
-			$(PHASE2DIR)/qreg.o				\
-			$(PHASE2DIR)/state_prep_coeff.o			\
-			$(PHASE2DIR)/world.o				\
-			$(BACKEND_OBJS)
-
-$(PHASE2OBJS):	$(INCLUDE)/phase2.h
-
-PH2RUN_DATA_OBJS := $(PH2RUNDIR)/data.o
-
-
-# Circuits
-$(CIRCDIR)/cmpsit.o: $(INCLUDE)/circ/cmpsit.h
-$(CIRCDIR)/qdrift.o: $(INCLUDE)/circ/qdrift.h
-$(CIRCDIR)/trott.o: $(INCLUDE)/circ/trott.h
-$(CIRCDIR)/trott2.o: $(INCLUDE)/circ/trott2.h
-
-CIRCOBJS	:= $(CIRCDIR)/cmpsit.o					\
-			$(CIRCDIR)/qdrift.o				\
-			$(CIRCDIR)/trott.o				\
-			$(CIRCDIR)/trott2.o
+# --- Export contract -- visible to every sub-make -------------------------- #
+export CC CFLAGS LDFLAGS LDLIBS NVCC NVCCFLAGS
+export TOPDIR INCLUDE BUILDDIR
+export PHASE2DIR CIRCDIR LIBDIR PH2RUNDIR BENCHDIR TESTDIR
+export PHASE2OBJS CIRCOBJS LIBOBJS PH2RUN_DATA_OBJS BACKEND_OBJS BACKEND_CFLAGS
+export BACKEND BACKEND_N
+export MPI_CFLAGS MPI_LDFLAGS MPI_LDLIBS MPIRUN MPIFLAGS MPIRANKS
+export HDF5_CFLAGS HDF5_LDFLAGS HDF5_LDLIBS
+export RM MKDIR
 
 
-# Library / utilities
-$(LIBDIR)/combinations.o: $(INCLUDE)/combinations.h
-$(LIBDIR)/det_small.o:	$(INCLUDE)/det_small.h
-$(LIBDIR)/log.o:	$(INCLUDE)/log.h
-$(LIBDIR)/xoshiro256ss.o: $(INCLUDE)/xoshiro256ss.h
+# ========================================================================== #
+# Section 3: TARGETS                                                         #
+# ========================================================================== #
 
-LIBOBJS		:= $(LIBDIR)/combinations.o				\
-			$(LIBDIR)/det_small.o				\
-			$(LIBDIR)/log.o					\
-			$(LIBDIR)/xoshiro256ss.o
+.DEFAULT_GOAL := all
 
-
-# Applications
-PROGS		:=  $(PH2RUNDIR)/ph2run
-
-$(PH2RUNDIR)/ph2run: $(CIRCDIR)/trott.o					\
-			$(CIRCDIR)/trott2.o				\
-			$(CIRCDIR)/qdrift.o				\
-			$(CIRCDIR)/cmpsit.o
-
-$(PROGS):	$(PHASE2OBJS)						\
-			$(LIBOBJS)					\
-			$(PH2RUN_DATA_OBJS)
-
-# Update flags
-VERSION		:= $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
-CFLAGS		+= -I$(INCLUDE)						\
-			$(MPI_CFLAGS)					\
-			$(HDF5_CFLAGS)					\
-			$(BACKEND_CFLAGS)				\
-			-DPHASE2_VERSION=\"$(VERSION)\"
-LDFLAGS		+= $(MPI_LDFLAGS)					\
-			$(HDF5_LDFLAGS)					\
-			$(BACKEND_LDFLAGS)
-LDLIBS		+= $(MPI_LDLIBS)					\
-			$(HDF5_LDLIBS)					\
-			$(BACKEND_LDLIBS)
-# --------------------------------------------------------------------------- #
-# Targets                                                                     #
-# --------------------------------------------------------------------------- #
-.DEFAULT_GOAL	:= all
-.PHONY: all			\
-	bench			\
-	build			\
-	bulid-bench		\
-	build-test 		\
-	clean			\
-	check			\
-	check-mpi		\
-	debug			\
-	distclean		\
-	format			\
-	shared
+.PHONY: all build debug shared						\
+	phase2 circ lib ph2run bench test-build				\
+	build-bench build-test build-test-slow				\
+	check check-mpi check-slow check-% check-srcs-coverage		\
+	check-tests-coverage						\
+	bench-run bench-mpi						\
+	clean distclean format						\
+	test-asan test-valgrind test-mpi-asan
 
 all: build build-bench build-test
 
-debug: build build-bench build-test
-debug: ASFLAGS	+= -DDEBUG -Og -Fdwarf
-debug: CFLAGS	+= -DDEBUG -g -Og
+debug: CFLAGS  += -DDEBUG -g -Og
+debug: all
 
-build: $(PROGS)
+# --- Per-subsystem dispatch ------------------------------------------------ #
+# Each phony target invokes the matching subsys Makefile.  Dep edges
+# between them (`ph2run: phase2 circ lib`) serialise across subsystem
+# boundaries; -j parallelises inside each subsys and between independent
+# subsystems (phase2, circ, lib).
+phase2:
+	+@$(MAKE) -C $(PHASE2DIR)
 
-# --------------------------------------------------------------------------- #
-# Shared library (Python interface)                                           #
-# --------------------------------------------------------------------------- #
-# libphase2.so carries the pure compute surface only; HDF5 stays
-# on the ph2run side, so the shared object links without HDF5
-# and a Python caller can drive phase2 over ctypes without ever
-# touching an HDF5 file.
-SHARED_LDFLAGS	:= $(MPI_LDFLAGS) $(BACKEND_LDFLAGS)
-SHARED_LDLIBS	:= $(MPI_LDLIBS) $(BACKEND_LDLIBS)
+circ:
+	+@$(MAKE) -C $(CIRCDIR)
 
-shared: CFLAGS += -fPIC
-shared: $(PHASE2DIR)/phase2_run.o $(PHASE2OBJS) $(LIBOBJS)
-	$(CC) -shared -o libphase2.so $^ $(SHARED_LDFLAGS) $(SHARED_LDLIBS)
+lib:
+	+@$(MAKE) -C $(LIBDIR)
 
-# --------------------------------------------------------------------------- #
-# Benchmarks                                                                  #
-# --------------------------------------------------------------------------- #
-BENCHDIR	:= ./bench
-CFLAGS		+= -I$(BENCHDIR)
+ph2run: phase2 circ lib
+	+@$(MAKE) -C $(PH2RUNDIR)
 
-BENCHES		:= $(BENCHDIR)/b-paulis					\
-			$(BENCHDIR)/b-qreg
+bench: phase2 circ lib ph2run-data
+	+@$(MAKE) -C $(BENCHDIR)
 
-$(BENCHES):	$(BENCHDIR)/bench.h					\
-		$(BENCHDIR)/bench.o					\
-		$(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)
+test-build: phase2 circ lib ph2run-data
+	+@$(MAKE) -C $(TESTDIR) build
 
-build-bench: $(BENCHES)
+# Internal: build ph2run/data.o (used by tests and benches) without
+# linking the ph2run binary.
+.PHONY: ph2run-data
+ph2run-data: phase2 circ lib
+	+@$(MAKE) -C $(PH2RUNDIR) data
 
-bench: build-bench
-	@for bb in $(BENCHES); do					\
+# --- High-level aliases ---------------------------------------------------- #
+build:       check-srcs-coverage ph2run
+build-bench: bench
+build-test:  test-build
+
+build-test-slow: phase2 circ lib ph2run-data
+	+@$(MAKE) -C $(TESTDIR) build-slow
+
+# --- Shared library (libphase2.so) ----------------------------------------- #
+# Pure compute surface, no HDF5; for Python callers via ctypes.  -fPIC
+# objects build under $(BUILDDIR)/shared/<srcdir>/ on a disjoint path
+# from the regular tree, so `make build` and `make shared` cannot mix
+# PIC and non-PIC objects.
+SHARED_LDFLAGS := $(MPI_LDFLAGS) $(BACKEND_LDFLAGS)
+SHARED_LDLIBS  := $(MPI_LDLIBS) $(BACKEND_LDLIBS)
+SHARED_OBJS    := $(BUILDDIR)/shared/phase2/phase2_run.o		\
+                  $(patsubst $(BUILDDIR)/%,$(BUILDDIR)/shared/%,	\
+                             $(PHASE2OBJS) $(LIBOBJS))
+
+shared: $(SHARED_OBJS)
+	@$(MKDIR) $(BUILDDIR)
+	$(CC) -shared -o $(BUILDDIR)/libphase2.so $^		\
+	      $(SHARED_LDFLAGS) $(SHARED_LDLIBS)
+
+# Dispatch the -fPIC compiles into the relevant subsys's `shared` target.
+$(SHARED_OBJS): | phase2-shared lib-shared
+
+.PHONY: phase2-shared lib-shared
+phase2-shared:
+	+@$(MAKE) -C $(PHASE2DIR) shared
+lib-shared:
+	+@$(MAKE) -C $(LIBDIR) shared
+
+# --- Tests ----------------------------------------------------------------- #
+check: test-build
+	+@$(MAKE) -C $(TESTDIR) check
+
+check-mpi: test-build
+	+@$(MAKE) -C $(TESTDIR) check-mpi
+
+check-slow: build-test-slow
+	+@$(MAKE) -C $(TESTDIR) check-slow
+
+# Pattern: `make check-data` -> runner --filter='data*'.
+# Explicit targets above win over this pattern.
+check-%: test-build
+	+@$(MAKE) -C $(TESTDIR) check-$*
+
+# --- Benchmarks ------------------------------------------------------------ #
+bench-run: bench
+	@for bb in $(BUILDDIR)/bench/b-paulis $(BUILDDIR)/bench/b-qreg; do \
 		./$$bb &&						\
 			echo "$$bb: OK" ||				\
- 			( echo "$$bb: FAIL"; exit 1 );			\
+			( echo "$$bb: FAIL"; exit 1 );			\
 	done
 
-bench-mpi: build-bench
-	@for bb in $(BENCHES); do					\
-		$(MPIRUN) -n $(MPIRANKS) $(MPIFLAGS) ./$$bb && 		\
+bench-mpi: bench
+	@for bb in $(BUILDDIR)/bench/b-paulis $(BUILDDIR)/bench/b-qreg; do \
+		$(MPIRUN) -n $(MPIRANKS) $(MPIFLAGS) ./$$bb &&		\
 			echo "$$bb: OK" ||				\
-			( echo "$$bb: FAIL"; exit 1 );	 		\
+			( echo "$$bb: FAIL"; exit 1 );			\
 	done
 
-# --------------------------------------------------------------------------- #
-# Testing                                                                     #
-# --------------------------------------------------------------------------- #
-TESTDIR		:= ./test
-RUNFIXDIR	:= $(TESTDIR)/run-fixtures
-CFLAGS		+= -I$(TESTDIR) -I$(PHASE2DIR) -DPH2_TESTDIR=\"$(TESTDIR)\"
+# --- Drift guards ---------------------------------------------------------- #
+# Each subsys checks its own *.c/*.cu against its own SRCS list.
+check-srcs-coverage:
+	+@$(MAKE) -C $(PHASE2DIR) check-srcs-coverage
+	+@$(MAKE) -C $(CIRCDIR)   check-srcs-coverage
+	+@$(MAKE) -C $(LIBDIR)    check-srcs-coverage
+	+@$(MAKE) -C $(PH2RUNDIR) check-srcs-coverage
+	+@$(MAKE) -C $(BENCHDIR)  check-srcs-coverage
 
-TESTS		:= $(TESTDIR)/t-bitstring_index			\
-			$(TESTDIR)/t-circ_cache				\
-			$(TESTDIR)/t-circ_prepst_coeff			\
-			$(TESTDIR)/t-circ_trott				\
-			$(TESTDIR)/t-circ_trott2			\
-			$(TESTDIR)/t-circ_trott2_coeff			\
-			$(TESTDIR)/t-circ_trott_coeff			\
-			$(TESTDIR)/t-circ				\
-			$(TESTDIR)/t-combinations			\
-			$(TESTDIR)/t-data_attr				\
-			$(TESTDIR)/t-data_coeff_matrix			\
-			$(TESTDIR)/t-data_hamil				\
-			$(TESTDIR)/t-data_hamil_validate		\
-			$(TESTDIR)/t-data_multidet			\
-			$(TESTDIR)/t-data_open				\
-			$(TESTDIR)/t-data_dets_validate			\
-			$(TESTDIR)/t-data_idempotence			\
-			$(TESTDIR)/t-data_mpi				\
-			$(TESTDIR)/t-data_trott_steps			\
-			$(TESTDIR)/t-det_small				\
-			$(TESTDIR)/t-log				\
-			$(TESTDIR)/t-log_release			\
-			$(TESTDIR)/t-paulis				\
-			$(TESTDIR)/t-prob				\
-			$(TESTDIR)/t-qreg				\
-			$(TESTDIR)/t-ref-bendazzoli			\
-			$(TESTDIR)/t-run				\
-			$(TESTDIR)/t-state_prep_coeff_csf		\
-			$(TESTDIR)/t-state_prep_coeff_expand		\
-			$(TESTDIR)/t-world
-
-# Synthetic fixtures used by t-run to drive the runner
-# against controlled pass / fail / signal / banner
-# outcomes.  Each fixture is a tiny self-contained C
-# program with no phase2 / MPI / HDF5 deps.
-RUNFIX		:= $(RUNFIXDIR)/pass					\
-			$(RUNFIXDIR)/fail				\
-			$(RUNFIXDIR)/sleep				\
-			$(RUNFIXDIR)/abort				\
-			$(RUNFIXDIR)/banner
-
-$(RUNFIXDIR)/%: $(RUNFIXDIR)/%.c
-	$(CC) -std=c11 -Wall -Wextra -O2 -o $@ $<
-
-# t-run is a meta-test: it shells out to ./test/run, so
-# both the runner and its fixtures must exist before
-# t-run is invoked.  Use order-only prereqs (after `|`)
-# so the implicit %: %.c link line does not try to feed
-# the runner / fixture binaries to ld.
-$(TESTDIR)/t-run: | $(TESTDIR)/run $(RUNFIX)
-
-TESTS_SLOW	:= $(TESTDIR)/t-state_prep_coeff_large
-
-$(TESTS) $(TESTS_SLOW):	$(TESTDIR)/test.h				\
-			$(TESTDIR)/t-data.h				\
-			$(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)
-
-$(TESTDIR)/t-circ_cache: $(CIRCDIR)/trott.o
-$(TESTDIR)/t-circ_trott: $(CIRCDIR)/trott.o
-$(TESTDIR)/t-circ_trott2: $(CIRCDIR)/trott2.o
-$(TESTDIR)/t-circ_trott_coeff: $(CIRCDIR)/trott.o
-$(TESTDIR)/t-circ_trott2_coeff: $(CIRCDIR)/trott2.o
-
-build-test: check-tests-coverage $(TESTS) $(TESTDIR)/run
-
-# Parallel cargo-style runner.  Standalone C binary, no
-# phase2 / MPI / HDF5 dependencies.  Build with the test
-# CFLAGS so any DEBUG / sanitiser flags apply consistently.
-$(TESTDIR)/run: $(TESTDIR)/run.c
-	$(CC) -std=c11 -Wall -Wextra -O2 -o $@ $<
-
-# Guard against a t-*.c file being added to test/ but
-# forgotten in TESTS / TESTS_SLOW above -- a silent
-# omission would otherwise produce a partial suite that
-# CI cannot tell from a full one.
-.PHONY: check-tests-coverage
 check-tests-coverage:
-	@tmp=$$(mktemp -d);					\
-	ls $(TESTDIR)/t-*.c 2>/dev/null				\
-		| sed 's|\.c$$||' | sort > $$tmp/expected;	\
-	for t in $(TESTS) $(TESTS_SLOW); do echo $$t; done	\
-		| sort > $$tmp/declared;			\
-	missing=$$(comm -23 $$tmp/expected $$tmp/declared);	\
-	rc=0;							\
-	if [ -n "$$missing" ]; then				\
-		echo "test/: t-*.c files not in TESTS:";	\
-		echo "$$missing";				\
-		rc=1;						\
-	fi;							\
-	rm -rf $$tmp;						\
-	exit $$rc
+	+@$(MAKE) -C $(TESTDIR) check-tests-coverage
 
-# Tests are always built with -DDEBUG so log_trace /
-# log_debug in include/log.h expand to real emits.
-# t-log_release cancels this so the release-build strip
-# of trace/debug macros can be verified end-to-end --
-# the override must come after the blanket -DDEBUG so
-# the trailing -UDEBUG wins on the gcc command line.
-$(TESTS): CFLAGS += -DDEBUG -g -Og
-$(TESTDIR)/t-log_release: CFLAGS += -UDEBUG
-
-# All check targets delegate to test/run; the runner
-# fans the suite out across cores, captures per-test
-# stdout/stderr, and prints a cargo-style summary.
-# See test/run.c for the harness contract.
-.PHONY: check
-check: build-test
-	@./$(TESTDIR)/run -- $(TESTS)				\
-		$(TESTDIR)/t-ref-coeff_matrix.py
-
-# Slow tests: built but not part of the default check
-# target.
-.PHONY: build-test-slow
-build-test-slow: $(TESTS_SLOW)
-
-.PHONY: check-slow
-check-slow: build-test-slow $(TESTDIR)/run
-	@./$(TESTDIR)/run -- $(TESTS_SLOW)
-
-.PHONY: test-slow
-test-slow: check-slow
-
-# Sanitizer / valgrind targets.  These rebuild from scratch
-# under the requested instrumentation and re-run the full
-# test suite.
-.PHONY: test-asan test-valgrind test-mpi-asan
-ASAN_FLAGS	:= -fsanitize=address,undefined -fno-omit-frame-pointer -g
-# OpenMPI's startup path triggers internal "leaks" via
-# libevent / libopen-pal that we can't fix from here.  Disable
-# leak detection but keep all the other ASan + UBSan
-# diagnostics active.
+# --- Sanitiser / valgrind -------------------------------------------------- #
+ASAN_FLAGS       := -fsanitize=address,undefined -fno-omit-frame-pointer -g
 ASAN_OPTIONS_VAL := detect_leaks=0:halt_on_error=1
+export ASAN_OPTIONS_VAL
 
 test-asan:
 	$(MAKE) distclean
-	ASAN_OPTIONS=$(ASAN_OPTIONS_VAL)			\
-	$(MAKE) check						\
-		EXTRA_CFLAGS="$(ASAN_FLAGS)"			\
-		EXTRA_LDFLAGS="$(ASAN_FLAGS)"
+	ASAN_OPTIONS=$(ASAN_OPTIONS_VAL)				\
+	$(MAKE) check							\
+	      EXTRA_CFLAGS="$(ASAN_FLAGS)"				\
+	      EXTRA_LDFLAGS="$(ASAN_FLAGS)"
 
-test-valgrind: build-test
-	@for tt in $(TESTS); do						\
-		valgrind --quiet --error-exitcode=1			\
-			--leak-check=full				\
-			--errors-for-leak-kinds=all			\
-			--track-origins=yes ./$$tt &&			\
-			echo "$$tt: OK" ||				\
-			( echo "$$tt: FAIL"; exit 1 );			\
-	done
+test-valgrind: test-build
+	+@$(MAKE) -C $(TESTDIR) test-valgrind
 
 test-mpi-asan:
 	$(MAKE) distclean
-	$(MAKE) build-test					\
-		EXTRA_CFLAGS="$(ASAN_FLAGS)"			\
-		EXTRA_LDFLAGS="$(ASAN_FLAGS)"
-	@for tt in $(TESTDIR)/t-circ_trott_coeff; do			\
-		$(MPIRUN) -n 4 $(MPIFLAGS)				\
-			-x ASAN_OPTIONS=$(ASAN_OPTIONS_VAL) ./$$tt &&	\
-			echo "$$tt: OK" ||				\
-			( echo "$$tt: FAIL"; exit 1 );			\
-	done
+	$(MAKE) build-test						\
+	      EXTRA_CFLAGS="$(ASAN_FLAGS)"				\
+	      EXTRA_LDFLAGS="$(ASAN_FLAGS)"
+	+@$(MAKE) -C $(TESTDIR) test-mpi-asan
 
-.PHONY: check-mpi
-check-mpi: build-test
-	@./$(TESTDIR)/run --mpiranks=$(MPIRANKS) -- $(TESTS)
-
-# Pattern target: `make check-<filter>` runs the
-# subset of the suite whose effective names match
-# `<filter>*` (fnmatch glob).  The effective name is
-# the basename without the `t-` prefix and the `.py`
-# suffix.  Examples:
-#   make check-data    -> all t-data_*
-#   make check-paulis  -> just t-paulis
-#   make check-circ    -> all t-circ*
-# Explicit targets (check-mpi, check-slow,
-# check-tests-coverage) win over this pattern.
-check-%: build-test
-	@./$(TESTDIR)/run --filter='$**' -- $(TESTS)		\
-		$(TESTDIR)/t-ref-coeff_matrix.py
-
-
-# --------------------------------------------------------------------------- #
-# Clean up.                                                                   #
-# --------------------------------------------------------------------------- #
-
+# --- Clean ----------------------------------------------------------------- #
+# Every compile artefact (objects, .d, binaries, libphase2.so) lives under
+# $(BUILDDIR), so `clean` is a single recursive remove.  `distclean` is an
+# alias kept for habit.
 clean:
-	@$(RM) $(CIRCDIR)/*.o $(CIRCDIR)/*.d
-	@$(RM) $(BENCHDIR)/*.o $(BENCHDIR)/*.d
-	@$(RM) $(LIBDIR)/*.o $(LIBDIR)/*.d
-	@$(RM) $(PH2RUNDIR)/*.o $(PH2RUNDIR)/*.d
-	@$(RM) $(PHASE2DIR)/*.o $(PHASE2DIR)/*.d
-	@$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
+	@$(RM) -r $(BUILDDIR)
 
 distclean: clean
-	@$(RM) $(BENCHES)
-	@$(RM) $(TESTS)
-	@$(RM) $(TESTDIR)/run
-	@$(RM) $(RUNFIX)
-	@$(RM) $(PROGS)
-	@$(RM) libphase2.so
 
+# --- Misc ------------------------------------------------------------------ #
 format:
-	@find ./ -name "*.c" 						\
-		-or -name "*.h"						\
-		-or -name "*.cpp"					\
-		-or -name "*.cu" | 					\
-		while read f ; do					\
-			clang-format --style=file -i $$f ;		\
-		done
+	@find $(TOPDIR) -name '*.c' -o -name '*.h' -o			\
+	                -name '*.cpp' -o -name '*.cu' |			\
+		while read f; do clang-format --style=file -i "$$f"; done
 
+
+# ========================================================================== #
+# Auto-dep includes.  -MMD -MP in CFLAGS makes gcc emit <obj>.d alongside    #
+# every <obj>.o; the .d names the .o target and lists every header the .c   #
+# #include'd transitively.  Wildcard is silently empty on first build.      #
+# ========================================================================== #
+
+-include $(shell find $(BUILDDIR) -name '*.d' 2>/dev/null)
+-include $(wildcard $(TESTDIR)/*.d)

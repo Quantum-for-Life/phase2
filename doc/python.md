@@ -33,7 +33,7 @@ layer.
 make shared
 ```
 
-This produces `libphase2.so` in the project root.  The build
+This produces `libphase2.so` under `build/`.  The build
 requires GCC, OpenMPI, and parallel HDF5 development headers.
 
 ### 2. Create and activate a virtual environment
@@ -90,9 +90,11 @@ pytest -v
 The module locates `libphase2.so` by searching, in order:
 
 1. The path in the `PHASE2_LIB` environment variable.
-2. `../../libphase2.so` relative to the installed package.
-3. `../libphase2.so` relative to the installed package.
-4. `./libphase2.so` relative to the installed package.
+2. `../../build/libphase2.so` relative to the installed
+   package -- the in-tree development build's output.
+3. `../../libphase2.so` relative to the installed package.
+4. `../libphase2.so` relative to the installed package.
+5. `./libphase2.so` relative to the installed package.
 
 To override the search, set `PHASE2_LIB` explicitly:
 

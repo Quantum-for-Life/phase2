@@ -204,7 +204,7 @@ Quick recipe when editing a file that does not yet emit:
 **Small run (info, default).**
 
 ```sh
-./ph2run/ph2run -S test/data/H2O_CAS56.h5 trott -D 0.1 -s 4
+./build/ph2run/ph2run -S test/data/H2O_CAS56.h5 trott -D 0.1 -s 4
 ```
 
 ```
@@ -226,7 +226,7 @@ Quick recipe when editing a file that does not yet emit:
 
 ```sh
 make debug
-PHASE2_LOG=debug ./ph2run/ph2run -S test/data/H2O_CAS56.h5 trott -s 4
+PHASE2_LOG=debug ./build/ph2run/ph2run -S test/data/H2O_CAS56.h5 trott -s 4
 ```
 
 Adds engine-layer DEBUG lines: `data_open`, qubit layout,
@@ -236,7 +236,7 @@ hamil sort, per-step debug markers, cache flush counts.
 
 ```sh
 mpirun -n 4 -x PHASE2_LOG_ALL=1 -x PHASE2_LOG=info \
-    ./ph2run/ph2run -S test/data/H2O_CAS56.h5 trott -s 4
+    ./build/ph2run/ph2run -S test/data/H2O_CAS56.h5 trott -s 4
 ```
 
 Rank-0 lines remain unprefixed; ranks 1-3 prefix every

@@ -1545,11 +1545,12 @@ happens during data loading in `circ_hamil_load`.
 | `check-slow`           | Run TESTS_SLOW (excluded from default `check`) |
 | `check-<filter>`       | Run the subset matching `<filter>*` (`check-data`) |
 | `check-tests-coverage` | Guard: every `test/t-*.c` is in TESTS / TESTS_SLOW |
+| `check-srcs-coverage`  | Guard: every subsys-dir source is in DECLARED_SRCS |
 | `bench`                | Run benchmarks (single rank)          |
 | `bench-mpi`            | Run benchmarks under MPI              |
 | `debug`                | Build with debug flags (-g -Og)       |
-| `clean`                | Remove object files                   |
-| `distclean`            | Remove object files, binaries, tests  |
+| `clean`                | Remove the `build/` tree              |
+| `distclean`            | Also remove binaries and `libphase2.so` |
 | `format`               | Run clang-format on all sources       |
 
 ### 10.2 Backend Selection
@@ -1608,3 +1609,100 @@ See [doc/testing.md](testing.md) for the full subsystem
 reference: macro contract, fixture pattern, runner flags,
 recipes for adding tests, sanitiser / valgrind targets.
 Test data files reside in `test/data/`.
+
+### 10.5 Build Organisation
+
+The build is split into a top-level orchestrator
+plus a per-subsystem Makefile in each source dir:
+
+    Makefile                <- orchestrator + config
+    build-rules.mk          <- shared compile rules
+    phase2/Makefile         <- compiles phase2 sources
+    circ/Makefile
+    lib/Makefile
+    ph2run/Makefile         <- + links ph2run
+    bench/Makefile          <- + links b-paulis, b-qreg
+    test/Makefile           <- + tests, runner, fixtures
+
+The top-level Makefile reads in three sections.
+Section 1 is **USER CONFIGURATION**: toolchain
+(`CC`, `CFLAGS`, `EXTRA_CFLAGS`), MPI library paths
+(`MPI_CFLAGS`, `MPI_LDFLAGS`, `MPI_LDLIBS`), HDF5
+paths (`HDF5_CFLAGS`, `HDF5_LDFLAGS`,
+`HDF5_LDLIBS`), backend selection (`BACKEND`,
+`CUDA_PREFIX`, `NVCCFLAGS`), `BUILDDIR`, and
+`VERSION`.  A user porting phase2 to a new machine
+edits this block only.  Section 2 is **INTERNAL**:
+subsystem layout, derived OBJS unions, the CFLAGS
+pipeline, the `export` contract that makes Section 1
+values visible to sub-makes.  Section 3 is
+**TARGETS**: per-subsys dispatch (`$(MAKE) -C
+phase2`, ...) and the user-visible high-level
+targets.
+
+Every compile artefact -- objects, header-dep files,
+final binaries, the shared library -- lands under
+`$(BUILDDIR)/<srcdir>/`, mirroring the source tree:
+
+    phase2/circ.c    ->  build/phase2/circ.o + build/phase2/circ.d
+    lib/log.c        ->  build/lib/log.o     + build/lib/log.d
+    ph2run/ph2run.c  ->  build/ph2run/ph2run (binary)
+    test/t-paulis.c  ->  build/test/t-paulis (binary)
+    bench/b-paulis.c ->  build/bench/b-paulis (binary)
+    test/run.c       ->  build/test/run (binary)
+    (shared lib)     ->  build/libphase2.so
+
+Source directories stay clean -- no `.o`, no
+binaries.  `make clean` is a single `rm -rf build/`.
+
+Header dependencies are tracked automatically via
+`gcc -MMD -MP`: every compile emits a
+`build/<dir>/<x>.d` describing which headers the
+`.c` `#include`'d transitively, with empty fallback
+rules for each header so a renamed header doesn't
+break the build.  The top-level Makefile
+`-include`s the dep files at its foot; the wildcard
+is silently empty on first build.  Touching a
+header reliably rebuilds every dependent object --
+there are no hand-declared per-object header
+prereqs to keep in sync.
+
+The shared library (`libphase2.so`) compiles the
+same sources with `-fPIC` into a disjoint tree at
+`build/shared/<srcdir>/`.  Running `make build` and
+`make shared` (in either order) cannot mix PIC and
+non-PIC objects, because the two layouts live on
+different paths.
+
+Each subsys Makefile carries its own
+`check-srcs-coverage` rule: it enumerates `*.c` (and
+`*.cu` for phase2) in its own dir and fails the
+build if any source isn't listed in the subsys's
+`SRCS`.  The top-level `check-srcs-coverage` is a
+prerequisite of `build` and dispatches each subsys's
+check.  `test/Makefile` carries the analogous
+`check-tests-coverage` drift guard for the TESTS
+manifest.
+
+#### Adding a new subsystem
+
+1. Create `<subsys>/Makefile` modelled on
+   `lib/Makefile` (the simplest existing one).  Set
+   `SUBSYS := <subsys>`, list `SRCS`, derive
+   `OBJS`, define `all` / `shared` /
+   `check-srcs-coverage` / `clean`.
+2. In the top-level Makefile's Section 2, add
+   `<SUBSYS>OBJS` to the union block.
+3. In Section 3, add a phony dispatch target
+   `<subsys>:` that invokes `$(MAKE) -C <subsys>`,
+   plus the appropriate dep edges to upstream
+   subsystems.
+4. If the new subsys links a binary, add its build
+   rule to that subsys's Makefile (model on
+   `ph2run/Makefile`).
+
+`make clean` removes `$(BUILDDIR)/`.  `make
+distclean` additionally removes the built binaries
+and `libphase2.so`.  Sub-makes refuse to run
+standalone -- they error with a pointer to the
+top-level Makefile.

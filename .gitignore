@@ -1,109 +1,24 @@
-# Prerequisites
-*.d
-
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
-
-# Linker output
-*.ilk
-*.map
-*.exp
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
-
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
-
-CMakeLists.txt.user
-CMakeCache.txt
-CMakeFiles
-CMakeScripts
-Testing
-cmake_install.cmake
-install_manifest.txt
-compile_commands.json
-CTestTestfile.cmake
-_deps
-
-*.bak
-
-venv
-.venv
+# Compile artefacts -- every .o, .d, binary, and the
+# shared library lands under build/<srcdir>/.
 build/
-cmake-build-*
-tmp/
 
-Cargo.lock
-target/
+# Editor scratch and IDE state
+*.bak
+*.swp
+.idea/
+.vscode/
 
-.idea
-.vscode
+# Python
+.venv/
+venv/
+__pycache__/
+*.egg-info/
 
+# Runtime outputs (logs, intermediate HDF5)
+*.log
 simul.log
 simul.h5*
 
-*.swp
-
-*.log
-
-ph2run/ph2run-cmpsit
-ph2run/ph2run-qdrift
-ph2run/ph2run-trott
-ph2run/ph2run
-
-bench/b-paulis
-bench/b-qreg
-
-# Test binaries: match the t-foo executable but keep
-# t-foo.c / t-foo.h / t-foo.py sources tracked.
-test/t-*
-!test/t-*.c
-!test/t-*.h
-!test/t-*.py
-
-# Parallel runner binary and its fixture binaries; the
-# fixture .c sources stay tracked.
-test/run
-test/run-fixtures/*
-!test/run-fixtures/*.c
-
-*.egg-info/
-__pycache__/
-
+# Misc local
+tmp/
+.claude/

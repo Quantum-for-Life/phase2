@@ -34,6 +34,11 @@ def _load_library() -> ctypes.CDLL:
 
     here = Path(__file__).resolve().parent
     candidates = [
+        # In-tree development build: python/phase2/ -> repo
+        # root, library lives at build/libphase2.so.
+        here / ".." / ".." / "build" / "libphase2.so",
+        # Legacy locations (older trees placed the .so at
+        # the repo root or inside an installed package).
         here / ".." / ".." / "libphase2.so",
         here / ".." / "libphase2.so",
         here / "libphase2.so",

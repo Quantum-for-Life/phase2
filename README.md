@@ -46,14 +46,14 @@ Simulate four 1st-order Trotter steps on the water
 CAS(5,6) test fixture, on two MPI ranks:
 
 ```bash
-mpirun -n 2 ./ph2run/ph2run -S test/data/H2O_CAS56.h5 \
+mpirun -n 2 ./build/ph2run/ph2run -S test/data/H2O_CAS56.h5 \
        trott -D 0.1 -s 4
 ```
 
 Results land in the `/circ_trott` group of the same HDF5
 file.  Other subcommands — `trott2`, `qdrift`, `cmpsit` —
 share the same `-S FILE` convention; see
-`./ph2run/ph2run --help` and `./ph2run/ph2run CMD --help`
+`./build/ph2run/ph2run --help` and `./build/ph2run/ph2run CMD --help`
 for the flag surface.
 
 The MPI rank count must be a power of two and must not
