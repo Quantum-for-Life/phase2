@@ -62,34 +62,19 @@ static struct world_info WD;
 #define DATA_HAMIL_NORM "normalization"
 #define DATA_HAMIL_PAULIS "paulis"
 
-/* -- MPI broadcast helpers -------------------------------------------- */
+/* -- MPI broadcast helper -------------------------------------------- */
 
-static inline void bcast_int(int *v)
-{
-	MPI_Bcast(v, 1, MPI_INT, 0, MPI_COMM_WORLD);
-}
-
-static inline void bcast_u32(uint32_t *v)
-{
-	MPI_Bcast(v, 1, MPI_UINT32_T, 0, MPI_COMM_WORLD);
-}
-
-static inline void bcast_sz(size_t *v)
-{
-	MPI_Bcast(v, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
-}
-
-static inline void bcast_doubles(double *buf, size_t n)
-{
-	if (n > 0)
-		MPI_Bcast(buf, (int)n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-}
-
-static inline void bcast_uchars(unsigned char *buf, size_t n)
-{
-	if (n > 0)
-		MPI_Bcast(buf, (int)n, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-}
+/*
+ * Rank 0 originates; followers receive.  A zero count
+ * short-circuits to a no-op so callers can pass empty
+ * arrays without a branch.
+ */
+#define BCAST(ptr, count, mpi_type)                                            \
+	do {                                                                   \
+		const int _n = (int)(count);                                   \
+		if (_n > 0)                                                    \
+			MPI_Bcast((ptr), _n, (mpi_type), 0, MPI_COMM_WORLD);    \
+	} while (0)
 
 /* -- common H5 helpers (rank-0-only callers) -------------------------- */
 
@@ -178,7 +163,7 @@ data_id data_open(const char *filename)
 			status = -1;
 		}
 	}
-	bcast_int(&status);
+	BCAST(&status, 1, MPI_INT);
 	if (status < 0)
 		return DATA_INVALID_FID;
 
@@ -283,7 +268,7 @@ int data_grp_create(data_id fid, const char *grp_name)
 	ex_lcpl:
 	ex_done:;
 	}
-	bcast_int(&rt);
+	BCAST(&rt, 1, MPI_INT);
 	return rt;
 }
 
@@ -311,7 +296,7 @@ int data_grp_create(data_id fid, const char *grp_name)
 				H5Gclose(grp_id);                              \
 			}                                                      \
 		}                                                              \
-		bcast_int(&rt);                                                \
+		BCAST(&rt, 1, MPI_INT);                                                \
 		if (rt < 0)                                                    \
 			return -1;                                             \
 		MPI_Bcast(&local, 1, mpi_type, 0, MPI_COMM_WORLD);             \
@@ -383,7 +368,7 @@ DEFINE_DATA_ATTR_READ(dbl, double, H5T_NATIVE_DOUBLE, MPI_DOUBLE);
 			H5Gclose(grp_id);                                      \
 		ex_group:;                                                     \
 		}                                                              \
-		bcast_int(&rt);                                                \
+		BCAST(&rt, 1, MPI_INT);                                                \
 		return rt;                                                     \
 	}
 
@@ -425,11 +410,11 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md)
 		rt = 0;
 	ex_dims:;
 	}
-	bcast_int(&rt);
+	BCAST(&rt, 1, MPI_INT);
 	if (rt < 0)
 		return -1;
-	bcast_u32(&v_nqb);
-	bcast_sz(&v_ndets);
+	BCAST(&v_nqb, 1, MPI_UINT32_T);
+	BCAST(&v_ndets, 1, MPI_UNSIGNED_LONG);
 
 	double *cfs = malloc(sizeof *cfs * 2 * v_ndets);
 	unsigned char *dets = malloc(sizeof *dets * v_ndets * v_nqb);
@@ -457,14 +442,14 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md)
 			H5Gclose(grp_id);
 		}
 	}
-	bcast_int(&rt);
+	BCAST(&rt, 1, MPI_INT);
 	if (rt < 0) {
 		free(cfs);
 		free(dets);
 		return -1;
 	}
-	bcast_doubles(cfs, 2 * v_ndets);
-	bcast_uchars(dets, v_ndets * v_nqb);
+	BCAST(cfs, 2 * v_ndets, MPI_DOUBLE);
+	BCAST(dets, v_ndets * v_nqb, MPI_UNSIGNED_CHAR);
 
 	/* Bit-validate the determinant occupations on every rank
 	 * (cheap, ndets*nqb bytes) so a malformed multidet group
@@ -536,11 +521,11 @@ int circ_hamil_load(data_id fid, struct circ_hamil *hm)
 		rt = 0;
 	ex_dims:;
 	}
-	bcast_int(&rt);
+	BCAST(&rt, 1, MPI_INT);
 	if (rt < 0)
 		return -1;
-	bcast_u32(&v_nqb);
-	bcast_sz(&v_nterms);
+	BCAST(&v_nqb, 1, MPI_UINT32_T);
+	BCAST(&v_nterms, 1, MPI_UNSIGNED_LONG);
 	MPI_Bcast(&v_norm, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 	double *cfs = malloc(sizeof *cfs * v_nterms);
@@ -569,14 +554,14 @@ int circ_hamil_load(data_id fid, struct circ_hamil *hm)
 			H5Gclose(grp_id);
 		}
 	}
-	bcast_int(&rt);
+	BCAST(&rt, 1, MPI_INT);
 	if (rt < 0) {
 		free(cfs);
 		free(paulis);
 		return -1;
 	}
-	bcast_doubles(cfs, v_nterms);
-	bcast_uchars(paulis, v_nterms * v_nqb);
+	BCAST(cfs, v_nterms, MPI_DOUBLE);
+	BCAST(paulis, v_nterms * v_nqb, MPI_UNSIGNED_CHAR);
 
 	if (circ_hamil_init(hm, v_nqb, v_nterms) < 0) {
 		free(cfs);
@@ -701,7 +686,7 @@ int data_circ_writer_init(data_id fid, const char *grp_name, size_t n_steps,
 		H5Gclose(grp_id);
 	ex_bcast:;
 	}
-	bcast_int(&rt);
+	BCAST(&rt, 1, MPI_INT);
 	if (rt < 0) {
 		if (WD.rank == 0 && dset_out != H5I_INVALID_HID)
 			H5Dclose(dset_out);
@@ -827,10 +812,10 @@ int data_state_prep_kind(const data_id fid, enum stprep_kind *out)
 		rt = 0;
 	ex_bcast:;
 	}
-	bcast_int(&rt);
+	BCAST(&rt, 1, MPI_INT);
 	if (rt < 0)
 		return -1;
-	bcast_int(&kind);
+	BCAST(&kind, 1, MPI_INT);
 	*out = (enum stprep_kind)kind;
 	return 0;
 }
@@ -989,19 +974,19 @@ int data_coeff_matrix_load(const data_id fid, struct data_coeff_matrix *cm)
 		H5Gclose(grp_id);
 	ex_attrs:;
 	}
-	bcast_int(&rt);
+	BCAST(&rt, 1, MPI_INT);
 	if (rt < 0) {
 		memset(cm, 0, sizeof *cm);
 		return -1;
 	}
-	bcast_u32(&cm->nqb);
-	bcast_u32(&cm->n_sites);
-	bcast_u32(&cm->n_alpha);
-	bcast_u32(&cm->n_beta);
-	bcast_int(&cm->closed_shell);
-	bcast_int(&cm->tapered);
-	bcast_int(&v_has_csf);
-	bcast_u32(&v_ncomp);
+	BCAST(&cm->nqb, 1, MPI_UINT32_T);
+	BCAST(&cm->n_sites, 1, MPI_UINT32_T);
+	BCAST(&cm->n_alpha, 1, MPI_UINT32_T);
+	BCAST(&cm->n_beta, 1, MPI_UINT32_T);
+	BCAST(&cm->closed_shell, 1, MPI_INT);
+	BCAST(&cm->tapered, 1, MPI_INT);
+	BCAST(&v_has_csf, 1, MPI_INT);
+	BCAST(&v_ncomp, 1, MPI_UINT32_T);
 
 	const size_t sz_a = (size_t)cm->n_sites * cm->n_alpha;
 	const size_t sz_b = (size_t)cm->n_sites * cm->n_beta;
@@ -1115,7 +1100,7 @@ int data_coeff_matrix_load(const data_id fid, struct data_coeff_matrix *cm)
 		H5Gclose(grp_id);
 	ex_dsets:;
 	}
-	bcast_int(&rt);
+	BCAST(&rt, 1, MPI_INT);
 	if (rt < 0)
 		goto err_alloc;
 
@@ -1123,16 +1108,16 @@ int data_coeff_matrix_load(const data_id fid, struct data_coeff_matrix *cm)
 		for (size_t k = 0; k < v_ncomp; k++) {
 			MPI_Bcast(&blocks[k].cf, 1, MPI_DOUBLE, 0,
 				MPI_COMM_WORLD);
-			bcast_doubles((double *)blocks[k].C_alpha, sz_a);
+			BCAST((double *)blocks[k].C_alpha, sz_a, MPI_DOUBLE);
 			if (!cm->closed_shell)
-				bcast_doubles((double *)blocks[k].C_beta, sz_b);
+				BCAST((double *)blocks[k].C_beta, sz_b, MPI_DOUBLE);
 		}
 		cm->n_components = v_ncomp;
 		cm->blocks = blocks;
 	} else {
-		bcast_doubles(Ca, sz_a);
+		BCAST(Ca, sz_a, MPI_DOUBLE);
 		if (!cm->closed_shell)
-			bcast_doubles(Cb, sz_b);
+			BCAST(Cb, sz_b, MPI_DOUBLE);
 		cm->C_alpha = Ca;
 		cm->C_beta = Cb;
 	}
