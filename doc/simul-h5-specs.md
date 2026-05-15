@@ -104,10 +104,10 @@ accumulates per-component contributions; the top-level
 when the file is treated as a single-block state.
 
 A `csf/` subgroup that exists but advertises `n_components
-== 0` is rejected at file-open time
-(`data_coeff_matrix_csf_count` returns `-EINVAL`).  A
-single-block state must omit the `csf/` subgroup outright
-rather than declaring an empty superposition.
+== 0` is rejected at load time (`data_coeff_matrix_load`
+returns `-1` with a `log_error` line).  A single-block
+state must omit the `csf/` subgroup outright rather than
+declaring an empty superposition.
 
 ### Dispatch rules
 
@@ -213,6 +213,15 @@ For given integers `NUM_TERMS, NUM_QUBITS >=1`:
       ```
 
 ## Group: `/circ_trott`
+
+The simulator creates the group and pre-allocates the
+`values` dataset with NaN-padded shape `(NUM_STEPS, 2)` at
+init time; rank 0 then writes one row per Trotter step
+plus `H5Fflush`.  A run that crashes or times out partway
+leaves the file consistent: rows for completed steps carry
+real numbers, the trailing rows remain NaN.  This applies
+identically to `/circ_trott2`, `/circ_qdrift`, and
+`/circ_cmpsit`.
 
 - Attribute: `delta`
     - *Type*: `double`

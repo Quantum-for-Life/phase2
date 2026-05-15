@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 #include "phase2.h"
+#include "phase2/step_writer.h"
 #include "xoshiro256ss.h"
 
 /*
@@ -21,8 +22,8 @@
  * sample at omega = 0.5, then a reverse half-sweep of an
  * independent sample — yielding the symmetric S_2 integrator.
  *
- * Output is the per-sample overlap series written to
- * /circ_cmpsit/values.  `seed` must be non-zero.
+ * Output is the per-sample overlap series.  `seed` must be
+ * non-zero.
  */
 
 struct cmpsit_data {
@@ -49,25 +50,15 @@ struct cmpsit {
 	struct cmpsit_data dt;
 	struct cmpsit_ranct ranct;
 	struct xoshiro256ss rng;
+	struct phase2_step_writer *sw;
 };
 
-/* Load the Hamiltonian and initial state, split into
- * deterministic / randomised parts, sort the deterministic
- * part lexicographically, build the randomised CDF, seed the
- * PRNG.  Returns 0 on success, -1 on error. */
-int cmpsit_init(struct cmpsit *cp, const struct cmpsit_data *dt, data_id fid);
+int cmpsit_init(struct cmpsit *cp, const struct cmpsit_data *dt,
+	struct circ_hamil hm, enum stprep_kind sp_kind, const void *sp_data,
+	struct phase2_step_writer *sw);
 
-/* Release all resources held by `cp`. */
 void cmpsit_free(struct cmpsit *cp);
 
-/* Run `dt.samples` independent samples of `dt.steps` steps
- * and store per-sample overlaps in `ct.vals`.  Returns 0 on
- * success, -1 on error. */
 int cmpsit_simul(struct cmpsit *cp);
-
-/* Write length, depth, angle_det, angle_rand, steps, seed
- * attributes and the overlap series to /circ_cmpsit.
- * Returns 0 on success, -1 on error. */
-int cmpsit_write_res(struct cmpsit *cp, data_id fid);
 
 #endif // CMPSIT_H

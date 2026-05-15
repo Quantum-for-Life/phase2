@@ -11,14 +11,17 @@
 
 #include "circ/trott.h"
 
-int trott_init(struct trott *tt, const struct trott_data *dt, const data_id fid)
+int trott_init(struct trott *tt, const struct trott_data *dt,
+	struct circ_hamil hm, const enum stprep_kind sp_kind,
+	const void *sp_data, struct phase2_step_writer *sw)
 {
-	if (circ_init(&tt->ct, fid, dt->steps) < 0) {
+	if (circ_init(&tt->ct, hm, sp_kind, sp_data, dt->steps) < 0) {
 		log_error("trott_init: circ_init failed");
 		return -1;
 	}
 
 	tt->dt = *dt;
+	tt->sw = sw;
 
 	circ_hamil_sort_lex(&tt->ct.hm);
 
@@ -48,29 +51,14 @@ int trott_simul(struct trott *tt)
 		}
 		vals->z[i] = circ_measure(ct);
 
+		if (tt->sw && tt->sw->write(tt->sw->ctx, i, vals->z[i]) < 0) {
+			log_error("trott_simul: write_step %zu failed", i);
+			return -1;
+		}
+
 		circ_prog_tick(&prog);
 		circ_prog_emit(&prog, LOG_SUBSYS);
 	}
 
 	return 0;
-}
-
-int trott_write_res(struct trott *tt, data_id fid)
-{
-	int rt = -1;
-
-	if (data_grp_create(fid, DATA_CIRCTROTT) < 0)
-		goto data_grp_create;
-	if (data_attr_write_dbl(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA,
-		    tt->dt.delta) < 0)
-		goto data_attr_write;
-	if (data_res_write(fid, DATA_CIRCTROTT, DATA_CIRCTROTT_VALUES,
-		    tt->ct.vals.z, tt->ct.vals.len) < 0)
-		goto data_res_write;
-
-	rt = 0;
-data_res_write:
-data_attr_write:
-data_grp_create:
-	return rt;
 }

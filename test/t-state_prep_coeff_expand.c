@@ -10,7 +10,8 @@
 
 #include "combinations.h"
 #include "det_small.h"
-#include "phase2/data.h"
+#include "phase2/circ.h"
+#include "ph2run/data.h"
 #include "phase2/qreg.h"
 #include "phase2/state_prep_coeff.h"
 #include "phase2/world.h"
@@ -113,29 +114,27 @@ static void t_fixture(const char *path)
 	data_id fid = data_open(path);
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open %s", path);
 
-	uint32_t nqb, ns, na, nb;
-	int cs, tap;
-	TEST_EQ(data_coeff_matrix_getnums(fid, &nqb, &ns, &na, &nb, &cs, &tap),
-		0);
-	double *Ca = malloc(sizeof(double) * ns * na);
-	double *Cb = cs ? NULL : malloc(sizeof(double) * ns * nb);
-	TEST_EQ(data_coeff_matrix_read(fid, Ca, Cb), 0);
+	struct data_coeff_matrix cm;
+	TEST_EQ(data_coeff_matrix_load(fid, &cm), 0);
+	TEST_EQ(cm.n_components, (size_t)0);
 
 	struct qreg reg;
-	TEST_EQ(qreg_init(&reg, nqb), 0);
+	TEST_EQ(qreg_init(&reg, cm.nqb), 0);
 	qreg_zero(&reg);
 
-	TEST_EQ(state_prep_coeff_expand(&reg, ns, na, nb, Ca, Cb, 1.0, tap, 0),
+	TEST_EQ(state_prep_coeff_expand(&reg, cm.n_sites, cm.n_alpha, cm.n_beta,
+			cm.C_alpha, cm.C_beta, 1.0, cm.tapered, 0),
 		0);
 
 	struct ref_amp *refs =
 		malloc(sizeof(struct ref_amp) * (size_t)1 << 18);
-	const size_t n_ref = expand_ref(ns, na, nb, Ca, cs ? NULL : Cb, tap,
+	const size_t n_ref = expand_ref(cm.n_sites, cm.n_alpha, cm.n_beta,
+		cm.C_alpha, cm.closed_shell ? NULL : cm.C_beta, cm.tapered,
 		refs, (size_t)1 << 18);
 	qsort(refs, n_ref, sizeof refs[0], cmp_amp);
 
 	double total_diff = 0.0;
-	const uint64_t namp = UINT64_C(1) << nqb;
+	const uint64_t namp = UINT64_C(1) << cm.nqb;
 	for (uint64_t idx = 0; idx < namp; idx++) {
 		_Complex double z;
 		qreg_getamp(&reg, idx, &z);
@@ -155,8 +154,7 @@ static void t_fixture(const char *path)
 	(void)total_diff;
 
 	free(refs);
-	free(Ca);
-	free(Cb);
+	data_coeff_matrix_free(&cm);
 	qreg_free(&reg);
 	data_close(fid);
 }
@@ -248,20 +246,21 @@ static int dump_expand(const char *fixture, FILE *out)
 		return -1;
 	}
 
-	/* `circ_coeff_init` loads both top-level C matrices and any
-	 * csf/<k>/ subgroups via the same path `circ_prepst` uses; we
-	 * dispatch through `state_prep_coeff_expand_all` so the dump
-	 * covers single-block AND CSF fixtures with one code path. */
-	struct circ_coeff cm;
-	if (circ_coeff_init(&cm, fid) < 0) {
-		fprintf(stderr, "dump_expand: circ_coeff_init failed\n");
+	/* `data_coeff_matrix_load` reads both top-level C matrices
+	 * and any csf/<k>/ subgroups via the same path
+	 * `circ_prepst` uses; we dispatch through
+	 * `state_prep_coeff_expand_all` so the dump covers
+	 * single-block AND CSF fixtures with one code path. */
+	struct data_coeff_matrix cm;
+	if (data_coeff_matrix_load(fid, &cm) < 0) {
+		fprintf(stderr, "dump_expand: data_coeff_matrix_load failed\n");
 		data_close(fid);
 		return -1;
 	}
 
 	struct qreg reg;
-	if (qreg_init(&reg, cm.n_qubits) < 0) {
-		circ_coeff_free(&cm);
+	if (qreg_init(&reg, cm.nqb) < 0) {
+		data_coeff_matrix_free(&cm);
 		data_close(fid);
 		return -1;
 	}
@@ -269,12 +268,12 @@ static int dump_expand(const char *fixture, FILE *out)
 
 	if (state_prep_coeff_expand_all(&reg, &cm) < 0) {
 		qreg_free(&reg);
-		circ_coeff_free(&cm);
+		data_coeff_matrix_free(&cm);
 		data_close(fid);
 		return -1;
 	}
 
-	const uint64_t namp = UINT64_C(1) << cm.n_qubits;
+	const uint64_t namp = UINT64_C(1) << cm.nqb;
 	for (uint64_t idx = 0; idx < namp; idx++) {
 		_Complex double z;
 		qreg_getamp(&reg, idx, &z);
@@ -291,7 +290,7 @@ static int dump_expand(const char *fixture, FILE *out)
 		fflush(out);
 
 	qreg_free(&reg);
-	circ_coeff_free(&cm);
+	data_coeff_matrix_free(&cm);
 	data_close(fid);
 	return 0;
 }

@@ -36,48 +36,6 @@ void circ_hamil_free(struct circ_hamil *hm)
 		free(hm->terms);
 }
 
-struct hamil_iter_data {
-	size_t i;
-	double norm;
-	struct circ_hamil *hamil;
-};
-
-static int hamil_iter(double cf, unsigned char *ops, void *iter_data)
-{
-	struct hamil_iter_data *id = iter_data;
-	struct circ_hamil *h = id->hamil;
-	const size_t i = id->i++;
-	const uint32_t nqb = h->qb;
-
-	h->terms[i].cf = cf * id->norm;
-	struct paulis op = paulis_new();
-	for (uint32_t j = 0; j < nqb; j++)
-		paulis_set(&op, ops[j], j);
-	h->terms[i].op = op;
-
-	return 0;
-}
-
-static int circ_hamil_from_file(struct circ_hamil *h, const data_id fid)
-{
-	uint32_t nqb;
-	size_t nterms;
-	double norm;
-
-	if (data_hamil_getnums(fid, &nqb, &nterms) < 0)
-		return -1;
-	if (data_hamil_getnorm(fid, &norm) < 0)
-		return -1;
-	if (circ_hamil_init(h, nqb, nterms) < 0)
-		return -1;
-
-	struct hamil_iter_data id = { .i = 0, .norm = norm, .hamil = h };
-	if (data_hamil_foreach(fid, hamil_iter, &id) != 0)
-		return -1;
-
-	return 0;
-}
-
 static int hamil_term_cmp_lex(const void *a, const void *b)
 {
 	const struct paulis x = ((const struct circ_hamil_term *)a)->op;
@@ -114,38 +72,20 @@ void circ_muldet_free(struct circ_muldet *md)
 		free(md->dets);
 }
 
-struct iter_muldet_data {
-	size_t i;
-	struct circ_muldet *muldet;
-};
-
-static int iter_muldet(_Complex double cf, const uint64_t idx, void *iter_data)
+void data_coeff_matrix_free(struct data_coeff_matrix *cm)
 {
-	struct iter_muldet_data *id = iter_data;
-	struct circ_muldet *m = id->muldet;
-	const size_t i = id->i++;
-
-	m->dets[i].cf = cf;
-	m->dets[i].idx = idx;
-
-	return 0;
-}
-
-static int circ_muldet_from_file(struct circ_muldet *m, const data_id fid)
-{
-	uint32_t nqb;
-	size_t ndets;
-
-	if (data_multidet_getnums(fid, &nqb, &ndets) < 0)
-		return -1;
-	if (circ_muldet_init(m, ndets) < 0)
-		return -1;
-
-	struct iter_muldet_data id = { .i = 0, .muldet = m };
-	if (data_multidet_foreach(fid, iter_muldet, &id) < 0)
-		return -1;
-
-	return 0;
+	if (!cm)
+		return;
+	if (cm->blocks) {
+		for (size_t k = 0; k < cm->n_components; k++) {
+			free((void *)cm->blocks[k].C_alpha);
+			free((void *)cm->blocks[k].C_beta);
+		}
+		free(cm->blocks);
+	}
+	free((void *)cm->C_alpha);
+	free((void *)cm->C_beta);
+	memset(cm, 0, sizeof *cm);
 }
 
 void circ_prog_init(struct circ_prog *prog, size_t len, const char *unit)
@@ -207,36 +147,25 @@ void circ_values_free(struct circ_values *vals)
 	free(vals->z);
 }
 
-int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
+int circ_init(struct circ *ct, struct circ_hamil hm,
+	const enum stprep_kind sp_kind, const void *sp_data,
+	const size_t vals_len)
 {
 	memset(&ct->md, 0, sizeof ct->md);
 	memset(&ct->cm, 0, sizeof ct->cm);
 
-	if (circ_hamil_from_file(&ct->hm, fid) < 0) {
-		log_error("circ_init: loading Hamiltonian failed");
-		goto err_hamil_init;
-	}
-	log_debug("circ_init: Hamiltonian loaded (%u qubits, %zu terms)",
+	ct->hm = hm;
+	ct->stprep_kind = sp_kind;
+	log_debug("circ_init: Hamiltonian adopted (%u qubits, %zu terms)",
 		ct->hm.qb, ct->hm.len);
 
-	if (data_state_prep_kind(fid, &ct->stprep_kind) < 0) {
-		log_error("circ_init: state_prep kind probe failed");
-		goto err_stprep_kind;
-	}
-
-	switch (ct->stprep_kind) {
+	switch (sp_kind) {
 	case STPREP_MULTIDET:
-		if (circ_muldet_from_file(&ct->md, fid) < 0) {
-			log_error("circ_init: loading multidet state failed");
-			goto err_stprep_load;
-		}
+		ct->md = *(const struct circ_muldet *)sp_data;
 		log_debug("circ_init: multidet state (%zu dets)", ct->md.len);
 		break;
 	case STPREP_COEFF_MATRIX:
-		if (circ_coeff_init(&ct->cm, fid) < 0) {
-			log_error("circ_init: coeff_matrix init failed");
-			goto err_stprep_load;
-		}
+		ct->cm = *(const struct data_coeff_matrix *)sp_data;
 		log_debug("circ_init: coeff_matrix state (n_components=%zu)",
 			ct->cm.n_components);
 		break;
@@ -262,18 +191,15 @@ err_vals_init:
 err_cache_init:
 	qreg_free(&ct->reg);
 err_qreg_init:
-	switch (ct->stprep_kind) {
+	switch (sp_kind) {
 	case STPREP_MULTIDET:
 		circ_muldet_free(&ct->md);
 		break;
 	case STPREP_COEFF_MATRIX:
-		circ_coeff_free(&ct->cm);
+		data_coeff_matrix_free(&ct->cm);
 		break;
 	}
-err_stprep_load:
-err_stprep_kind:
 	circ_hamil_free(&ct->hm);
-err_hamil_init:
 	return -1;
 }
 
@@ -286,7 +212,7 @@ void circ_free(struct circ *ct)
 		circ_muldet_free(&ct->md);
 		break;
 	case STPREP_COEFF_MATRIX:
-		circ_coeff_free(&ct->cm);
+		data_coeff_matrix_free(&ct->cm);
 		break;
 	}
 	qreg_free(&ct->reg);
@@ -389,7 +315,7 @@ static _Complex double measure_coeff_block(struct qreg *reg,
 
 static _Complex double measure_coeff(struct circ *ct)
 {
-	const struct circ_coeff *cm = &ct->cm;
+	const struct data_coeff_matrix *cm = &ct->cm;
 	_Complex double pr = 0.0;
 
 	if (cm->n_components == 0) {
@@ -399,7 +325,7 @@ static _Complex double measure_coeff(struct circ *ct)
 			cm->tapered);
 	} else {
 		for (size_t k = 0; k < cm->n_components; k++) {
-			const struct circ_coeff_block *b = &cm->blocks[k];
+			const struct data_coeff_block *b = &cm->blocks[k];
 			pr += measure_coeff_block(&ct->reg, cm->n_sites,
 				cm->n_alpha, cm->n_beta, b->C_alpha,
 				cm->closed_shell ? NULL : b->C_beta, b->cf,

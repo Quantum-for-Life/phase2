@@ -4,8 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "phase2/data.h"
 #include "phase2/qreg.h"
+
+struct data_coeff_matrix;
 
 /*
  * state_prep_coeff - Slater-Condon expansion of a coefficient-
@@ -17,9 +18,10 @@
  *           const double *C_alpha, const double *C_beta,
  *           double weight, int tapered, int accumulate);
  *   int state_prep_coeff_expand_all(struct qreg *reg,
- *           const struct circ_coeff *cm);
- *   int circ_coeff_init(struct circ_coeff *cm, data_id fid);
- *   void circ_coeff_free(struct circ_coeff *cm);
+ *           const struct data_coeff_matrix *cm);
+ *
+ * The trial state is loaded from disk by data_coeff_matrix_load
+ * (see ph2run/data.h) and consumed here.
  *
  * `state_prep_coeff_expand` walks the cartesian product of
  * alpha and beta k-subsets, evaluates the Slater-Condon product
@@ -43,30 +45,12 @@
  * (`/state_prep/coeff_matrix` section).
  */
 
-struct circ_coeff_block {
-	double cf;
-	double *C_alpha;
-	double *C_beta;
-};
-
-struct circ_coeff {
-	uint32_t n_qubits;
-	uint32_t n_sites;
-	uint32_t n_alpha;
-	uint32_t n_beta;
-	int closed_shell;
-	int tapered;
-	size_t n_components;
-	double *C_alpha;
-	double *C_beta;
-	struct circ_coeff_block *blocks;
-};
-
 int state_prep_coeff_expand(struct qreg *reg, uint32_t n_sites,
 	uint32_t n_alpha, uint32_t n_beta, const double *C_alpha,
 	const double *C_beta, double weight, int tapered, int accumulate);
 
-int state_prep_coeff_expand_all(struct qreg *reg, const struct circ_coeff *cm);
+int state_prep_coeff_expand_all(
+	struct qreg *reg, const struct data_coeff_matrix *cm);
 
 /*
  * Inner product <trial | reg> over the coefficient-matrix trial
@@ -86,9 +70,5 @@ int state_prep_coeff_expand_all(struct qreg *reg, const struct circ_coeff *cm);
 _Complex double state_prep_coeff_inner(struct qreg *reg, uint32_t n_sites,
 	uint32_t n_alpha, uint32_t n_beta, const double *C_alpha,
 	const double *C_beta, double weight, int tapered);
-
-int circ_coeff_init(struct circ_coeff *cm, data_id fid);
-
-void circ_coeff_free(struct circ_coeff *cm);
 
 #endif /* PHASE2_STATE_PREP_COEFF_H */

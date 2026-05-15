@@ -2,9 +2,40 @@
 #define TEST_DATA_H
 
 #include <stddef.h>
+#include <stdio.h>
+
+#include "phase2/world.h"
+
+#include "test.h"
+
+/*
+ * Copy a committed fixture to /tmp so per-step writes
+ * issued by trott_simul / qdrift_simul / etc. do not
+ * mutate the on-disk reference file.  Rank 0 does the
+ * copy; followers no-op.  Caller deletes the temporary
+ * after use.
+ */
+static inline void test_fixture_copy(const char *src, const char *dst)
+{
+	struct world_info wd;
+	world_info(&wd);
+	if (wd.rank != 0)
+		return;
+	FILE *in = fopen(src, "rb");
+	TEST_ASSERT(in != NULL, "test_fixture_copy: open src %s", src);
+	FILE *out = fopen(dst, "wb");
+	TEST_ASSERT(out != NULL, "test_fixture_copy: open dst %s", dst);
+	char buf[4096];
+	size_t n;
+	while ((n = fread(buf, 1, sizeof buf, in)) > 0)
+		TEST_ASSERT(fwrite(buf, 1, n, out) == n,
+			"test_fixture_copy: short write to %s", dst);
+	fclose(in);
+	fclose(out);
+}
 
 #define NUM_TEST_FILES (2)
-static struct test_data {
+[[maybe_unused]] static struct test_data {
 	const char *filename;
 	size_t num_qubits;
 	size_t num_terms;

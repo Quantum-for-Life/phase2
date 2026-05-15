@@ -48,13 +48,12 @@ MPI_CFLAGS	:= -I$(LIB64)/openmpi/include
 MPI_LDFLAGS	:= -L$(LIB64)/openmpi/lib
 MPI_LDLIBS	:= -lmpi
 
-# Make sure you use the _parallel_ version of HDF5.
-# You can find the correct paths for your system by querying:
+# Standard (serial) HDF5.  Find the correct paths via:
 #
-# $ h5pcc -shlib -show
+# $ h5cc -shlib -show
 #
-HDF5_CFLAGS	:= -I/usr/include/hdf5/openmpi
-HDF5_LDFLAGS	:= -L$(LIB64)/hdf5/openmpi -Wl,-rpath -Wl,$(LIB64)/hdf5/openmpi
+HDF5_CFLAGS	:= -I/usr/include/hdf5/serial
+HDF5_LDFLAGS	:= -L$(LIB64)/hdf5/serial -Wl,-rpath -Wl,$(LIB64)/hdf5/serial
 HDF5_LDLIBS	:= -lhdf5 -lhdf5_hl -lcurl -lsz -lz -ldl -lm
 
 # Backends
@@ -121,14 +120,15 @@ BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
 # phase2 public API
 $(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h			\
 			$(INCLUDE)/phase2/state_prep_coeff.h
-$(PHASE2DIR)/data.o:	$(INCLUDE)/phase2/data.h
+$(PH2RUNDIR)/data.o:	$(INCLUDE)/phase2/circ.h $(INCLUDE)/ph2run/data.h	\
+			$(INCLUDE)/phase2/paulis.h
 $(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
 $(PHASE2DIR)/prob.o:	$(INCLUDE)/phase2/prob.h
 $(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h $(PHASE2DIR)/qreg.h
 $(PHASE2DIR)/state_prep_coeff.o:	$(INCLUDE)/phase2/state_prep_coeff.h	\
 			$(INCLUDE)/combinations.h			\
 			$(INCLUDE)/det_small.h				\
-			$(INCLUDE)/phase2/data.h			\
+			$(INCLUDE)/phase2/circ.h			\
 			$(INCLUDE)/phase2/qreg.h			\
 			$(PHASE2DIR)/qreg.h
 $(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h
@@ -140,7 +140,6 @@ $(PHASE2DIR)/phase2_run.o:	$(INCLUDE)/phase2/phase2_run.h		\
 
 PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/circ_cache.o			\
-			$(PHASE2DIR)/data.o				\
 			$(PHASE2DIR)/paulis.o				\
 			$(PHASE2DIR)/prob.o				\
 			$(PHASE2DIR)/qreg.o				\
@@ -149,6 +148,8 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(BACKEND_OBJS)
 
 $(PHASE2OBJS):	$(INCLUDE)/phase2.h
+
+PH2RUN_DATA_OBJS := $(PH2RUNDIR)/data.o
 
 
 # Circuits
@@ -184,7 +185,8 @@ $(PH2RUNDIR)/ph2run: $(CIRCDIR)/trott.o					\
 			$(CIRCDIR)/cmpsit.o
 
 $(PROGS):	$(PHASE2OBJS)						\
-			$(LIBOBJS)
+			$(LIBOBJS)					\
+			$(PH2RUN_DATA_OBJS)
 
 # Update flags
 VERSION		:= $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
@@ -227,9 +229,16 @@ build: $(PROGS)
 # --------------------------------------------------------------------------- #
 # Shared library (Python interface)                                           #
 # --------------------------------------------------------------------------- #
+# libphase2.so carries the pure compute surface only; HDF5 stays
+# on the ph2run side, so the shared object links without HDF5
+# and a Python caller can drive phase2 over ctypes without ever
+# touching an HDF5 file.
+SHARED_LDFLAGS	:= $(MPI_LDFLAGS) $(BACKEND_LDFLAGS)
+SHARED_LDLIBS	:= $(MPI_LDLIBS) $(BACKEND_LDLIBS)
+
 shared: CFLAGS += -fPIC
 shared: $(PHASE2DIR)/phase2_run.o $(PHASE2OBJS) $(LIBOBJS)
-	$(CC) -shared -o libphase2.so $^ $(LDFLAGS) $(LDLIBS)
+	$(CC) -shared -o libphase2.so $^ $(SHARED_LDFLAGS) $(SHARED_LDLIBS)
 
 # --------------------------------------------------------------------------- #
 # Benchmarks                                                                  #
@@ -242,7 +251,7 @@ BENCHES		:= $(BENCHDIR)/b-paulis					\
 
 $(BENCHES):	$(BENCHDIR)/bench.h					\
 		$(BENCHDIR)/bench.o					\
-		$(PHASE2OBJS) $(LIBOBJS)
+		$(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)
 
 build-bench: $(BENCHES)
 
@@ -278,8 +287,12 @@ TESTS		:= $(TESTDIR)/t-bitstring_index			\
 			$(TESTDIR)/t-data_attr				\
 			$(TESTDIR)/t-data_coeff_matrix			\
 			$(TESTDIR)/t-data_hamil				\
+			$(TESTDIR)/t-data_hamil_validate		\
 			$(TESTDIR)/t-data_multidet			\
 			$(TESTDIR)/t-data_open				\
+			$(TESTDIR)/t-data_dets_validate			\
+			$(TESTDIR)/t-data_idempotence			\
+			$(TESTDIR)/t-data_mpi				\
 			$(TESTDIR)/t-data_trott_steps			\
 			$(TESTDIR)/t-det_small				\
 			$(TESTDIR)/t-log				\
@@ -296,7 +309,7 @@ TESTS_SLOW	:= $(TESTDIR)/t-state_prep_coeff_large
 
 $(TESTS) $(TESTS_SLOW):	$(TESTDIR)/test.h				\
 			$(TESTDIR)/t-data.h				\
-			$(PHASE2OBJS) $(LIBOBJS)
+			$(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)
 
 $(TESTDIR)/t-circ_cache: $(CIRCDIR)/trott.o
 $(TESTDIR)/t-circ_trott: $(CIRCDIR)/trott.o

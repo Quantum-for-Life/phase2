@@ -4,8 +4,8 @@
 #include <stddef.h>
 
 #include "phase2/circ.h"
-#include "phase2/data.h"
 #include "phase2/prob.h"
+#include "phase2/step_writer.h"
 #include "xoshiro256ss.h"
 
 /*
@@ -18,7 +18,7 @@
  *   exp(i * asin(step_size) * sign(c_k) * P_k)
  *
  * in draw order.  Output is the per-sample overlap
- * <psi|U|psi>, written to /circ_qdrift/values.
+ * <psi|U|psi>.
  *
  * The PRNG is xoshiro256** seeded by `seed` and split
  * deterministically across MPI ranks; `seed` must be
@@ -42,23 +42,15 @@ struct qdrift {
 	struct qdrift_data dt;
 	struct qdrift_ranct ranct;
 	struct xoshiro256ss rng;
+	struct phase2_step_writer *sw;
 };
 
-/* Load Hamiltonian and initial state, build the |c_k| CDF,
- * seed the PRNG.  Returns 0 on success, -1 on error. */
-int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt, data_id fid);
+int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt,
+	struct circ_hamil hm, enum stprep_kind sp_kind, const void *sp_data,
+	struct phase2_step_writer *sw);
 
-/* Release all resources held by `qd`. */
 void qdrift_free(struct qdrift *qd);
 
-/* Run `dt.samples` independent samples of depth `dt.depth`
- * and store per-sample overlaps in `ct.vals`.  Returns 0 on
- * success, -1 on error. */
 int qdrift_simul(struct qdrift *qd);
-
-/* Write step_size, depth, num_samples, seed attributes and
- * the overlap series to /circ_qdrift.  Returns 0 on success,
- * -1 on error. */
-int qdrift_write_res(struct qdrift *qd, data_id fid);
 
 #endif // QDRIFT_H

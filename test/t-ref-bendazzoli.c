@@ -8,7 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "phase2/data.h"
+#include "phase2/circ.h"
+#include "ph2run/data.h"
 #include "phase2/qreg.h"
 #include "phase2/state_prep_coeff.h"
 #include "phase2/world.h"
@@ -100,16 +101,16 @@ static void t_n4_oss_k0_expansion(void)
 		data_open(PH2_TESTDIR "/data/bendazzoli/n4_oss_k0/n4_oss_k0.h5");
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open n4_oss_k0.h5");
 
-	struct circ_coeff cm;
-	TEST_EQ(circ_coeff_init(&cm, fid), 0);
-	TEST_EQ(cm.n_qubits, 8u);
+	struct data_coeff_matrix cm;
+	TEST_EQ(data_coeff_matrix_load(fid, &cm), 0);
+	TEST_EQ(cm.nqb, 8u);
 	TEST_EQ(cm.n_sites,  4u);
 	TEST_EQ(cm.n_alpha,  2u);
 	TEST_EQ(cm.n_beta,   2u);
 	TEST_EQ(cm.n_components, 2u);
 
 	struct qreg reg;
-	TEST_EQ(qreg_init(&reg, cm.n_qubits), 0);
+	TEST_EQ(qreg_init(&reg, cm.nqb), 0);
 	qreg_zero(&reg);
 	TEST_EQ(state_prep_coeff_expand_all(&reg, &cm), 0);
 
@@ -124,7 +125,7 @@ static void t_n4_oss_k0_expansion(void)
 	/* Mark which indices the reference covers so the
 	 * "no extra amplitudes" check below can detect bins
 	 * that phase2 populated but the reference did not. */
-	const uint64_t namp = UINT64_C(1) << cm.n_qubits;
+	const uint64_t namp = UINT64_C(1) << cm.nqb;
 	int *covered = calloc(namp, sizeof *covered);
 	TEST_ASSERT(covered != NULL, "calloc covered");
 
@@ -174,7 +175,7 @@ static void t_n4_oss_k0_expansion(void)
 	free(covered);
 	free(ref);
 	qreg_free(&reg);
-	circ_coeff_free(&cm);
+	data_coeff_matrix_free(&cm);
 	data_close(fid);
 
 	printf("t-ref-bendazzoli: %zu reference amplitudes, "

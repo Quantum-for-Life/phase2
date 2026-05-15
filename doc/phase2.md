@@ -54,10 +54,7 @@ channel methods on classically tractable system sizes.
 Required packages on Ubuntu/Debian:
 
     sudo apt install gcc make libopenmpi-dev       \
-                     libhdf5-openmpi-dev
-
-The parallel HDF5 build (`libhdf5-openmpi-dev`) is
-essential; the serial variant will not work.
+                     libhdf5-dev
 
 ### 2.2 Build and test
 
@@ -237,7 +234,89 @@ Sorting the Hamiltonian lexicographically
 number of consecutive terms sharing the same hi-part,
 thereby maximising cache hits and minimising MPI exchanges.
 
-### 3.5 Backend Abstraction
+### 3.5 phase2 vs ph2run -- layering and dependencies
+
+phase2 is a compute library: in-memory data carriers, MPI
+register, Pauli rotation kernels, and the step-callback
+interface that the algorithms (`circ/{trott,trott2,qdrift,
+cmpsit}.c`) consume.  It does not link HDF5.
+
+ph2run is the CLI driver: argument parsing, file I/O,
+per-step writing to `simul.h5`, summary CSV.  It links
+HDF5 and depends on phase2.  No phase2 source file
+includes `ph2run/data.h`; the dependency goes one way:
+
+```
++--------- libphase2.so (no HDF5) ---------+
+| phase2/circ.c                            |
+| phase2/state_prep_coeff.c                |
+| phase2/qreg.c / paulis.c / prob.c / ...  |
+| circ/{trott, trott2, qdrift, cmpsit}.c   |
+| -- phase2/step_writer.h (callback ABI)   |
++------------------------------------------+
+                ^
+                |  uses
+                |
++-- ph2run (CLI; links HDF5 and libphase2.so) --+
+| ph2run/ph2run.c                                 |
+| ph2run/data.c    -- simul.h5 reads + writes     |
+| -- ph2run/data.h: data_open/close,              |
+|        data_attr_*, data_state_prep_kind,       |
+|        circ_hamil_load, circ_muldet_load,       |
+|        data_coeff_matrix_load, data_circ_writer |
++-------------------------------------------------+
+```
+
+The carrier types (`struct circ_hamil`, `struct
+circ_muldet`, `struct data_coeff_matrix`) live in
+`include/phase2/circ.h` because they are the in-memory
+shapes the compute kernels consume.  ph2run's loaders
+populate them directly: `circ_hamil_load` reads the
+on-disk byte arrays from rank 0, broadcasts them, then
+packs each row into the `struct circ_hamil_term` form
+(coefficient times `norm`, packed `struct paulis`) that
+`circ_step` operates on.
+
+### 3.6 Step-writer callback
+
+Per-step output goes through a single function pointer:
+
+```c
+/* include/phase2/step_writer.h */
+struct phase2_step_writer {
+        void *ctx;
+        int (*write)(void *ctx, size_t step_idx,
+                _Complex double z);
+};
+```
+
+Each algorithm's `*_init` accepts a `struct
+phase2_step_writer *sw`.  Inside `*_simul`, after
+computing each step's overlap, the algorithm calls
+`sw->write(sw->ctx, i, vals->z[i])`.  Passing `NULL`
+disables per-step output and runs the simulation entirely
+in memory.
+
+ph2run plugs in a writer whose `ctx` is a
+`struct data_circ_writer` (the HDF5 dataset cache from
+the data subsystem) and whose `write` thunks to
+`data_circ_write_step`:
+
+```c
+static int step_thunk(void *ctx, size_t i,
+        _Complex double z)
+{
+        return data_circ_write_step(ctx, i, z);
+}
+struct phase2_step_writer sw = {
+        .ctx = &io.wr, .write = step_thunk };
+```
+
+External wrappers (Python via ctypes, future C/Rust
+callers) plug in whatever sink they want, without
+involving HDF5 or `simul.h5`.
+
+### 3.7 Backend Abstraction
 
 The compile-time macro `PHASE2_BACKEND` selects the
 computational backend:
@@ -888,32 +967,36 @@ state (rank, size, seed, status).
 
 ---
 
-### 8.4 Data I/O (`include/phase2/data.h`)
+### 8.4 Data I/O (`include/ph2run/data.h`)
+
+The data subsystem lives on the ph2run side and is the
+only HDF5-aware piece of the build.  phase2 sources do
+not include this header.  The carrier types it populates
+(`struct circ_hamil`, `struct circ_muldet`, `struct
+data_coeff_matrix`) are defined in
+`include/phase2/circ.h`.
 
 ```c
 typedef int64_t data_id;
-#define DATA_INVALID_FID (-1)
+#define DATA_INVALID_FID   INT64_C(-1)
+#define DATA_FOLLOWER_FID  INT64_C(-2)
 ```
+
+`DATA_FOLLOWER_FID` is the rank > 0 sentinel returned by
+`data_open`: the data layer is rank-0-only; non-zero
+ranks short-circuit reads (receiving the bcast result)
+and writes (no-ops).
 
 ---
 
 ```c
 data_id data_open(const char *filename);
+void    data_close(data_id fid);
 ```
 
-Open an HDF5 simulation file for reading and writing.
-Collective MPI operation (all ranks must call).
-
-**Return value:** A valid file handle, or DATA_INVALID_FID
-on error.
-
----
-
-```c
-void data_close(data_id fid);
-```
-
-Close a previously opened HDF5 file.
+`data_open` returns a positive file id on rank 0,
+`DATA_FOLLOWER_FID` on follower ranks, or
+`DATA_INVALID_FID` on error.  Both calls are collective.
 
 ---
 
@@ -921,129 +1004,95 @@ Close a previously opened HDF5 file.
 int data_grp_create(data_id fid, const char *grp_name);
 ```
 
-Create an HDF5 group in the root of the file.
-
-**Return value:** 0 on success, -1 on error.
-
----
-
-```c
-int data_attr_read_i(data_id fid, const char *grp_name,
-    const char *attr_name, int *a);
-int data_attr_read_ul(data_id fid, const char *grp_name,
-    const char *attr_name, unsigned long *a);
-int data_attr_read_dbl(data_id fid, const char *grp_name,
-    const char *attr_name, double *a);
-```
-
-Read a scalar attribute from the named group.  A type-
-generic macro `data_attr_read` dispatches based on the
-pointer type of the fourth argument.
-
-**Return value:** 0 on success, -1 on error.
+Idempotently create an HDF5 group at the root of the
+file.  Handles dangling soft-links left by older
+fixtures.
 
 ---
 
 ```c
-int data_attr_write_i(data_id fid, const char *grp_name,
-    const char *attr_name, int a);
-int data_attr_write_ul(data_id fid, const char *grp_name,
-    const char *attr_name, unsigned long a);
-int data_attr_write_dbl(data_id fid, const char *grp_name,
-    const char *attr_name, double a);
+int  data_attr_read_dbl(data_id fid, const char *grp,
+        const char *name, double *a);
+int  data_attr_write_dbl(data_id fid, const char *grp,
+        const char *name, double a);
+int  data_attr_write_ul(data_id fid, const char *grp,
+        const char *name, unsigned long a);
+
+#define data_attr_read(fid, grp, name, ptr)  /* _Generic dispatch */
+#define data_attr_write(fid, grp, name, val) /* _Generic dispatch */
 ```
 
-Create and write a scalar attribute in the named group.
-A type-generic macro `data_attr_write` dispatches based on
-the type of the fourth argument.
-
-**Return value:** 0 on success, -1 on error.
+The `_Generic` dispatchers route by argument type.  Read
+covers `double *`; write covers `double` and `unsigned
+long`.
 
 ---
 
 ```c
-int data_multidet_getnums(data_id fid, uint32_t *nqb,
-                          size_t *ndets);
+enum stprep_kind {
+        STPREP_MULTIDET     = 1,
+        STPREP_COEFF_MATRIX = 2,
+};
+
+int data_state_prep_kind(data_id fid,
+        enum stprep_kind *out);
 ```
 
-Retrieve the number of qubits and determinants from the
-`/state_prep/multidet` group.
-
-**Return value:** 0 on success, -1 on error.
+Probe the file for `/state_prep/multidet` vs
+`/state_prep/coeff_matrix`.  Both-present and
+neither-present are errors (rebuild simul.h5).  See
+`doc/simul-h5-specs.md` for the dispatch table.
 
 ---
 
 ```c
-int data_multidet_foreach(data_id fid,
-    int (*op)(_Complex double cf, uint64_t idx, void *),
-    void *op_data);
+int circ_hamil_load(data_id fid, struct circ_hamil *hm);
+int circ_muldet_load(data_id fid, struct circ_muldet *md);
+int data_coeff_matrix_load(data_id fid,
+        struct data_coeff_matrix *cm);
 ```
 
-Iterate over each determinant in the multidet group.  For
-each determinant, calls `op(cf, idx, op_data)` where `cf`
-is the complex coefficient and `idx` is the basis state
-index.
+Read a `/pauli_hamil`, `/state_prep/multidet`, or
+`/state_prep/coeff_matrix` group end-to-end: rank 0
+reads, all ranks receive via `MPI_Bcast`, and -- for hamil
+and multidet -- each rank packs the raw bytes into the
+phase2-side struct (`circ_hamil_term`/`circ_muldet`
+entries) the compute kernels consume.  Return 0 on
+success, -1 on error (with `log_error`).
 
-**Return value:** 0 if the full iteration completed, -1 on
-data retrieval error, or the nonzero return value of `op`
-if iteration was terminated early.
+The matching `*_free` calls live in
+`include/phase2/circ.h` (pure pointer cleanup, no HDF5):
+`circ_hamil_free`, `circ_muldet_free`,
+`data_coeff_matrix_free`.
 
 ---
 
 ```c
-int data_hamil_getnums(data_id fid, uint32_t *nqb,
-                       size_t *nterms);
+struct data_circ_writer {
+        data_id fid;
+        int64_t dset;     /* H5Dopen handle on rank 0 */
+        size_t  n_steps;
+};
+
+int  data_circ_writer_init(data_id fid,
+        const char *grp_name, size_t n_steps,
+        struct data_circ_writer *w);
+int  data_circ_write_step(struct data_circ_writer *w,
+        size_t step_idx, _Complex double z);
+void data_circ_writer_close(struct data_circ_writer *w);
 ```
 
-Retrieve the number of qubits and Hamiltonian terms from
-the `/pauli_hamil` group.
+Pre-allocate a NaN-padded `(n_steps, 2)` `values`
+dataset under `grp_name` and cache the open dataset
+handle in `*w`.  Per-step writes hyperslab one row and
+flush so a crash leaves the file consistent up to the
+last flushed row.  Passing `fid == 0` to
+`data_circ_writer_init` makes subsequent writes no-ops
+(for callers that want to run without per-step output).
 
-**Return value:** 0 on success, -1 on error.
-
----
-
-```c
-int data_hamil_getnorm(data_id fid, double *norm);
-```
-
-Retrieve the normalisation factor from the `/pauli_hamil`
-group.  All Hamiltonian coefficients are multiplied by this
-factor during loading.
-
-**Return value:** 0 on success, -1 on error.
-
----
-
-```c
-int data_hamil_foreach(data_id fid,
-    int (*op)(double, unsigned char *, void *),
-    void *op_data);
-```
-
-Iterate over each Hamiltonian term.  For each term, calls
-`op(coeff, paulis_array, op_data)` where `coeff` is the
-real coefficient and `paulis_array` is a temporary array of
-`num_qubits` bytes encoding single-qubit Paulis (0=I, 1=X,
-2=Y, 3=Z).
-
-**Return value:** 0 if the full iteration completed, -1 on
-error, or the nonzero return value of `op` if terminated
-early.  The `paulis_array` pointer is invalidated after
-iteration.
-
----
-
-```c
-int data_res_write(data_id fid, const char *grp_name,
-    const char *dset_name, const _Complex double *vals,
-    size_t nvals);
-```
-
-Write an array of complex values as a dataset in the named
-group.  The dataset has shape (nvals, 2) with columns for
-real and imaginary parts.
-
-**Return value:** 0 on success, -1 on error.
+ph2run wraps this writer in a `struct phase2_step_writer`
+(see Section 3.6) and hands it to the algorithm's
+`*_init`.
 
 ---
 
@@ -1083,11 +1132,17 @@ struct circ {
     struct circ_cache *cache;
     struct circ_values vals;
     struct qreg reg;
+    enum stprep_kind stprep_kind;
+    struct data_coeff_matrix cm;
 };
 ```
 
-Complete simulation context: Hamiltonian, initial state,
-quantum register, cache, and output values buffer.
+Complete simulation context: Hamiltonian, multideterminant
+or coefficient-matrix state-prep (selected by
+`stprep_kind`), quantum register, cache, and output
+values buffer.  The carrier types `struct
+data_coeff_matrix` and `enum stprep_kind` are defined in
+this same header.
 
 ---
 
@@ -1152,14 +1207,28 @@ Allocate / free an output buffer for `len` complex values.
 ---
 
 ```c
-int circ_init(struct circ *ct, data_id fid,
-              size_t vals_len);
+int circ_init(struct circ *ct, struct circ_hamil hm,
+        enum stprep_kind sp_kind, const void *sp_data,
+        size_t vals_len);
 ```
 
-Initialise a complete simulation context from an HDF5 file.
-Loads the Hamiltonian and multideterminant state, allocates
-the quantum register, initialises the cache, and allocates
-the output buffer.
+Adopt a pre-loaded Hamiltonian and state-prep payload
+into a fresh circ context, allocate the quantum register,
+initialise the cache, and allocate the output buffer.
+
+The caller (typically ph2run) loads `hm` via
+`circ_hamil_load` and the state-prep struct via
+`circ_muldet_load` or `data_coeff_matrix_load`, then
+passes them in.  `circ_init` takes ownership: the
+buffers carried by `hm` and `*sp_data` are owned by
+`ct` after a successful call and freed by `circ_free`.
+On error the function frees whatever it has adopted, so
+the caller's locals must not be freed a second time.
+
+`sp_data` points to a `struct circ_muldet` when
+`sp_kind == STPREP_MULTIDET`, or a
+`struct data_coeff_matrix` when
+`sp_kind == STPREP_COEFF_MATRIX`.
 
 **Return value:** 0 on success, -1 on error.
 
@@ -1285,50 +1354,32 @@ Returns 0 if y is below F(0).
 
 ```c
 struct trott_data { double delta; size_t steps; };
-struct trott { struct circ ct; struct trott_data dt; };
+struct trott {
+        struct circ ct;
+        struct trott_data dt;
+        struct phase2_step_writer *sw;
+};
 ```
 
 ---
 
 ```c
 int trott_init(struct trott *tt,
-    const struct trott_data *dt, data_id fid);
-```
-
-Initialise a Trotter simulation from HDF5 data.  Loads
-Hamiltonian and initial state, sorts the Hamiltonian
-lexicographically.
-
-**Return value:** 0 on success, -1 on error.
-
----
-
-```c
+        const struct trott_data *dt,
+        struct circ_hamil hm, enum stprep_kind sp_kind,
+        const void *sp_data,
+        struct phase2_step_writer *sw);
 void trott_free(struct trott *tt);
+int  trott_simul(struct trott *tt);
 ```
 
-Free all Trotter simulation resources.
-
----
-
-```c
-int trott_simul(struct trott *tt);
-```
-
-Run the Trotter simulation for `dt.steps` steps,
-populating `ct.vals` with overlap measurements.
-
-**Return value:** 0 on success, -1 on error.
-
----
-
-```c
-int trott_write_res(struct trott *tt, data_id fid);
-```
-
-Write results to the `/circ_trott` group in the HDF5 file.
-
-**Return value:** 0 on success, -1 on error.
+`trott_init` adopts a pre-loaded Hamiltonian and
+state-prep payload via `circ_init` (Section 8.5), sorts
+the Hamiltonian lexicographically, and stores the
+step-writer callback.  `sw == NULL` runs without
+per-step output.  `trott_simul` runs `dt.steps` Trotter
+steps, populates `ct.vals` with overlaps, and forwards
+each row through `sw->write` when non-NULL.
 
 ---
 
@@ -1341,18 +1392,23 @@ sweep at `delta/2` followed by a reverse sweep at
 
 ```c
 struct trott2_data { double delta; size_t steps; };
-struct trott2 { struct circ ct; struct trott2_data dt; };
+struct trott2 {
+        struct circ ct;
+        struct trott2_data dt;
+        struct phase2_step_writer *sw;
+};
 
 int  trott2_init(struct trott2 *t2,
-        const struct trott2_data *dt, data_id fid);
+        const struct trott2_data *dt,
+        struct circ_hamil hm, enum stprep_kind sp_kind,
+        const void *sp_data,
+        struct phase2_step_writer *sw);
 void trott2_free(struct trott2 *t2);
 int  trott2_simul(struct trott2 *t2);
-int  trott2_write_res(struct trott2 *t2, data_id fid);
 ```
 
-Behaviour mirrors `trott_*` with results written to
-`/circ_trott2`.  See `include/circ/trott2.h` for the
-per-function contract.
+Behaviour mirrors `trott_*`.  See
+`include/circ/trott2.h` for the per-function contract.
 
 ---
 
@@ -1360,61 +1416,35 @@ per-function contract.
 
 ```c
 struct qdrift_data {
-    size_t depth;
-    size_t samples;
-    double step_size;
-    uint64_t seed;
+        size_t depth;
+        size_t samples;
+        double step_size;
+        uint64_t seed;
 };
 
 struct qdrift {
-    struct circ ct;
-    struct qdrift_data dt;
-    struct qdrift_ranct ranct;
-    struct xoshiro256ss rng;
+        struct circ ct;
+        struct qdrift_data dt;
+        struct qdrift_ranct ranct;
+        struct xoshiro256ss rng;
+        struct phase2_step_writer *sw;
 };
-```
 
----
-
-```c
 int qdrift_init(struct qdrift *qd,
-    const struct qdrift_data *dt, data_id fid);
-```
-
-Initialise a qDRIFT simulation.  Loads Hamiltonian, builds
-the CDF, initialises the PRNG.
-
-**Return value:** 0 on success, -1 on error.
-
----
-
-```c
+        const struct qdrift_data *dt,
+        struct circ_hamil hm, enum stprep_kind sp_kind,
+        const void *sp_data,
+        struct phase2_step_writer *sw);
 void qdrift_free(struct qdrift *qd);
+int  qdrift_simul(struct qdrift *qd);
 ```
 
-Free all qDRIFT simulation resources.
-
----
-
-```c
-int qdrift_simul(struct qdrift *qd);
-```
-
-Run the qDRIFT simulation for `dt.samples` independent
-samples, each of depth `dt.depth`.
-
-**Return value:** 0 on success, -1 on error.
-
----
-
-```c
-int qdrift_write_res(struct qdrift *qd, data_id fid);
-```
-
-Write results to the `/circ_qdrift` group in the HDF5
-file.
-
-**Return value:** 0 on success, -1 on error.
+`qdrift_init` adopts the carriers, builds the CDF over
+the Hamiltonian's |c_k|, and seeds the PRNG.  When
+`dt.seed == 0` the function resolves the seed to the
+compiled-in default and writes the chosen value back
+into `qd->dt.seed`, so the caller can record it on
+disk.
 
 ---
 
@@ -1422,67 +1452,39 @@ file.
 
 ```c
 struct cmpsit_data {
-    uint64_t seed;
-    size_t length;
-    size_t depth;
-    size_t steps;
-    double angle_det;
-    double angle_rand;
-    size_t samples;
+        uint64_t seed;
+        size_t length;
+        size_t depth;
+        size_t steps;
+        double angle_det;
+        double angle_rand;
+        size_t samples;
 };
 
 struct cmpsit {
-    struct circ ct;
-    struct cmpsit_data dt;
-    struct cmpsit_ranct ranct;
-    struct xoshiro256ss rng;
+        struct circ ct;
+        struct cmpsit_data dt;
+        struct cmpsit_ranct ranct;
+        struct xoshiro256ss rng;
+        struct phase2_step_writer *sw;
 };
-```
 
----
-
-```c
 int cmpsit_init(struct cmpsit *cp,
-    const struct cmpsit_data *dt, data_id fid);
-```
-
-Initialise a composite simulation.  Loads Hamiltonian,
-splits into deterministic and randomised parts, builds the
-CDF for the randomised part, sorts the deterministic part
-lexicographically, initialises the PRNG.
-
-**Return value:** 0 on success, -1 on error.
-
----
-
-```c
+        const struct cmpsit_data *dt,
+        struct circ_hamil hm, enum stprep_kind sp_kind,
+        const void *sp_data,
+        struct phase2_step_writer *sw);
 void cmpsit_free(struct cmpsit *cp);
+int  cmpsit_simul(struct cmpsit *cp);
 ```
 
-Free all composite simulation resources.
-
----
-
-```c
-int cmpsit_simul(struct cmpsit *cp);
-```
-
-Run the composite simulation: for each of `dt.samples`
-samples, apply `dt.steps` second-order Trotter steps and
-measure.
-
-**Return value:** 0 on success, -1 on error.
-
----
-
-```c
-int cmpsit_write_res(struct cmpsit *cp, data_id fid);
-```
-
-Write results to the `/circ_cmpsit` group in the HDF5
-file.
-
-**Return value:** 0 on success, -1 on error.
+Same shape as the others.  `cmpsit_init` splits the
+Hamiltonian into deterministic and randomised parts,
+sorts the deterministic part lexicographically, builds
+the CDF for the randomised part, and seeds the PRNG
+(with the same `seed == 0` resolution as qDRIFT).
+`cmpsit_simul` runs `dt.samples` independent samples,
+each of `dt.steps` second-order Trotter steps.
 
 ---
 
@@ -1524,7 +1526,7 @@ Key groups:
 Pauli operators in HDF5 datasets use the standard encoding:
 I=0, X=1, Y=2, Z=3.  This differs from the internal packed
 encoding in `struct paulis` (Section 3.1); the conversion
-happens during data loading in `circ_hamil_from_file`.
+happens during data loading in `circ_hamil_load`.
 
 ---
 

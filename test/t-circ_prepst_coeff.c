@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include "log.h"
+#include "ph2run/data.h"
 #include "phase2.h"
 
 #include "circ_cache.h"
@@ -17,17 +18,25 @@
 
 static void t_norm_and_structure(void)
 {
-	struct circ ct = { 0 };
 	data_id fid = data_open(PH2_TESTDIR "/data/N4_closed.h5");
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open closed");
-	TEST_EQ(circ_init(&ct, fid, 1), 0);
-	TEST_EQ((int)ct.stprep_kind, (int)STPREP_COEFF_MATRIX);
+
+	struct circ_hamil hm;
+	TEST_EQ(data_hamil_load(fid, &hm), 0);
+	enum stprep_kind k;
+	TEST_EQ(data_state_prep_kind(fid, &k), 0);
+	TEST_EQ((int)k, (int)STPREP_COEFF_MATRIX);
+	struct data_coeff_matrix cm;
+	TEST_EQ(data_coeff_matrix_load(fid, &cm), 0);
+
+	struct circ ct = { 0 };
+	TEST_EQ(circ_init(&ct, hm, k, &cm, 1), 0);
 
 	TEST_EQ(circ_prepst(&ct), 0);
 
 	double sumsq = 0.0;
 	int nonzero = 0;
-	const uint64_t namp = UINT64_C(1) << ct.cm.n_qubits;
+	const uint64_t namp = UINT64_C(1) << ct.cm.nqb;
 	for (uint64_t i = 0; i < namp; i++) {
 		_Complex double z;
 		qreg_getamp(&ct.reg, i, &z);

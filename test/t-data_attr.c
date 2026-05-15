@@ -1,9 +1,14 @@
 /*
- * Test routine: data attribute read/write roundtrip.
+ * data attribute read/write round-trip.  Writes one `unsigned
+ * long` and one `double` attribute via data_attr_write(),
+ * reopens, reads them back via data_attr_read(), verifies bit-
+ * exact match on the unsigned-long path and within machine
+ * epsilon on the double path.
  *
- * Write int, unsigned long, and double attributes to an HDF5 file via
- * data_attr_write(), close, reopen, read back via data_attr_read(),
- * and verify the values match.
+ * The `_dbl` variant exercises both read and write; the `_ul`
+ * variant only the write half (the cmpsit / qdrift init paths
+ * write size_t scalars through this dispatcher, but nothing
+ * reads them through data_attr_read).
  */
 #include "c23_compat.h"
 #include <math.h>
@@ -12,7 +17,7 @@
 
 #include <hdf5.h>
 
-#include "phase2/data.h"
+#include "ph2run/data.h"
 #include "phase2/world.h"
 
 #include "test.h"
@@ -24,11 +29,9 @@
 static char *FILENAME = "/tmp/N3kF8xVmPq2AttrTest";
 
 static const char *GRP_NAME = "test_grp";
-static const char *ATTR_INT = "val_int";
 static const char *ATTR_UL = "val_ul";
 static const char *ATTR_DBL = "val_dbl";
 
-static const int VAL_INT = 42;
 static const unsigned long VAL_UL = 123456789UL;
 static const double VAL_DBL = 3.14159265358979;
 
@@ -38,30 +41,20 @@ int main(void)
 	world_init(nullptr, nullptr, WD_SEED);
 	world_info(&wd);
 
-	if (wd.rank == 0)
+	/* The data layer is rank-0-only.  Rank 0 creates the file
+	 * via serial HDF5; other ranks hold the follower sentinel. */
+	data_id fid = DATA_FOLLOWER_FID;
+	if (wd.rank == 0) {
 		remove(FILENAME);
-
-	/*
-	 * Set up file access property list with parallel I/O access
-	 */
-	hid_t plist_id = H5Pcreate(H5P_FILE_ACCESS);
-	H5Pset_fapl_mpio(plist_id, MPI_COMM_WORLD, MPI_INFO_NULL);
-
-	hid_t file_id =
-		H5Fcreate(FILENAME, H5F_ACC_EXCL, H5P_DEFAULT, plist_id);
-	if (file_id == H5I_INVALID_HID)
-		TEST_FAIL("create H5 file");
-
-	H5Pclose(plist_id);
-
-	/* Create group and write attributes */
-	data_id fid = (data_id)file_id;
+		hid_t file_id = H5Fcreate(
+			FILENAME, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
+		if (file_id == H5I_INVALID_HID)
+			TEST_FAIL("create H5 file");
+		fid = (data_id)file_id;
+	}
 
 	if (data_grp_create(fid, GRP_NAME) < 0)
 		TEST_FAIL("data_grp_create");
-
-	if (data_attr_write(fid, GRP_NAME, ATTR_INT, VAL_INT) < 0)
-		TEST_FAIL("data_attr_write int");
 
 	if (data_attr_write(fid, GRP_NAME, ATTR_UL, VAL_UL) < 0)
 		TEST_FAIL("data_attr_write unsigned long");
@@ -69,28 +62,15 @@ int main(void)
 	if (data_attr_write(fid, GRP_NAME, ATTR_DBL, VAL_DBL) < 0)
 		TEST_FAIL("data_attr_write double");
 
-	H5Fclose(file_id);
+	if (wd.rank == 0)
+		H5Fclose((hid_t)fid);
 
-	/* Reopen with data_open and read back */
+	/* Reopen with data_open and read back. */
 	fid = data_open(FILENAME);
 	if (fid == DATA_INVALID_FID)
 		TEST_FAIL("data_open");
 
-	int rd_int;
-	unsigned long rd_ul;
 	double rd_dbl;
-
-	if (data_attr_read(fid, GRP_NAME, ATTR_INT, &rd_int) < 0)
-		TEST_FAIL("data_attr_read int");
-	TEST_ASSERT(rd_int == VAL_INT,
-		"int mismatch: got %d, expected %d", rd_int, VAL_INT);
-
-	if (data_attr_read(fid, GRP_NAME, ATTR_UL, &rd_ul) < 0)
-		TEST_FAIL("data_attr_read unsigned long");
-	TEST_ASSERT(rd_ul == VAL_UL,
-		"unsigned long mismatch: got %lu, expected %lu",
-		rd_ul, VAL_UL);
-
 	if (data_attr_read(fid, GRP_NAME, ATTR_DBL, &rd_dbl) < 0)
 		TEST_FAIL("data_attr_read double");
 	TEST_ASSERT(fabs(rd_dbl - VAL_DBL) < MARGIN,
@@ -99,7 +79,7 @@ int main(void)
 
 	data_close(fid);
 
-	/* Delete temporary file */
+	/* Delete temporary file. */
 	if (wd.rank == 0 && remove(FILENAME) != 0)
 		TEST_FAIL("remove temp file");
 

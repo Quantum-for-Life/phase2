@@ -53,26 +53,28 @@ static void ranct_calc_cdf(
 	prob_cdf_from_iter(&rct->cdf, get_vals, &data);
 }
 
-int qdrift_init(
-	struct qdrift *qd, const struct qdrift_data *dt, const data_id fid)
+int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt,
+	struct circ_hamil hm, const enum stprep_kind sp_kind,
+	const void *sp_data, struct phase2_step_writer *sw)
 {
-	if (circ_init(&qd->ct, fid, dt->samples) < 0)
+	if (circ_init(&qd->ct, hm, sp_kind, sp_data, dt->samples) < 0)
 		goto err_circ_init;
 
 	qd->dt = *dt;
+	qd->sw = sw;
 
 	if (ranct_init(&qd->ranct, qd->ct.hm.qb, dt->depth, qd->ct.hm.len) < 0)
 		goto err_rct_init;
 	ranct_calc_cdf(&qd->ranct, qd->ct.hm.terms);
 
-	if (qd->dt.seed != 0) {
+	if (qd->dt.seed != 0)
 		SEED = qd->dt.seed;
-	}
-	xoshiro256ss_init(&qd->rng, SEED);
+	else
+		qd->dt.seed = SEED;
+	xoshiro256ss_init(&qd->rng, qd->dt.seed);
 
 	return 0;
 
-	ranct_free(&qd->ranct);
 err_rct_init:
 	circ_free(&qd->ct);
 err_circ_init:
@@ -127,34 +129,14 @@ int qdrift_simul(struct qdrift *qd)
 		}
 		vals->z[i] = circ_measure(ct);
 
+		if (qd->sw && qd->sw->write(qd->sw->ctx, i, vals->z[i]) < 0) {
+			log_error("qdrift_simul: write_step %zu failed", i);
+			return -1;
+		}
+
 		circ_prog_tick(&prog);
 		circ_prog_emit(&prog, LOG_SUBSYS);
 	}
 
 	return 0;
-}
-
-int qdrift_write_res(struct qdrift *qd, data_id fid)
-{
-	int rt = -1;
-
-	if (data_grp_create(fid, DATA_CIRCQDRIFT) < 0)
-		goto data_res_write;
-	if (data_attr_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_STEPSIZE,
-		    qd->dt.step_size) < 0)
-		goto data_res_write;
-	if (data_attr_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_DEPTH,
-		    qd->dt.depth) < 0)
-		goto data_res_write;
-	if (data_attr_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_SEED, SEED) <
-		0)
-		goto data_res_write;
-	if (data_res_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_VALUES,
-		    qd->ct.vals.z, qd->ct.vals.len) < 0)
-		goto data_res_write;
-
-	rt = 0;
-
-data_res_write:
-	return rt;
 }

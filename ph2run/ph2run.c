@@ -14,7 +14,89 @@
 #include "circ/trott2.h"
 #define LOG_SUBSYS "ph2run"
 #include "log.h"
+#include "ph2run/data.h"
 #include "phase2.h"
+
+/*
+ * One bundle of inputs read from simul.h5 ready for an
+ * algorithm: Hamiltonian, state-prep, plus the per-step
+ * writer.  Ownership of hm and the active state-prep
+ * struct transfers to the algorithm's *_init; ph2run keeps
+ * the writer and file handle for its own lifetime.
+ */
+struct cmd_inputs {
+	data_id fid;
+	struct circ_hamil hm;
+	enum stprep_kind sp_kind;
+	struct circ_muldet md;
+	struct data_coeff_matrix cm;
+	struct data_circ_writer wr;
+};
+
+static const void *cmd_inputs_sp_data(const struct cmd_inputs *io)
+{
+	switch (io->sp_kind) {
+	case STPREP_MULTIDET:
+		return &io->md;
+	case STPREP_COEFF_MATRIX:
+		return &io->cm;
+	}
+	return nullptr;
+}
+
+static int cmd_inputs_load(struct cmd_inputs *io, const char *file,
+	const char *grp, size_t n_steps)
+{
+	memset(io, 0, sizeof *io);
+	io->fid = data_open(file);
+	if (io->fid == DATA_INVALID_FID)
+		return -1;
+
+	if (data_hamil_load(io->fid, &io->hm) < 0)
+		goto err_hm;
+	if (data_state_prep_kind(io->fid, &io->sp_kind) < 0)
+		goto err_sp;
+	switch (io->sp_kind) {
+	case STPREP_MULTIDET:
+		if (data_muldet_load(io->fid, &io->md) < 0)
+			goto err_sp;
+		break;
+	case STPREP_COEFF_MATRIX:
+		if (data_coeff_matrix_load(io->fid, &io->cm) < 0)
+			goto err_sp;
+		break;
+	}
+	if (data_circ_writer_init(io->fid, grp, n_steps, &io->wr) < 0)
+		goto err_wr;
+	return 0;
+
+err_wr:
+	switch (io->sp_kind) {
+	case STPREP_MULTIDET:
+		circ_muldet_free(&io->md);
+		break;
+	case STPREP_COEFF_MATRIX:
+		data_coeff_matrix_free(&io->cm);
+		break;
+	}
+err_sp:
+	circ_hamil_free(&io->hm);
+err_hm:
+	data_close(io->fid);
+	io->fid = DATA_INVALID_FID;
+	return -1;
+}
+
+static void cmd_inputs_close(struct cmd_inputs *io)
+{
+	data_circ_writer_close(&io->wr);
+	data_close(io->fid);
+}
+
+static int step_thunk(void *ctx, size_t i, _Complex double z)
+{
+	return data_circ_write_step(ctx, i, z);
+}
 
 #define WD_SEED UINT64_C(0xd326119d4859ebb2)
 static struct world_info wd;
@@ -98,25 +180,6 @@ static error_t opts_parser(int key, char *arg, struct argp_state *state)
 
 static struct argp argp = { opts, opts_parser, args_doc, doc, 0, 0, 0 };
 
-static int data_exec(int (*fn)(data_id, void *), void *data)
-{
-	int rt = -1;
-
-	data_id fid;
-	log_info("open data file: %s", args.simul);
-	if ((fid = data_open(args.simul)) == DATA_INVALID_FID) {
-		log_error("open file: %s", args.simul);
-		return -1;
-	}
-
-	rt = fn(fid, data);
-
-	log_info("close data file: %s", args.simul);
-	data_close(fid);
-
-	return rt;
-}
-
 /* Commands */
 enum {
 	CMD_TROTT = 0,
@@ -134,40 +197,21 @@ static struct cmd_trott_dt {
 	.tt_dt = { .delta = 1.0, .steps = 1 }
 };
 
-static int cmd_trott_init(data_id fid, void *data)
-{
-	struct cmd_trott_dt *const dt = data;
-
-	log_info("*** Circuit: trott ***");
-	log_info("delta: %f", dt->tt_dt.delta);
-	log_info("num_steps: %zu", dt->tt_dt.steps);
-
-	return trott_init(&dt->tt, &dt->tt_dt, fid);
-}
-
-static int cmd_trott_write(data_id fid, void *data)
-{
-	int rt = -1;
-	struct cmd_trott_dt *const dt = data;
-
-	rt = trott_write_res(&dt->tt, fid);
-	trott_free(&dt->tt);
-
-	log_info("> Simulation summary (CSV):");
-	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
-	log_info("> %u,%zu,%zu,%f,%zu,%d,%.3f", dt->tt.ct.hm.qb,
-		dt->tt.ct.hm.len, dt->tt.ct.md.len, dt->tt_dt.delta,
-		dt->tt_dt.steps, wd.size, dt->t_tot);
-
-	return rt;
-}
-
 static int cmd_trott_run(void *data)
 {
 	struct cmd_trott_dt *dt = data;
 
 	log_info("running simulation: %zu Trotter steps", dt->tt_dt.steps);
 	return trott_simul(&dt->tt);
+}
+
+static void cmd_trott_summary(const struct cmd_trott_dt *dt)
+{
+	log_info("> Simulation summary (CSV):");
+	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
+	log_info("> %u,%zu,%zu,%f,%zu,%d,%.3f", dt->tt.ct.hm.qb,
+		dt->tt.ct.hm.len, dt->tt.ct.md.len, dt->tt_dt.delta,
+		dt->tt_dt.steps, wd.size, dt->t_tot);
 }
 
 #define doc_trott "Run 1st-order Trotter product formula."
@@ -217,26 +261,42 @@ static struct argp argp_trott = { opts_trott, opts_parser_trott, args_doc_trott,
 static int cmd_trott(void)
 {
 	int rt = -1;
+	struct cmd_inputs io;
+	log_info("open data file: %s", args.simul);
+	if (cmd_inputs_load(&io, args.simul, DATA_CIRCTROTT,
+		    cmd_trott_dt.tt_dt.steps) < 0)
+		goto ex_open;
 
-	if (data_exec(cmd_trott_init, &cmd_trott_dt) < 0) {
+	log_info("*** Circuit: trott ***");
+	log_info("delta: %f", cmd_trott_dt.tt_dt.delta);
+	log_info("num_steps: %zu", cmd_trott_dt.tt_dt.steps);
+	struct phase2_step_writer sw = { .ctx = &io.wr, .write = step_thunk };
+	if (trott_init(&cmd_trott_dt.tt, &cmd_trott_dt.tt_dt, io.hm,
+		    io.sp_kind, cmd_inputs_sp_data(&io), &sw) < 0) {
 		log_error("trott: init failed");
-		goto ex;
+		goto ex_close;
+	}
+	if (data_attr_write(io.fid, DATA_CIRCTROTT, DATA_CIRCTROTT_DELTA,
+		    cmd_trott_dt.tt_dt.delta) < 0) {
+		log_error("trott: write delta attribute failed");
+		goto ex_free;
 	}
 	if (timeit(cmd_trott_run, &cmd_trott_dt, &cmd_trott_dt.t_tot) < 0) {
 		log_error("trott: simulation failed after %.3f s",
 			cmd_trott_dt.t_tot);
-		goto ex;
+		goto ex_free;
 	}
 	log_info("simulation finished in %.3f s", cmd_trott_dt.t_tot);
-	if (data_exec(cmd_trott_write, &cmd_trott_dt) < 0) {
-		log_error("trott: writing results failed");
-		goto ex;
-	}
+	cmd_trott_summary(&cmd_trott_dt);
 
-	rt = 0; /* Success. */
-ex:
+	rt = 0;
+ex_free:
+	trott_free(&cmd_trott_dt.tt);
+ex_close:
+	log_info("close data file: %s", args.simul);
+	cmd_inputs_close(&io);
+ex_open:
 	log_info("Shut down simulation environment");
-
 	return rt;
 }
 
@@ -249,34 +309,6 @@ static struct cmd_trott2_dt {
 	.t2_dt = { .delta = 1.0, .steps = 1 }
 };
 
-static int cmd_trott2_init(data_id fid, void *data)
-{
-	struct cmd_trott2_dt *const dt = data;
-
-	log_info("*** Circuit: trott2 (Strang 2nd-order) ***");
-	log_info("delta: %f", dt->t2_dt.delta);
-	log_info("num_steps: %zu", dt->t2_dt.steps);
-
-	return trott2_init(&dt->t2, &dt->t2_dt, fid);
-}
-
-static int cmd_trott2_write(data_id fid, void *data)
-{
-	int rt = -1;
-	struct cmd_trott2_dt *const dt = data;
-
-	rt = trott2_write_res(&dt->t2, fid);
-	trott2_free(&dt->t2);
-
-	log_info("> Simulation summary (CSV):");
-	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
-	log_info("> %u,%zu,%zu,%f,%zu,%d,%.3f", dt->t2.ct.hm.qb,
-		dt->t2.ct.hm.len, dt->t2.ct.md.len, dt->t2_dt.delta,
-		dt->t2_dt.steps, wd.size, dt->t_tot);
-
-	return rt;
-}
-
 static int cmd_trott2_run(void *data)
 {
 	struct cmd_trott2_dt *dt = data;
@@ -284,6 +316,15 @@ static int cmd_trott2_run(void *data)
 	log_info("running simulation: %zu symmetric Trotter steps",
 		dt->t2_dt.steps);
 	return trott2_simul(&dt->t2);
+}
+
+static void cmd_trott2_summary(const struct cmd_trott2_dt *dt)
+{
+	log_info("> Simulation summary (CSV):");
+	log_info("> n_qb,n_terms,n_dets,delta,n_steps,n_ranks,t_tot");
+	log_info("> %u,%zu,%zu,%f,%zu,%d,%.3f", dt->t2.ct.hm.qb,
+		dt->t2.ct.hm.len, dt->t2.ct.md.len, dt->t2_dt.delta,
+		dt->t2_dt.steps, wd.size, dt->t_tot);
 }
 
 #define doc_trott2 "Run 2nd-order symmetric (Strang) Trotter product formula."
@@ -332,26 +373,42 @@ static struct argp argp_trott2 = { opts_trott2, opts_parser_trott2,
 static int cmd_trott2(void)
 {
 	int rt = -1;
+	struct cmd_inputs io;
+	log_info("open data file: %s", args.simul);
+	if (cmd_inputs_load(&io, args.simul, DATA_CIRCTROTT2,
+		    cmd_trott2_dt.t2_dt.steps) < 0)
+		goto ex_open;
 
-	if (data_exec(cmd_trott2_init, &cmd_trott2_dt) < 0) {
+	log_info("*** Circuit: trott2 (Strang 2nd-order) ***");
+	log_info("delta: %f", cmd_trott2_dt.t2_dt.delta);
+	log_info("num_steps: %zu", cmd_trott2_dt.t2_dt.steps);
+	struct phase2_step_writer sw = { .ctx = &io.wr, .write = step_thunk };
+	if (trott2_init(&cmd_trott2_dt.t2, &cmd_trott2_dt.t2_dt, io.hm,
+		    io.sp_kind, cmd_inputs_sp_data(&io), &sw) < 0) {
 		log_error("trott2: init failed");
-		goto ex;
+		goto ex_close;
+	}
+	if (data_attr_write(io.fid, DATA_CIRCTROTT2, DATA_CIRCTROTT2_DELTA,
+		    cmd_trott2_dt.t2_dt.delta) < 0) {
+		log_error("trott2: write delta attribute failed");
+		goto ex_free;
 	}
 	if (timeit(cmd_trott2_run, &cmd_trott2_dt, &cmd_trott2_dt.t_tot) < 0) {
 		log_error("trott2: simulation failed after %.3f s",
 			cmd_trott2_dt.t_tot);
-		goto ex;
+		goto ex_free;
 	}
 	log_info("simulation finished in %.3f s", cmd_trott2_dt.t_tot);
-	if (data_exec(cmd_trott2_write, &cmd_trott2_dt) < 0) {
-		log_error("trott2: writing results failed");
-		goto ex;
-	}
+	cmd_trott2_summary(&cmd_trott2_dt);
 
-	rt = 0; /* Success. */
-ex:
+	rt = 0;
+ex_free:
+	trott2_free(&cmd_trott2_dt.t2);
+ex_close:
+	log_info("close data file: %s", args.simul);
+	cmd_inputs_close(&io);
+ex_open:
 	log_info("Shut down simulation environment");
-
 	return rt;
 }
 
@@ -364,37 +421,6 @@ static struct cmd_qdrift_dt {
 	.qd_dt = { .step_size = 1.0, .depth = 64, .samples = 1, .seed = 1 }
 };
 
-static int cmd_qdrift_init(data_id fid, void *data)
-{
-	struct cmd_qdrift_dt *const dt = data;
-
-	log_info("*** Circuit: qdrift ***");
-	log_info("step_size: %f", dt->qd_dt.step_size);
-	log_info("depth: %zu", dt->qd_dt.depth);
-	log_info("samples: %zu", dt->qd_dt.samples);
-	log_info("seed: %lu", dt->qd_dt.seed);
-
-	return qdrift_init(&dt->qd, &dt->qd_dt, fid);
-}
-
-static int cmd_qdrift_write(data_id fid, void *data)
-{
-	int rt = -1;
-	struct cmd_qdrift_dt *const dt = data;
-
-	rt = qdrift_write_res(&dt->qd, fid);
-	qdrift_free(&dt->qd);
-
-	log_info("> Simulation summary (CSV):");
-	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
-		 "n_ranks,t_tot");
-	log_info("> %u,%zu,%zu,%zu,%.6f,%zu,%d,%.3f", dt->qd.ct.hm.qb,
-		dt->qd.ct.hm.len, dt->qd.ct.md.len, dt->qd_dt.samples,
-		dt->qd_dt.step_size, dt->qd_dt.depth, wd.size, dt->t_tot);
-
-	return rt;
-}
-
 static int cmd_qdrift_run(void *data)
 {
 	struct cmd_qdrift_dt *dt = data;
@@ -402,6 +428,16 @@ static int cmd_qdrift_run(void *data)
 	log_info("running simulation: %zu samples, depth %zu",
 		dt->qd_dt.samples, dt->qd_dt.depth);
 	return qdrift_simul(&dt->qd);
+}
+
+static void cmd_qdrift_summary(const struct cmd_qdrift_dt *dt)
+{
+	log_info("> Simulation summary (CSV):");
+	log_info("> n_qb,n_terms,n_dets,n_samples,step_size,depth,"
+		 "n_ranks,t_tot");
+	log_info("> %u,%zu,%zu,%zu,%.6f,%zu,%d,%.3f", dt->qd.ct.hm.qb,
+		dt->qd.ct.hm.len, dt->qd.ct.md.len, dt->qd_dt.samples,
+		dt->qd_dt.step_size, dt->qd_dt.depth, wd.size, dt->t_tot);
 }
 
 #define doc_qdrift "Run qDRIFT randomised product formula."
@@ -460,26 +496,54 @@ static struct argp argp_qdrift = { opts_qdrift, opts_parser_qdrift,
 int cmd_qdrift(void)
 {
 	int rt = -1;
+	struct cmd_inputs io;
+	log_info("open data file: %s", args.simul);
+	if (cmd_inputs_load(&io, args.simul, DATA_CIRCQDRIFT,
+		    cmd_qdrift_dt.qd_dt.samples) < 0)
+		goto ex_open;
 
-	if (data_exec(cmd_qdrift_init, &cmd_qdrift_dt) < 0) {
+	log_info("*** Circuit: qdrift ***");
+	log_info("step_size: %f", cmd_qdrift_dt.qd_dt.step_size);
+	log_info("depth: %zu", cmd_qdrift_dt.qd_dt.depth);
+	log_info("samples: %zu", cmd_qdrift_dt.qd_dt.samples);
+	log_info("seed: %lu", cmd_qdrift_dt.qd_dt.seed);
+	struct phase2_step_writer sw = { .ctx = &io.wr, .write = step_thunk };
+	if (qdrift_init(&cmd_qdrift_dt.qd, &cmd_qdrift_dt.qd_dt, io.hm,
+		    io.sp_kind, cmd_inputs_sp_data(&io), &sw) < 0) {
 		log_error("qdrift: init failed");
-		goto ex;
+		goto ex_close;
+	}
+	/* qdrift_init may resolve seed=0 to the compiled-in
+	 * default; the attribute records the seed actually used. */
+	if (data_attr_write(io.fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_STEPSIZE,
+		    cmd_qdrift_dt.qd_dt.step_size) < 0
+		|| data_attr_write(io.fid, DATA_CIRCQDRIFT,
+			   DATA_CIRCQDRIFT_DEPTH, cmd_qdrift_dt.qd_dt.depth) < 0
+		|| data_attr_write(io.fid, DATA_CIRCQDRIFT,
+			   DATA_CIRCQDRIFT_NUMSAMPLES,
+			   cmd_qdrift_dt.qd_dt.samples) < 0
+		|| data_attr_write(io.fid, DATA_CIRCQDRIFT,
+			   DATA_CIRCQDRIFT_SEED,
+			   (unsigned long)cmd_qdrift_dt.qd.dt.seed) < 0) {
+		log_error("qdrift: writing scalar attributes failed");
+		goto ex_free;
 	}
 	if (timeit(cmd_qdrift_run, &cmd_qdrift_dt, &cmd_qdrift_dt.t_tot) < 0) {
 		log_error("qdrift: simulation failed after %.3f s",
 			cmd_qdrift_dt.t_tot);
-		goto ex;
+		goto ex_free;
 	}
 	log_info("simulation finished in %.3f s", cmd_qdrift_dt.t_tot);
-	if (data_exec(cmd_qdrift_write, &cmd_qdrift_dt) < 0) {
-		log_error("qdrift: writing results failed");
-		goto ex;
-	}
+	cmd_qdrift_summary(&cmd_qdrift_dt);
 
-	rt = 0; /* Success. */
-ex:
+	rt = 0;
+ex_free:
+	qdrift_free(&cmd_qdrift_dt.qd);
+ex_close:
+	log_info("close data file: %s", args.simul);
+	cmd_inputs_close(&io);
+ex_open:
 	log_info("Shut down simulation environment");
-
 	return rt;
 }
 
@@ -500,42 +564,6 @@ static struct cmd_cmpsit_dt {
 	}
 };
 
-static int cmd_cmpsit_init(data_id fid, void *data)
-{
-	struct cmd_cmpsit_dt *const dt = data;
-
-	log_info("*** Circuit: cmpsit ***");
-	log_info("seed: %lu", dt->cp_dt.seed);
-	log_info("length: %zu", dt->cp_dt.length);
-	log_info("depth: %zu", dt->cp_dt.depth);
-	log_info("steps: %zu", dt->cp_dt.steps);
-	log_info("angle_det: %.16f", dt->cp_dt.angle_det);
-	log_info("angle_rand: %.16f", dt->cp_dt.angle_rand);
-	log_info("samples: %zu", dt->cp_dt.samples);
-
-	return cmpsit_init(&dt->cp, &dt->cp_dt, fid);
-}
-
-static int cmd_cmpsit_write(data_id fid, void *data)
-{
-	int rt = -1;
-	struct cmd_cmpsit_dt *const dt = data;
-
-	rt = cmpsit_write_res(&dt->cp, fid);
-	cmpsit_free(&dt->cp);
-
-	log_info("> Simulation summary (CSV):");
-	log_info("> n_qb,n_terms,n_dets,samples,length,depth,angle_det"
-		 ",angle_rand,steps,n_ranks,t_tot");
-	log_info("> %u,%zu,%zu,%zu,%zu,%zu,%.16f,%.16f,%zu,%d,%.3f",
-		dt->cp.ct.hm.qb, dt->cp.ct.hm.len, dt->cp.ct.md.len,
-		dt->cp_dt.samples, dt->cp_dt.length, dt->cp_dt.depth,
-		dt->cp_dt.angle_det, dt->cp_dt.angle_rand, dt->cp_dt.steps,
-		wd.size, dt->t_tot);
-
-	return rt;
-}
-
 static int cmd_cmpsit_run(void *data)
 {
 	struct cmd_cmpsit_dt *dt = data;
@@ -545,6 +573,18 @@ static int cmd_cmpsit_run(void *data)
 		dt->cp_dt.samples, dt->cp_dt.steps, dt->cp_dt.length,
 		dt->cp_dt.depth);
 	return cmpsit_simul(&dt->cp);
+}
+
+static void cmd_cmpsit_summary(const struct cmd_cmpsit_dt *dt)
+{
+	log_info("> Simulation summary (CSV):");
+	log_info("> n_qb,n_terms,n_dets,samples,length,depth,angle_det"
+		 ",angle_rand,steps,n_ranks,t_tot");
+	log_info("> %u,%zu,%zu,%zu,%zu,%zu,%.16f,%.16f,%zu,%d,%.3f",
+		dt->cp.ct.hm.qb, dt->cp.ct.hm.len, dt->cp.ct.md.len,
+		dt->cp_dt.samples, dt->cp_dt.length, dt->cp_dt.depth,
+		dt->cp_dt.angle_det, dt->cp_dt.angle_rand, dt->cp_dt.steps,
+		wd.size, dt->t_tot);
 }
 
 #define doc_cmpsit                                                             \
@@ -619,26 +659,62 @@ static struct argp argp_cmpsit = { opts_cmpsit, opts_parser_cmpsit,
 int cmd_cmpsit(void)
 {
 	int rt = -1;
+	struct cmd_inputs io;
+	log_info("open data file: %s", args.simul);
+	if (cmd_inputs_load(&io, args.simul, DATA_CIRCCMPSIT,
+		    cmd_cmpsit_dt.cp_dt.samples) < 0)
+		goto ex_open;
 
-	if (data_exec(cmd_cmpsit_init, &cmd_cmpsit_dt) < 0) {
+	log_info("*** Circuit: cmpsit ***");
+	log_info("seed: %lu", cmd_cmpsit_dt.cp_dt.seed);
+	log_info("length: %zu", cmd_cmpsit_dt.cp_dt.length);
+	log_info("depth: %zu", cmd_cmpsit_dt.cp_dt.depth);
+	log_info("steps: %zu", cmd_cmpsit_dt.cp_dt.steps);
+	log_info("angle_det: %.16f", cmd_cmpsit_dt.cp_dt.angle_det);
+	log_info("angle_rand: %.16f", cmd_cmpsit_dt.cp_dt.angle_rand);
+	log_info("samples: %zu", cmd_cmpsit_dt.cp_dt.samples);
+	struct phase2_step_writer sw = { .ctx = &io.wr, .write = step_thunk };
+	if (cmpsit_init(&cmd_cmpsit_dt.cp, &cmd_cmpsit_dt.cp_dt, io.hm,
+		    io.sp_kind, cmd_inputs_sp_data(&io), &sw) < 0) {
 		log_error("cmpsit: init failed");
-		goto ex;
+		goto ex_close;
+	}
+	if (data_attr_write(io.fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_LENGTH,
+		    cmd_cmpsit_dt.cp_dt.length) < 0
+		|| data_attr_write(io.fid, DATA_CIRCCMPSIT,
+			   DATA_CIRCCMPSIT_DEPTH,
+			   cmd_cmpsit_dt.cp_dt.depth) < 0
+		|| data_attr_write(io.fid, DATA_CIRCCMPSIT,
+			   DATA_CIRCCMPSIT_ANGLEDET,
+			   cmd_cmpsit_dt.cp_dt.angle_det) < 0
+		|| data_attr_write(io.fid, DATA_CIRCCMPSIT,
+			   DATA_CIRCCMPSIT_ANGLERAND,
+			   cmd_cmpsit_dt.cp_dt.angle_rand) < 0
+		|| data_attr_write(io.fid, DATA_CIRCCMPSIT,
+			   DATA_CIRCCMPSIT_STEPS,
+			   cmd_cmpsit_dt.cp_dt.steps) < 0
+		|| data_attr_write(io.fid, DATA_CIRCCMPSIT,
+			   DATA_CIRCCMPSIT_SEED,
+			   (unsigned long)cmd_cmpsit_dt.cp.dt.seed) < 0) {
+		log_error("cmpsit: writing scalar attributes failed");
+		goto ex_free;
 	}
 	if (timeit(cmd_cmpsit_run, &cmd_cmpsit_dt, &cmd_cmpsit_dt.t_tot) < 0) {
 		log_error("cmpsit: simulation failed after %.3f s",
 			cmd_cmpsit_dt.t_tot);
-		goto ex;
+		goto ex_free;
 	}
 	log_info("simulation finished in %.3f s", cmd_cmpsit_dt.t_tot);
-	if (data_exec(cmd_cmpsit_write, &cmd_cmpsit_dt) < 0) {
-		log_error("cmpsit: writing results failed");
-		goto ex;
-	}
+	cmd_cmpsit_summary(&cmd_cmpsit_dt);
 
-	rt = 0; /* Success. */
-ex:
+	rt = 0;
+ex_free:
+	cmpsit_free(&cmd_cmpsit_dt.cp);
+ex_close:
+	log_info("close data file: %s", args.simul);
+	cmd_inputs_close(&io);
+ex_open:
 	log_info("Shut down simulation environment");
-
 	return rt;
 }
 

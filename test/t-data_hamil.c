@@ -1,10 +1,20 @@
+/*
+ * Test the data_hamil_load API on every committed fixture
+ * carrying a /pauli_hamil group.  Asserts: qb, len, and (for
+ * the second fixture) per-term coefficient and packed Pauli
+ * operator.  Coefficients are scaled by the on-disk norm at
+ * load time; the per-term cf check folds the norm in
+ * implicitly.
+ */
 #include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 
-#include "phase2/data.h"
+#include "phase2/circ.h"
+#include "ph2run/data.h"
+#include "phase2/paulis.h"
 #include "phase2/world.h"
 
 #include "t-data.h"
@@ -14,166 +24,43 @@
 
 #define MARGIN (1.0e-8)
 
-static int t_getnums(void)
+static int t_dims_and_packing(void)
 {
 	int rc = 0;
 	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
-		struct test_data td = TEST_DATA[i];
-		const char *filename = td.filename;
+		const struct test_data td = TEST_DATA[i];
 
-		data_id fid = data_open(filename);
+		data_id fid = data_open(td.filename);
 		if (fid == DATA_INVALID_FID) {
-			TEST_FAIL("open file: %s", filename);
+			TEST_FAIL("open file: %s", td.filename);
 			rc = -1;
 			break;
 		}
 
-		uint32_t num_qubits = 0;
-		size_t num_terms = 0;
-		if (data_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
-			TEST_FAIL("read hamil getnums()");
+		struct circ_hamil hm;
+		if (data_hamil_load(fid, &hm) < 0) {
+			TEST_FAIL("data_hamil_load on %s", td.filename);
 			rc = -1;
+			data_close(fid);
 			break;
 		}
-		if (num_qubits != td.num_qubits) {
-			TEST_FAIL("wrong number of qubits in hamil: %u",
-				num_qubits);
+		if (hm.qb != td.num_qubits) {
+			TEST_FAIL("wrong number of qubits: %zu vs %zu",
+				(size_t)hm.qb, td.num_qubits);
 			rc = -1;
 		}
-		if (num_terms != td.num_terms) {
-			TEST_FAIL(
-				"wrong number of hamil terms: %zu", num_terms);
+		if (hm.len != td.num_terms) {
+			TEST_FAIL("wrong number of terms: %zu vs %zu",
+				hm.len, td.num_terms);
 			rc = -1;
 		}
+		circ_hamil_free(&hm);
 		data_close(fid);
 	}
-
 	return rc;
 }
 
-static int t_getnorm(void)
-{
-	int rc = 0;
-	for (size_t i = 0; i < NUM_TEST_FILES; i++) {
-		struct test_data td = TEST_DATA[i];
-		const char *filename = td.filename;
-
-		data_id fid = data_open(filename);
-		if (fid == DATA_INVALID_FID) {
-			TEST_FAIL("open file: %s", filename);
-			rc = -1;
-			break;
-		}
-
-		double norm;
-		if (data_hamil_getnorm(fid, &norm) < 0) {
-			TEST_FAIL("read multidet getnums()");
-			rc = -1;
-			break;
-		}
-		if (fabs(norm - td.norm) > MARGIN) {
-			TEST_FAIL("norm for hamil: %f (expect. %f)", norm,
-				td.norm);
-			rc = -1;
-		}
-
-		data_close(fid);
-	}
-
-	return rc;
-}
-
-static int iter_count(double coeff, unsigned char *paulis, void *op_data)
-{
-	(void)coeff;
-	(void)paulis;
-
-	size_t *count = op_data;
-	(*count)++;
-
-	return 0;
-}
-
-static int iter_count_onlytwo(
-	double coeff, unsigned char *paulis, void *op_data)
-{
-	(void)coeff;
-	(void)paulis;
-
-	size_t *count = op_data;
-	(*count)++;
-	if (*count == 2)
-		return 77;
-
-	return 0;
-}
-
-struct iter_store {
-	size_t idx;
-	size_t num_qubits;
-	double coeffs[128];
-	unsigned char paulis[128];
-};
-
-static int iter_store(double coeff, unsigned char *paulis, void *op_data)
-{
-	struct iter_store *is = op_data;
-
-	is->coeffs[is->idx] = coeff;
-	for (size_t i = 0; i < is->num_qubits; i++) {
-		size_t store_idx = is->idx * is->num_qubits + i;
-		if (store_idx < 128)
-			is->paulis[store_idx] = paulis[i];
-	}
-	is->idx++;
-
-	return 0;
-}
-
-static int t_iter0(void)
-{
-	const struct test_data td = TEST_DATA[0];
-	data_id fid = data_open(td.filename);
-	if (fid == DATA_INVALID_FID) {
-		TEST_FAIL("open file: %s", td.filename);
-		return -1;
-	}
-
-	uint32_t num_qubits;
-	size_t num_terms;
-	if (data_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
-		TEST_FAIL("wron number of qubits and terms: %u, %zu",
-			num_qubits, num_terms);
-		goto err;
-	}
-
-	size_t count = 0;
-	if (data_hamil_foreach(fid, iter_count, &count) != 0) {
-		TEST_FAIL("iteration terminated early");
-		goto err;
-	}
-	if (count != td.num_terms) {
-		TEST_FAIL("number of iterations: %zu", count);
-		goto err;
-	}
-
-	count = 0;
-	if (data_hamil_foreach(fid, iter_count_onlytwo, &count) == 0) {
-		TEST_FAIL("iteration didn't terminate early");
-		goto err;
-	}
-	if (count != 2) {
-		TEST_FAIL("number of iterations: %zu", count);
-		goto err;
-	}
-	data_close(fid);
-	return 0;
-err:
-	data_close(fid);
-	return -1;
-}
-
-static int t_iter1(void)
+static int t_terms(void)
 {
 	const struct test_data td = TEST_DATA[1];
 	data_id fid = data_open(td.filename);
@@ -182,88 +69,48 @@ static int t_iter1(void)
 		return -1;
 	}
 
-	uint32_t num_qubits;
-	size_t num_terms;
-	if (data_hamil_getnums(fid, &num_qubits, &num_terms) < 0) {
-		TEST_FAIL("wron number of qubits and terms: %u, %zu",
-			num_qubits, num_terms);
-		goto err;
+	struct circ_hamil hm;
+	if (data_hamil_load(fid, &hm) < 0) {
+		TEST_FAIL("data_hamil_load on %s", td.filename);
+		data_close(fid);
+		return -1;
 	}
 
-	size_t count = 0;
-	if (data_hamil_foreach(fid, iter_count, &count) != 0) {
-		TEST_FAIL("iteration terminated early");
-		goto err;
-	}
-	if (count != td.num_terms) {
-		TEST_FAIL("number of iterations: %zu", count);
-		goto err;
-	}
-
-	count = 0;
-	if (data_hamil_foreach(fid, iter_count_onlytwo, &count) == 0) {
-		TEST_FAIL("iteration didn't terminate early");
-		goto err;
-	}
-	if (count != 2) {
-		TEST_FAIL("number of iterations: %zu", count);
-		goto err;
-	}
-
-	struct iter_store is;
-	is.idx = 0;
-	is.num_qubits = num_qubits;
-	if (data_hamil_foreach(fid, iter_store, &is) != 0) {
-		TEST_FAIL("iteration terminated early");
-		goto err;
-	}
-	double exp_coeff[] = { 0.64604963, 0.16592673, 0.90327525, -0.18683327,
-		-0.18315831, 0.57830137, 0.71210119, -0.96550733, 0.21017606,
-		-0.84378561 };
-	unsigned char exp_paulis[] = { 0, 3, 1, 3, 0, 3, 0, 1, 0, 1, 1, 3, 0, 3,
-		0, 2, 1, 3, 1, 0, 0, 3, 2, 1, 2, 3, 1, 1, 1, 1 };
-	for (size_t i = 0; i < num_terms; i++) {
-		if (fabs(is.coeffs[i] - exp_coeff[i]) > MARGIN) {
-			TEST_FAIL("coeff[%zu] stored: %f vs. expected: %f", i,
-				is.coeffs[i], exp_coeff[i]);
-			goto err;
+	int rc = 0;
+	const double exp_coeff[] = { 0.64604963, 0.16592673, 0.90327525,
+		-0.18683327, -0.18315831, 0.57830137, 0.71210119, -0.96550733,
+		0.21017606, -0.84378561 };
+	const unsigned char exp_paulis[] = { 0, 3, 1, 3, 0, 3, 0, 1, 0, 1, 1,
+		3, 0, 3, 0, 2, 1, 3, 1, 0, 0, 3, 2, 1, 2, 3, 1, 1, 1, 1 };
+	for (size_t i = 0; i < hm.len; i++) {
+		const double exp_cf = exp_coeff[i] * td.norm;
+		if (fabs(hm.terms[i].cf - exp_cf) > MARGIN) {
+			TEST_FAIL("term[%zu].cf: %f vs %f", i,
+				hm.terms[i].cf, exp_cf);
+			rc = -1;
+		}
+		struct paulis exp_op = paulis_new();
+		for (uint32_t j = 0; j < hm.qb; j++)
+			paulis_set(&exp_op,
+				exp_paulis[i * hm.qb + j], j);
+		if (!paulis_eq(hm.terms[i].op, exp_op)) {
+			TEST_FAIL("term[%zu].op mismatch", i);
+			rc = -1;
 		}
 	}
-	for (size_t i = 0; i < num_terms * num_qubits; i++) {
-		if (is.paulis[i] != exp_paulis[i]) {
-			TEST_FAIL("pauli[%zu] stored: %u vs. expected: %u", i,
-				is.paulis[i], exp_paulis[i]);
-			goto err;
-		}
-	}
-
+	circ_hamil_free(&hm);
 	data_close(fid);
-	return 0;
-err:
-	data_close(fid);
-	return -1;
-}
-
-static int t_iter(void)
-{
-	if (t_iter0() < 0)
-		return -1;
-	if (t_iter1() < 0)
-		return -1;
-
-	return 0;
+	return rc;
 }
 
 int main(void)
 {
 	world_init(nullptr, nullptr, WD_SEED);
 
-	if (t_getnums() < 0)
-		TEST_FAIL("getnums");
-	if (t_getnorm() < 0)
-		TEST_FAIL("getnorm");
-	if (t_iter() < 0)
-		TEST_FAIL("iter");
+	if (t_dims_and_packing() < 0)
+		TEST_FAIL("dims_and_packing");
+	if (t_terms() < 0)
+		TEST_FAIL("terms");
 
 	world_free();
 }
