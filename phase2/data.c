@@ -27,6 +27,7 @@
 #include "log.h"
 #include "phase2/circ.h"
 #include "phase2/data.h"
+#include "phase2/paulis.h"
 #include "phase2/world.h"
 #include <complex.h>
 
@@ -502,22 +503,10 @@ int data_multidet_load(data_id fid, struct data_multidet *m)
 
 /* -- pauli_hamil ------------------------------------------------------ */
 
-void data_hamil_free(struct data_hamil *h)
-{
-	if (!h)
-		return;
-	free((void *)h->cfs);
-	free((void *)h->paulis);
-	h->cfs = NULL;
-	h->paulis = NULL;
-}
-
-int data_hamil_load(data_id fid, struct data_hamil *h)
+int circ_hamil_load(data_id fid, struct circ_hamil *hm)
 {
 	if (world_info(&WD) != WORLD_READY)
 		return -1;
-
-	memset(h, 0, sizeof *h);
 
 	int rt = 0;
 	uint32_t v_nqb = 0;
@@ -528,7 +517,7 @@ int data_hamil_load(data_id fid, struct data_hamil *h)
 		const hid_t grp_id = H5Gopen(
 			(hid_t)fid, DATA_HAMIL, H5P_DEFAULT);
 		if (grp_id == H5I_INVALID_HID) {
-			log_error("data_hamil_load: H5Gopen(%s) failed",
+			log_error("circ_hamil_load: H5Gopen(%s) failed",
 				DATA_HAMIL);
 			goto ex_dims;
 		}
@@ -555,7 +544,7 @@ int data_hamil_load(data_id fid, struct data_hamil *h)
 	double *cfs = malloc(sizeof *cfs * v_nterms);
 	unsigned char *paulis = malloc(sizeof *paulis * v_nterms * v_nqb);
 	if (!cfs || !paulis) {
-		log_error("data_hamil_load: alloc failed"
+		log_error("circ_hamil_load: alloc failed"
 			  " (nterms=%zu, nqb=%u)", v_nterms, v_nqb);
 		free(cfs);
 		free(paulis);
@@ -566,7 +555,7 @@ int data_hamil_load(data_id fid, struct data_hamil *h)
 		const hid_t grp_id = H5Gopen(
 			(hid_t)fid, DATA_HAMIL, H5P_DEFAULT);
 		if (grp_id == H5I_INVALID_HID) {
-			log_error("data_hamil_load: H5Gopen(%s) failed",
+			log_error("circ_hamil_load: H5Gopen(%s) failed",
 				DATA_HAMIL);
 			rt = -1;
 		} else {
@@ -587,11 +576,20 @@ int data_hamil_load(data_id fid, struct data_hamil *h)
 	bcast_doubles(cfs, v_nterms);
 	bcast_uchars(paulis, v_nterms * v_nqb);
 
-	h->nqb = v_nqb;
-	h->nterms = v_nterms;
-	h->norm = v_norm;
-	h->cfs = cfs;
-	h->paulis = paulis;
+	if (circ_hamil_init(hm, v_nqb, v_nterms) < 0) {
+		free(cfs);
+		free(paulis);
+		return -1;
+	}
+	for (size_t i = 0; i < v_nterms; i++) {
+		hm->terms[i].cf = cfs[i] * v_norm;
+		struct paulis op = paulis_new();
+		for (uint32_t j = 0; j < v_nqb; j++)
+			paulis_set(&op, paulis[i * v_nqb + j], j);
+		hm->terms[i].op = op;
+	}
+	free(cfs);
+	free(paulis);
 	return 0;
 }
 

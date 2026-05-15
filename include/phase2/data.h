@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+struct circ_hamil;
+
 #define DATA_INVALID_FID INT64_C(-1)
 
 /*
@@ -156,29 +158,19 @@ int data_coeff_matrix_load(data_id fid, struct data_coeff_matrix *cm);
 void data_coeff_matrix_free(struct data_coeff_matrix *cm);
 
 /**
- * Raw Hamiltonian data read from /pauli_hamil.
+ * Load /pauli_hamil into a packed circ_hamil.
  *
- *   nqb     qubit count of the Pauli strings
- *   nterms  number of terms in the Hamiltonian
- *   norm    normalisation factor; coefficients should be
- *           multiplied by this value before use
- *   cfs     flat double array of length nterms
- *   paulis  flat byte array of shape (nterms, nqb), single-
- *           qubit Pauli operators encoded as 0=I, 1=X, 2=Y, 3=Z
+ * Reads dimensions, normalisation, coefficients, and Pauli
+ * strings from /pauli_hamil on rank 0, broadcasts them to
+ * followers, then allocates the packed term array via
+ * circ_hamil_init().  Each term's coefficient is multiplied
+ * by the on-disk norm; its Pauli operator is packed into a
+ * struct paulis via paulis_set().  Release with
+ * circ_hamil_free().
  *
- * data_hamil_load() allocates cfs and paulis and fills the
- * scalars; data_hamil_free() releases them.
+ * Returns 0 on success, -1 on error.
  */
-struct data_hamil {
-	uint32_t nqb;
-	size_t nterms;
-	double norm;
-	const double *cfs;
-	const unsigned char *paulis;
-};
-
-int data_hamil_load(data_id fid, struct data_hamil *h);
-void data_hamil_free(struct data_hamil *h);
+int circ_hamil_load(data_id fid, struct circ_hamil *hm);
 
 /*
  * Per-step write API for /circ_{trott,trott2,qdrift,cmpsit}.

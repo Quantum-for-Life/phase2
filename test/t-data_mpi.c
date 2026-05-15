@@ -3,8 +3,9 @@
  *
  *   1. data_open returns a real fid on rank 0 and
  *      DATA_FOLLOWER_FID on other ranks.
- *   2. The collective Hamiltonian read produces byte-equal
- *      buffers on every rank (Bcast worked).
+ *   2. The collective Hamiltonian read via circ_hamil_load
+ *      produces byte-equal packed terms on every rank
+ *      (Bcast worked).
  *   3. data_circ_writer_init pre-allocates the values dataset
  *      with NaN padding and caches the open handle;
  *      data_circ_write_step fills rows one at a time --
@@ -26,7 +27,9 @@
 
 #include "mpi.h"
 
+#include "phase2/circ.h"
 #include "phase2/data.h"
+#include "phase2/paulis.h"
 #include "phase2/world.h"
 
 #include "test.h"
@@ -41,8 +44,8 @@
 static char *FILENAME = "/tmp/t-data_mpi.h5";
 
 /* Rank 0 builds a tiny pauli_hamil group; the test then
- * reads it through data_hamil_load on every rank and
- * confirms every rank ends up with the same bytes. */
+ * reads it through circ_hamil_load on every rank and
+ * confirms every rank ends up with the same packed terms. */
 static int build_hamil_fixture(void)
 {
 	const hid_t f = H5Fcreate(
@@ -107,26 +110,32 @@ static void t_bcast_buffers_match(void)
 	const data_id fid = data_open(FILENAME);
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open for bcast test");
 
-	struct data_hamil h;
-	TEST_EQ(data_hamil_load(fid, &h), 0);
-	TEST_EQ(h.nqb, (uint32_t)N_QB);
-	TEST_EQ(h.nterms, (size_t)N_TERMS);
+	struct circ_hamil hm;
+	TEST_EQ(circ_hamil_load(fid, &hm), 0);
+	TEST_EQ(hm.qb, (uint32_t)N_QB);
+	TEST_EQ(hm.len, (size_t)N_TERMS);
 
-	/* Send rank-0's buffer to all ranks via a second bcast,
-	 * compare against what each rank loaded. */
+	/* Send rank-0's packed values to all ranks via a second
+	 * bcast, compare against what each rank loaded. */
 	double ref_cfs[N_TERMS];
-	unsigned char ref_pa[N_TERMS * N_QB];
-	memcpy(ref_cfs, h.cfs, sizeof ref_cfs);
-	memcpy(ref_pa, h.paulis, sizeof ref_pa);
+	struct paulis ref_ops[N_TERMS];
+	for (size_t i = 0; i < N_TERMS; i++) {
+		ref_cfs[i] = hm.terms[i].cf;
+		ref_ops[i] = hm.terms[i].op;
+	}
 	MPI_Bcast(ref_cfs, N_TERMS, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	MPI_Bcast(ref_pa, N_TERMS * N_QB, MPI_UNSIGNED_CHAR, 0,
-		MPI_COMM_WORLD);
-	TEST_ASSERT(memcmp(ref_cfs, h.cfs, sizeof ref_cfs) == 0,
-		"hamil coeffs differ between rank 0 and this rank");
-	TEST_ASSERT(memcmp(ref_pa, h.paulis, sizeof ref_pa) == 0,
-		"hamil paulis differ between rank 0 and this rank");
+	MPI_Bcast(ref_ops, N_TERMS * (int)sizeof(struct paulis),
+		MPI_BYTE, 0, MPI_COMM_WORLD);
+	for (size_t i = 0; i < N_TERMS; i++) {
+		TEST_ASSERT(ref_cfs[i] == hm.terms[i].cf,
+			"term[%zu].cf differs between rank 0 and this rank",
+			i);
+		TEST_ASSERT(paulis_eq(ref_ops[i], hm.terms[i].op),
+			"term[%zu].op differs between rank 0 and this rank",
+			i);
+	}
 
-	data_hamil_free(&h);
+	circ_hamil_free(&hm);
 	data_close(fid);
 }
 

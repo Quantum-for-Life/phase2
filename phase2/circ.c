@@ -36,26 +36,6 @@ void circ_hamil_free(struct circ_hamil *hm)
 		free(hm->terms);
 }
 
-static int circ_hamil_from_file(struct circ_hamil *h, const data_id fid)
-{
-	struct data_hamil raw;
-	if (data_hamil_load(fid, &raw) < 0)
-		return -1;
-	if (circ_hamil_init(h, raw.nqb, raw.nterms) < 0) {
-		data_hamil_free(&raw);
-		return -1;
-	}
-	for (size_t i = 0; i < raw.nterms; i++) {
-		h->terms[i].cf = raw.cfs[i] * raw.norm;
-		struct paulis op = paulis_new();
-		for (uint32_t j = 0; j < raw.nqb; j++)
-			paulis_set(&op, raw.paulis[i * raw.nqb + j], j);
-		h->terms[i].op = op;
-	}
-	data_hamil_free(&raw);
-	return 0;
-}
-
 static int hamil_term_cmp_lex(const void *a, const void *b)
 {
 	const struct paulis x = ((const struct circ_hamil_term *)a)->op;
@@ -176,9 +156,9 @@ int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
 	memset(&ct->md, 0, sizeof ct->md);
 	memset(&ct->cm, 0, sizeof ct->cm);
 
-	if (circ_hamil_from_file(&ct->hm, fid) < 0) {
-		log_error("circ_init: loading Hamiltonian failed");
-		goto err_hamil_init;
+	if (circ_hamil_load(fid, &ct->hm) < 0) {
+		log_error("circ_init: circ_hamil_load failed");
+		goto err_hamil_load;
 	}
 	log_debug("circ_init: Hamiltonian loaded (%u qubits, %zu terms)",
 		ct->hm.qb, ct->hm.len);
@@ -237,7 +217,7 @@ err_qreg_init:
 err_stprep_load:
 err_stprep_kind:
 	circ_hamil_free(&ct->hm);
-err_hamil_init:
+err_hamil_load:
 	return -1;
 }
 
