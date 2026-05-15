@@ -208,7 +208,7 @@ LDLIBS		+= $(MPI_LDLIBS)					\
 .PHONY: all			\
 	bench			\
 	build			\
-	bulid-bench		\
+	build-bench		\
 	build-test 		\
 	clean			\
 	check			\
