@@ -187,6 +187,83 @@ void data_close(const data_id fid)
 
 /* -- group creation --------------------------------------------------- */
 
+/*
+ * Idempotence helper: probe `name` under `fid` and
+ * return
+ *
+ *    1 = path-clear, caller must create the group;
+ *    0 = a real group already exists, treat as success;
+ *   -1 = probe failed.
+ *
+ * If the path holds a dangling soft link (a legacy
+ * fixture artifact), the link is unlinked here and the
+ * function returns 1 so the caller can proceed with a
+ * fresh create.
+ */
+static int grp_ensure_clear(hid_t fid, const char *name)
+{
+	const htri_t lexists = H5Lexists(fid, name, H5P_DEFAULT);
+	if (lexists < 0) {
+		log_error("data_grp_create(%s): H5Lexists failed", name);
+		return -1;
+	}
+	if (lexists == 0)
+		return 1;
+	const htri_t oexists = H5Oexists_by_name(fid, name, H5P_DEFAULT);
+	if (oexists < 0) {
+		log_error("data_grp_create(%s): H5Oexists_by_name failed",
+			name);
+		return -1;
+	}
+	if (oexists > 0) {
+		log_debug("data_grp_create(%s): already exists", name);
+		return 0;
+	}
+	if (H5Ldelete(fid, name, H5P_DEFAULT) < 0) {
+		log_error("data_grp_create(%s): H5Ldelete of dangling link"
+			  " failed", name);
+		return -1;
+	}
+	log_debug("data_grp_create(%s): removed dangling link", name);
+	return 1;
+}
+
+/*
+ * Create `name` under `fid` with the standard link-
+ * creation property list (intermediate groups, UTF-8
+ * link names).
+ */
+static int grp_make(hid_t fid, const char *name)
+{
+	int rt = -1;
+	const hid_t lcpl = H5Pcreate(H5P_LINK_CREATE);
+	if (lcpl == H5I_INVALID_HID) {
+		log_error("data_grp_create(%s): H5Pcreate failed", name);
+		return -1;
+	}
+	if (H5Pset_create_intermediate_group(lcpl, 1) < 0) {
+		log_error("data_grp_create(%s):"
+			  " H5Pset_create_intermediate_group failed",
+			name);
+		goto ex_lcpl;
+	}
+	if (H5Pset_char_encoding(lcpl, H5T_CSET_UTF8) < 0) {
+		log_error("data_grp_create(%s): H5Pset_char_encoding failed",
+			name);
+		goto ex_lcpl;
+	}
+	const hid_t grp = H5Gcreate(fid, name, lcpl, H5P_DEFAULT, H5P_DEFAULT);
+	if (grp == H5I_INVALID_HID) {
+		log_error("data_grp_create(%s): H5Gcreate failed", name);
+		goto ex_lcpl;
+	}
+	H5Gclose(grp);
+	rt = 0;
+ex_lcpl:
+	H5Pclose(lcpl);
+	return rt;
+}
+
 int data_grp_create(data_id fid, const char *grp_name)
 {
 	if (world_info(&WD) != WORLD_READY)
@@ -194,79 +271,11 @@ int data_grp_create(data_id fid, const char *grp_name)
 
 	int rt = 0;
 	if (WD.rank == 0) {
-		/* Idempotent: if a real group already exists at this
-		 * path, the caller (e.g. re-running ph2run on the
-		 * same simul.h5) gets success without a fresh create.
-		 * Stale dangling soft links (left over from old fixture
-		 * builds) are unlinked so the create can proceed. */
-		const htri_t lexists = H5Lexists(
-			(hid_t)fid, grp_name, H5P_DEFAULT);
-		if (lexists < 0) {
-			log_error("data_grp_create(%s): H5Lexists failed",
-				grp_name);
+		const int clear = grp_ensure_clear((hid_t)fid, grp_name);
+		if (clear < 0)
 			rt = -1;
-			goto ex_done;
-		}
-		if (lexists > 0) {
-			const htri_t oexists = H5Oexists_by_name(
-				(hid_t)fid, grp_name, H5P_DEFAULT);
-			if (oexists > 0) {
-				log_debug("data_grp_create(%s): already exists",
-					grp_name);
-				goto ex_done;
-			}
-			if (oexists < 0) {
-				log_error("data_grp_create(%s):"
-					  " H5Oexists_by_name failed",
-					grp_name);
-				rt = -1;
-				goto ex_done;
-			}
-			/* Dangling link -- unlink and proceed. */
-			if (H5Ldelete((hid_t)fid, grp_name, H5P_DEFAULT) < 0) {
-				log_error("data_grp_create(%s): H5Ldelete of"
-					  " dangling link failed", grp_name);
-				rt = -1;
-				goto ex_done;
-			}
-			log_debug("data_grp_create(%s): removed dangling"
-				  " link", grp_name);
-		}
-
-		rt = -1;
-		const hid_t lcpl = H5Pcreate(H5P_LINK_CREATE);
-		if (lcpl == H5I_INVALID_HID) {
-			log_error("data_grp_create(%s): H5Pcreate failed",
-				grp_name);
-			goto ex_lcpl;
-		}
-		if (H5Pset_create_intermediate_group(lcpl, 1) < 0) {
-			log_error("data_grp_create(%s):"
-				  " H5Pset_create_intermediate_group failed",
-				grp_name);
-			goto ex_prop;
-		}
-		if (H5Pset_char_encoding(lcpl, H5T_CSET_UTF8) < 0) {
-			log_error("data_grp_create(%s):"
-				  " H5Pset_char_encoding failed",
-				grp_name);
-			goto ex_prop;
-		}
-		const hid_t group = H5Gcreate((hid_t)fid, grp_name, lcpl,
-			H5P_DEFAULT, H5P_DEFAULT);
-		if (group == H5I_INVALID_HID) {
-			log_error("data_grp_create(%s): H5Gcreate failed",
-				grp_name);
-			goto ex_group;
-		}
-
-		rt = 0;
-		H5Gclose(group);
-	ex_group:
-	ex_prop:
-		H5Pclose(lcpl);
-	ex_lcpl:
-	ex_done:;
+		else if (clear > 0 && grp_make((hid_t)fid, grp_name) < 0)
+			rt = -1;
 	}
 	BCAST(&rt, 1, MPI_INT);
 	return rt;
@@ -572,6 +581,82 @@ int circ_hamil_load(data_id fid, struct circ_hamil *hm)
 
 #define CIRC_VALUES_DSET "values"
 
+/*
+ * Open an existing /grp/values dataset whose shape has
+ * already been chosen by an earlier ph2run invocation
+ * on the same simul.h5.  Caller owns the close.
+ * Returns H5I_INVALID_HID on failure.
+ */
+static hid_t values_reuse(hid_t grp_id, const char *grp_name)
+{
+	const hid_t dset = H5Dopen2(grp_id, CIRC_VALUES_DSET, H5P_DEFAULT);
+	if (dset == H5I_INVALID_HID) {
+		log_error("data_circ_writer_init(%s): H5Dopen2(values) failed",
+			grp_name);
+		return H5I_INVALID_HID;
+	}
+	log_debug("data_circ_writer_init(%s): reusing existing values"
+		  " dataset", grp_name);
+	return dset;
+}
+
+/*
+ * Create a new /grp/values dataset of shape (n_steps,
+ * 2) pre-filled with NaN.  The file is flushed before
+ * return so a crash mid-simulation always observes
+ * either a real row (the last write_step) or the
+ * NaN-padded tail.
+ */
+static hid_t values_create(hid_t fid, hid_t grp_id, const char *grp_name,
+	size_t n_steps)
+{
+	hid_t dset = H5I_INVALID_HID;
+	const hid_t dspace = H5Screate_simple(2,
+		(hsize_t[]){ n_steps, 2 }, NULL);
+	if (dspace == H5I_INVALID_HID) {
+		log_error("data_circ_writer_init(%s): H5Screate_simple"
+			  " failed (n_steps=%zu)", grp_name, n_steps);
+		return H5I_INVALID_HID;
+	}
+	const hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
+	if (dcpl == H5I_INVALID_HID) {
+		log_error("data_circ_writer_init(%s): H5Pcreate(dcpl) failed",
+			grp_name);
+		goto ex_dspace;
+	}
+	const double nan_val = nan("");
+	if (H5Pset_fill_value(dcpl, H5T_NATIVE_DOUBLE, &nan_val) < 0) {
+		log_error("data_circ_writer_init(%s): H5Pset_fill_value"
+			  " failed", grp_name);
+		goto ex_dcpl;
+	}
+	if (H5Pset_alloc_time(dcpl, H5D_ALLOC_TIME_EARLY) < 0) {
+		log_error("data_circ_writer_init(%s): H5Pset_alloc_time"
+			  " failed", grp_name);
+		goto ex_dcpl;
+	}
+	if (H5Pset_fill_time(dcpl, H5D_FILL_TIME_ALLOC) < 0) {
+		log_error("data_circ_writer_init(%s): H5Pset_fill_time"
+			  " failed", grp_name);
+		goto ex_dcpl;
+	}
+	dset = H5Dcreate2(grp_id, CIRC_VALUES_DSET, H5T_IEEE_F64LE, dspace,
+		H5P_DEFAULT, dcpl, H5P_DEFAULT);
+	if (dset == H5I_INVALID_HID) {
+		log_error("data_circ_writer_init(%s): H5Dcreate2(values)"
+			  " failed", grp_name);
+		goto ex_dcpl;
+	}
+	H5Fflush(fid, H5F_SCOPE_GLOBAL);
+	log_debug("data_circ_writer_init(%s): values shape (%zu, 2),"
+		  " NaN-padded", grp_name, n_steps);
+ex_dcpl:
+	H5Pclose(dcpl);
+ex_dspace:
+	H5Sclose(dspace);
+	return dset;
+}
+
 int data_circ_writer_init(data_id fid, const char *grp_name, size_t n_steps,
 	struct data_circ_writer *w)
 {
@@ -596,81 +681,18 @@ int data_circ_writer_init(data_id fid, const char *grp_name, size_t n_steps,
 				grp_name);
 			goto ex_bcast;
 		}
-
-		/* Idempotence: reuse an existing values dataset. */
-		const htri_t exists = H5Lexists(
-			grp_id, CIRC_VALUES_DSET, H5P_DEFAULT);
-		if (exists < 0) {
-			log_error("data_circ_writer_init(%s): H5Lexists(values)"
-				  " failed", grp_name);
-			goto ex_grp;
-		}
-		if (exists > 0) {
-			dset_out = H5Dopen2(
-				grp_id, CIRC_VALUES_DSET, H5P_DEFAULT);
-			if (dset_out == H5I_INVALID_HID) {
-				log_error("data_circ_writer_init(%s):"
-					  " H5Dopen2(values) failed", grp_name);
-				goto ex_grp;
-			}
-			log_debug("data_circ_writer_init(%s): reusing existing"
-				  " values dataset", grp_name);
+		const htri_t exists = H5Lexists(grp_id, CIRC_VALUES_DSET,
+			H5P_DEFAULT);
+		if (exists < 0)
+			log_error("data_circ_writer_init(%s):"
+				  " H5Lexists(values) failed", grp_name);
+		else if (exists > 0)
+			dset_out = values_reuse(grp_id, grp_name);
+		else
+			dset_out = values_create((hid_t)fid, grp_id, grp_name,
+				n_steps);
+		if (dset_out != H5I_INVALID_HID)
 			rt = 0;
-			goto ex_grp;
-		}
-
-		const hid_t dspace = H5Screate_simple(
-			2, (hsize_t[]){ n_steps, 2 }, NULL);
-		if (dspace == H5I_INVALID_HID) {
-			log_error("data_circ_writer_init(%s): H5Screate_simple"
-				  " failed (n_steps=%zu)",
-				grp_name, n_steps);
-			goto ex_grp;
-		}
-
-		const hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
-		if (dcpl == H5I_INVALID_HID) {
-			log_error("data_circ_writer_init(%s): H5Pcreate(dcpl)"
-				  " failed", grp_name);
-			goto ex_dspace;
-		}
-		const double nan_val = nan("");
-		if (H5Pset_fill_value(dcpl, H5T_NATIVE_DOUBLE, &nan_val) < 0) {
-			log_error("data_circ_writer_init(%s):"
-				  " H5Pset_fill_value failed", grp_name);
-			goto ex_dcpl;
-		}
-		if (H5Pset_alloc_time(dcpl, H5D_ALLOC_TIME_EARLY) < 0) {
-			log_error("data_circ_writer_init(%s):"
-				  " H5Pset_alloc_time failed", grp_name);
-			goto ex_dcpl;
-		}
-		if (H5Pset_fill_time(dcpl, H5D_FILL_TIME_ALLOC) < 0) {
-			log_error("data_circ_writer_init(%s):"
-				  " H5Pset_fill_time failed", grp_name);
-			goto ex_dcpl;
-		}
-
-		dset_out = H5Dcreate2(grp_id, CIRC_VALUES_DSET, H5T_IEEE_F64LE,
-			dspace, H5P_DEFAULT, dcpl, H5P_DEFAULT);
-		if (dset_out == H5I_INVALID_HID) {
-			log_error("data_circ_writer_init(%s):"
-				  " H5Dcreate2(values) failed", grp_name);
-			goto ex_dcpl;
-		}
-
-		/* Flush so the NaN-padded dataset is on disk before
-		 * any per-step write.  Cheap for an empty dataset. */
-		H5Fflush((hid_t)fid, H5F_SCOPE_GLOBAL);
-
-		log_debug("data_circ_writer_init(%s): values shape (%zu, 2),"
-			  " NaN-padded", grp_name, n_steps);
-		rt = 0;
-	ex_dcpl:
-		H5Pclose(dcpl);
-	ex_dspace:
-		H5Sclose(dspace);
-	ex_grp:
 		H5Gclose(grp_id);
 	ex_bcast:;
 	}
