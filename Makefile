@@ -11,7 +11,7 @@ VERSION_PATCH	:= 0
 AS		:= nasm
 ASFLAGS		+= -felf64 -w+all -w-reloc-rel-dword -Ox
 CC		?= gcc
-CFLAGS		+= -std=c11 -Wall -Wextra -O3 -march=native -mavx2
+CFLAGS		+= -std=c11 -Wall -Wextra -O3 -march=native -mavx2 -MMD -MP
 # EXTRA_CFLAGS / EXTRA_LDFLAGS allow command-line overrides
 # (e.g. for sanitizer builds) without clobbering the rest of
 # the build flag pipeline.
@@ -99,9 +99,6 @@ BACKEND_CFLAGS	+= -I$(CUDA_INCLUDE)
 BACKEND_LDFLAGS	+= -L$(CUDA_LIBDIR) -Wl,-rpath -Wl,$(CUDA_LIBDIR)
 BACKEND_LDLIBS	+= -lcudart -lstdc++
 
-$(BACKEND_OBJS): $(PHASE2DIR)/qreg_cuda.h				\
-       			$(PHASE2DIR)/world_cuda.h
-
 NVCCFLAGS	+= $(MPI_CFLAGS) $(HDF5_CFLAGS)
 $(PHASE2DIR)/qreg_cuda_lo.o: $(PHASE2DIR)/qreg_cuda_lo.cu
 	$(NVCC) $(NVCCFLAGS) $(BACKEND_CFLAGS) 				\
@@ -112,31 +109,15 @@ $(PHASE2DIR)/qreg_cuda_lo_dlink.o: $(PHASE2DIR)/qreg_cuda_lo.o
 
 endif
 
-$(BACKEND_OBJS): $(PHASE2DIR)/qreg.h
-
 BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
 
 
-# phase2 public API
-$(PHASE2DIR)/circ.o:	$(INCLUDE)/phase2/circ.h			\
-			$(INCLUDE)/phase2/state_prep_coeff.h
-$(PH2RUNDIR)/data.o:	$(INCLUDE)/phase2/circ.h $(INCLUDE)/ph2run/data.h	\
-			$(INCLUDE)/phase2/paulis.h
-$(PHASE2DIR)/paulis.o:	$(INCLUDE)/phase2/paulis.h
-$(PHASE2DIR)/prob.o:	$(INCLUDE)/phase2/prob.h
-$(PHASE2DIR)/qreg.o:	$(INCLUDE)/phase2/qreg.h $(PHASE2DIR)/qreg.h
-$(PHASE2DIR)/state_prep_coeff.o:	$(INCLUDE)/phase2/state_prep_coeff.h	\
-			$(INCLUDE)/combinations.h			\
-			$(INCLUDE)/det_small.h				\
-			$(INCLUDE)/phase2/circ.h			\
-			$(INCLUDE)/phase2/qreg.h			\
-			$(PHASE2DIR)/qreg.h
-$(PHASE2DIR)/world.o:	$(INCLUDE)/phase2/world.h
-
-# internal API
-$(PHASE2DIR)/circ_cache.o:	$(PHASE2DIR)/circ_cache.h
-$(PHASE2DIR)/phase2_run.o:	$(INCLUDE)/phase2/phase2_run.h		\
-				$(PHASE2DIR)/circ_cache.h
+# Header dependencies for every compiled .c are tracked
+# automatically via -MMD/-MP (see CFLAGS below); the
+# emitted .d files are pulled in at the foot of this
+# file.  The Makefile only declares structural deps:
+# object-set unions, inter-target link prereqs, and
+# generated-header prereqs (none today).
 
 PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/circ_cache.o			\
@@ -147,28 +128,12 @@ PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
 			$(PHASE2DIR)/world.o				\
 			$(BACKEND_OBJS)
 
-$(PHASE2OBJS):	$(INCLUDE)/phase2.h
-
 PH2RUN_DATA_OBJS := $(PH2RUNDIR)/data.o
-
-
-# Circuits
-$(CIRCDIR)/cmpsit.o: $(INCLUDE)/circ/cmpsit.h
-$(CIRCDIR)/qdrift.o: $(INCLUDE)/circ/qdrift.h
-$(CIRCDIR)/trott.o: $(INCLUDE)/circ/trott.h
-$(CIRCDIR)/trott2.o: $(INCLUDE)/circ/trott2.h
 
 CIRCOBJS	:= $(CIRCDIR)/cmpsit.o					\
 			$(CIRCDIR)/qdrift.o				\
 			$(CIRCDIR)/trott.o				\
 			$(CIRCDIR)/trott2.o
-
-
-# Library / utilities
-$(LIBDIR)/combinations.o: $(INCLUDE)/combinations.h
-$(LIBDIR)/det_small.o:	$(INCLUDE)/det_small.h
-$(LIBDIR)/log.o:	$(INCLUDE)/log.h
-$(LIBDIR)/xoshiro256ss.o: $(INCLUDE)/xoshiro256ss.h
 
 LIBOBJS		:= $(LIBDIR)/combinations.o				\
 			$(LIBDIR)/det_small.o				\
@@ -486,3 +451,20 @@ format:
 			clang-format --style=file -i $$f ;		\
 		done
 
+
+# --------------------------------------------------------------------------- #
+# Auto-dep includes.  The -MMD -MP in CFLAGS makes gcc                        #
+# emit a <obj>.d alongside every <obj>.o it produces.                         #
+# Each .d names the .o target and lists every header                          #
+# the .c #include'd, with -MP adding empty fallback                           #
+# rules for each header so a renamed header doesn't                           #
+# break the build.  The wildcard is silently empty on                         #
+# the first build.                                                            #
+# --------------------------------------------------------------------------- #
+
+-include $(wildcard $(CIRCDIR)/*.d		\
+		$(BENCHDIR)/*.d			\
+		$(LIBDIR)/*.d			\
+		$(PH2RUNDIR)/*.d		\
+		$(PHASE2DIR)/*.d		\
+		$(TESTDIR)/*.d)
