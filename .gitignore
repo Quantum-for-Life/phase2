@@ -66,9 +66,12 @@ _deps
 
 venv
 .venv
-build/
 cmake-build-*
 tmp/
+
+# Make build artefacts (kernel-style out-of-tree
+# layout under build/<srcdir>/).
+build/
 
 Cargo.lock
 target/

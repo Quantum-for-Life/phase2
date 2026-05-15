@@ -39,6 +39,12 @@ PHASE2DIR	:= ./phase2
 PH2RUNDIR	:= ./ph2run
 LIBDIR		:= ./lib
 
+# Out-of-tree build root.  Every .o and .d lands
+# under $(BUILDDIR)/<srcdir>/, mirroring the source
+# layout.  Final binaries still live next to their
+# sources (ph2run/ph2run, test/t-paulis, ...).
+BUILDDIR	:= ./build
+
 # If you're unsure where to find the compiled MPI libraries or headers,
 # but have OpenMPI installed in your system, you can query:
 #
@@ -75,7 +81,7 @@ BACKEND_LDLIBS	:=
 
 ifeq ($(BACKEND),qreg)
 BACKEND_N	:= 0
-BACKEND_OBJS	+= $(PHASE2DIR)/qreg_qreg.o
+BACKEND_OBJS	+= $(BUILDDIR)/phase2/qreg_qreg.o
 BACKEND_CFLAGS	+=
 BACKEND_LDFLAGS	+=
 BACKEND_LDLIBS	+=
@@ -91,20 +97,21 @@ CUDA_PREFIX	:=/usr/local/cuda
 CUDA_INCLUDE	:=$(CUDA_PREFIX)/include
 CUDA_LIBDIR	:=$(CUDA_PREFIX)/lib64
 BACKEND_N	:= 2
-BACKEND_OBJS	+= $(PHASE2DIR)/qreg_cuda.o				\
-		   	$(PHASE2DIR)/qreg_cuda_lo.o			\
-			$(PHASE2DIR)/qreg_cuda_lo_dlink.o		\
-			$(PHASE2DIR)/world_cuda.o
+BACKEND_OBJS	+= $(BUILDDIR)/phase2/qreg_cuda.o			\
+		   	$(BUILDDIR)/phase2/qreg_cuda_lo.o		\
+			$(BUILDDIR)/phase2/qreg_cuda_lo_dlink.o		\
+			$(BUILDDIR)/phase2/world_cuda.o
 BACKEND_CFLAGS	+= -I$(CUDA_INCLUDE)
 BACKEND_LDFLAGS	+= -L$(CUDA_LIBDIR) -Wl,-rpath -Wl,$(CUDA_LIBDIR)
 BACKEND_LDLIBS	+= -lcudart -lstdc++
 
 NVCCFLAGS	+= $(MPI_CFLAGS) $(HDF5_CFLAGS)
-$(PHASE2DIR)/qreg_cuda_lo.o: $(PHASE2DIR)/qreg_cuda_lo.cu
+$(BUILDDIR)/phase2/qreg_cuda_lo.o: $(PHASE2DIR)/qreg_cuda_lo.cu
+	@$(MKDIR) $(@D)
 	$(NVCC) $(NVCCFLAGS) $(BACKEND_CFLAGS) 				\
 	       -I$(INCLUDE) -c $< -o $@
 
-$(PHASE2DIR)/qreg_cuda_lo_dlink.o: $(PHASE2DIR)/qreg_cuda_lo.o
+$(BUILDDIR)/phase2/qreg_cuda_lo_dlink.o: $(BUILDDIR)/phase2/qreg_cuda_lo.o
 	$(NVCC) $(NVCCFLAGS) -dlink $< -o $@
 
 endif
@@ -119,35 +126,49 @@ BACKEND_CFLAGS	+= -DPHASE2_BACKEND=$(BACKEND_N)
 # object-set unions, inter-target link prereqs, and
 # generated-header prereqs (none today).
 
-PHASE2OBJS	:= $(PHASE2DIR)/circ.o					\
-			$(PHASE2DIR)/circ_cache.o			\
-			$(PHASE2DIR)/paulis.o				\
-			$(PHASE2DIR)/prob.o				\
-			$(PHASE2DIR)/qreg.o				\
-			$(PHASE2DIR)/state_prep_coeff.o			\
-			$(PHASE2DIR)/world.o				\
+PHASE2OBJS	:= $(BUILDDIR)/phase2/circ.o				\
+			$(BUILDDIR)/phase2/circ_cache.o			\
+			$(BUILDDIR)/phase2/paulis.o			\
+			$(BUILDDIR)/phase2/prob.o			\
+			$(BUILDDIR)/phase2/qreg.o			\
+			$(BUILDDIR)/phase2/state_prep_coeff.o		\
+			$(BUILDDIR)/phase2/world.o			\
 			$(BACKEND_OBJS)
 
-PH2RUN_DATA_OBJS := $(PH2RUNDIR)/data.o
+PH2RUN_DATA_OBJS := $(BUILDDIR)/ph2run/data.o
 
-CIRCOBJS	:= $(CIRCDIR)/cmpsit.o					\
-			$(CIRCDIR)/qdrift.o				\
-			$(CIRCDIR)/trott.o				\
-			$(CIRCDIR)/trott2.o
+CIRCOBJS	:= $(BUILDDIR)/circ/cmpsit.o				\
+			$(BUILDDIR)/circ/qdrift.o			\
+			$(BUILDDIR)/circ/trott.o			\
+			$(BUILDDIR)/circ/trott2.o
 
-LIBOBJS		:= $(LIBDIR)/combinations.o				\
-			$(LIBDIR)/det_small.o				\
-			$(LIBDIR)/log.o					\
-			$(LIBDIR)/xoshiro256ss.o
+LIBOBJS		:= $(BUILDDIR)/lib/combinations.o			\
+			$(BUILDDIR)/lib/det_small.o			\
+			$(BUILDDIR)/lib/log.o				\
+			$(BUILDDIR)/lib/xoshiro256ss.o
+
+# Generic compile rules.  Two variants:
+#  - $(BUILDDIR)/%.o:  regular objects.
+#  - $(BUILDDIR)/shared/%.o:  same sources rebuilt
+#    with -fPIC on a disjoint path, so the shared
+#    library does not race the regular build's
+#    objects.
+$(BUILDDIR)/%.o: %.c
+	@$(MKDIR) $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILDDIR)/shared/%.o: %.c
+	@$(MKDIR) $(@D)
+	$(CC) $(CFLAGS) -fPIC -c $< -o $@
 
 
 # Applications
 PROGS		:=  $(PH2RUNDIR)/ph2run
 
-$(PH2RUNDIR)/ph2run: $(CIRCDIR)/trott.o					\
-			$(CIRCDIR)/trott2.o				\
-			$(CIRCDIR)/qdrift.o				\
-			$(CIRCDIR)/cmpsit.o
+$(PH2RUNDIR)/ph2run: $(BUILDDIR)/circ/trott.o				\
+			$(BUILDDIR)/circ/trott2.o			\
+			$(BUILDDIR)/circ/qdrift.o			\
+			$(BUILDDIR)/circ/cmpsit.o
 
 $(PROGS):	$(PHASE2OBJS)						\
 			$(LIBOBJS)					\
@@ -201,8 +222,11 @@ build: $(PROGS)
 SHARED_LDFLAGS	:= $(MPI_LDFLAGS) $(BACKEND_LDFLAGS)
 SHARED_LDLIBS	:= $(MPI_LDLIBS) $(BACKEND_LDLIBS)
 
-shared: CFLAGS += -fPIC
-shared: $(PHASE2DIR)/phase2_run.o $(PHASE2OBJS) $(LIBOBJS)
+SHARED_OBJS	:= $(BUILDDIR)/shared/phase2/phase2_run.o		\
+		   $(patsubst $(BUILDDIR)/%, $(BUILDDIR)/shared/%,	\
+			$(PHASE2OBJS) $(LIBOBJS))
+
+shared: $(SHARED_OBJS)
 	$(CC) -shared -o libphase2.so $^ $(SHARED_LDFLAGS) $(SHARED_LDLIBS)
 
 # --------------------------------------------------------------------------- #
@@ -215,7 +239,7 @@ BENCHES		:= $(BENCHDIR)/b-paulis					\
 			$(BENCHDIR)/b-qreg
 
 $(BENCHES):	$(BENCHDIR)/bench.h					\
-		$(BENCHDIR)/bench.o					\
+		$(BUILDDIR)/bench/bench.o				\
 		$(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)
 
 build-bench: $(BENCHES)
@@ -298,11 +322,11 @@ $(TESTS) $(TESTS_SLOW):	$(TESTDIR)/test.h				\
 			$(TESTDIR)/t-data.h				\
 			$(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)
 
-$(TESTDIR)/t-circ_cache: $(CIRCDIR)/trott.o
-$(TESTDIR)/t-circ_trott: $(CIRCDIR)/trott.o
-$(TESTDIR)/t-circ_trott2: $(CIRCDIR)/trott2.o
-$(TESTDIR)/t-circ_trott_coeff: $(CIRCDIR)/trott.o
-$(TESTDIR)/t-circ_trott2_coeff: $(CIRCDIR)/trott2.o
+$(TESTDIR)/t-circ_cache: $(BUILDDIR)/circ/trott.o
+$(TESTDIR)/t-circ_trott: $(BUILDDIR)/circ/trott.o
+$(TESTDIR)/t-circ_trott2: $(BUILDDIR)/circ/trott2.o
+$(TESTDIR)/t-circ_trott_coeff: $(BUILDDIR)/circ/trott.o
+$(TESTDIR)/t-circ_trott2_coeff: $(BUILDDIR)/circ/trott2.o
 
 build-test: check-tests-coverage $(TESTS) $(TESTDIR)/run
 
@@ -427,12 +451,8 @@ check-%: build-test
 # --------------------------------------------------------------------------- #
 
 clean:
-	@$(RM) $(CIRCDIR)/*.o $(CIRCDIR)/*.d
-	@$(RM) $(BENCHDIR)/*.o $(BENCHDIR)/*.d
-	@$(RM) $(LIBDIR)/*.o $(LIBDIR)/*.d
-	@$(RM) $(PH2RUNDIR)/*.o $(PH2RUNDIR)/*.d
-	@$(RM) $(PHASE2DIR)/*.o $(PHASE2DIR)/*.d
-	@$(RM) $(TESTDIR)/*.o $(TESTDIR)/*.d
+	@$(RM) -r $(BUILDDIR)
+	@$(RM) $(TESTDIR)/*.d
 
 distclean: clean
 	@$(RM) $(BENCHES)
@@ -462,9 +482,5 @@ format:
 # the first build.                                                            #
 # --------------------------------------------------------------------------- #
 
--include $(wildcard $(CIRCDIR)/*.d		\
-		$(BENCHDIR)/*.d			\
-		$(LIBDIR)/*.d			\
-		$(PH2RUNDIR)/*.d		\
-		$(PHASE2DIR)/*.d		\
-		$(TESTDIR)/*.d)
+-include $(shell find $(BUILDDIR) -name '*.d' 2>/dev/null)
+-include $(wildcard $(TESTDIR)/*.d)
