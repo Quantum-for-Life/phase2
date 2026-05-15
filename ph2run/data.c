@@ -824,39 +824,24 @@ int data_state_prep_kind(const data_id fid, enum stprep_kind *out)
 
 #define COEFFMAT_PATH DATA_STPREP "/" DATA_STPREP_COEFFMAT
 
-static int read_u32_attr(hid_t grp_id, const char *name, uint32_t *out)
-{
-	return read_attr_raw(grp_id, name, H5T_NATIVE_UINT32, out);
-}
-
-static int read_u8_attr(hid_t grp_id, const char *name, int *out)
-{
-	uint8_t v = 0;
-	if (read_attr_raw(grp_id, name, H5T_NATIVE_UINT8, &v) < 0)
-		return -1;
-	*out = v ? 1 : 0;
-	return 0;
-}
-
-static int read_double_attr(hid_t grp_id, const char *name, double *out)
-{
-	return read_attr_raw(grp_id, name, H5T_NATIVE_DOUBLE, out);
-}
-
 static int read_coeff_attrs(hid_t grp_id, struct data_coeff_matrix *cm)
 {
-	if (read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NQB, &cm->nqb) < 0
-		|| read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NS,
-			   &cm->n_sites) < 0
-		|| read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NA,
-			   &cm->n_alpha) < 0
-		|| read_u32_attr(grp_id, DATA_STPREP_COEFFMAT_NB,
-			   &cm->n_beta) < 0
-		|| read_u8_attr(grp_id, DATA_STPREP_COEFFMAT_CS,
-			   &cm->closed_shell) < 0
-		|| read_u8_attr(grp_id, DATA_STPREP_COEFFMAT_TAP,
-			   &cm->tapered) < 0)
+	uint8_t cs = 0, tap = 0;
+	if (read_attr_raw(grp_id, DATA_STPREP_COEFFMAT_NQB,
+		    H5T_NATIVE_UINT32, &cm->nqb) < 0
+		|| read_attr_raw(grp_id, DATA_STPREP_COEFFMAT_NS,
+			   H5T_NATIVE_UINT32, &cm->n_sites) < 0
+		|| read_attr_raw(grp_id, DATA_STPREP_COEFFMAT_NA,
+			   H5T_NATIVE_UINT32, &cm->n_alpha) < 0
+		|| read_attr_raw(grp_id, DATA_STPREP_COEFFMAT_NB,
+			   H5T_NATIVE_UINT32, &cm->n_beta) < 0
+		|| read_attr_raw(grp_id, DATA_STPREP_COEFFMAT_CS,
+			   H5T_NATIVE_UINT8, &cs) < 0
+		|| read_attr_raw(grp_id, DATA_STPREP_COEFFMAT_TAP,
+			   H5T_NATIVE_UINT8, &tap) < 0)
 		return -1;
+	cm->closed_shell = cs ? 1 : 0;
+	cm->tapered = tap ? 1 : 0;
 	return 0;
 }
 
@@ -951,8 +936,9 @@ int data_coeff_matrix_load(const data_id fid, struct data_coeff_matrix *cm)
 					  " H5Gopen(csf) failed");
 				goto ex_attrs_grp;
 			}
-			const int rt_n = read_u32_attr(
-				cg, DATA_STPREP_COEFFMAT_CSF_NCOMP, &v_ncomp);
+			const int rt_n = read_attr_raw(cg,
+				DATA_STPREP_COEFFMAT_CSF_NCOMP,
+				H5T_NATIVE_UINT32, &v_ncomp);
 			H5Gclose(cg);
 			if (rt_n < 0)
 				goto ex_attrs_grp;
@@ -1066,8 +1052,9 @@ int data_coeff_matrix_load(const data_id fid, struct data_coeff_matrix *cm)
 					ok = 0;
 					break;
 				}
-				if (read_double_attr(cg,
+				if (read_attr_raw(cg,
 					    DATA_STPREP_COEFFMAT_CSF_CF,
+					    H5T_NATIVE_DOUBLE,
 					    &blocks[k].cf) < 0
 					|| read_C_dset(cg,
 						   DATA_STPREP_COEFFMAT_CA,
