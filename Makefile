@@ -229,10 +229,16 @@ build: $(PROGS)
 # --------------------------------------------------------------------------- #
 # Shared library (Python interface)                                           #
 # --------------------------------------------------------------------------- #
+# libphase2.so carries the pure compute surface only; HDF5 stays
+# on the ph2run side, so the shared object links without HDF5
+# and a Python caller can drive phase2 over ctypes without ever
+# touching an HDF5 file.
+SHARED_LDFLAGS	:= $(MPI_LDFLAGS) $(BACKEND_LDFLAGS)
+SHARED_LDLIBS	:= $(MPI_LDLIBS) $(BACKEND_LDLIBS)
+
 shared: CFLAGS += -fPIC
-shared: $(PHASE2DIR)/phase2_run.o $(PHASE2OBJS) $(LIBOBJS)	\
-	$(PH2RUN_DATA_OBJS)
-	$(CC) -shared -o libphase2.so $^ $(LDFLAGS) $(LDLIBS)
+shared: $(PHASE2DIR)/phase2_run.o $(PHASE2OBJS) $(LIBOBJS)
+	$(CC) -shared -o libphase2.so $^ $(SHARED_LDFLAGS) $(SHARED_LDLIBS)
 
 # --------------------------------------------------------------------------- #
 # Benchmarks                                                                  #
