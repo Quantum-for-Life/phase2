@@ -1152,18 +1152,3 @@ err_alloc:
 	return -1;
 }
 
-void data_coeff_matrix_free(struct data_coeff_matrix *cm)
-{
-	if (!cm)
-		return;
-	if (cm->blocks) {
-		for (size_t k = 0; k < cm->n_components; k++) {
-			free((void *)cm->blocks[k].C_alpha);
-			free((void *)cm->blocks[k].C_beta);
-		}
-		free(cm->blocks);
-	}
-	free((void *)cm->C_alpha);
-	free((void *)cm->C_beta);
-	memset(cm, 0, sizeof *cm);
-}

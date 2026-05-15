@@ -117,11 +117,12 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md);
  * State-prep dispatch and coefficient-matrix loader.
  *
  * `enum stprep_kind`, `struct data_coeff_block` and
- * `struct data_coeff_matrix` are carrier types consumed by the
- * circuit layer; their definitions live in phase2/circ.h so the
- * algorithm header owns the in-memory representation.  data.h
- * only forward-declares them to keep the I/O surface here while
- * avoiding an include cycle with phase2/state_prep_coeff.h.
+ * `struct data_coeff_matrix` are carrier types consumed by
+ * the circuit layer; their definitions live in
+ * phase2/circ.h so the algorithm header owns the
+ * in-memory representation.  data.h only forward-declares
+ * them to keep the I/O surface here while avoiding an
+ * include cycle with phase2/state_prep_coeff.h.
  *
  * data_state_prep_kind() inspects the file for
  * /state_prep/multidet and /state_prep/coeff_matrix:
@@ -138,8 +139,10 @@ int circ_muldet_load(data_id fid, struct circ_muldet *md);
  *
  * data_coeff_matrix_load() opens /state_prep/coeff_matrix,
  * reads all scalars and arrays, validates shapes, and
- * broadcasts to followers in one call.  data_coeff_matrix_free()
- * releases every allocation and zeroes the struct.
+ * broadcasts to followers in one call.  The matching free
+ * (data_coeff_matrix_free) is a pure pointer release and
+ * lives in phase2/circ.c with the other in-memory carrier
+ * destructors -- see phase2/circ.h.
  *
  * Documented further in phase2/doc/simul-h5-specs.md
  * "dispatch rules".
@@ -149,7 +152,6 @@ struct data_coeff_matrix;
 
 int data_state_prep_kind(data_id fid, enum stprep_kind *out);
 int data_coeff_matrix_load(data_id fid, struct data_coeff_matrix *cm);
-void data_coeff_matrix_free(struct data_coeff_matrix *cm);
 
 /**
  * Load /pauli_hamil into a packed circ_hamil.

@@ -8,6 +8,7 @@
 
 #include "circ/trott2.h"
 #include "log.h"
+#include "ph2run/data.h"
 #include "phase2.h"
 
 #include "test.h"
@@ -45,7 +46,25 @@ static _Complex double run_trott2(const char *src)
 
 	data_id fid = data_open(tmp);
 	TEST_ASSERT(fid != DATA_INVALID_FID, "open %s", tmp);
-	TEST_EQ(trott2_init(&tt, &td, fid), 0);
+
+	struct circ_hamil hm;
+	TEST_EQ(circ_hamil_load(fid, &hm), 0);
+	enum stprep_kind k;
+	TEST_EQ(data_state_prep_kind(fid, &k), 0);
+	struct circ_muldet md = { 0 };
+	struct data_coeff_matrix cm = { 0 };
+	const void *sp = nullptr;
+	switch (k) {
+	case STPREP_MULTIDET:
+		TEST_EQ(circ_muldet_load(fid, &md), 0);
+		sp = &md;
+		break;
+	case STPREP_COEFF_MATRIX:
+		TEST_EQ(data_coeff_matrix_load(fid, &cm), 0);
+		sp = &cm;
+		break;
+	}
+	TEST_EQ(trott2_init(&tt, &td, hm, k, sp, nullptr), 0);
 	TEST_EQ(trott2_simul(&tt), 0);
 	const _Complex double v = tt.ct.vals.z[STEPS - 1];
 	trott2_free(&tt);

@@ -11,31 +11,19 @@
 
 #include "circ/trott2.h"
 
-int trott2_init(struct trott2 *t2, const struct trott2_data *dt, const data_id fid)
+int trott2_init(struct trott2 *t2, const struct trott2_data *dt,
+	struct circ_hamil hm, const enum stprep_kind sp_kind,
+	const void *sp_data, struct phase2_step_writer *sw)
 {
-	if (circ_init(&t2->ct, fid, dt->steps) < 0) {
+	if (circ_init(&t2->ct, hm, sp_kind, sp_data, dt->steps) < 0) {
 		log_error("trott2_init: circ_init failed");
 		return -1;
 	}
 
 	t2->dt = *dt;
+	t2->sw = sw;
 
 	circ_hamil_sort_lex(&t2->ct.hm);
-
-	if (data_circ_writer_init(fid, DATA_CIRCTROTT2, dt->steps, &t2->wr)
-		< 0) {
-		log_error("trott2_init: data_circ_writer_init(%s) failed",
-			DATA_CIRCTROTT2);
-		circ_free(&t2->ct);
-		return -1;
-	}
-	if (data_attr_write_dbl(fid, DATA_CIRCTROTT2, DATA_CIRCTROTT2_DELTA,
-		    dt->delta) < 0) {
-		log_error("trott2_init: write delta attribute failed");
-		data_circ_writer_close(&t2->wr);
-		circ_free(&t2->ct);
-		return -1;
-	}
 
 	log_debug("trott2_init: delta=%g steps=%zu", dt->delta, dt->steps);
 	return 0;
@@ -43,7 +31,6 @@ int trott2_init(struct trott2 *t2, const struct trott2_data *dt, const data_id f
 
 void trott2_free(struct trott2 *t2)
 {
-	data_circ_writer_close(&t2->wr);
 	circ_free(&t2->ct);
 }
 
@@ -73,7 +60,7 @@ int trott2_simul(struct trott2 *t2)
 		}
 		vals->z[i] = circ_measure(ct);
 
-		if (data_circ_write_step(&t2->wr, i, vals->z[i]) < 0) {
+		if (t2->sw && t2->sw->write(t2->sw->ctx, i, vals->z[i]) < 0) {
 			log_error("trott2_simul: write_step %zu failed", i);
 			return -1;
 		}

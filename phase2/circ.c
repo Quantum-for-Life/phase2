@@ -72,6 +72,22 @@ void circ_muldet_free(struct circ_muldet *md)
 		free(md->dets);
 }
 
+void data_coeff_matrix_free(struct data_coeff_matrix *cm)
+{
+	if (!cm)
+		return;
+	if (cm->blocks) {
+		for (size_t k = 0; k < cm->n_components; k++) {
+			free((void *)cm->blocks[k].C_alpha);
+			free((void *)cm->blocks[k].C_beta);
+		}
+		free(cm->blocks);
+	}
+	free((void *)cm->C_alpha);
+	free((void *)cm->C_beta);
+	memset(cm, 0, sizeof *cm);
+}
+
 void circ_prog_init(struct circ_prog *prog, size_t len, const char *unit)
 {
 	prog->i = 0;
@@ -131,36 +147,25 @@ void circ_values_free(struct circ_values *vals)
 	free(vals->z);
 }
 
-int circ_init(struct circ *ct, const data_id fid, const size_t vals_len)
+int circ_init(struct circ *ct, struct circ_hamil hm,
+	const enum stprep_kind sp_kind, const void *sp_data,
+	const size_t vals_len)
 {
 	memset(&ct->md, 0, sizeof ct->md);
 	memset(&ct->cm, 0, sizeof ct->cm);
 
-	if (circ_hamil_load(fid, &ct->hm) < 0) {
-		log_error("circ_init: circ_hamil_load failed");
-		goto err_hamil_load;
-	}
-	log_debug("circ_init: Hamiltonian loaded (%u qubits, %zu terms)",
+	ct->hm = hm;
+	ct->stprep_kind = sp_kind;
+	log_debug("circ_init: Hamiltonian adopted (%u qubits, %zu terms)",
 		ct->hm.qb, ct->hm.len);
 
-	if (data_state_prep_kind(fid, &ct->stprep_kind) < 0) {
-		log_error("circ_init: state_prep kind probe failed");
-		goto err_stprep_kind;
-	}
-
-	switch (ct->stprep_kind) {
+	switch (sp_kind) {
 	case STPREP_MULTIDET:
-		if (circ_muldet_load(fid, &ct->md) < 0) {
-			log_error("circ_init: loading multidet state failed");
-			goto err_stprep_load;
-		}
+		ct->md = *(const struct circ_muldet *)sp_data;
 		log_debug("circ_init: multidet state (%zu dets)", ct->md.len);
 		break;
 	case STPREP_COEFF_MATRIX:
-		if (data_coeff_matrix_load(fid, &ct->cm) < 0) {
-			log_error("circ_init: coeff_matrix load failed");
-			goto err_stprep_load;
-		}
+		ct->cm = *(const struct data_coeff_matrix *)sp_data;
 		log_debug("circ_init: coeff_matrix state (n_components=%zu)",
 			ct->cm.n_components);
 		break;
@@ -186,7 +191,7 @@ err_vals_init:
 err_cache_init:
 	qreg_free(&ct->reg);
 err_qreg_init:
-	switch (ct->stprep_kind) {
+	switch (sp_kind) {
 	case STPREP_MULTIDET:
 		circ_muldet_free(&ct->md);
 		break;
@@ -194,10 +199,7 @@ err_qreg_init:
 		data_coeff_matrix_free(&ct->cm);
 		break;
 	}
-err_stprep_load:
-err_stprep_kind:
 	circ_hamil_free(&ct->hm);
-err_hamil_load:
 	return -1;
 }
 

@@ -53,47 +53,28 @@ static void ranct_calc_cdf(
 	prob_cdf_from_iter(&rct->cdf, get_vals, &data);
 }
 
-int qdrift_init(
-	struct qdrift *qd, const struct qdrift_data *dt, const data_id fid)
+int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt,
+	struct circ_hamil hm, const enum stprep_kind sp_kind,
+	const void *sp_data, struct phase2_step_writer *sw)
 {
-	if (circ_init(&qd->ct, fid, dt->samples) < 0)
+	if (circ_init(&qd->ct, hm, sp_kind, sp_data, dt->samples) < 0)
 		goto err_circ_init;
 
 	qd->dt = *dt;
+	qd->sw = sw;
 
 	if (ranct_init(&qd->ranct, qd->ct.hm.qb, dt->depth, qd->ct.hm.len) < 0)
 		goto err_rct_init;
 	ranct_calc_cdf(&qd->ranct, qd->ct.hm.terms);
 
-	if (qd->dt.seed != 0) {
+	if (qd->dt.seed != 0)
 		SEED = qd->dt.seed;
-	}
-	xoshiro256ss_init(&qd->rng, SEED);
-
-	if (data_circ_writer_init(fid, DATA_CIRCQDRIFT, dt->samples, &qd->wr)
-		< 0) {
-		log_error("qdrift_init: data_circ_writer_init(%s) failed",
-			DATA_CIRCQDRIFT);
-		goto err_data_init;
-	}
-	if (data_attr_write(fid, DATA_CIRCQDRIFT, DATA_CIRCQDRIFT_STEPSIZE,
-		    dt->step_size) < 0
-		|| data_attr_write(fid, DATA_CIRCQDRIFT,
-			   DATA_CIRCQDRIFT_DEPTH, dt->depth) < 0
-		|| data_attr_write(fid, DATA_CIRCQDRIFT,
-			   DATA_CIRCQDRIFT_NUMSAMPLES, dt->samples) < 0
-		|| data_attr_write(fid, DATA_CIRCQDRIFT,
-			   DATA_CIRCQDRIFT_SEED, (unsigned long)SEED) < 0) {
-		log_error("qdrift_init: writing scalar attributes failed");
-		goto err_attrs;
-	}
+	else
+		qd->dt.seed = SEED;
+	xoshiro256ss_init(&qd->rng, qd->dt.seed);
 
 	return 0;
 
-err_attrs:
-	data_circ_writer_close(&qd->wr);
-err_data_init:
-	ranct_free(&qd->ranct);
 err_rct_init:
 	circ_free(&qd->ct);
 err_circ_init:
@@ -102,7 +83,6 @@ err_circ_init:
 
 void qdrift_free(struct qdrift *qd)
 {
-	data_circ_writer_close(&qd->wr);
 	ranct_free(&qd->ranct);
 	circ_free(&qd->ct);
 }
@@ -149,7 +129,7 @@ int qdrift_simul(struct qdrift *qd)
 		}
 		vals->z[i] = circ_measure(ct);
 
-		if (data_circ_write_step(&qd->wr, i, vals->z[i]) < 0) {
+		if (qd->sw && qd->sw->write(qd->sw->ctx, i, vals->z[i]) < 0) {
 			log_error("qdrift_simul: write_step %zu failed", i);
 			return -1;
 		}

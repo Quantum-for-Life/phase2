@@ -2,7 +2,7 @@
 #define TROTT2_H
 
 #include "phase2/circ.h"
-#include "ph2run/data.h"
+#include "phase2/step_writer.h"
 
 /*
  * Symmetric (Strang) 2nd-order Trotter product formula:
@@ -13,8 +13,7 @@
  * One full step is a forward sweep at delta/2 followed by a
  * reverse sweep at delta/2 — both implemented via the
  * existing circ_step / circ_step_reverse primitives.  Output
- * is the overlap <psi| S_2(delta)^s |psi> for s = 1..steps,
- * written to /circ_trott2/values.
+ * is the overlap <psi| S_2(delta)^s |psi> for s = 1..steps.
  */
 
 struct trott2_data {
@@ -25,23 +24,15 @@ struct trott2_data {
 struct trott2 {
 	struct circ ct;
 	struct trott2_data dt;
-	struct data_circ_writer wr;
+	struct phase2_step_writer *sw;
 };
 
-/* Load Hamiltonian and initial state, allocate the register,
- * sort the Hamiltonian lexicographically, create the
- * /circ_trott2 output group with NaN-padded values dataset
- * and the delta attribute.  Returns 0 on success, -1 on
- * error. */
-int trott2_init(struct trott2 *t2, const struct trott2_data *dt, data_id fid);
+int trott2_init(struct trott2 *t2, const struct trott2_data *dt,
+	struct circ_hamil hm, enum stprep_kind sp_kind,
+	const void *sp_data, struct phase2_step_writer *sw);
 
-/* Release all resources held by `t2`. */
 void trott2_free(struct trott2 *t2);
 
-/* Run `dt.steps` symmetric Trotter steps; per-step overlap
- * goes to `ct.vals` in memory and to /circ_trott2/values[i]
- * on disk (rank 0 only, fflush per step).  Returns 0 on
- * success, -1 on error. */
 int trott2_simul(struct trott2 *t2);
 
 #endif // TROTT2_H

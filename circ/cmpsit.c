@@ -131,48 +131,25 @@ static void cmpsit_ranct_free(struct cmpsit_ranct *rct)
 	prob_cdf_free(&rct->cdf);
 }
 
-int cmpsit_init(
-	struct cmpsit *cp, const struct cmpsit_data *dt, const data_id fid)
+int cmpsit_init(struct cmpsit *cp, const struct cmpsit_data *dt,
+	struct circ_hamil hm, const enum stprep_kind sp_kind,
+	const void *sp_data, struct phase2_step_writer *sw)
 {
-	if (circ_init(&cp->ct, fid, dt->samples) < 0)
+	if (circ_init(&cp->ct, hm, sp_kind, sp_data, dt->samples) < 0)
 		goto err_circ_init;
 	cp->dt = *dt;
+	cp->sw = sw;
 	if (ranct_init(&cp->ranct, &cp->ct.hm, dt) < 0)
 		goto err_ranct_init;
 
-	if (cp->dt.seed != 0) {
+	if (cp->dt.seed != 0)
 		SEED = cp->dt.seed;
-	}
-	xoshiro256ss_init(&cp->rng, SEED);
-
-	if (data_circ_writer_init(fid, DATA_CIRCCMPSIT, dt->samples, &cp->wr)
-		< 0) {
-		log_error("cmpsit_init: data_circ_writer_init(%s) failed",
-			DATA_CIRCCMPSIT);
-		goto err_data_init;
-	}
-	if (data_attr_write(fid, DATA_CIRCCMPSIT, DATA_CIRCCMPSIT_LENGTH,
-		    dt->length) < 0
-		|| data_attr_write(fid, DATA_CIRCCMPSIT,
-			   DATA_CIRCCMPSIT_DEPTH, dt->depth) < 0
-		|| data_attr_write(fid, DATA_CIRCCMPSIT,
-			   DATA_CIRCCMPSIT_ANGLEDET, dt->angle_det) < 0
-		|| data_attr_write(fid, DATA_CIRCCMPSIT,
-			   DATA_CIRCCMPSIT_ANGLERAND, dt->angle_rand) < 0
-		|| data_attr_write(fid, DATA_CIRCCMPSIT,
-			   DATA_CIRCCMPSIT_STEPS, dt->steps) < 0
-		|| data_attr_write(fid, DATA_CIRCCMPSIT,
-			   DATA_CIRCCMPSIT_SEED, (unsigned long)SEED) < 0) {
-		log_error("cmpsit_init: writing scalar attributes failed");
-		goto err_attrs;
-	}
+	else
+		cp->dt.seed = SEED;
+	xoshiro256ss_init(&cp->rng, cp->dt.seed);
 
 	return 0;
 
-err_attrs:
-	data_circ_writer_close(&cp->wr);
-err_data_init:
-	cmpsit_ranct_free(&cp->ranct);
 err_ranct_init:
 	circ_free(&cp->ct);
 err_circ_init:
@@ -181,7 +158,6 @@ err_circ_init:
 
 void cmpsit_free(struct cmpsit *cp)
 {
-	data_circ_writer_close(&cp->wr);
 	cmpsit_ranct_free(&cp->ranct);
 	circ_free(&cp->ct);
 }
@@ -285,7 +261,7 @@ int cmpsit_simul(struct cmpsit *cp)
 			ranct_hmsmpl_free(cp);
 		}
 		vals->z[i] = circ_measure(ct);
-		if (data_circ_write_step(&cp->wr, i, vals->z[i]) < 0) {
+		if (cp->sw && cp->sw->write(cp->sw->ctx, i, vals->z[i]) < 0) {
 			log_error("cmpsit_simul: write_step %zu failed", i);
 			return -1;
 		}

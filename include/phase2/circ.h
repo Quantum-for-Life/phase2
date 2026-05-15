@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <time.h>
 
-#include "ph2run/data.h"
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 #include "phase2/state_prep_coeff.h"
@@ -120,6 +119,13 @@ void circ_hamil_sort_lex(struct circ_hamil *hm);
 int circ_muldet_init(struct circ_muldet *md, size_t len);
 void circ_muldet_free(struct circ_muldet *md);
 
+/* Release a coefficient-matrix carrier populated by
+ * data_coeff_matrix_load() (see ph2run/data.h).  Frees the
+ * top-level and per-block C arrays and zeros the struct.
+ * Lives here because it is pure pointer cleanup and does
+ * not depend on HDF5. */
+void data_coeff_matrix_free(struct data_coeff_matrix *cm);
+
 void circ_prog_init(struct circ_prog *prog, size_t len, const char *unit);
 void circ_prog_tick(struct circ_prog *prog);
 /* Format a rich progress line and emit it at info level
@@ -133,7 +139,28 @@ void circ_prog_emit(const struct circ_prog *prog, const char *subsys);
 int circ_values_init(struct circ_values *vals, size_t len);
 void circ_values_free(struct circ_values *vals);
 
-int circ_init(struct circ *ct, data_id fid, size_t vals_len);
+/*
+ * circ_init - adopt pre-loaded Hamiltonian and state-prep
+ * data into a fresh circ context.
+ *
+ *   hm        Pauli-Hamiltonian, packed (cf, struct paulis).
+ *             Passed by value; circ takes ownership of the
+ *             buffers and frees them in circ_free.  The
+ *             caller must not free them after a successful
+ *             circ_init.
+ *   sp_kind   selects which state-prep payload to adopt.
+ *   sp_data   pointer to a struct circ_muldet (when sp_kind
+ *             == STPREP_MULTIDET) or struct data_coeff_matrix
+ *             (when STPREP_COEFF_MATRIX).  Copied by value;
+ *             same ownership transfer as hm.
+ *   vals_len  number of per-step result slots to allocate.
+ *
+ * Returns 0 on success, -1 on error (with log_error).  On
+ * error the function frees any data it has adopted; the
+ * caller's locals must not be freed a second time.
+ */
+int circ_init(struct circ *ct, struct circ_hamil hm,
+	enum stprep_kind sp_kind, const void *sp_data, size_t vals_len);
 void circ_free(struct circ *ct);
 int circ_prepst(struct circ *ct);
 int circ_step(struct circ *ct, const struct circ_hamil *hm, double omega);
