@@ -368,45 +368,34 @@ check-tests-coverage:
 	rm -rf $$tmp;						\
 	exit $$rc
 
-CHECKS	:= $(TESTS:$(TESTDIR)/%=check/%)
-
-.PHONY: $(CHECKS)
-# Tests are always built with -DDEBUG so log_trace / log_debug
-# in include/log.h expand to real emits.  t-log_release
-# below cancels this so the release-build strip of
-# trace/debug macros can be verified end-to-end -- the
-# override must come after the blanket -DDEBUG so the
-# trailing -UDEBUG wins on the gcc command line.
+# Tests are always built with -DDEBUG so log_trace /
+# log_debug in include/log.h expand to real emits.
+# t-log_release cancels this so the release-build strip
+# of trace/debug macros can be verified end-to-end --
+# the override must come after the blanket -DDEBUG so
+# the trailing -UDEBUG wins on the gcc command line.
 $(TESTS): CFLAGS += -DDEBUG -g -Og
-$(CHECKS): CFLAGS += -DDEBUG -g -Og
 $(TESTDIR)/t-log_release: CFLAGS += -UDEBUG
-check/t-log_release: CFLAGS += -UDEBUG
-$(CHECKS): check/%: $(TESTDIR)/%
-	@./$< && echo "$< OK" || (echo "$<: FAIL"; exit 1)
 
+# All check targets delegate to test/run; the runner
+# fans the suite out across cores, captures per-test
+# stdout/stderr, and prints a cargo-style summary.
+# See test/run.c for the harness contract.
 .PHONY: check
-check: $(CHECKS) check-python
+check: build-test
+	@./$(TESTDIR)/run -- $(TESTS)				\
+		$(TESTDIR)/t-ref-coeff_matrix.py
 
-# Python harness cross-validates the C expansion path against
-# an independent in-tree reference oracle.  Depends on
-# build-test (for the t-state_prep_coeff_expand binary).
-.PHONY: check-python
-check-python: build-test
-	@python3 $(TESTDIR)/t-ref-coeff_matrix.py	\
-		&& echo "$(TESTDIR)/t-ref-coeff_matrix.py OK"	\
-		|| (echo "$(TESTDIR)/t-ref-coeff_matrix.py: FAIL"; exit 1)
-
-# Slow tests: built but not part of the default check target.
+# Slow tests: built but not part of the default check
+# target.
 .PHONY: build-test-slow
 build-test-slow: $(TESTS_SLOW)
 
-CHECKS_SLOW	:= $(TESTS_SLOW:$(TESTDIR)/%=check/%)
-.PHONY: $(CHECKS_SLOW)
-$(CHECKS_SLOW): CFLAGS += -DDEBUG -g -Og
-$(CHECKS_SLOW): check/%: $(TESTDIR)/%
-	@./$< && echo "$< OK" || (echo "$<: FAIL"; exit 1)
 .PHONY: check-slow
-check-slow: $(CHECKS_SLOW)
+check-slow: build-test-slow $(TESTDIR)/run
+	@./$(TESTDIR)/run -- $(TESTS_SLOW)
+
+.PHONY: test-slow
 test-slow: check-slow
 
 # Sanitizer / valgrind targets.  These rebuild from scratch
@@ -449,19 +438,23 @@ test-mpi-asan:
 			( echo "$$tt: FAIL"; exit 1 );			\
 	done
 
-#check: build-test
-#	@for tt in $(TESTS); do						\
-#		./$$tt &&						\
-#			echo "$$tt: OK" ||				\
-#			( echo "$$tt: FAIL"; exit 1 );			\
-#	done
-
+.PHONY: check-mpi
 check-mpi: build-test
-	@for tt in $(TESTS); do						\
-		$(MPIRUN) -n $(MPIRANKS) $(MPIFLAGS) ./$$tt && 		\
-			echo "$$tt: OK" ||				\
-			( echo "$$tt: FAIL"; exit 1 );			\
-	done
+	@./$(TESTDIR)/run --mpiranks=$(MPIRANKS) -- $(TESTS)
+
+# Pattern target: `make check-<filter>` runs the
+# subset of the suite whose effective names match
+# `<filter>*` (fnmatch glob).  The effective name is
+# the basename without the `t-` prefix and the `.py`
+# suffix.  Examples:
+#   make check-data    -> all t-data_*
+#   make check-paulis  -> just t-paulis
+#   make check-circ    -> all t-circ*
+# Explicit targets (check-mpi, check-slow,
+# check-tests-coverage) win over this pattern.
+check-%: build-test
+	@./$(TESTDIR)/run --filter='$**' -- $(TESTS)		\
+		$(TESTDIR)/t-ref-coeff_matrix.py
 
 
 # --------------------------------------------------------------------------- #
