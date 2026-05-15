@@ -287,6 +287,7 @@ TESTS		:= $(TESTDIR)/t-bitstring_index			\
 			$(TESTDIR)/t-data_attr				\
 			$(TESTDIR)/t-data_coeff_matrix			\
 			$(TESTDIR)/t-data_hamil				\
+			$(TESTDIR)/t-data_hamil_validate		\
 			$(TESTDIR)/t-data_multidet			\
 			$(TESTDIR)/t-data_open				\
 			$(TESTDIR)/t-data_dets_validate			\
