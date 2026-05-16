@@ -1,6 +1,31 @@
 #ifndef CIRC_H
 #define CIRC_H
 
+/*
+ * phase2/circ.h -- circuit context, data carriers, and
+ * the lifecycle / step / measure API.
+ *
+ * `struct circ` is the per-simulation aggregate: it owns
+ * a Pauli Hamiltonian, a state-prep payload (multidet or
+ * coeff_matrix), an MPI-distributed register, a batch
+ * cache, and the per-step results buffer.
+ *
+ * The carriers below (`circ_hamil`, `circ_muldet`,
+ * `circ_values`, plus the coefficient-matrix payloads
+ * `data_coeff_matrix` / `data_coeff_block`) are populated
+ * either by the data subsystem (`ph2run/data.h`) or in-
+ * tree by test code.  The free helpers here are pure
+ * pointer cleanup and do not depend on HDF5, so circ /
+ * libphase2.so can release them without linking the I/O
+ * layer.
+ *
+ * Algorithms (`circ/trott.c`, `trott2.c`, `qdrift.c`,
+ * `cmpsit.c`) build a `struct circ`, prepare the state,
+ * run a sequence of `circ_step` / `circ_step_reverse`
+ * calls, and read out each step's overlap with
+ * `circ_measure`.
+ */
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -8,6 +33,17 @@
 #include "phase2/qreg.h"
 #include "phase2/state_prep_coeff.h"
 
+/*
+ * Sparse Hamiltonian: a sum of weighted Pauli strings.
+ *
+ *   qb     qubit count the operators apply to.
+ *   terms  array of (coefficient, packed Pauli) pairs.
+ *   len    number of terms.
+ *
+ * Allocated by `circ_hamil_init`; freed by
+ * `circ_hamil_free`.  Ownership is transferred to a
+ * `struct circ` on a successful `circ_init`.
+ */
 struct circ_hamil {
 	uint32_t qb;
 	struct circ_hamil_term {
@@ -17,6 +53,14 @@ struct circ_hamil {
 	size_t len;
 };
 
+/*
+ * Multi-determinant state-prep payload: a sparse
+ * superposition |psi> = sum_i cf_i |idx_i>.
+ *
+ *   dets   array of (basis-state index, complex
+ *          amplitude) pairs.
+ *   len    number of basis states.
+ */
 struct circ_muldet {
 	struct {
 		uint64_t idx;
@@ -25,6 +69,11 @@ struct circ_muldet {
 	size_t len;
 };
 
+/*
+ * Per-step results: one complex overlap per Trotter
+ * step (or qDRIFT / composite sample), filled in by
+ * the algorithm during simulation.
+ */
 struct circ_values {
 	_Complex double *z;
 	size_t len;
@@ -94,6 +143,29 @@ struct data_coeff_matrix {
 	struct data_coeff_block *blocks;
 };
 
+/*
+ * Per-simulation aggregate.  Members:
+ *
+ *   hm           sparse Pauli Hamiltonian; adopted by
+ *                circ_init, freed by circ_free.
+ *   md           multidet state-prep payload; populated
+ *                when stprep_kind == STPREP_MULTIDET.
+ *   cache        Pauli-rotation batch cache (private
+ *                type, allocated in circ_init, freed in
+ *                circ_free).
+ *   vals         per-step results buffer.
+ *   reg          MPI-distributed quantum register.
+ *   stprep_kind  selects which state-prep payload to
+ *                consume (md vs cm).
+ *   cm           coefficient-matrix state-prep payload;
+ *                populated when stprep_kind ==
+ *                STPREP_COEFF_MATRIX.
+ *
+ * Callers do not poke at internal fields directly --
+ * the lifecycle goes through circ_init / circ_free,
+ * the simulation through circ_prepst / circ_step /
+ * circ_measure.
+ */
 struct circ {
 	struct circ_hamil hm;
 	struct circ_muldet md;
@@ -104,10 +176,38 @@ struct circ {
 	struct data_coeff_matrix cm;
 };
 
+
+/* -- data carriers ------------------------------------------------------- */
+
+/*
+ * circ_hamil_init / _free / _sort_lex -- allocate,
+ * release, and pre-sort a Hamiltonian carrier.
+ *
+ * `_init` allocates `len` term slots and records the
+ * qubit count; returns 0 on success, -1 on
+ * allocation failure.
+ *
+ * `_free` releases the term buffer and zeroes both the
+ * pointer and `len`, so a second free is a clean
+ * no-op.  Safe to call on a default-zero `struct
+ * circ_hamil`.
+ *
+ * `_sort_lex` reorders terms by lexicographic Pauli
+ * code, which groups terms sharing an MPI exchange
+ * contiguously and maximises the batch cache hit rate
+ * in circ_step.  Cheap to run; do once before the
+ * first step.
+ */
 int circ_hamil_init(struct circ_hamil *hm, uint32_t qb, size_t len);
 void circ_hamil_free(struct circ_hamil *hm);
 void circ_hamil_sort_lex(struct circ_hamil *hm);
 
+/*
+ * circ_muldet_init / _free -- allocate and release the
+ * multi-determinant state-prep carrier.  `_init`
+ * returns 0 on success, -1 on allocation failure;
+ * `_free` is idempotent.
+ */
 int circ_muldet_init(struct circ_muldet *md, size_t len);
 void circ_muldet_free(struct circ_muldet *md);
 
@@ -118,8 +218,17 @@ void circ_muldet_free(struct circ_muldet *md);
  * not depend on HDF5. */
 void data_coeff_matrix_free(struct data_coeff_matrix *cm);
 
+/*
+ * circ_values_init / _free -- allocate and release the
+ * per-step results buffer (`len` complex slots).
+ * `_init` returns 0 on success, -1 on allocation
+ * failure; `_free` is idempotent.
+ */
 int circ_values_init(struct circ_values *vals, size_t len);
 void circ_values_free(struct circ_values *vals);
+
+
+/* -- lifecycle ----------------------------------------------------------- */
 
 /*
  * circ_init - adopt pre-loaded Hamiltonian and state-prep
@@ -143,11 +252,49 @@ void circ_values_free(struct circ_values *vals);
  */
 int circ_init(struct circ *ct, struct circ_hamil hm,
 	enum stprep_kind sp_kind, const void *sp_data, size_t vals_len);
+
+/* Release every owned buffer (Hamiltonian, state-prep
+ * payload, cache, register, results) and zero the
+ * cache pointer.  Safe on a fully-initialised circ. */
 void circ_free(struct circ *ct);
+
+
+/* -- simulation surface -------------------------------------------------- */
+
+/*
+ * circ_prepst -- write the initial state encoded by the
+ * adopted state-prep payload into the MPI register.
+ * Zeroes the register first.  Returns 0 on success, -1
+ * on error.
+ */
 int circ_prepst(struct circ *ct);
+
+/*
+ * circ_step / circ_step_reverse -- apply one Trotter step
+ * exp(i*omega*H), traversing the Hamiltonian forward or
+ * backward respectively.  Forward and reverse sweeps with
+ * the same omega cancel only when each Pauli rotation
+ * commutes with the next, hence the order matters for
+ * Strang-style 2nd-order Trotter.
+ *
+ * Returns 0 on success, -1 on error (e.g. a cache flush
+ * could not place the next term).
+ */
 int circ_step(struct circ *ct, const struct circ_hamil *hm, double omega);
 int circ_step_reverse(
 	struct circ *ct, const struct circ_hamil *hm, double omega);
+
+/*
+ * circ_measure -- compute <trial | evolved>, where the
+ * trial state is determined by the adopted state-prep
+ * payload and `evolved` is the register's current
+ * contents.  Returns the complex overlap.
+ *
+ * Sentinel: returns 0+0i if `ct->stprep_kind` is not
+ * one of the known enum values (the switch has no
+ * default; this path is unreachable on a well-formed
+ * circ but kept defensively).
+ */
 _Complex double circ_measure(struct circ *ct);
 
 #endif // CIRC_H

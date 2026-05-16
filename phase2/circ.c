@@ -1,3 +1,27 @@
+/*
+ * phase2/circ.c -- implementation of the circ API
+ * declared in include/phase2/circ.h.
+ *
+ * Layout:
+ *   - data-carrier helpers (hamil / muldet / values)
+ *     and the coeff-matrix free,
+ *   - lifecycle (circ_init / circ_free),
+ *   - state preparation (circ_prepst),
+ *   - Hamiltonian step (circ_step / _reverse, sharing
+ *     circ_step_generic) and its batch-cache callback
+ *     circ_flush,
+ *   - measurement (circ_measure, with the
+ *     coeff-matrix helpers measure_coeff /
+ *     measure_coeff_block).
+ *
+ * The batch cache lives in `circ_cache.{c,h}`
+ * (phase2-private header) and is opaque from this
+ * file's perspective; each `struct circ` owns its own
+ * `struct circ_cache` instance.  The four algorithm
+ * drivers (trott / trott2 / qdrift / cmpsit) live in
+ * `circ/` and consume this surface.
+ */
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
@@ -314,5 +338,10 @@ _Complex double circ_measure(struct circ *ct)
 		return measure_coeff(ct);
 	}
 
+	/* Unreachable on a well-formed circ -- circ_init
+	 * validates stprep_kind.  Sentinel return so the
+	 * compiler is happy without a default case (which
+	 * would suppress the warning when a future
+	 * stprep_kind is added). */
 	return 0.0;
 }
