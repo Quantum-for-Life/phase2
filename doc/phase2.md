@@ -1727,3 +1727,89 @@ distclean` additionally removes the built binaries
 and `libphase2.so`.  Sub-makes refuse to run
 standalone -- they error with a pointer to the
 top-level Makefile.
+
+
+## 11. Benchmarking
+
+Micro-benchmarks live under `bench/`.  Two binaries
+today:
+
+- `b-paulis` -- `paulis_set` / `paulis_get` /
+  `paulis_effect` on 64-qubit Pauli strings.
+- `b-qreg`   -- `qreg_init` and `qreg_paulirot`
+  at two qubit sizes crossing the cache
+  hierarchy: `nqb=14` (L2-resident) and `nqb=18`
+  (RAM-bound), with batch counts `ncodes` in
+  `{1, 10, 100}` at `nqb=14` and `{1, 10}` at
+  `nqb=18`.
+
+Both binaries are designed to run in under five
+seconds total so the maintainer can fire them
+often -- after every meaningful change, not "once
+a release".
+
+### 11.1 Running
+
+    make bench
+
+builds the binaries (if needed) and runs them.  Each
+scenario emits one row in a console table:
+
+    scenario / params           median   min   max  prev  delta
+    -------------------------   ------   ---   ---  ----  -----
+    paulis_set {"nqb":64}        4.27   3.96   6.17  5.35  -20%
+    ...
+
+and one JSON record per scenario in
+`bench/runs/$(hostname).jsonl`.  The records
+accumulate across runs; baselines are tracked
+per host because perf varies by machine.
+
+The console `prev` / `delta` columns compare the
+current run's median against the most recent
+record matching `(hostname, scenario, params)`.
+A `[stale]` flag appears if the baseline is more
+than 30 days old; a `[noisy]` flag appears when
+`(max - min) / median > 15%`.
+
+To run under MPI:
+
+    make bench-mpi MPIRANKS=4
+
+The `"mpi_ranks"` field in the record keeps multi-
+rank baselines distinct from single-rank ones.
+
+To wipe the host's baseline (after an intentional
+perf-affecting change has landed):
+
+    make bench-clean
+
+The next `make bench` will then show `--` in the
+delta column.
+
+### 11.2 JSONL schema
+
+One JSON object per line in
+`bench/runs/<hostname>.jsonl`.  Fields:
+
+| Field        | Type    | Example                  |
+|--------------|---------|--------------------------|
+| `timestamp`  | string  | `"2026-05-16T13:42:30Z"` |
+| `hostname`   | string  | `"kumath"`               |
+| `commit`     | string  | `"031cf25"`              |
+| `compiler`   | string  | `"13.3.0"`               |
+| `backend`    | string  | `"qreg"` / `"cuda"`      |
+| `mpi_ranks`  | integer | `1`                      |
+| `scenario`   | string  | `"paulirot"`             |
+| `params`     | object  | `{"nqb":18,"ncodes":10}` |
+| `num_runs`   | integer | `11`                     |
+| `median_ns`  | number  | `4521000.0`              |
+| `min_ns`     | number  | `4480000.0`              |
+| `max_ns`     | number  | `4620000.0`              |
+| `noisy`      | boolean | `false`                  |
+
+Baseline lookup matches both `(scenario, params)`
+byte-for-byte, so records at different
+`(nqb, ncodes)` pairs stay distinct.  Reading is
+via the vendored single-header `include/jsmn.h`
+tokenizer (MIT, zserge/jsmn).
