@@ -265,12 +265,14 @@ check-%: test-build
 # `bench` is the user-facing target: build then run.  `bench-build` is the
 # internal dispatch that only builds.  `bench-mpi` runs under mpirun.
 bench: bench-build
-	@for bb in $(BUILDDIR)/bench/b-paulis $(BUILDDIR)/bench/b-qreg; do \
+	@for bb in $(BUILDDIR)/bench/b-*; do				\
+		[ -x "$$bb" ] || continue;				\
 		"$$bb" || { echo "$$bb: FAIL"; exit 1; };		\
 	done
 
 bench-mpi: bench-build
-	@for bb in $(BUILDDIR)/bench/b-paulis $(BUILDDIR)/bench/b-qreg; do \
+	@for bb in $(BUILDDIR)/bench/b-*; do				\
+		[ -x "$$bb" ] || continue;				\
 		$(MPIRUN) -n $(MPIRANKS) $(MPIFLAGS) "$$bb" ||		\
 			{ echo "$$bb: FAIL"; exit 1; };			\
 	done
