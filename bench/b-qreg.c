@@ -171,6 +171,11 @@ static void measure_paulirot(FILE *out, const struct bench_prov *prov,
 
 int main(void)
 {
+	/* Quiet phase2's INFO banners by default so the bench table is
+	 * the only thing on stdout.  Don't overwrite an existing setting
+	 * -- `PHASE2_LOG=debug make bench` still works. */
+	setenv("PHASE2_LOG", "warn", 0);
+
 	world_init(nullptr, nullptr, WD_SEED);
 	struct world_info wd;
 	world_info(&wd);
