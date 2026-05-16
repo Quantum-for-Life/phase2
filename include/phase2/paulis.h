@@ -31,9 +31,6 @@ uint64_t paulis_effect(struct paulis code, uint64_t i, _Complex double *z);
 void paulis_split(struct paulis code, uint32_t qb_lo, uint32_t qb_hi,
 	struct paulis *lo, struct paulis *hi);
 
-void paulis_merge(struct paulis *code, uint32_t qb_lo, uint32_t qb_hi,
-	struct paulis lo, struct paulis hi);
-
 /* Lexicographical order */
 int paulis_cmp(struct paulis a, struct paulis b);
 

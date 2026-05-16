@@ -87,18 +87,18 @@ enum pauli_op paulis_get(struct paulis code, uint32_t n)
 	}
 }
 
-inline int paulis_eq(const struct paulis code1, const struct paulis code2)
+inline int paulis_eq(struct paulis code1, struct paulis code2)
 {
 	return code1.pak[0] == code2.pak[0] && code1.pak[1] == code2.pak[1];
 }
 
-inline void paulis_shl(struct paulis *code, const uint32_t n)
+inline void paulis_shl(struct paulis *code, uint32_t n)
 {
 	code->pak[0] <<= n;
 	code->pak[1] <<= n;
 }
 
-inline void paulis_shr(struct paulis *code, const uint32_t n)
+inline void paulis_shr(struct paulis *code, uint32_t n)
 {
 	code->pak[0] >>= n;
 	code->pak[1] >>= n;
@@ -127,8 +127,7 @@ inline void paulis_shr(struct paulis *code, const uint32_t n)
  *   Total phase = i^is * (-1)^mi = i^(is + 2*mi).
  *   Reduce mod 4 to index into {1, i, -1, -i}.
  */
-uint64_t paulis_effect(
-	const struct paulis code, const uint64_t i, _Complex double *z)
+uint64_t paulis_effect(struct paulis code, uint64_t i, _Complex double *z)
 {
 	if (!z)
 		goto rt;
@@ -156,31 +155,17 @@ rt:
 	return i ^ code.pak[0];
 }
 
-void paulis_split(const struct paulis code, const uint32_t qb_lo,
-	const uint32_t qb_hi, struct paulis *lo, struct paulis *hi)
+void paulis_split(struct paulis code, uint32_t qb_lo, uint32_t qb_hi,
+	struct paulis *lo, struct paulis *hi)
 {
-	uint64_t mask_lo, mask_hi;
-
-	mask_lo = (UINT64_C(1) << qb_lo) - 1;
-	mask_hi = (UINT64_C(1) << (qb_hi + qb_lo)) - 1 - mask_lo;
+	const uint64_t mask_lo = (UINT64_C(1) << qb_lo) - 1;
+	const uint64_t mask_hi = (UINT64_C(1) << (qb_hi + qb_lo)) - 1 - mask_lo;
 
 	lo->pak[0] = code.pak[0] & mask_lo;
 	lo->pak[1] = code.pak[1] & mask_lo;
 
 	hi->pak[0] = code.pak[0] & mask_hi;
 	hi->pak[1] = code.pak[1] & mask_hi;
-}
-
-void paulis_merge(struct paulis *code, const uint32_t qb_lo,
-	const uint32_t qb_hi, const struct paulis lo, const struct paulis hi)
-{
-	uint64_t mask_lo, mask_hi;
-
-	mask_lo = (UINT64_C(1) << qb_lo) - 1;
-	mask_hi = (UINT64_C(1) << (qb_hi + qb_lo)) - 1 - mask_lo;
-
-	code->pak[0] = (lo.pak[0] & mask_lo) | (hi.pak[0] & mask_hi);
-	code->pak[1] = (lo.pak[1] & mask_lo) | (hi.pak[1] & mask_hi);
 }
 
 int paulis_cmp(struct paulis a, struct paulis b)
