@@ -149,9 +149,12 @@ static void measure_circ_step(FILE *out, const struct bench_prov *prov,
 	snprintf(params, sizeof params,
 		"{\"nqb\":%u,\"nterms\":%zu,\"ndets\":%zu}",
 		nqb, nterms, ndets);
+	/* nqb is constant for this binary; the banner shows it.
+	 * Per-row label carries the varying params only. */
+	(void)nqb;
 	char display[40];
 	snprintf(display, sizeof display,
-		"circ_step nq=%u t=%zu d=%zu", nqb, nterms, ndets);
+		"circ_step t=%zu d=%zu", nterms, ndets);
 	record(out, prov, mpi_ranks, "circ_step", params, display,
 		samples, NUM_RUNS, K);
 
@@ -199,9 +202,10 @@ static void measure_circ_measure(FILE *out, const struct bench_prov *prov,
 	char params[64];
 	snprintf(params, sizeof params,
 		"{\"nqb\":%u,\"ndets\":%zu}", nqb, ndets);
+	(void)nqb;
 	char display[40];
 	snprintf(display, sizeof display,
-		"circ_measure nq=%u d=%zu", nqb, ndets);
+		"circ_measure d=%zu", ndets);
 	record(out, prov, mpi_ranks, "circ_measure", params, display,
 		samples, NUM_RUNS, K);
 
@@ -239,7 +243,7 @@ int main(void)
 			world_free();
 			return 1;
 		}
-		bench_print_banner("b-circ");
+		bench_print_banner("b-circ (nqb=12)");
 		bench_print_header();
 	}
 
