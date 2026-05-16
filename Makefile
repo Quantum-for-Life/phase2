@@ -175,7 +175,7 @@ export RM MKDIR
 	build-bench build-test build-test-slow				\
 	check check-mpi check-slow check-% check-srcs-coverage		\
 	check-tests-coverage						\
-	bench-run bench-mpi bench-clean					\
+	bench bench-build bench-mpi bench-clean				\
 	clean distclean format						\
 	test-asan test-valgrind test-mpi-asan
 
@@ -201,7 +201,7 @@ lib:
 ph2run: phase2 circ lib
 	+@$(MAKE) -C $(PH2RUNDIR)
 
-bench: phase2 circ lib ph2run-data
+bench-build: phase2 circ lib ph2run-data
 	+@$(MAKE) -C $(BENCHDIR)
 
 test-build: phase2 circ lib ph2run-data
@@ -215,7 +215,7 @@ ph2run-data: phase2 circ lib
 
 # --- High-level aliases ---------------------------------------------------- #
 build:       check-srcs-coverage ph2run
-build-bench: bench
+build-bench: bench-build
 build-test:  test-build
 
 build-test-slow: phase2 circ lib ph2run-data
@@ -262,21 +262,23 @@ check-%: test-build
 	+@$(MAKE) -C $(TESTDIR) check-$*
 
 # --- Benchmarks ------------------------------------------------------------ #
-bench-run: bench
+# `bench` is the user-facing target: build then run.  `bench-build` is the
+# internal dispatch that only builds.  `bench-mpi` runs under mpirun.
+bench: bench-build
 	@for bb in $(BUILDDIR)/bench/b-paulis $(BUILDDIR)/bench/b-qreg; do \
 		"$$bb" || { echo "$$bb: FAIL"; exit 1; };		\
 	done
 
-bench-mpi: bench
+bench-mpi: bench-build
 	@for bb in $(BUILDDIR)/bench/b-paulis $(BUILDDIR)/bench/b-qreg; do \
 		$(MPIRUN) -n $(MPIRANKS) $(MPIFLAGS) "$$bb" ||		\
 			{ echo "$$bb: FAIL"; exit 1; };			\
 	done
 
 # Reset the host's bench baseline.  Useful after an intentional
-# perf-affecting change has landed: the next `make bench-run` will
-# show `--` in the delta column instead of pretending the new
-# numbers regressed against the old ones.
+# perf-affecting change has landed: the next `make bench` will show
+# `--` in the delta column instead of pretending the new numbers
+# regressed against the old ones.
 bench-clean:
 	@$(RM) bench/runs/$$(hostname).jsonl
 
