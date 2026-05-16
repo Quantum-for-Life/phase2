@@ -1,9 +1,8 @@
 # ========================================================================== #
 # bench -- micro-benchmarks (b-paulis, b-qreg)                               #
 #                                                                            #
-# Compiles bench/bench.c into $(BUILDDIR)/bench/bench.o (a shared support    #
-# unit used by every b-*) and links the benchmark binaries from b-*.c plus  #
-# the prebuilt subsys objects.                                              #
+# Each benchmark binary is built from a single b-NAME.c that includes the    #
+# header-only bench.h framework.  No shared bench.o.                         #
 # ========================================================================== #
 
 ifndef TOPDIR
@@ -18,10 +17,6 @@ include $(TOPDIR)/build-rules.mk
 PROG_NAMES := b-paulis b-qreg
 PROGS      := $(PROG_NAMES:%=$(BUILDDIR)/bench/%)
 
-# Shared support code linked into every benchmark.
-SHARED_SRCS := bench.c
-SHARED_OBJS := $(SHARED_SRCS:%.c=$(BUILDDIR)/bench/%.o)
-
 # bench's headers live alongside its sources; tell gcc.
 CFLAGS += -I.
 
@@ -29,17 +24,16 @@ CFLAGS += -I.
 all: $(PROGS)
 
 # Per-binary link rule.  $(BUILDDIR)/bench/b-NAME built
-# from b-NAME.c + bench.o + every upstream subsys
-# object set.
-$(PROGS): $(BUILDDIR)/bench/%: %.c bench.h $(SHARED_OBJS)	\
+# from b-NAME.c + every upstream subsys object set.
+$(PROGS): $(BUILDDIR)/bench/%: %.c bench.h				\
                                $(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)
 	@$(MKDIR) $(@D)
-	$(CC) $(CFLAGS) $(LDFLAGS) $< $(SHARED_OBJS)		\
-	      $(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)	\
+	$(CC) $(CFLAGS) $(LDFLAGS) $<					\
+	      $(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)		\
 	      $(LDLIBS) -o $@
 
 check-srcs-coverage:
-	@declared=" $(SHARED_SRCS) $(PROG_NAMES:%=%.c) ";		\
+	@declared=" $(PROG_NAMES:%=%.c) ";				\
 	rc=0;								\
 	for s in *.c; do						\
 		[ -f "$$s" ] || continue;				\

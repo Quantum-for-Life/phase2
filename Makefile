@@ -175,7 +175,7 @@ export RM MKDIR
 	build-bench build-test build-test-slow				\
 	check check-mpi check-slow check-% check-srcs-coverage		\
 	check-tests-coverage						\
-	bench-run bench-mpi						\
+	bench-run bench-mpi bench-clean					\
 	clean distclean format						\
 	test-asan test-valgrind test-mpi-asan
 
@@ -264,17 +264,21 @@ check-%: test-build
 # --- Benchmarks ------------------------------------------------------------ #
 bench-run: bench
 	@for bb in $(BUILDDIR)/bench/b-paulis $(BUILDDIR)/bench/b-qreg; do \
-		./$$bb &&						\
-			echo "$$bb: OK" ||				\
-			( echo "$$bb: FAIL"; exit 1 );			\
+		"$$bb" || { echo "$$bb: FAIL"; exit 1; };		\
 	done
 
 bench-mpi: bench
 	@for bb in $(BUILDDIR)/bench/b-paulis $(BUILDDIR)/bench/b-qreg; do \
-		$(MPIRUN) -n $(MPIRANKS) $(MPIFLAGS) ./$$bb &&		\
-			echo "$$bb: OK" ||				\
-			( echo "$$bb: FAIL"; exit 1 );			\
+		$(MPIRUN) -n $(MPIRANKS) $(MPIFLAGS) "$$bb" ||		\
+			{ echo "$$bb: FAIL"; exit 1; };			\
 	done
+
+# Reset the host's bench baseline.  Useful after an intentional
+# perf-affecting change has landed: the next `make bench-run` will
+# show `--` in the delta column instead of pretending the new
+# numbers regressed against the old ones.
+bench-clean:
+	@$(RM) bench/runs/$$(hostname).jsonl
 
 # --- Drift guards ---------------------------------------------------------- #
 # Each subsys checks its own *.c/*.cu against its own SRCS list.

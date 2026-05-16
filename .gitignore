@@ -19,6 +19,9 @@ __pycache__/
 simul.log
 simul.h5*
 
+# Bench records (per-host JSONL, accumulates across runs)
+bench/runs/
+
 # Misc local
 tmp/
 .claude/
