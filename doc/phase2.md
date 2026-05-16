@@ -221,13 +221,17 @@ Pauli string require the same MPI exchange pattern.  Since
 MPI exchange is the dominant cost, the library batches such
 terms to amortise the communication overhead.
 
-The `circ_cache` module is a static accumulator that stores
-up to CACHE_MAX = 1024 (lo-qubit code, angle) pairs.
-Terms are inserted via `circ_cache_insert`.  When a term
-with a different hi-part arrives, or the cache is full, the
-accumulated batch is flushed: a single MPI exchange is
-performed, followed by CACHE_MAX (or fewer) local rotation
-passes.
+The `circ_cache` module is an accumulator that stores up
+to CACHE_MAX = 1024 (lo-qubit code, angle) pairs.  Each
+`struct circ` owns its own `struct circ_cache` instance
+(allocated in `circ_init`, freed in `circ_free`), so
+multi-circuit drivers and the Python `ctypes` entry point
+can hold several active circuits concurrently.  Terms are
+inserted via `circ_cache_insert(cache, ...)`.  When a
+term with a different hi-part arrives, or the cache is
+full, the accumulated batch is flushed: a single MPI
+exchange is performed, followed by CACHE_MAX (or fewer)
+local rotation passes.
 
 Sorting the Hamiltonian lexicographically
 (`circ_hamil_sort_lex`) before simulation maximises the
@@ -297,20 +301,37 @@ computing each step's overlap, the algorithm calls
 disables per-step output and runs the simulation entirely
 in memory.
 
-ph2run plugs in a writer whose `ctx` is a
-`struct data_circ_writer` (the HDF5 dataset cache from
-the data subsystem) and whose `write` thunks to
-`data_circ_write_step`:
+ph2run plugs in a writer whose context bundles the HDF5
+dataset cache from the data subsystem together with the
+fields it needs for progress emission (total steps,
+wall-clock start, last emitted percent, unit name).
+The thunk writes the result, then emits a progress line
+at INFO level whenever a new percent boundary is
+crossed:
 
 ```c
+struct step_ctx {
+        struct data_circ_writer *wr;
+        size_t total;
+        struct timespec t0;
+        unsigned last_pc;
+        const char *unit;     /* "step" / "sample" */
+};
+
 static int step_thunk(void *ctx, size_t i,
         _Complex double z)
 {
-        return data_circ_write_step(ctx, i, z);
+        struct step_ctx *sc = ctx;
+        if (data_circ_write_step(sc->wr, i, z) < 0)
+                return -1;
+        /* ... emit progress line on percent boundary ... */
+        return 0;
 }
-struct phase2_step_writer sw = {
-        .ctx = &io.wr, .write = step_thunk };
 ```
+
+The compute library (circ + algorithms) carries no
+progress emitter of its own.  All telemetry lives
+on the application side, behind this one callback.
 
 External wrappers (Python via ctypes, future C/Rust
 callers) plug in whatever sink they want, without
