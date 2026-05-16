@@ -64,6 +64,10 @@ int main(void)
 	 * -- `PHASE2_LOG=debug make bench` still works. */
 	setenv("PHASE2_LOG", "warn", 0);
 
+	/* Pin to CPU 0 so the OS scheduler doesn't migrate us mid-sample.
+	 * Best-effort: failures are ignored (containers may forbid it). */
+	bench_pin_cpu(0);
+
 	world_init(nullptr, nullptr, WD_SEED);
 	struct world_info wd;
 	world_info(&wd);

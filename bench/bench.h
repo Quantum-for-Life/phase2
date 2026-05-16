@@ -53,10 +53,12 @@
 
 #define _POSIX_C_SOURCE 200809L
 #define _DEFAULT_SOURCE         /* for timegm() */
+#define _GNU_SOURCE             /* for sched_setaffinity() */
 
 #include "c23_compat.h"
 #include <errno.h>
 #include <math.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -77,6 +79,24 @@ static inline double bench_now_ns(void)
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	return (double)ts.tv_sec * 1e9 + (double)ts.tv_nsec;
+}
+
+
+/* -- CPU pinning -----------------------------------------------------------*/
+
+/*
+ * Pin the current thread to one fixed CPU so the OS scheduler doesn't
+ * migrate it mid-sample (a migration changes which L2 cache the thread
+ * sees and is a common source of variance).  Returns 0 on success, -1
+ * otherwise.  Best-effort: a sandbox or container that strips
+ * CAP_SYS_NICE may forbid the call; we don't make it fatal.
+ */
+static inline int bench_pin_cpu(int cpu)
+{
+	cpu_set_t set;
+	CPU_ZERO(&set);
+	CPU_SET(cpu, &set);
+	return sched_setaffinity(0, sizeof set, &set);
 }
 
 
@@ -164,7 +184,7 @@ static inline int bench_runs_path(const struct bench_prov *p,
 /* -- baseline lookup -------------------------------------------------------*/
 
 struct bench_baseline {
-	double median_ns;
+	double min_ns;
 	char timestamp[32];
 };
 
@@ -214,7 +234,7 @@ static inline bool bench_find_baseline(const char *path,
 			continue;
 
 		bool host_ok = false, scen_ok = false, params_ok = false;
-		double median = 0.0;
+		double min_v = 0.0;
 		const char *ts_ptr = NULL;
 		int ts_len = 0;
 
@@ -243,14 +263,14 @@ static inline bool bench_find_baseline(const char *path,
 							params_json, span)
 							== 0;
 				}
-			} else if (bench_tok_eq(line, k, "median_ns")) {
+			} else if (bench_tok_eq(line, k, "min_ns")) {
 				char buf[64];
 				const size_t len =
 					(size_t)(v->end - v->start);
 				if (len < sizeof buf) {
 					memcpy(buf, line + v->start, len);
 					buf[len] = '\0';
-					median = strtod(buf, NULL);
+					min_v = strtod(buf, NULL);
 				}
 			} else if (bench_tok_eq(line, k, "timestamp")) {
 				ts_ptr = line + v->start;
@@ -259,7 +279,7 @@ static inline bool bench_find_baseline(const char *path,
 		}
 
 		if (host_ok && scen_ok && params_ok) {
-			out->median_ns = median;
+			out->min_ns = min_v;
 			if (ts_ptr && ts_len > 0 &&
 				(size_t)ts_len < sizeof out->timestamp) {
 				memcpy(out->timestamp, ts_ptr,
@@ -328,12 +348,19 @@ static inline void bench_print_header(void)
 {
 	printf("%-32s %12s %12s %12s %12s %8s\n",
 		"scenario / params",
-		"median (ns)", "min (ns)", "max (ns)", "prev (ns)", "delta");
+		"min (ns)", "median (ns)", "max (ns)", "prev (ns)", "delta");
 	printf("%-32s %12s %12s %12s %12s %8s\n",
 		"-----------------",
-		"-----------", "--------", "--------", "---------", "-----");
+		"--------", "-----------", "--------", "---------", "-----");
 }
 
+/*
+ * The headline is `min` (delta = (st->min - bl->min_ns) / bl->min_ns).
+ * Noise at the nanosecond scale is additive -- interrupts, cache
+ * evictions, frequency dips only ever make a call slower -- so the
+ * minimum is the best estimator of the unperturbed cost.  Median and
+ * max stay in the table for context.
+ */
 static inline void bench_print_row(const char *label,
 	const struct bench_stats *st, const struct bench_baseline *bl,
 	bool has_baseline)
@@ -341,17 +368,17 @@ static inline void bench_print_row(const char *label,
 	char delta[16] = "      --";
 	char warn[24] = "";
 
-	if (has_baseline && bl->median_ns > 0.0) {
-		const double pct = (st->median - bl->median_ns)
-			/ bl->median_ns * 100.0;
+	if (has_baseline && bl->min_ns > 0.0) {
+		const double pct = (st->min - bl->min_ns)
+			/ bl->min_ns * 100.0;
 		snprintf(delta, sizeof delta, "%+6.1f%%", pct);
 		if (bench_timestamp_stale(bl->timestamp, 30))
 			snprintf(warn, sizeof warn, " [stale]");
 	}
 
 	printf("%-32s %12.2f %12.2f %12.2f %12.2f %8s%s%s\n",
-		label, st->median, st->min, st->max,
-		has_baseline ? bl->median_ns : 0.0,
+		label, st->min, st->median, st->max,
+		has_baseline ? bl->min_ns : 0.0,
 		delta,
 		st->noisy ? " [noisy]" : "", warn);
 }
