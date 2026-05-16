@@ -29,14 +29,14 @@ void circ_cache_free(struct circ_cache *c);
 int circ_cache_insert(struct circ_cache *c,
 	struct paulis pa, double phi);
 
-typedef void (*circ_cache_op)(
-	struct paulis, const struct paulis *, double *, size_t, void *);
-
 /* Flush the cache: invoke fn with the accumulated hi
- * code, lo codes, phis, and term count; then reset to
- * empty.  Calling on an empty cache is a no-op. */
+ * code, lo codes, phis, term count, and caller-supplied
+ * data; then reset to empty.  Calling on an empty cache
+ * is a no-op. */
 void circ_cache_flush(struct circ_cache *c,
-	circ_cache_op fn, void *data);
+	void (*fn)(struct paulis hi, const struct paulis *lo,
+		double *phis, size_t n, void *data),
+	void *data);
 
 size_t circ_cache_len(const struct circ_cache *c);
 

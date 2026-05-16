@@ -76,7 +76,9 @@ int circ_cache_insert(struct circ_cache *c,
 }
 
 void circ_cache_flush(struct circ_cache *c,
-	circ_cache_op fn, void *data)
+	void (*fn)(struct paulis hi, const struct paulis *lo,
+		double *phis, size_t n, void *data),
+	void *data)
 {
 	if (c->ch_len > 0 && fn) {
 		log_trace("flush: %zu terms (cache_max=%llu)", c->ch_len,

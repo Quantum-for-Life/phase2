@@ -28,8 +28,9 @@ int circ_hamil_init(struct circ_hamil *hm, uint32_t qb, size_t len)
 
 void circ_hamil_free(struct circ_hamil *hm)
 {
-	if (hm->terms != nullptr)
-		free(hm->terms);
+	free(hm->terms);
+	hm->terms = nullptr;
+	hm->len = 0;
 }
 
 static int hamil_term_cmp_lex(const void *a, const void *b)
@@ -64,8 +65,9 @@ int circ_muldet_init(struct circ_muldet *md, size_t len)
 
 void circ_muldet_free(struct circ_muldet *md)
 {
-	if (md->dets != nullptr)
-		free(md->dets);
+	free(md->dets);
+	md->dets = nullptr;
+	md->len = 0;
 }
 
 void data_coeff_matrix_free(struct data_coeff_matrix *cm)
@@ -99,11 +101,12 @@ int circ_values_init(struct circ_values *vals, size_t len)
 void circ_values_free(struct circ_values *vals)
 {
 	free(vals->z);
+	vals->z = nullptr;
+	vals->len = 0;
 }
 
 int circ_init(struct circ *ct, struct circ_hamil hm,
-	const enum stprep_kind sp_kind, const void *sp_data,
-	const size_t vals_len)
+	enum stprep_kind sp_kind, const void *sp_data, size_t vals_len)
 {
 	memset(&ct->md, 0, sizeof ct->md);
 	memset(&ct->cm, 0, sizeof ct->cm);
@@ -216,7 +219,7 @@ static void circ_flush(struct paulis code_hi, const struct paulis *codes_lo,
  * identical hi codes are contiguous — see circ_hamil_sort_lex.
  */
 static int circ_step_generic(struct circ *ct, const struct circ_hamil *hm,
-	const double omega, bool reverse)
+	double omega, bool reverse)
 {
 	for (size_t i = 0; i < hm->len; i++) {
 		size_t j = i;
@@ -241,14 +244,14 @@ static int circ_step_generic(struct circ *ct, const struct circ_hamil *hm,
 	return 0;
 }
 
-inline int circ_step(
-	struct circ *ct, const struct circ_hamil *hm, const double omega)
+inline int circ_step(struct circ *ct, const struct circ_hamil *hm,
+	double omega)
 {
 	return circ_step_generic(ct, hm, omega, false);
 }
 
-inline int circ_step_reverse(
-	struct circ *ct, const struct circ_hamil *hm, const double omega)
+inline int circ_step_reverse(struct circ *ct, const struct circ_hamil *hm,
+	double omega)
 {
 	return circ_step_generic(ct, hm, omega, true);
 }
@@ -263,9 +266,9 @@ inline int circ_step_reverse(
  * same order as expansion itself.
  */
 static _Complex double measure_coeff_block(struct qreg *reg,
-	const uint32_t n_sites, const uint32_t n_alpha, const uint32_t n_beta,
-	const double *C_alpha, const double *C_beta, const double weight,
-	const int tapered)
+	uint32_t n_sites, uint32_t n_alpha, uint32_t n_beta,
+	const double *C_alpha, const double *C_beta, double weight,
+	int tapered)
 {
 	return state_prep_coeff_inner(reg, n_sites, n_alpha, n_beta, C_alpha,
 		C_beta, weight, tapered);
