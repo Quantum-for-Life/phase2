@@ -115,8 +115,6 @@ int qdrift_simul(struct qdrift *qd)
 		vals->len, qd->dt.depth, qd->dt.step_size,
 		(unsigned long)qd->dt.seed, qd->ranct.cdf.len);
 
-	struct circ_prog prog;
-	circ_prog_init(&prog, vals->len, "sample");
 	for (size_t i = 0; i < vals->len; i++) {
 		log_debug("sample %zu/%zu", i + 1, vals->len);
 		circ_prepst(ct);
@@ -133,9 +131,6 @@ int qdrift_simul(struct qdrift *qd)
 			log_error("qdrift_simul: write_step %zu failed", i);
 			return -1;
 		}
-
-		circ_prog_tick(&prog);
-		circ_prog_emit(&prog, LOG_SUBSYS);
 	}
 
 	return 0;

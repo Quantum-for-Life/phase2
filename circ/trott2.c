@@ -39,9 +39,6 @@ int trott2_simul(struct trott2 *t2)
 	struct circ *ct = &t2->ct;
 	struct circ_values *vals = &ct->vals;
 
-	struct circ_prog prog;
-	circ_prog_init(&prog, vals->len, "step");
-
 	const double half = t2->dt.delta / 2.0;
 
 	circ_prepst(ct);
@@ -64,9 +61,6 @@ int trott2_simul(struct trott2 *t2)
 			log_error("trott2_simul: write_step %zu failed", i);
 			return -1;
 		}
-
-		circ_prog_tick(&prog);
-		circ_prog_emit(&prog, LOG_SUBSYS);
 	}
 
 	return 0;

@@ -93,9 +93,56 @@ static void cmd_inputs_close(struct cmd_inputs *io)
 	data_close(io->fid);
 }
 
+/*
+ * Per-step callback for the algorithm's
+ * phase2_step_writer hook.  Writes the result to the
+ * HDF5 sink and emits a progress line at INFO level
+ * once per crossed percent boundary.  All progress
+ * telemetry for ph2run lives here -- the circ
+ * library is pure compute.
+ */
+struct step_ctx {
+	struct data_circ_writer *wr;
+	size_t total;		/* total number of steps */
+	struct timespec t0;	/* wall-clock start for ETA */
+	unsigned last_pc;	/* most recent emitted percent */
+	const char *unit;	/* "step", "sample"; never NULL */
+};
+
+static void step_ctx_init(struct step_ctx *sc, struct data_circ_writer *wr,
+	size_t total, const char *unit)
+{
+	sc->wr = wr;
+	sc->total = total;
+	sc->last_pc = 0;
+	sc->unit = unit ? unit : "step";
+	clock_gettime(CLOCK_MONOTONIC, &sc->t0);
+}
+
 static int step_thunk(void *ctx, size_t i, _Complex double z)
 {
-	return data_circ_write_step(ctx, i, z);
+	struct step_ctx *sc = ctx;
+	if (data_circ_write_step(sc->wr, i, z) < 0)
+		return -1;
+
+	const size_t done = i + 1;
+	const unsigned pc = (sc->total > 0)
+		? (unsigned)(done * 100 / sc->total)
+		: 0;
+	if (pc > sc->last_pc) {
+		sc->last_pc = pc;
+		struct timespec now;
+		clock_gettime(CLOCK_MONOTONIC, &now);
+		const double elapsed = (now.tv_sec - sc->t0.tv_sec)
+			+ (now.tv_nsec - sc->t0.tv_nsec) * 1e-9;
+		const double frac = (double)done / (double)sc->total;
+		const double eta = (frac > 0.0)
+			? elapsed * (1.0 / frac - 1.0)
+			: 0.0;
+		log_info("%s %zu/%zu (%u%%) elapsed %.2fs eta %.2fs",
+			sc->unit, done, sc->total, pc, elapsed, eta);
+	}
+	return 0;
 }
 
 #define WD_SEED UINT64_C(0xd326119d4859ebb2)
@@ -270,7 +317,9 @@ static int cmd_trott(void)
 	log_info("*** Circuit: trott ***");
 	log_info("delta: %f", cmd_trott_dt.tt_dt.delta);
 	log_info("num_steps: %zu", cmd_trott_dt.tt_dt.steps);
-	struct phase2_step_writer sw = { .ctx = &io.wr, .write = step_thunk };
+	struct step_ctx sc;
+	step_ctx_init(&sc, &io.wr, cmd_trott_dt.tt_dt.steps, "step");
+	struct phase2_step_writer sw = { .ctx = &sc, .write = step_thunk };
 	if (trott_init(&cmd_trott_dt.tt, &cmd_trott_dt.tt_dt, io.hm,
 		    io.sp_kind, cmd_inputs_sp_data(&io), &sw) < 0) {
 		log_error("trott: init failed");
@@ -382,7 +431,9 @@ static int cmd_trott2(void)
 	log_info("*** Circuit: trott2 (Strang 2nd-order) ***");
 	log_info("delta: %f", cmd_trott2_dt.t2_dt.delta);
 	log_info("num_steps: %zu", cmd_trott2_dt.t2_dt.steps);
-	struct phase2_step_writer sw = { .ctx = &io.wr, .write = step_thunk };
+	struct step_ctx sc;
+	step_ctx_init(&sc, &io.wr, cmd_trott2_dt.t2_dt.steps, "step");
+	struct phase2_step_writer sw = { .ctx = &sc, .write = step_thunk };
 	if (trott2_init(&cmd_trott2_dt.t2, &cmd_trott2_dt.t2_dt, io.hm,
 		    io.sp_kind, cmd_inputs_sp_data(&io), &sw) < 0) {
 		log_error("trott2: init failed");
@@ -507,7 +558,9 @@ int cmd_qdrift(void)
 	log_info("depth: %zu", cmd_qdrift_dt.qd_dt.depth);
 	log_info("samples: %zu", cmd_qdrift_dt.qd_dt.samples);
 	log_info("seed: %lu", cmd_qdrift_dt.qd_dt.seed);
-	struct phase2_step_writer sw = { .ctx = &io.wr, .write = step_thunk };
+	struct step_ctx sc;
+	step_ctx_init(&sc, &io.wr, cmd_qdrift_dt.qd_dt.samples, "sample");
+	struct phase2_step_writer sw = { .ctx = &sc, .write = step_thunk };
 	if (qdrift_init(&cmd_qdrift_dt.qd, &cmd_qdrift_dt.qd_dt, io.hm,
 		    io.sp_kind, cmd_inputs_sp_data(&io), &sw) < 0) {
 		log_error("qdrift: init failed");
@@ -673,7 +726,9 @@ int cmd_cmpsit(void)
 	log_info("angle_det: %.16f", cmd_cmpsit_dt.cp_dt.angle_det);
 	log_info("angle_rand: %.16f", cmd_cmpsit_dt.cp_dt.angle_rand);
 	log_info("samples: %zu", cmd_cmpsit_dt.cp_dt.samples);
-	struct phase2_step_writer sw = { .ctx = &io.wr, .write = step_thunk };
+	struct step_ctx sc;
+	step_ctx_init(&sc, &io.wr, cmd_cmpsit_dt.cp_dt.samples, "sample");
+	struct phase2_step_writer sw = { .ctx = &sc, .write = step_thunk };
 	if (cmpsit_init(&cmd_cmpsit_dt.cp, &cmd_cmpsit_dt.cp_dt, io.hm,
 		    io.sp_kind, cmd_inputs_sp_data(&io), &sw) < 0) {
 		log_error("cmpsit: init failed");

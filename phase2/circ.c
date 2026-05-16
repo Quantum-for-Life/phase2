@@ -1,6 +1,3 @@
-/* clock_gettime for circ_prog timing. */
-#define _POSIX_C_SOURCE 200809L
-
 #include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
@@ -9,7 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 #define LOG_SUBSYS "circ"
 #include "log.h"
@@ -86,48 +82,6 @@ void data_coeff_matrix_free(struct data_coeff_matrix *cm)
 	free((void *)cm->C_alpha);
 	free((void *)cm->C_beta);
 	memset(cm, 0, sizeof *cm);
-}
-
-void circ_prog_init(struct circ_prog *prog, size_t len, const char *unit)
-{
-	prog->i = 0;
-	prog->len = len;
-	prog->pc = 0;
-	prog->unit = unit ? unit : "step";
-	clock_gettime(CLOCK_MONOTONIC, &prog->t0);
-}
-
-void circ_prog_tick(struct circ_prog *prog)
-{
-	prog->i++;
-
-	const unsigned pc = prog->i * 100 / prog->len;
-	if (pc > prog->pc) {
-		prog->pc = pc;
-		log_debug("progress: %u%%", prog->pc);
-	}
-}
-
-void circ_prog_emit(const struct circ_prog *prog, const char *subsys)
-{
-	if (LOG_INFO < log_threshold)
-		return;
-
-	struct timespec now;
-	clock_gettime(CLOCK_MONOTONIC, &now);
-	const double elapsed = (now.tv_sec - prog->t0.tv_sec) +
-		(now.tv_nsec - prog->t0.tv_nsec) * 1e-9;
-	const double frac = (prog->len > 0)
-		? (double)prog->i / (double)prog->len
-		: 0.0;
-	const double eta = (frac > 0.0) ? elapsed * (1.0 / frac - 1.0) : 0.0;
-	const unsigned pc = (prog->len > 0)
-		? (unsigned)(prog->i * 100 / prog->len)
-		: 0;
-
-	log_emit(LOG_INFO, subsys ? subsys : LOG_SUBSYS, __FILE__, __LINE__,
-		"%s %zu/%zu (%u%%) elapsed %.2fs eta %.2fs", prog->unit,
-		prog->i, prog->len, pc, elapsed, eta);
 }
 
 int circ_values_init(struct circ_values *vals, size_t len)

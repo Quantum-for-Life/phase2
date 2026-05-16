@@ -228,8 +228,6 @@ int cmpsit_simul(struct cmpsit *cp)
 		vals->len, cp->dt.steps, cp->dt.length, cp->dt.depth,
 		cp->dt.angle_det, cp->dt.angle_rand);
 
-	struct circ_prog prog;
-	circ_prog_init(&prog, vals->len, "sample");
 	for (size_t i = 0; i < vals->len; i++) {
 		log_debug("sample %zu/%zu", i + 1, vals->len);
 		circ_prepst(ct);
@@ -265,8 +263,6 @@ int cmpsit_simul(struct cmpsit *cp)
 			log_error("cmpsit_simul: write_step %zu failed", i);
 			return -1;
 		}
-		circ_prog_tick(&prog);
-		circ_prog_emit(&prog, LOG_SUBSYS);
 	}
 
 	return 0;

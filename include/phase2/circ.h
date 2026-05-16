@@ -3,7 +3,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <time.h>
 
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
@@ -24,13 +23,6 @@ struct circ_muldet {
 		_Complex double cf;
 	} *dets;
 	size_t len;
-};
-
-struct circ_prog {
-	unsigned pc;	/* percent of len */
-	size_t i, len;
-	struct timespec t0;	/* wall-clock start for ETA */
-	const char *unit;	/* "step", "sample"; never NULL */
 };
 
 struct circ_values {
@@ -125,16 +117,6 @@ void circ_muldet_free(struct circ_muldet *md);
  * Lives here because it is pure pointer cleanup and does
  * not depend on HDF5. */
 void data_coeff_matrix_free(struct data_coeff_matrix *cm);
-
-void circ_prog_init(struct circ_prog *prog, size_t len, const char *unit);
-void circ_prog_tick(struct circ_prog *prog);
-/* Format a rich progress line and emit it at info level
- * through the given subsystem tag:
- *
- *   step 17/100 (17%) elapsed 4.31s eta 21.0s
- *
- * Callers control cadence; the library does not throttle. */
-void circ_prog_emit(const struct circ_prog *prog, const char *subsys);
 
 int circ_values_init(struct circ_values *vals, size_t len);
 void circ_values_free(struct circ_values *vals);
