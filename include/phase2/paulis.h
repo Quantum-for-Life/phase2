@@ -143,6 +143,8 @@ PAULIS_HD static inline uint64_t paulis_effect_raw(struct paulis code,
 	return i ^ code.pak[0];
 }
 
+#undef PAULIS_HD
+
 /*
  * Split `code` into two disjoint qubit ranges:
  *

@@ -136,9 +136,28 @@ uint64_t paulis_effect(struct paulis code, uint64_t i, _Complex double *z)
 {
 	int r4;
 	const uint64_t j = paulis_effect_raw(code, i, &r4);
-	if (z) {
-		static const _Complex double phase[4] = { 1.0, I, -1.0, -I };
-		*z *= phase[r4];
+	if (!z)
+		return j;
+
+	/* Switch (not a table indexed by r4) so the case-0
+	 * path skips the complex multiply entirely.  The
+	 * device kernel uses the table form: GPU warps
+	 * prefer the uniform load over a switch that would
+	 * diverge across threads. */
+	switch (r4) {
+	case 0:
+		break;
+	case 1:
+		*z *= I;
+		break;
+	case 2:
+		*z *= -1.0;
+		break;
+	case 3:
+		*z *= -I;
+		break;
+	default:
+		unreachable();
 	}
 	return j;
 }
