@@ -158,6 +158,10 @@ rt:
 void paulis_split(struct paulis code, uint32_t qb_lo, uint32_t qb_hi,
 	struct paulis *lo, struct paulis *hi)
 {
+	/* mask_lo covers bits [0, qb_lo); mask_hi
+	 * covers bits [qb_lo, qb_lo + qb_hi).  Bits
+	 * outside that combined range fall through to
+	 * neither output. */
 	const uint64_t mask_lo = (UINT64_C(1) << qb_lo) - 1;
 	const uint64_t mask_hi = (UINT64_C(1) << (qb_hi + qb_lo)) - 1 - mask_lo;
 
@@ -168,6 +172,14 @@ void paulis_split(struct paulis code, uint32_t qb_lo, uint32_t qb_hi,
 	hi->pak[1] = code.pak[1] & mask_hi;
 }
 
+/*
+ * paulis_cmp - lexicographic order, highest qubit
+ * first.  The early-out via paulis_eq lets the
+ * common "same hi-code" check in the batch cache
+ * skip the per-qubit loop.  The loop reads qubits
+ * MSB-to-LSB so the resulting order matches the
+ * bit-string read top-down.
+ */
 int paulis_cmp(struct paulis a, struct paulis b)
 {
 	if (paulis_eq(a, b))
