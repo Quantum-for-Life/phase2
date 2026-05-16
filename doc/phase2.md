@@ -1731,7 +1731,7 @@ top-level Makefile.
 
 ## 11. Benchmarking
 
-Micro-benchmarks live under `bench/`.  Three
+Micro-benchmarks live under `bench/`.  Four
 binaries today:
 
 - `b-paulis` -- `paulis_set` / `paulis_get` /
@@ -1747,12 +1747,18 @@ binaries today:
   (`log_trace` under threshold=`info`) and the
   emitted path (`log_warn` with stderr redirected
   to `/dev/null`).
+- `b-circ`   -- the per-step Trotter kernel
+  (`circ_step`) at `nqb=12` with 10 and 100
+  Hamiltonian terms, and the overlap measurement
+  (`circ_measure`).  Fixtures are built
+  programmatically; no HDF5.
 
-The full set runs in well under a minute on a
-quiet host so the maintainer can fire it often
--- after every meaningful change, not "once a
-release".  Per-binary MPI startup dominates the
-wall time (~7 s each).
+The full set runs in about a minute on a quiet
+host so the maintainer can fire it often -- after
+every meaningful change, not "once a release".
+Per-binary MPI startup dominates the wall time
+(~7 s each); the measurement work itself is a
+few seconds in total.
 
 ### 11.1 Running
 
