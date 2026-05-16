@@ -1731,8 +1731,8 @@ top-level Makefile.
 
 ## 11. Benchmarking
 
-Micro-benchmarks live under `bench/`.  Two binaries
-today:
+Micro-benchmarks live under `bench/`.  Three
+binaries today:
 
 - `b-paulis` -- `paulis_set` / `paulis_get` /
   `paulis_effect` on 64-qubit Pauli strings.
@@ -1742,11 +1742,17 @@ today:
   (RAM-bound), with batch counts `ncodes` in
   `{1, 10, 100}` at `nqb=14` and `{1, 10}` at
   `nqb=18`.
+- `b-log`    -- the `log_at` gating macro
+  (`include/log.h`): the filtered fast path
+  (`log_trace` under threshold=`info`) and the
+  emitted path (`log_warn` with stderr redirected
+  to `/dev/null`).
 
-Both binaries together run in under a minute on a
-quiet host so the maintainer can fire them often
+The full set runs in well under a minute on a
+quiet host so the maintainer can fire it often
 -- after every meaningful change, not "once a
-release".
+release".  Per-binary MPI startup dominates the
+wall time (~7 s each).
 
 ### 11.1 Running
 

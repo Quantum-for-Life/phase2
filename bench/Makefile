@@ -1,5 +1,5 @@
 # ========================================================================== #
-# bench -- micro-benchmarks (b-paulis, b-qreg)                               #
+# bench -- micro-benchmarks (b-paulis, b-qreg, b-log)                        #
 #                                                                            #
 # Each benchmark binary is built from a single b-NAME.c that includes the    #
 # header-only bench.h framework.  No shared bench.o.                         #
@@ -14,7 +14,7 @@ include $(TOPDIR)/build-rules.mk
 
 # Per-benchmark source files; each builds to a binary
 # at $(BUILDDIR)/bench/<name>.
-PROG_NAMES := b-paulis b-qreg
+PROG_NAMES := b-paulis b-qreg b-log
 PROGS      := $(PROG_NAMES:%=$(BUILDDIR)/bench/%)
 
 # bench's headers live alongside its sources; tell gcc.
