@@ -5,15 +5,39 @@
 
 #include "phase2/paulis.h"
 
-int circ_cache_init(int hi, int lo);
+/*
+ * Pauli-rotation batch cache.  An instance accumulates
+ * Hamiltonian terms that share a single hi-qubit Pauli
+ * code; flushing emits one MPI exchange + multi-rotation
+ * for all batched terms.
+ *
+ * The full struct definition lives in circ_cache.c;
+ * callers (currently only phase2/circ.c) hold an opaque
+ * pointer and go through the API below.
+ */
+struct circ_cache;
 
-int circ_cache_insert(struct paulis pa, double phi);
+/* Allocate a new cache for the given (hi, lo) qubit
+ * partition.  Returns NULL on allocation failure. */
+struct circ_cache *circ_cache_init(int hi, int lo);
+
+void circ_cache_free(struct circ_cache *c);
+
+/* Try to insert (pa, phi).  Returns 0 on success, -1 if
+ * the cache is full or `pa`'s hi-code differs from the
+ * current batch -- caller must flush then retry. */
+int circ_cache_insert(struct circ_cache *c,
+	struct paulis pa, double phi);
 
 typedef void (*circ_cache_op)(
 	struct paulis, const struct paulis *, double *, size_t, void *);
 
-void circ_cache_flush(circ_cache_op fn, void *data);
+/* Flush the cache: invoke fn with the accumulated hi
+ * code, lo codes, phis, and term count; then reset to
+ * empty.  Calling on an empty cache is a no-op. */
+void circ_cache_flush(struct circ_cache *c,
+	circ_cache_op fn, void *data);
 
-size_t circ_cache_len(void);
+size_t circ_cache_len(const struct circ_cache *c);
 
 #endif /* CIRC_CACHE */

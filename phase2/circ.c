@@ -129,7 +129,8 @@ int circ_init(struct circ *ct, struct circ_hamil hm,
 		log_error("circ_init: qreg_init failed");
 		goto err_qreg_init;
 	}
-	if (circ_cache_init(ct->reg.qb_hi, ct->reg.qb_lo) < 0) {
+	ct->cache = circ_cache_init(ct->reg.qb_hi, ct->reg.qb_lo);
+	if (!ct->cache) {
 		log_error("circ_init: cache_init failed");
 		goto err_cache_init;
 	}
@@ -142,6 +143,7 @@ int circ_init(struct circ *ct, struct circ_hamil hm,
 
 	circ_values_free(&ct->vals);
 err_vals_init:
+	circ_cache_free(ct->cache);
 err_cache_init:
 	qreg_free(&ct->reg);
 err_qreg_init:
@@ -169,6 +171,8 @@ void circ_free(struct circ *ct)
 		data_coeff_matrix_free(&ct->cm);
 		break;
 	}
+	circ_cache_free(ct->cache);
+	ct->cache = nullptr;
 	qreg_free(&ct->reg);
 }
 
@@ -221,18 +225,18 @@ static int circ_step_generic(struct circ *ct, const struct circ_hamil *hm,
 		const double phi = omega * hm->terms[j].cf;
 		const struct paulis code = hm->terms[j].op;
 
-		if (circ_cache_insert(code, phi) == 0)
+		if (circ_cache_insert(ct->cache, code, phi) == 0)
 			continue;
 
 		log_trace("paulirot, term: %zu, num_codes: %zu", i,
-			circ_cache_len());
-		circ_cache_flush(circ_flush, &ct->reg);
-		if (circ_cache_insert(code, phi) < 0)
+			circ_cache_len(ct->cache));
+		circ_cache_flush(ct->cache, circ_flush, &ct->reg);
+		if (circ_cache_insert(ct->cache, code, phi) < 0)
 			return -1;
 	}
-	log_trace(
-		"paulirot, last term group, num_codes: %zu", circ_cache_len());
-	circ_cache_flush(circ_flush, &ct->reg);
+	log_trace("paulirot, last term group, num_codes: %zu",
+		circ_cache_len(ct->cache));
+	circ_cache_flush(ct->cache, circ_flush, &ct->reg);
 
 	return 0;
 }

@@ -12,6 +12,11 @@
  * is full (CACHE_MAX = 1024 terms), the caller must flush
  * the cache (triggering the MPI exchange and rotations) and
  * then re-insert.  Overflow returns -1 to signal this.
+ *
+ * Each cache is its own instance (no file-static state),
+ * so a process can hold several active circ contexts in
+ * parallel -- useful for Python plugins and multi-circuit
+ * drivers.
  */
 #define LOG_SUBSYS "cache"
 
@@ -24,54 +29,65 @@
 
 #define CACHE_MAX UINT64_C(0x0400)
 
-static int qb_hi, qb_lo;
-static struct paulis pa_hi, pa_lo[CACHE_MAX];
-static double phis[CACHE_MAX];
-static size_t ch_len;
+struct circ_cache {
+	int qb_hi, qb_lo;
+	struct paulis pa_hi;
+	struct paulis pa_lo[CACHE_MAX];
+	double phis[CACHE_MAX];
+	size_t ch_len;
+};
 
-int circ_cache_init(int hi, int lo)
+struct circ_cache *circ_cache_init(int hi, int lo)
 {
-	qb_hi = hi;
-	qb_lo = lo;
-	ch_len = 0;
-
-	return 0;
+	struct circ_cache *c = calloc(1, sizeof *c);
+	if (!c)
+		return nullptr;
+	c->qb_hi = hi;
+	c->qb_lo = lo;
+	return c;
 }
 
-int circ_cache_insert(struct paulis pa, double phi)
+void circ_cache_free(struct circ_cache *c)
+{
+	free(c);
+}
+
+int circ_cache_insert(struct circ_cache *c,
+	struct paulis pa, double phi)
 {
 	struct paulis lo, hi;
-	paulis_split(pa, qb_lo, qb_hi, &lo, &hi);
-	if (ch_len == 0) {
-		pa_hi = hi;
-		pa_lo[0] = lo;
-		phis[0] = phi;
-		ch_len = 1;
+	paulis_split(pa, c->qb_lo, c->qb_hi, &lo, &hi);
+	if (c->ch_len == 0) {
+		c->pa_hi = hi;
+		c->pa_lo[0] = lo;
+		c->phis[0] = phi;
+		c->ch_len = 1;
 		return 0;
 	}
 
-	if (ch_len < CACHE_MAX && paulis_eq(pa_hi, hi)) {
-		const size_t k = ch_len++;
-		pa_lo[k] = lo;
-		phis[k] = phi;
+	if (c->ch_len < CACHE_MAX && paulis_eq(c->pa_hi, hi)) {
+		const size_t k = c->ch_len++;
+		c->pa_lo[k] = lo;
+		c->phis[k] = phi;
 		return 0;
 	}
 
 	return -1;
 }
 
-void circ_cache_flush(circ_cache_op fn, void *data)
+void circ_cache_flush(struct circ_cache *c,
+	circ_cache_op fn, void *data)
 {
-	if (ch_len > 0 && fn) {
-		log_trace("flush: %zu terms (cache_max=%llu)", ch_len,
+	if (c->ch_len > 0 && fn) {
+		log_trace("flush: %zu terms (cache_max=%llu)", c->ch_len,
 			(unsigned long long)CACHE_MAX);
-		fn(pa_hi, pa_lo, phis, ch_len, data);
+		fn(c->pa_hi, c->pa_lo, c->phis, c->ch_len, data);
 	}
 
-	ch_len = 0;
+	c->ch_len = 0;
 }
 
-size_t circ_cache_len(void)
+size_t circ_cache_len(const struct circ_cache *c)
 {
-	return ch_len;
+	return c->ch_len;
 }

@@ -27,19 +27,22 @@ void t_cache_00(void)
 {
 	struct paulis p = paulis_new();
 
-	TEST_ASSERT(circ_cache_init(1, 1) == 0, "can't init cache");
-	TEST_ASSERT(circ_cache_len() == 0, "init size must be zero");
-	TEST_ASSERT(circ_cache_insert(p, 0.0) == 0, "cannot insert first code");
-	TEST_ASSERT(circ_cache_len(), "cache size should be 1");
-	TEST_ASSERT(circ_cache_insert(p, 0.1) == 0, "insert the same code");
-	TEST_ASSERT(circ_cache_len() == 2, "cache size should be 2");
+	struct circ_cache *c = circ_cache_init(1, 1);
+	TEST_ASSERT(c, "can't init cache");
+	TEST_ASSERT(circ_cache_len(c) == 0, "init size must be zero");
+	TEST_ASSERT(circ_cache_insert(c, p, 0.0) == 0,
+		"cannot insert first code");
+	TEST_ASSERT(circ_cache_len(c), "cache size should be 1");
+	TEST_ASSERT(circ_cache_insert(c, p, 0.1) == 0, "insert the same code");
+	TEST_ASSERT(circ_cache_len(c) == 2, "cache size should be 2");
 	paulis_set(&p, PAULI_X, 1);
-	TEST_ASSERT(circ_cache_insert(p, 0.0) < 1, "insert different code");
-	TEST_ASSERT(circ_cache_len() == 2, "cache size should be 2");
-	circ_cache_flush(nullptr, nullptr);
-	TEST_ASSERT(circ_cache_len() == 0, "cache size should be 0");
-	TEST_ASSERT(circ_cache_insert(p, 0.0) == 0, "insert different code");
-	TEST_ASSERT(circ_cache_len() == 1, "cache size should be 1");
+	TEST_ASSERT(circ_cache_insert(c, p, 0.0) < 1, "insert different code");
+	TEST_ASSERT(circ_cache_len(c) == 2, "cache size should be 2");
+	circ_cache_flush(c, nullptr, nullptr);
+	TEST_ASSERT(circ_cache_len(c) == 0, "cache size should be 0");
+	TEST_ASSERT(circ_cache_insert(c, p, 0.0) == 0, "insert different code");
+	TEST_ASSERT(circ_cache_len(c) == 1, "cache size should be 1");
+	circ_cache_free(c);
 }
 
 int main(void)

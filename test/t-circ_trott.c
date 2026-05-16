@@ -164,7 +164,8 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 	struct trott tt = { 0 };
 	tt.ct.stprep_kind = STPREP_MULTIDET;
 	qreg_init(&tt.ct.reg, NUM_QUBITS);
-	circ_cache_init(tt.ct.reg.qb_hi, tt.ct.reg.qb_lo);
+	tt.ct.cache = circ_cache_init(tt.ct.reg.qb_hi, tt.ct.reg.qb_lo);
+	TEST_ASSERT(tt.ct.cache != nullptr, "cache init failed");
 	tt.dt.delta = HAMIL_DELTA;
 
 	struct circ_hamil *h = &tt.ct.hm;
@@ -211,12 +212,14 @@ static void t_circ_trott(size_t tag, size_t ts, size_t md, size_t ht)
 			creal(TROTT_VALS[s]), cimag(TROTT_VALS[s]));
 	}
 
-	// free(res.steps);  -- freed by circ_destroy()
+	free(tt.ct.vals.z);
 malloc_ressteps:
 	free(m->dets);
 malloc_mddets:
 	free(h->terms);
-malloc_hterms:;
+malloc_hterms:
+	circ_cache_free(tt.ct.cache);
+	qreg_free(&tt.ct.reg);
 }
 
 int main(void)
