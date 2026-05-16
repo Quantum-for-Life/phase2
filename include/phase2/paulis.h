@@ -109,6 +109,41 @@ void paulis_shr(struct paulis *code, uint32_t n);
 uint64_t paulis_effect(struct paulis code, uint64_t i, _Complex double *z);
 
 /*
+ * Integer core of paulis_effect, shared between the
+ * host implementation (phase2/paulis.c) and the
+ * CUDA device kernel (phase2/qreg_cuda_lo.cu).
+ *
+ * Returns j = i XOR pak[0] (the flipped basis-state
+ * index) and writes the phase exponent r4 in
+ * [0, 4) to *r4_out: the amplitude on |j> picks up
+ * a factor of (i)^r4_out, where i is the imaginary
+ * unit.  The caller does the complex multiply in
+ * its own complex type (host uses _Complex double,
+ * device uses cuDoubleComplex).
+ *
+ * Any change to the phase formula belongs here and
+ * here only -- the host and device wrappers both
+ * read r4_out and translate.
+ *
+ * `__host__ __device__` under nvcc; plain inline
+ * otherwise.
+ */
+#ifdef __CUDACC__
+#  define PAULIS_HD __host__ __device__
+#else
+#  define PAULIS_HD
+#endif
+
+PAULIS_HD static inline uint64_t paulis_effect_raw(struct paulis code,
+	uint64_t i, int *r4_out)
+{
+	const int mi = __builtin_popcountll(i & code.pak[1]);
+	const int is = __builtin_popcountll(code.pak[0] & code.pak[1]);
+	*r4_out = (is + 2 * mi) & 0x3;
+	return i ^ code.pak[0];
+}
+
+/*
  * Split `code` into two disjoint qubit ranges:
  *
  *   *lo  carries qubits [0, qb_lo).

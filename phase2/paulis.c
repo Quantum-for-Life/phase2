@@ -126,33 +126,21 @@ inline void paulis_shr(struct paulis *code, uint32_t n)
  *
  *   Total phase = i^is * (-1)^mi = i^(is + 2*mi).
  *   Reduce mod 4 to index into {1, i, -1, -i}.
+ *
+ * Thin wrapper around paulis_effect_raw (paulis.h),
+ * which is the integer core shared with the CUDA
+ * device kernel.  Only the _Complex double multiply
+ * lives here.
  */
 uint64_t paulis_effect(struct paulis code, uint64_t i, _Complex double *z)
 {
-	if (!z)
-		goto rt;
-
-	const int mi = stdc_count_ones_ul(i & code.pak[1]);
-	const int is = stdc_count_ones_ul(code.pak[0] & code.pak[1]);
-	const int r4 = (is + 2 * mi) & 0x3;
-	switch (r4) {
-	case 0:
-		break;
-	case 1:
-		*z *= I;
-		break;
-	case 2:
-		*z *= -1.0;
-		break;
-	case 3:
-		*z *= -I;
-		break;
-	default:
-		unreachable();
+	int r4;
+	const uint64_t j = paulis_effect_raw(code, i, &r4);
+	if (z) {
+		static const _Complex double phase[4] = { 1.0, I, -1.0, -I };
+		*z *= phase[r4];
 	}
-
-rt:
-	return i ^ code.pak[0];
+	return j;
 }
 
 void paulis_split(struct paulis code, uint32_t qb_lo, uint32_t qb_hi,
