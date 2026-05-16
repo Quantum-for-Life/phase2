@@ -370,16 +370,58 @@ static inline void bench_append_jsonl(FILE *fp, const struct bench_prov *prov,
 
 /* -- console table ---------------------------------------------------------*/
 
+/*
+ * Colours are emitted only when stdout is a TTY so piping to a file
+ * stays plain ASCII.  The check runs once and is cached.
+ */
+static inline bool bench_color_on(void)
+{
+	static int cached = -1;
+	if (cached < 0)
+		cached = isatty(STDOUT_FILENO) ? 1 : 0;
+	return cached != 0;
+}
+
+#define BC_(c) (bench_color_on() ? (c) : "")
+#define BC_RESET  BC_("\x1b[0m")
+#define BC_BOLD   BC_("\x1b[1m")
+#define BC_DIM    BC_("\x1b[2m")
+#define BC_RED    BC_("\x1b[31m")
+#define BC_GREEN  BC_("\x1b[32m")
+#define BC_YELLOW BC_("\x1b[33m")
+#define BC_CYAN   BC_("\x1b[36m")
+
+/*
+ * Headline banner: bench name inset in a 78-char `=` rule, padded with
+ * a leading and trailing blank line.  Called once per bench at start.
+ */
+static inline void bench_print_banner(const char *name)
+{
+	char line[79];
+	memset(line, '=', 78);
+	line[78] = '\0';
+	const size_t nl = strlen(name);
+	if (4 + nl < 78) {
+		line[2] = ' ';
+		memcpy(line + 3, name, nl);
+		line[3 + nl] = ' ';
+	}
+	printf("\n%s%s%s\n\n", BC_CYAN, line, BC_RESET);
+}
+
 static inline void bench_print_header(void)
 {
-	printf("%-32s %5s %12s %12s %12s %12s %8s\n",
-		"scenario / params",
-		"K",
-		"min (ns)", "median (ns)", "max (ns)", "prev (ns)", "delta");
-	printf("%-32s %5s %12s %12s %12s %12s %8s\n",
-		"-----------------",
-		"-----",
-		"--------", "-----------", "--------", "---------", "-----");
+	printf("%s%-24s %5s %9s %9s %9s %9s %7s%s\n",
+		BC_BOLD,
+		"scenario", "K",
+		"min(ns)", "median", "max", "prev", "delta",
+		BC_RESET);
+	printf("%s%-24s %5s %9s %9s %9s %9s %7s%s\n",
+		BC_DIM,
+		"--------", "-----",
+		"---------", "---------", "---------", "---------",
+		"-------",
+		BC_RESET);
 }
 
 /*
@@ -388,28 +430,48 @@ static inline void bench_print_header(void)
  * evictions, frequency dips only ever make a call slower -- so the
  * minimum is the best estimator of the unperturbed cost.  Median and
  * max stay in the table for context.  K is the per-sample MOM depth.
+ *
+ * Timing columns use %9.3g so they fit in nine characters whether the
+ * value is 1 ns or 30 ms (scientific notation kicks in automatically).
  */
 static inline void bench_print_row(const char *label, int sub_samples,
 	const struct bench_stats *st, const struct bench_baseline *bl,
 	bool has_baseline)
 {
-	char delta[16] = "      --";
-	char warn[24] = "";
+	char delta_str[16];
+	const char *delta_color = "";
 
 	if (has_baseline && bl->min_ns > 0.0) {
 		const double pct = (st->min - bl->min_ns)
 			/ bl->min_ns * 100.0;
-		snprintf(delta, sizeof delta, "%+6.1f%%", pct);
-		if (bench_timestamp_stale(bl->timestamp, 30))
-			snprintf(warn, sizeof warn, " [stale]");
+		snprintf(delta_str, sizeof delta_str, "%+6.1f%%", pct);
+		if (pct >  0.5) delta_color = BC_RED;
+		else if (pct < -0.5) delta_color = BC_GREEN;
+	} else {
+		snprintf(delta_str, sizeof delta_str, "%7s", "--");
 	}
 
-	printf("%-32s %5d %12.2f %12.2f %12.2f %12.2f %8s%s%s\n",
+	char prev_str[16];
+	if (has_baseline)
+		snprintf(prev_str, sizeof prev_str, "%9.3g", bl->min_ns);
+	else
+		snprintf(prev_str, sizeof prev_str, "%9s", "--");
+
+	char flags[64] = "";
+	int fp = 0;
+	if (st->noisy)
+		fp += snprintf(flags + fp, sizeof flags - fp,
+			" %s[noisy]%s", BC_YELLOW, BC_RESET);
+	if (has_baseline && bench_timestamp_stale(bl->timestamp, 30))
+		fp += snprintf(flags + fp, sizeof flags - fp,
+			" %s[stale]%s", BC_YELLOW, BC_RESET);
+
+	printf("%-24s %5d %9.3g %9.3g %9.3g %s %s%s%s%s\n",
 		label, sub_samples,
 		st->min, st->median, st->max,
-		has_baseline ? bl->min_ns : 0.0,
-		delta,
-		st->noisy ? " [noisy]" : "", warn);
+		prev_str,
+		delta_color, delta_str, BC_RESET,
+		flags);
 }
 
 

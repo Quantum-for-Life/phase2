@@ -39,7 +39,7 @@ static enum pauli_op rand_pauli(void)
 }
 
 static void record(FILE *out, const struct bench_prov *prov, int mpi_ranks,
-	const char *name, const char *params_json,
+	const char *name, const char *params_json, const char *display,
 	double *samples, int num_runs, int sub_samples)
 {
 	const struct bench_stats st = bench_compute_stats(samples, num_runs);
@@ -51,9 +51,7 @@ static void record(FILE *out, const struct bench_prov *prov, int mpi_ranks,
 	const bool has_bl = bench_find_baseline(path, prov->hostname,
 		name, params_json, sub_samples, &bl);
 
-	char label[80];
-	snprintf(label, sizeof label, "%s %s", name, params_json);
-	bench_print_row(label, sub_samples, &st, &bl, has_bl);
+	bench_print_row(display, sub_samples, &st, &bl, has_bl);
 
 	bench_append_jsonl(out, prov, BENCH_BACKEND, mpi_ranks,
 		name, params_json, num_runs, sub_samples, &st);
@@ -83,7 +81,9 @@ static void measure_qreg_init(FILE *out, const struct bench_prov *prov,
 
 	char params[32];
 	snprintf(params, sizeof params, "{\"nqb\":%u}", nqb);
-	record(out, prov, mpi_ranks, "qreg_init", params,
+	char display[32];
+	snprintf(display, sizeof display, "qreg_init nqb=%u", nqb);
+	record(out, prov, mpi_ranks, "qreg_init", params, display,
 		samples, NUM_RUNS, K);
 }
 
@@ -158,7 +158,10 @@ static void measure_paulirot(FILE *out, const struct bench_prov *prov,
 	char params[64];
 	snprintf(params, sizeof params, "{\"nqb\":%u,\"ncodes\":%zu}",
 		nqb, ncodes);
-	record(out, prov, mpi_ranks, "paulirot", params,
+	char display[40];
+	snprintf(display, sizeof display, "paulirot nqb=%u nc=%zu",
+		nqb, ncodes);
+	record(out, prov, mpi_ranks, "paulirot", params, display,
 		samples, NUM_RUNS, K);
 
 	rot_setup_free(&s);
@@ -203,6 +206,7 @@ int main(void)
 			world_free();
 			return 1;
 		}
+		bench_print_banner("b-qreg");
 		bench_print_header();
 	}
 

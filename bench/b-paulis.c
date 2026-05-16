@@ -50,9 +50,9 @@ static void run_scenario(FILE *out, const struct bench_prov *prov,
 	const bool has_bl = bench_find_baseline(path, prov->hostname,
 		name, params_json, sub_samples, &bl);
 
-	char label[80];
-	snprintf(label, sizeof label, "%s %s", name, params_json);
-	bench_print_row(label, sub_samples, &st, &bl, has_bl);
+	/* All b-paulis scenarios share nqb=64; the banner shows it once,
+	 * so the row label is just the op name. */
+	bench_print_row(name, sub_samples, &st, &bl, has_bl);
 
 	bench_append_jsonl(out, prov, BENCH_BACKEND, mpi_ranks,
 		name, params_json, NUM_RUNS, sub_samples, &st);
@@ -93,6 +93,7 @@ int main(void)
 			world_free();
 			return 1;
 		}
+		bench_print_banner("b-paulis (nqb=64)");
 		bench_print_header();
 	}
 

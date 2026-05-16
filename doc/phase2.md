@@ -1752,16 +1752,33 @@ release".
 
     make bench
 
-builds the binaries (if needed) and runs them.  Each
-scenario emits one row in a console table:
+builds the binaries (if needed) and runs them.
+Each binary opens with a banner naming itself and
+emits one row per scenario in a console table
+sized to 80 columns:
 
-    scenario / params               K   min(ns)  median(ns)  max(ns)  prev(ns)  delta
-    -----------------               -   -------  ----------  -------  --------  -----
-    paulis_set {"nqb":64}        1000      1.88        1.88     1.93      1.85  +1.6%
-    paulirot {"nqb":18,"ncodes":1} 50  4480000.0   4521000.0  4620000  4500000  -0.4%
+    == b-paulis (nqb=64) =========================================================
+
+    scenario                     K   min(ns)    median       max      prev   delta
+    --------                 ----- --------- --------- --------- --------- -------
+    paulis_set                1000      1.71      1.71      1.71      1.71   -0.1%
+    paulis_effect             1000      1.37      1.37      1.37      1.37   -0.3%
     ...
 
-and one JSON record per scenario in
+    == b-qreg ====================================================================
+
+    scenario                     K   min(ns)    median       max      prev   delta
+    --------                 ----- --------- --------- --------- --------- -------
+    paulirot nqb=18 nc=1        50  3.39e+06   3.4e+06  3.44e+06  3.41e+06   -0.7%
+    ...
+
+Timing columns use the `%9.3g` format so values
+ranging from sub-ns to tens of ms all fit; large
+values render in scientific notation.  Output is
+ANSI-coloured when stdout is a TTY (banner cyan,
+headers bold, delta red/green by sign, flags
+yellow) and plain ASCII when piped to a file.
+
 `bench/runs/$(hostname).jsonl`.  The records
 accumulate across runs; baselines are tracked
 per host because perf varies by machine.
