@@ -341,6 +341,89 @@ static void t_paulis_cmp_02_eq(size_t tag)
 	TEST_ASSERT(res == exp, "[%zu] res=%d, exp=%d", tag, res, exp);
 }
 
+/*
+ * Top-bit boundary: paulis_set / paulis_get and the
+ * shift helpers must work at qubit 63 (the highest
+ * bit of the 64-bit word).  Off-by-one in the mask
+ * (e.g. `<< n` when n == 63 vs n == 64) would
+ * silently wrap.
+ */
+static void t_paulis_n63(void)
+{
+	const enum pauli_op ops[] = { PAULI_I, PAULI_X, PAULI_Y, PAULI_Z };
+
+	for (size_t k = 0; k < 4; k++) {
+		struct paulis ps = paulis_new();
+		paulis_set(&ps, ops[k], 63);
+		TEST_EQ(paulis_get(ps, 63), ops[k]);
+
+		/* Every other qubit must stay I. */
+		for (uint32_t n = 0; n < 63; n++)
+			TEST_EQ(paulis_get(ps, n), PAULI_I);
+	}
+
+	/* shl/shr across the top bit: a Pauli at qubit
+	 * 0 shifted left by 63 lands at qubit 63 and
+	 * round-trips on shr. */
+	struct paulis ps = paulis_new();
+	paulis_set(&ps, PAULI_Y, 0);
+	paulis_shl(&ps, 63);
+	TEST_EQ(paulis_get(ps, 63), PAULI_Y);
+	TEST_EQ(paulis_get(ps, 0), PAULI_I);
+	paulis_shr(&ps, 63);
+	TEST_EQ(paulis_get(ps, 0), PAULI_Y);
+	TEST_EQ(paulis_get(ps, 63), PAULI_I);
+}
+
+/*
+ * paulis_cmp transitivity: pick three random Pauli
+ * strings, sort them via cmp, verify the implied
+ * order a <= b <= c yields cmp(a, c) <= 0 and
+ * cmp(c, a) >= 0.  Run N iterations.
+ */
+static void t_paulis_cmp_transitive(size_t tag)
+{
+	struct paulis p[3];
+	for (size_t i = 0; i < 3; i++) {
+		p[i] = paulis_new();
+		for (size_t k = 0; k < WIDTH; k++)
+			paulis_set(&p[i],
+				(enum pauli_op)(xoshiro256ss_next(&RNG) % 4),
+				k);
+	}
+
+	/* Tiny three-element sort by cmp. */
+	if (paulis_cmp(p[0], p[1]) > 0) {
+		struct paulis t = p[0];
+		p[0] = p[1];
+		p[1] = t;
+	}
+	if (paulis_cmp(p[1], p[2]) > 0) {
+		struct paulis t = p[1];
+		p[1] = p[2];
+		p[2] = t;
+	}
+	if (paulis_cmp(p[0], p[1]) > 0) {
+		struct paulis t = p[0];
+		p[0] = p[1];
+		p[1] = t;
+	}
+
+	/* Pairwise: with the sort done, cmp(lo, hi) <= 0
+	 * for every (i < j), and antisymmetric reverse. */
+	for (size_t i = 0; i < 3; i++)
+		for (size_t j = i + 1; j < 3; j++) {
+			const int ij = paulis_cmp(p[i], p[j]);
+			const int ji = paulis_cmp(p[j], p[i]);
+			TEST_ASSERT(ij <= 0,
+				"[%zu] cmp(p[%zu], p[%zu]) = %d "
+				"after sort", tag, i, j, ij);
+			TEST_ASSERT(ji >= 0,
+				"[%zu] cmp(p[%zu], p[%zu]) = %d "
+				"after sort", tag, j, i, ji);
+		}
+}
+
 int main(void)
 {
 	world_init(nullptr, nullptr, WD_SEED);
@@ -371,6 +454,10 @@ int main(void)
 		t_paulis_cmp_01(n);
 	for (size_t n = 0; n < 999; n++)
 		t_paulis_cmp_02_eq(n);
+	for (size_t n = 0; n < 999; n++)
+		t_paulis_cmp_transitive(n);
+
+	t_paulis_n63();
 
 	world_free();
 }
