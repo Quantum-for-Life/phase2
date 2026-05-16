@@ -19,7 +19,8 @@ include $(TOPDIR)/build-rules.mk
 # Default-suite tests.  Names listed bare; the
 # $(BUILDDIR)/test/ prefix is added below.
 TESTS_BASE := \
-	t-bitstring_index t-circ_cache t-circ_prepst_coeff	\
+	t-bench t-bitstring_index t-circ_cache			\
+	t-circ_prepst_coeff					\
 	t-circ_trott t-circ_trott2 t-circ_trott2_coeff		\
 	t-circ_trott_coeff t-circ t-combinations		\
 	t-data_attr t-data_coeff_matrix t-data_hamil		\
@@ -77,6 +78,10 @@ $(TBIN)/t-circ_trott:        $(BUILDDIR)/circ/trott.o
 $(TBIN)/t-circ_trott2:       $(BUILDDIR)/circ/trott2.o
 $(TBIN)/t-circ_trott_coeff:  $(BUILDDIR)/circ/trott.o
 $(TBIN)/t-circ_trott2_coeff: $(BUILDDIR)/circ/trott2.o
+
+# t-bench tests bench/bench.h directly; the header
+# lives outside the default test include path.
+$(TBIN)/t-bench: CFLAGS += -I$(BENCHDIR)
 
 # t-log_release verifies the release-build strip of
 # trace/debug macros: -UDEBUG cancels the -DDEBUG
