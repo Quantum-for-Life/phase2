@@ -25,9 +25,9 @@ static struct world_info WD;
 #define SEED UINT64_C(0x2d1da81dc94cf64f)
 static struct xoshiro256ss RNG;
 
-static int rand_pauli(void)
+static enum pauli_op rand_pauli(void)
 {
-	return (int)(xoshiro256ss_next(&RNG) % 4);
+	return (enum pauli_op)(xoshiro256ss_next(&RNG) % 4);
 }
 
 struct b_qreg_init {

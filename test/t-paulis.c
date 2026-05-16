@@ -26,14 +26,16 @@ static void t_paulis_new(void)
 
 static void t_paulis_getset(size_t tag)
 {
-	int op[WIDTH];
+	enum pauli_op op[WIDTH];
 	struct paulis ps = paulis_new();
 
-	for (size_t k = 0; k < WIDTH; k++)
-		paulis_set(&ps, op[k] = (int)(xoshiro256ss_next(&RNG) % 4), k);
+	for (size_t k = 0; k < WIDTH; k++) {
+		op[k] = (enum pauli_op)(xoshiro256ss_next(&RNG) % 4);
+		paulis_set(&ps, op[k], k);
+	}
 
 	for (size_t k = 0; k < WIDTH; k++) {
-		int p = paulis_get(ps, k);
+		enum pauli_op p = paulis_get(ps, k);
 		TEST_ASSERT(p == op[k], "[%zu] k=%zu, pauli=%d, expected=%d",
 			tag, k, p, op[k]);
 	}
@@ -41,11 +43,11 @@ static void t_paulis_getset(size_t tag)
 
 static void t_paulis_eq(size_t tag)
 {
-	int op;
+	enum pauli_op op = PAULI_I;
 	struct paulis ps1, ps2;
 
 	for (size_t k = 0; k < WIDTH; k++) {
-		op = (int)(xoshiro256ss_next(&RNG) % 4);
+		op = (enum pauli_op)(xoshiro256ss_next(&RNG) % 4);
 		paulis_set(&ps1, op, k);
 		paulis_set(&ps2, op, k);
 	}
@@ -57,12 +59,12 @@ static void t_paulis_eq(size_t tag)
 
 static void t_paulis_shr(size_t n)
 {
-	int op;
+	enum pauli_op op;
 	struct paulis ps1, ps2;
 
 	ps1 = ps2 = paulis_new();
 	for (size_t k = 0; k < WIDTH; k++) {
-		op = (int)(xoshiro256ss_next(&RNG) % 3 + 1); /* no PAULI_I */
+		op = (enum pauli_op)(xoshiro256ss_next(&RNG) % 3 + 1); /* no I */
 		paulis_set(&ps1, op, k);
 		if (k >= n)
 			paulis_set(&ps2, op, k - n);
@@ -183,12 +185,12 @@ static void t_paulis_effect_02(size_t tag)
 {
 	uint64_t x, y, y_exp, kk;
 	_Complex double z, z_exp;
-	int op;
+	enum pauli_op op;
 	struct paulis ps = paulis_new();
 
 	x = xoshiro256ss_next(&RNG);
 	for (size_t k = 0; k < WIDTH; k++)
-		paulis_set(&ps, (int)(xoshiro256ss_next(&RNG) % 4), k);
+		paulis_set(&ps, (enum pauli_op)(xoshiro256ss_next(&RNG) % 4), k);
 
 	y_exp = 0;
 	z_exp = z = 1.0;
@@ -229,14 +231,14 @@ static void t_paulis_split_01(size_t tag)
 {
 	uint32_t lo, hi;
 	struct paulis ps_lo, ps_hi, ps = paulis_new();
-	int op_lo, op_hi, op_ex;
+	enum pauli_op op_lo, op_hi, op_ex;
 
 	lo = xoshiro256ss_next(&RNG) % (WIDTH - 1);
 	hi = xoshiro256ss_next(&RNG) % (WIDTH - lo);
 	TEST_ASSERT(lo + hi <= WIDTH, "wrong test params");
 
 	for (size_t k = 0; k < WIDTH; k++)
-		paulis_set(&ps, (int)(xoshiro256ss_next(&RNG) % 4), k);
+		paulis_set(&ps, (enum pauli_op)(xoshiro256ss_next(&RNG) % 4), k);
 
 	paulis_split(ps, lo, hi, &ps_lo, &ps_hi);
 
@@ -339,6 +341,89 @@ static void t_paulis_cmp_02_eq(size_t tag)
 	TEST_ASSERT(res == exp, "[%zu] res=%d, exp=%d", tag, res, exp);
 }
 
+/*
+ * Top-bit boundary: paulis_set / paulis_get and the
+ * shift helpers must work at qubit 63 (the highest
+ * bit of the 64-bit word).  Off-by-one in the mask
+ * (e.g. `<< n` when n == 63 vs n == 64) would
+ * silently wrap.
+ */
+static void t_paulis_n63(void)
+{
+	const enum pauli_op ops[] = { PAULI_I, PAULI_X, PAULI_Y, PAULI_Z };
+
+	for (size_t k = 0; k < 4; k++) {
+		struct paulis ps = paulis_new();
+		paulis_set(&ps, ops[k], 63);
+		TEST_EQ(paulis_get(ps, 63), ops[k]);
+
+		/* Every other qubit must stay I. */
+		for (uint32_t n = 0; n < 63; n++)
+			TEST_EQ(paulis_get(ps, n), PAULI_I);
+	}
+
+	/* shl/shr across the top bit: a Pauli at qubit
+	 * 0 shifted left by 63 lands at qubit 63 and
+	 * round-trips on shr. */
+	struct paulis ps = paulis_new();
+	paulis_set(&ps, PAULI_Y, 0);
+	paulis_shl(&ps, 63);
+	TEST_EQ(paulis_get(ps, 63), PAULI_Y);
+	TEST_EQ(paulis_get(ps, 0), PAULI_I);
+	paulis_shr(&ps, 63);
+	TEST_EQ(paulis_get(ps, 0), PAULI_Y);
+	TEST_EQ(paulis_get(ps, 63), PAULI_I);
+}
+
+/*
+ * paulis_cmp transitivity: pick three random Pauli
+ * strings, sort them via cmp, verify the implied
+ * order a <= b <= c yields cmp(a, c) <= 0 and
+ * cmp(c, a) >= 0.  Run N iterations.
+ */
+static void t_paulis_cmp_transitive(size_t tag)
+{
+	struct paulis p[3];
+	for (size_t i = 0; i < 3; i++) {
+		p[i] = paulis_new();
+		for (size_t k = 0; k < WIDTH; k++)
+			paulis_set(&p[i],
+				(enum pauli_op)(xoshiro256ss_next(&RNG) % 4),
+				k);
+	}
+
+	/* Tiny three-element sort by cmp. */
+	if (paulis_cmp(p[0], p[1]) > 0) {
+		struct paulis t = p[0];
+		p[0] = p[1];
+		p[1] = t;
+	}
+	if (paulis_cmp(p[1], p[2]) > 0) {
+		struct paulis t = p[1];
+		p[1] = p[2];
+		p[2] = t;
+	}
+	if (paulis_cmp(p[0], p[1]) > 0) {
+		struct paulis t = p[0];
+		p[0] = p[1];
+		p[1] = t;
+	}
+
+	/* Pairwise: with the sort done, cmp(lo, hi) <= 0
+	 * for every (i < j), and antisymmetric reverse. */
+	for (size_t i = 0; i < 3; i++)
+		for (size_t j = i + 1; j < 3; j++) {
+			const int ij = paulis_cmp(p[i], p[j]);
+			const int ji = paulis_cmp(p[j], p[i]);
+			TEST_ASSERT(ij <= 0,
+				"[%zu] cmp(p[%zu], p[%zu]) = %d "
+				"after sort", tag, i, j, ij);
+			TEST_ASSERT(ji >= 0,
+				"[%zu] cmp(p[%zu], p[%zu]) = %d "
+				"after sort", tag, j, i, ji);
+		}
+}
+
 int main(void)
 {
 	world_init(nullptr, nullptr, WD_SEED);
@@ -369,6 +454,10 @@ int main(void)
 		t_paulis_cmp_01(n);
 	for (size_t n = 0; n < 999; n++)
 		t_paulis_cmp_02_eq(n);
+	for (size_t n = 0; n < 999; n++)
+		t_paulis_cmp_transitive(n);
+
+	t_paulis_n63();
 
 	world_free();
 }

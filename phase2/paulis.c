@@ -32,7 +32,7 @@ inline struct paulis paulis_new(void)
  * This is the standard "symplectic" representation used in
  * stabiliser / Pauli-group literature.
  */
-void paulis_set(struct paulis *code, const int op, const uint32_t n)
+void paulis_set(struct paulis *code, enum pauli_op op, uint32_t n)
 {
 	const uint64_t n_mask = UINT64_C(1) << n;
 
@@ -69,9 +69,9 @@ void paulis_set(struct paulis *code, const int op, const uint32_t n)
  * which reads as the integer 2 — easily mistaken for Y if
  * one assumes a naive I/X/Y/Z = 0/1/2/3 encoding.
  */
-int paulis_get(const struct paulis code, const uint32_t n)
+enum pauli_op paulis_get(struct paulis code, uint32_t n)
 {
-	int pa = (code.pak[0] >> n & 1) | ((code.pak[1] >> n & 1) << 1);
+	const int pa = (code.pak[0] >> n & 1) | ((code.pak[1] >> n & 1) << 1);
 
 	switch (pa) {
 	case 0:
@@ -87,18 +87,18 @@ int paulis_get(const struct paulis code, const uint32_t n)
 	}
 }
 
-inline int paulis_eq(const struct paulis code1, const struct paulis code2)
+inline int paulis_eq(struct paulis code1, struct paulis code2)
 {
 	return code1.pak[0] == code2.pak[0] && code1.pak[1] == code2.pak[1];
 }
 
-inline void paulis_shl(struct paulis *code, const uint32_t n)
+inline void paulis_shl(struct paulis *code, uint32_t n)
 {
 	code->pak[0] <<= n;
 	code->pak[1] <<= n;
 }
 
-inline void paulis_shr(struct paulis *code, const uint32_t n)
+inline void paulis_shr(struct paulis *code, uint32_t n)
 {
 	code->pak[0] >>= n;
 	code->pak[1] >>= n;
@@ -126,16 +126,24 @@ inline void paulis_shr(struct paulis *code, const uint32_t n)
  *
  *   Total phase = i^is * (-1)^mi = i^(is + 2*mi).
  *   Reduce mod 4 to index into {1, i, -1, -i}.
+ *
+ * Thin wrapper around paulis_effect_raw (paulis.h),
+ * which is the integer core shared with the CUDA
+ * device kernel.  Only the _Complex double multiply
+ * lives here.
  */
-uint64_t paulis_effect(
-	const struct paulis code, const uint64_t i, _Complex double *z)
+uint64_t paulis_effect(struct paulis code, uint64_t i, _Complex double *z)
 {
+	int r4;
+	const uint64_t j = paulis_effect_raw(code, i, &r4);
 	if (!z)
-		goto rt;
+		return j;
 
-	const int mi = stdc_count_ones_ul(i & code.pak[1]);
-	const int is = stdc_count_ones_ul(code.pak[0] & code.pak[1]);
-	const int r4 = (is + 2 * mi) & 0x3;
+	/* Switch (not a table indexed by r4) so the case-0
+	 * path skips the complex multiply entirely.  The
+	 * device kernel uses the table form: GPU warps
+	 * prefer the uniform load over a switch that would
+	 * diverge across threads. */
 	switch (r4) {
 	case 0:
 		break;
@@ -151,18 +159,18 @@ uint64_t paulis_effect(
 	default:
 		unreachable();
 	}
-
-rt:
-	return i ^ code.pak[0];
+	return j;
 }
 
-void paulis_split(const struct paulis code, const uint32_t qb_lo,
-	const uint32_t qb_hi, struct paulis *lo, struct paulis *hi)
+void paulis_split(struct paulis code, uint32_t qb_lo, uint32_t qb_hi,
+	struct paulis *lo, struct paulis *hi)
 {
-	uint64_t mask_lo, mask_hi;
-
-	mask_lo = (UINT64_C(1) << qb_lo) - 1;
-	mask_hi = (UINT64_C(1) << (qb_hi + qb_lo)) - 1 - mask_lo;
+	/* mask_lo covers bits [0, qb_lo); mask_hi
+	 * covers bits [qb_lo, qb_lo + qb_hi).  Bits
+	 * outside that combined range fall through to
+	 * neither output. */
+	const uint64_t mask_lo = (UINT64_C(1) << qb_lo) - 1;
+	const uint64_t mask_hi = (UINT64_C(1) << (qb_hi + qb_lo)) - 1 - mask_lo;
 
 	lo->pak[0] = code.pak[0] & mask_lo;
 	lo->pak[1] = code.pak[1] & mask_lo;
@@ -171,26 +179,22 @@ void paulis_split(const struct paulis code, const uint32_t qb_lo,
 	hi->pak[1] = code.pak[1] & mask_hi;
 }
 
-void paulis_merge(struct paulis *code, const uint32_t qb_lo,
-	const uint32_t qb_hi, const struct paulis lo, const struct paulis hi)
-{
-	uint64_t mask_lo, mask_hi;
-
-	mask_lo = (UINT64_C(1) << qb_lo) - 1;
-	mask_hi = (UINT64_C(1) << (qb_hi + qb_lo)) - 1 - mask_lo;
-
-	code->pak[0] = (lo.pak[0] & mask_lo) | (hi.pak[0] & mask_hi);
-	code->pak[1] = (lo.pak[1] & mask_lo) | (hi.pak[1] & mask_hi);
-}
-
+/*
+ * paulis_cmp - lexicographic order, highest qubit
+ * first.  The early-out via paulis_eq lets the
+ * common "same hi-code" check in the batch cache
+ * skip the per-qubit loop.  The loop reads qubits
+ * MSB-to-LSB so the resulting order matches the
+ * bit-string read top-down.
+ */
 int paulis_cmp(struct paulis a, struct paulis b)
 {
 	if (paulis_eq(a, b))
 		return 0;
 
 	for (uint32_t n = 0; n < QREG_MAX_WIDTH; n++) {
-		const int x = paulis_get(a, QREG_MAX_WIDTH - n - 1);
-		const int y = paulis_get(b, QREG_MAX_WIDTH - n - 1);
+		const enum pauli_op x = paulis_get(a, QREG_MAX_WIDTH - n - 1);
+		const enum pauli_op y = paulis_get(b, QREG_MAX_WIDTH - n - 1);
 		if (x < y)
 			return -1;
 		if (x > y)

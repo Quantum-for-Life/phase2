@@ -20,14 +20,14 @@ static struct xoshiro256ss RNG;
 
 #define WIDTH_MAX (64)
 
-static int rand_pauli(void)
+static enum pauli_op rand_pauli(void)
 {
-	return (int)(xoshiro256ss_next(&RNG) % 4);
+	return (enum pauli_op)(xoshiro256ss_next(&RNG) % 4);
 }
 
 struct b_paulis_set {
 	struct paulis *p;
-	int op;
+	enum pauli_op op;
 	uint32_t n;
 };
 

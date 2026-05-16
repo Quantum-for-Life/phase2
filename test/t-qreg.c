@@ -23,8 +23,6 @@ static struct world_info WD;
 
 #if PHASE2_BACKEND == 0
 #define MARGIN (1.0e-14)
-#elif PHASE2_BACKEND == 1 /* QuEST */
-#define MARGIN (1.0e-11)
 #elif PHASE2_BACKEND == 2 /* cuQuantum */
 #define MARGIN (1.0e-14)
 #endif /* PHASE2_BACKEND */
@@ -36,9 +34,9 @@ static _Complex double AMPS[NUM_AMPS];
 #define SEED UINT64_C(0x34eaaa33)
 static struct xoshiro256ss RNG;
 
-static int rand_pauli_op(void)
+static enum pauli_op rand_pauli_op(void)
 {
-	return (int)(xoshiro256ss_next(&RNG) % 4);
+	return (enum pauli_op)(xoshiro256ss_next(&RNG) % 4);
 }
 
 static void t_qreg_init(void)
@@ -293,7 +291,7 @@ static void t_qreg_paulirot_02(size_t tag)
 		paulis_set(&ps[1], rand_pauli_op(), k);
 	}
 	for (size_t k = reg.qb_lo; k < reg.qb_lo + reg.qb_hi; k++) {
-		int op = rand_pauli_op();
+		enum pauli_op op = rand_pauli_op();
 		paulis_set(&ps[0], op, k);
 		paulis_set(&ps[1], op, k);
 	}
@@ -364,7 +362,7 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 		for (size_t l = 0; l < n; l++)
 			paulis_set(&ps[l], rand_pauli_op(), k);
 	for (size_t k = reg.qb_lo; k < reg.qb_lo + reg.qb_hi; k++) {
-		int op = rand_pauli_op();
+		enum pauli_op op = rand_pauli_op();
 		for (size_t l = 0; l < n; l++)
 			paulis_set(&ps[l], op, k);
 	}

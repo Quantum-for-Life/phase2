@@ -36,44 +36,17 @@ __global__ void kernelMix(cuDoubleComplex *__restrict__ a,
 }
 
 /*
- * paulisEffect - device reimplementation of paulis_effect.
- *
- * Uses __popcll (hardware population count for 64-bit) in
- * place of stdc_count_ones_ul.  Caller must ensure z != NULL.
- * See paulis.c:paulis_effect for the mathematical derivation.
- */
-__device__ uint64_t paulisEffect(
-	const struct paulis code, const uint64_t i, cuDoubleComplex *z)
-{
-	int mi = __popcll(i & code.pak[1]); // no. of minuses
-	int is = __popcll(code.pak[0] & code.pak[1]); // no. of i's
-	int r4 = (is + 2 * mi) & 0x3; // 4th root of unity
-	switch (r4) {
-	case 0:
-		break;
-	case 1:
-		*z = cuCmul(*z, (cuDoubleComplex){ .x = 0.0, .y = 1.0 });
-		break;
-	case 2:
-		*z = cuCmul(*z, (cuDoubleComplex){ .x = -1.0, .y = 0.0 });
-		break;
-	case 3:
-		*z = cuCmul(*z, (cuDoubleComplex){ .x = 0.0, .y = -1.0 });
-		break;
-	default:
-		unreachable();
-	}
-
-	return i ^ code.pak[0];
-}
-
-/*
  * kernelPauliRot - GPU equivalent of kernel_rot (qreg_qreg.c).
  *
  * One thread per amplitude index.  Same j < i guard: each
  * coupled pair (i, j) is processed by the thread with the
  * smaller index only, avoiding write conflicts without
  * atomics or synchronisation.
+ *
+ * The popcount + phase-exponent computation comes from
+ * paulis_effect_raw (paulis.h), which is shared with the
+ * host paulis_effect implementation.  Only the
+ * cuDoubleComplex multiply lives here.
  */
 __global__ void kernelPauliRot(
 	cuDoubleComplex *a, size_t n, struct paulis code, double c, double s)
@@ -82,10 +55,18 @@ __global__ void kernelPauliRot(
 	if (i >= n)
 		return;
 
-	cuDoubleComplex z = { .x = 1.0, .y = 0.0 };
-	const uint64_t j = paulisEffect(code, i, &z);
+	int r4;
+	const uint64_t j = paulis_effect_raw(code, i, &r4);
 	if (j < i)
 		return;
+
+	const cuDoubleComplex phase[4] = {
+		{ .x = 1.0, .y = 0.0 },
+		{ .x = 0.0, .y = 1.0 },
+		{ .x = -1.0, .y = 0.0 },
+		{ .x = 0.0, .y = -1.0 },
+	};
+	const cuDoubleComplex z = phase[r4];
 
 	const cuDoubleComplex zi = a[i];
 	const cuDoubleComplex zj = a[j];

@@ -71,7 +71,7 @@ static int parse_pauli(const char *s, uint32_t nqb, struct paulis *out)
 
 	char *tok = strtok(buf, " \t\n");
 	while (tok) {
-		int op;
+		enum pauli_op op;
 		switch (tok[0]) {
 		case 'I':
 			op = PAULI_I;
