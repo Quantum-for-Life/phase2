@@ -118,22 +118,6 @@ static void t_muldet_init_free(void)
 	circ_muldet_free(&md);
 }
 
-static void t_prog(void)
-{
-	struct circ_prog prog;
-
-	circ_prog_init(&prog, 100, "step");
-	TEST_EQ(prog.len, (size_t)100);
-	TEST_EQ(prog.i, (size_t)0);
-	TEST_EQ(prog.pc, 0u);
-
-	for (size_t n = 0; n < 100; n++)
-		circ_prog_tick(&prog);
-
-	TEST_EQ(prog.i, (size_t)100);
-	TEST_EQ(prog.pc, 100u);
-}
-
 static void t_values_init_free(void)
 {
 	struct circ_values vals;
@@ -164,7 +148,6 @@ int main(void)
 	t_hamil_init_free();
 	t_hamil_sort_lex();
 	t_muldet_init_free();
-	t_prog();
 	t_values_init_free();
 
 	world_free();

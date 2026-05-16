@@ -1,5 +1,26 @@
-/* clock_gettime for circ_prog timing. */
-#define _POSIX_C_SOURCE 200809L
+/*
+ * phase2/circ.c -- implementation of the circ API
+ * declared in include/phase2/circ.h.
+ *
+ * Layout:
+ *   - data-carrier helpers (hamil / muldet / values)
+ *     and the coeff-matrix free,
+ *   - lifecycle (circ_init / circ_free),
+ *   - state preparation (circ_prepst),
+ *   - Hamiltonian step (circ_step / _reverse, sharing
+ *     circ_step_generic) and its batch-cache callback
+ *     circ_flush,
+ *   - measurement (circ_measure, with the
+ *     coeff-matrix helpers measure_coeff /
+ *     measure_coeff_block).
+ *
+ * The batch cache lives in `circ_cache.{c,h}`
+ * (phase2-private header) and is opaque from this
+ * file's perspective; each `struct circ` owns its own
+ * `struct circ_cache` instance.  The four algorithm
+ * drivers (trott / trott2 / qdrift / cmpsit) live in
+ * `circ/` and consume this surface.
+ */
 
 #include "c23_compat.h"
 #include <complex.h>
@@ -9,7 +30,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 #define LOG_SUBSYS "circ"
 #include "log.h"
@@ -32,8 +52,9 @@ int circ_hamil_init(struct circ_hamil *hm, uint32_t qb, size_t len)
 
 void circ_hamil_free(struct circ_hamil *hm)
 {
-	if (hm->terms != nullptr)
-		free(hm->terms);
+	free(hm->terms);
+	hm->terms = nullptr;
+	hm->len = 0;
 }
 
 static int hamil_term_cmp_lex(const void *a, const void *b)
@@ -68,8 +89,9 @@ int circ_muldet_init(struct circ_muldet *md, size_t len)
 
 void circ_muldet_free(struct circ_muldet *md)
 {
-	if (md->dets != nullptr)
-		free(md->dets);
+	free(md->dets);
+	md->dets = nullptr;
+	md->len = 0;
 }
 
 void data_coeff_matrix_free(struct data_coeff_matrix *cm)
@@ -88,48 +110,6 @@ void data_coeff_matrix_free(struct data_coeff_matrix *cm)
 	memset(cm, 0, sizeof *cm);
 }
 
-void circ_prog_init(struct circ_prog *prog, size_t len, const char *unit)
-{
-	prog->i = 0;
-	prog->len = len;
-	prog->pc = 0;
-	prog->unit = unit ? unit : "step";
-	clock_gettime(CLOCK_MONOTONIC, &prog->t0);
-}
-
-void circ_prog_tick(struct circ_prog *prog)
-{
-	prog->i++;
-
-	const unsigned pc = prog->i * 100 / prog->len;
-	if (pc > prog->pc) {
-		prog->pc = pc;
-		log_debug("progress: %u%%", prog->pc);
-	}
-}
-
-void circ_prog_emit(const struct circ_prog *prog, const char *subsys)
-{
-	if (LOG_INFO < log_threshold)
-		return;
-
-	struct timespec now;
-	clock_gettime(CLOCK_MONOTONIC, &now);
-	const double elapsed = (now.tv_sec - prog->t0.tv_sec) +
-		(now.tv_nsec - prog->t0.tv_nsec) * 1e-9;
-	const double frac = (prog->len > 0)
-		? (double)prog->i / (double)prog->len
-		: 0.0;
-	const double eta = (frac > 0.0) ? elapsed * (1.0 / frac - 1.0) : 0.0;
-	const unsigned pc = (prog->len > 0)
-		? (unsigned)(prog->i * 100 / prog->len)
-		: 0;
-
-	log_emit(LOG_INFO, subsys ? subsys : LOG_SUBSYS, __FILE__, __LINE__,
-		"%s %zu/%zu (%u%%) elapsed %.2fs eta %.2fs", prog->unit,
-		prog->i, prog->len, pc, elapsed, eta);
-}
-
 int circ_values_init(struct circ_values *vals, size_t len)
 {
 	_Complex double *z = malloc(sizeof(_Complex double) * len);
@@ -145,11 +125,12 @@ int circ_values_init(struct circ_values *vals, size_t len)
 void circ_values_free(struct circ_values *vals)
 {
 	free(vals->z);
+	vals->z = nullptr;
+	vals->len = 0;
 }
 
 int circ_init(struct circ *ct, struct circ_hamil hm,
-	const enum stprep_kind sp_kind, const void *sp_data,
-	const size_t vals_len)
+	enum stprep_kind sp_kind, const void *sp_data, size_t vals_len)
 {
 	memset(&ct->md, 0, sizeof ct->md);
 	memset(&ct->cm, 0, sizeof ct->cm);
@@ -175,7 +156,8 @@ int circ_init(struct circ *ct, struct circ_hamil hm,
 		log_error("circ_init: qreg_init failed");
 		goto err_qreg_init;
 	}
-	if (circ_cache_init(ct->reg.qb_hi, ct->reg.qb_lo) < 0) {
+	ct->cache = circ_cache_init(ct->reg.qb_hi, ct->reg.qb_lo);
+	if (!ct->cache) {
 		log_error("circ_init: cache_init failed");
 		goto err_cache_init;
 	}
@@ -188,6 +170,7 @@ int circ_init(struct circ *ct, struct circ_hamil hm,
 
 	circ_values_free(&ct->vals);
 err_vals_init:
+	circ_cache_free(ct->cache);
 err_cache_init:
 	qreg_free(&ct->reg);
 err_qreg_init:
@@ -215,6 +198,8 @@ void circ_free(struct circ *ct)
 		data_coeff_matrix_free(&ct->cm);
 		break;
 	}
+	circ_cache_free(ct->cache);
+	ct->cache = nullptr;
 	qreg_free(&ct->reg);
 }
 
@@ -258,7 +243,7 @@ static void circ_flush(struct paulis code_hi, const struct paulis *codes_lo,
  * identical hi codes are contiguous — see circ_hamil_sort_lex.
  */
 static int circ_step_generic(struct circ *ct, const struct circ_hamil *hm,
-	const double omega, bool reverse)
+	double omega, bool reverse)
 {
 	for (size_t i = 0; i < hm->len; i++) {
 		size_t j = i;
@@ -267,30 +252,30 @@ static int circ_step_generic(struct circ *ct, const struct circ_hamil *hm,
 		const double phi = omega * hm->terms[j].cf;
 		const struct paulis code = hm->terms[j].op;
 
-		if (circ_cache_insert(code, phi) == 0)
+		if (circ_cache_insert(ct->cache, code, phi) == 0)
 			continue;
 
 		log_trace("paulirot, term: %zu, num_codes: %zu", i,
-			circ_cache_len());
-		circ_cache_flush(circ_flush, &ct->reg);
-		if (circ_cache_insert(code, phi) < 0)
+			circ_cache_len(ct->cache));
+		circ_cache_flush(ct->cache, circ_flush, &ct->reg);
+		if (circ_cache_insert(ct->cache, code, phi) < 0)
 			return -1;
 	}
-	log_trace(
-		"paulirot, last term group, num_codes: %zu", circ_cache_len());
-	circ_cache_flush(circ_flush, &ct->reg);
+	log_trace("paulirot, last term group, num_codes: %zu",
+		circ_cache_len(ct->cache));
+	circ_cache_flush(ct->cache, circ_flush, &ct->reg);
 
 	return 0;
 }
 
-inline int circ_step(
-	struct circ *ct, const struct circ_hamil *hm, const double omega)
+inline int circ_step(struct circ *ct, const struct circ_hamil *hm,
+	double omega)
 {
 	return circ_step_generic(ct, hm, omega, false);
 }
 
-inline int circ_step_reverse(
-	struct circ *ct, const struct circ_hamil *hm, const double omega)
+inline int circ_step_reverse(struct circ *ct, const struct circ_hamil *hm,
+	double omega)
 {
 	return circ_step_generic(ct, hm, omega, true);
 }
@@ -305,9 +290,9 @@ inline int circ_step_reverse(
  * same order as expansion itself.
  */
 static _Complex double measure_coeff_block(struct qreg *reg,
-	const uint32_t n_sites, const uint32_t n_alpha, const uint32_t n_beta,
-	const double *C_alpha, const double *C_beta, const double weight,
-	const int tapered)
+	uint32_t n_sites, uint32_t n_alpha, uint32_t n_beta,
+	const double *C_alpha, const double *C_beta, double weight,
+	int tapered)
 {
 	return state_prep_coeff_inner(reg, n_sites, n_alpha, n_beta, C_alpha,
 		C_beta, weight, tapered);
@@ -353,5 +338,10 @@ _Complex double circ_measure(struct circ *ct)
 		return measure_coeff(ct);
 	}
 
+	/* Unreachable on a well-formed circ -- circ_init
+	 * validates stprep_kind.  Sentinel return so the
+	 * compiler is happy without a default case (which
+	 * would suppress the warning when a future
+	 * stprep_kind is added). */
 	return 0.0;
 }

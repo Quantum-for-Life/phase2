@@ -174,7 +174,8 @@ static void t_circ_trott2(size_t tag, size_t ts, size_t md, size_t ht)
 	struct trott2 t2 = { 0 };
 	t2.ct.stprep_kind = STPREP_MULTIDET;
 	qreg_init(&t2.ct.reg, NUM_QUBITS);
-	circ_cache_init(t2.ct.reg.qb_hi, t2.ct.reg.qb_lo);
+	t2.ct.cache = circ_cache_init(t2.ct.reg.qb_hi, t2.ct.reg.qb_lo);
+	TEST_ASSERT(t2.ct.cache != nullptr, "cache init failed");
 	t2.dt.delta = HAMIL_DELTA;
 
 	struct circ_hamil *h = &t2.ct.hm;
@@ -224,7 +225,9 @@ malloc_ressteps:
 	free(m->dets);
 malloc_mddets:
 	free(h->terms);
-malloc_hterms:;
+malloc_hterms:
+	circ_cache_free(t2.ct.cache);
+	qreg_free(&t2.ct.reg);
 }
 
 int main(void)

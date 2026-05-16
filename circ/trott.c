@@ -39,9 +39,6 @@ int trott_simul(struct trott *tt)
 	struct circ *ct = &tt->ct;
 	struct circ_values *vals = &ct->vals;
 
-	struct circ_prog prog;
-	circ_prog_init(&prog, vals->len, "step");
-
 	circ_prepst(ct);
 	for (size_t i = 0; i < vals->len; i++) {
 		log_debug("step %zu/%zu", i + 1, vals->len);
@@ -55,9 +52,6 @@ int trott_simul(struct trott *tt)
 			log_error("trott_simul: write_step %zu failed", i);
 			return -1;
 		}
-
-		circ_prog_tick(&prog);
-		circ_prog_emit(&prog, LOG_SUBSYS);
 	}
 
 	return 0;

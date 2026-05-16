@@ -136,7 +136,8 @@ int phase2_run(const char **pauli_strs,
 	qreg_zero(&reg);
 	qreg_setamp(&reg, idx, 1.0);
 
-	if (circ_cache_init(reg.qb_hi, reg.qb_lo) < 0)
+	struct circ_cache *cache = circ_cache_init(reg.qb_hi, reg.qb_lo);
+	if (!cache)
 		goto err_cache;
 
 	for (size_t k = 0; k < nterms; k++) {
@@ -146,25 +147,26 @@ int phase2_run(const char **pauli_strs,
 			goto err_pauli;
 
 		double phi = delta * coeffs[k];
-		if (circ_cache_insert(code, phi) != 0) {
-			circ_cache_flush(flush_cb, &reg);
-			if (circ_cache_insert(code, phi) < 0)
+		if (circ_cache_insert(cache, code, phi) != 0) {
+			circ_cache_flush(cache, flush_cb, &reg);
+			if (circ_cache_insert(cache, code, phi) < 0)
 				goto err_pauli;
 		}
 	}
-	circ_cache_flush(flush_cb, &reg);
+	circ_cache_flush(cache, flush_cb, &reg);
 
 	_Complex double z;
 	qreg_getamp(&reg, idx, &z);
 	*out_re = creal(z);
 	*out_im = cimag(z);
 
+	circ_cache_free(cache);
 	qreg_free(&reg);
 
 	return 0;
 
 err_pauli:
-	circ_cache_flush(nullptr, nullptr);
+	circ_cache_free(cache);
 err_cache:
 	qreg_free(&reg);
 
