@@ -3,19 +3,12 @@
 
 #include <stdint.h>
 
-#if PHASE2_BACKEND == 1 /* QuEST */
-#include "QuEST.h"
-#else
-/* QuEST defines these as enum pauliOpType.
- * To avoid the clash, we pass ints to functions, instead of the enum.
- */
-enum {
+enum pauli_op {
 	PAULI_I = 0,
 	PAULI_X = 1,
 	PAULI_Y = 2,
 	PAULI_Z = 3,
 };
-#endif /* PHASE2_BACKEND == 1 */
 
 struct paulis {
 	uint64_t pak[2];
@@ -23,9 +16,9 @@ struct paulis {
 
 struct paulis paulis_new(void);
 
-int paulis_get(struct paulis code, uint32_t n);
+enum pauli_op paulis_get(struct paulis code, uint32_t n);
 
-void paulis_set(struct paulis *code, int op, uint32_t n);
+void paulis_set(struct paulis *code, enum pauli_op op, uint32_t n);
 
 int paulis_eq(struct paulis code1, struct paulis code2);
 

@@ -26,14 +26,16 @@ static void t_paulis_new(void)
 
 static void t_paulis_getset(size_t tag)
 {
-	int op[WIDTH];
+	enum pauli_op op[WIDTH];
 	struct paulis ps = paulis_new();
 
-	for (size_t k = 0; k < WIDTH; k++)
-		paulis_set(&ps, op[k] = (int)(xoshiro256ss_next(&RNG) % 4), k);
+	for (size_t k = 0; k < WIDTH; k++) {
+		op[k] = (enum pauli_op)(xoshiro256ss_next(&RNG) % 4);
+		paulis_set(&ps, op[k], k);
+	}
 
 	for (size_t k = 0; k < WIDTH; k++) {
-		int p = paulis_get(ps, k);
+		enum pauli_op p = paulis_get(ps, k);
 		TEST_ASSERT(p == op[k], "[%zu] k=%zu, pauli=%d, expected=%d",
 			tag, k, p, op[k]);
 	}
@@ -41,11 +43,11 @@ static void t_paulis_getset(size_t tag)
 
 static void t_paulis_eq(size_t tag)
 {
-	int op;
+	enum pauli_op op = PAULI_I;
 	struct paulis ps1, ps2;
 
 	for (size_t k = 0; k < WIDTH; k++) {
-		op = (int)(xoshiro256ss_next(&RNG) % 4);
+		op = (enum pauli_op)(xoshiro256ss_next(&RNG) % 4);
 		paulis_set(&ps1, op, k);
 		paulis_set(&ps2, op, k);
 	}
@@ -57,12 +59,12 @@ static void t_paulis_eq(size_t tag)
 
 static void t_paulis_shr(size_t n)
 {
-	int op;
+	enum pauli_op op;
 	struct paulis ps1, ps2;
 
 	ps1 = ps2 = paulis_new();
 	for (size_t k = 0; k < WIDTH; k++) {
-		op = (int)(xoshiro256ss_next(&RNG) % 3 + 1); /* no PAULI_I */
+		op = (enum pauli_op)(xoshiro256ss_next(&RNG) % 3 + 1); /* no I */
 		paulis_set(&ps1, op, k);
 		if (k >= n)
 			paulis_set(&ps2, op, k - n);
@@ -183,12 +185,12 @@ static void t_paulis_effect_02(size_t tag)
 {
 	uint64_t x, y, y_exp, kk;
 	_Complex double z, z_exp;
-	int op;
+	enum pauli_op op;
 	struct paulis ps = paulis_new();
 
 	x = xoshiro256ss_next(&RNG);
 	for (size_t k = 0; k < WIDTH; k++)
-		paulis_set(&ps, (int)(xoshiro256ss_next(&RNG) % 4), k);
+		paulis_set(&ps, (enum pauli_op)(xoshiro256ss_next(&RNG) % 4), k);
 
 	y_exp = 0;
 	z_exp = z = 1.0;
@@ -229,14 +231,14 @@ static void t_paulis_split_01(size_t tag)
 {
 	uint32_t lo, hi;
 	struct paulis ps_lo, ps_hi, ps = paulis_new();
-	int op_lo, op_hi, op_ex;
+	enum pauli_op op_lo, op_hi, op_ex;
 
 	lo = xoshiro256ss_next(&RNG) % (WIDTH - 1);
 	hi = xoshiro256ss_next(&RNG) % (WIDTH - lo);
 	TEST_ASSERT(lo + hi <= WIDTH, "wrong test params");
 
 	for (size_t k = 0; k < WIDTH; k++)
-		paulis_set(&ps, (int)(xoshiro256ss_next(&RNG) % 4), k);
+		paulis_set(&ps, (enum pauli_op)(xoshiro256ss_next(&RNG) % 4), k);
 
 	paulis_split(ps, lo, hi, &ps_lo, &ps_hi);
 

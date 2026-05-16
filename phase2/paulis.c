@@ -32,7 +32,7 @@ inline struct paulis paulis_new(void)
  * This is the standard "symplectic" representation used in
  * stabiliser / Pauli-group literature.
  */
-void paulis_set(struct paulis *code, const int op, const uint32_t n)
+void paulis_set(struct paulis *code, enum pauli_op op, uint32_t n)
 {
 	const uint64_t n_mask = UINT64_C(1) << n;
 
@@ -69,9 +69,9 @@ void paulis_set(struct paulis *code, const int op, const uint32_t n)
  * which reads as the integer 2 — easily mistaken for Y if
  * one assumes a naive I/X/Y/Z = 0/1/2/3 encoding.
  */
-int paulis_get(const struct paulis code, const uint32_t n)
+enum pauli_op paulis_get(struct paulis code, uint32_t n)
 {
-	int pa = (code.pak[0] >> n & 1) | ((code.pak[1] >> n & 1) << 1);
+	const int pa = (code.pak[0] >> n & 1) | ((code.pak[1] >> n & 1) << 1);
 
 	switch (pa) {
 	case 0:
@@ -189,8 +189,8 @@ int paulis_cmp(struct paulis a, struct paulis b)
 		return 0;
 
 	for (uint32_t n = 0; n < QREG_MAX_WIDTH; n++) {
-		const int x = paulis_get(a, QREG_MAX_WIDTH - n - 1);
-		const int y = paulis_get(b, QREG_MAX_WIDTH - n - 1);
+		const enum pauli_op x = paulis_get(a, QREG_MAX_WIDTH - n - 1);
+		const enum pauli_op y = paulis_get(b, QREG_MAX_WIDTH - n - 1);
 		if (x < y)
 			return -1;
 		if (x > y)

@@ -22,8 +22,6 @@ static struct world_info WD;
 
 #if PHASE2_BACKEND == 0
 #define MARGIN (1.0e-14)
-#elif PHASE2_BACKEND == 1 /* QuEST */
-#define MARGIN (1.0e-6)
 #elif PHASE2_BACKEND == 2 /* cuQuantum */
 #define MARGIN (1.0e-14)
 #endif /* PHASE2_BACKEND */

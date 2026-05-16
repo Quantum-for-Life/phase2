@@ -86,9 +86,9 @@ static void t_hamil_sort_lex(void)
 
 		/* Reconstruct which original term this is by
 		 * checking the Pauli string. */
-		int p0 = paulis_get(op, 0);
-		int p1 = paulis_get(op, 1);
-		int p3 = paulis_get(op, 3);
+		enum pauli_op p0 = paulis_get(op, 0);
+		enum pauli_op p1 = paulis_get(op, 1);
+		enum pauli_op p3 = paulis_get(op, 3);
 
 		if (p0 == PAULI_X && p1 == PAULI_Z)
 			TEST_EQ(cf, 10.0);
