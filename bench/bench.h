@@ -19,26 +19,34 @@
  * The JSONL schema (one record per line):
  *
  *     {
- *       "timestamp": "2026-05-16T13:42:30Z",
- *       "hostname":  "...",
- *       "commit":    "...",
- *       "compiler":  "...",
- *       "backend":   "qreg" | "cuda",
- *       "mpi_ranks": <int>,
- *       "scenario":  "...",
- *       "params":    { ... },
- *       "num_runs":  <int>,
- *       "median_ns": <double>,
- *       "min_ns":    <double>,
- *       "max_ns":    <double>,
- *       "noisy":     <bool>
+ *       "timestamp":   "2026-05-16T13:42:30Z",
+ *       "hostname":    "...",
+ *       "commit":      "...",
+ *       "compiler":    "...",
+ *       "backend":     "qreg" | "cuda",
+ *       "mpi_ranks":   <int>,
+ *       "scenario":    "...",
+ *       "params":      { ... },
+ *       "num_runs":    <int>,
+ *       "sub_samples": <int>,
+ *       "median_ns":   <double>,
+ *       "min_ns":      <double>,
+ *       "max_ns":      <double>,
+ *       "noisy":       <bool>
  *     }
  *
- * Baseline lookup matches both (hostname,
- * scenario) and the exact params JSON object so
- * records taken at different sizes / batch counts
- * stay distinct.  jsmn (include/jsmn.h) parses the
- * candidate lines.
+ * Each NUM_RUNS sample is itself the minimum over
+ * `sub_samples` (K) sub-samples -- min-of-min --
+ * so a rare jitter event (interrupt, frequency
+ * dip) contaminates only one sub-sample and is
+ * discarded.  Min / median / max converge on the
+ * unperturbed kernel cost.
+ *
+ * Baseline lookup matches (hostname, scenario,
+ * params, sub_samples) so records taken at
+ * different sizes / batch counts / filtering
+ * depth stay distinct.  jsmn (include/jsmn.h)
+ * parses the candidate lines.
  *
  * Provenance hostname / commit / timestamp /
  * compiler are auto-collected via gethostname,
@@ -207,15 +215,20 @@ static inline bool bench_slice_eq(const char *js, const jsmntok_t *t,
 }
 
 /*
- * Scan a JSONL file for the LAST record whose (hostname, scenario, params)
- * triple matches the arguments.  Returns true and populates *out if found.
+ * Scan a JSONL file for the LAST record whose
+ * (hostname, scenario, params, sub_samples) tuple
+ * matches the arguments.  Returns true and
+ * populates *out if found.
  *
- * params_json must be the byte-for-byte canonical form the writer emitted
- * (no whitespace, fixed key order).
+ * params_json must be the byte-for-byte canonical
+ * form the writer emitted (no whitespace, fixed
+ * key order).  Pre-MOM records (no sub_samples
+ * field) never match.
  */
 static inline bool bench_find_baseline(const char *path,
 	const char *hostname, const char *scenario,
-	const char *params_json, struct bench_baseline *out)
+	const char *params_json, int sub_samples,
+	struct bench_baseline *out)
 {
 	FILE *fp = fopen(path, "r");
 	if (!fp)
@@ -234,6 +247,7 @@ static inline bool bench_find_baseline(const char *path,
 			continue;
 
 		bool host_ok = false, scen_ok = false, params_ok = false;
+		bool subs_ok = false;
 		double min_v = 0.0;
 		const char *ts_ptr = NULL;
 		int ts_len = 0;
@@ -263,6 +277,16 @@ static inline bool bench_find_baseline(const char *path,
 							params_json, span)
 							== 0;
 				}
+			} else if (bench_tok_eq(line, k, "sub_samples")) {
+				char buf[32];
+				const size_t len =
+					(size_t)(v->end - v->start);
+				if (len < sizeof buf) {
+					memcpy(buf, line + v->start, len);
+					buf[len] = '\0';
+					subs_ok = strtol(buf, NULL, 10)
+						== sub_samples;
+				}
 			} else if (bench_tok_eq(line, k, "min_ns")) {
 				char buf[64];
 				const size_t len =
@@ -278,7 +302,7 @@ static inline bool bench_find_baseline(const char *path,
 			}
 		}
 
-		if (host_ok && scen_ok && params_ok) {
+		if (host_ok && scen_ok && params_ok && subs_ok) {
 			out->min_ns = min_v;
 			if (ts_ptr && ts_len > 0 &&
 				(size_t)ts_len < sizeof out->timestamp) {
@@ -318,7 +342,7 @@ static inline bool bench_timestamp_stale(const char *ts, int days)
 static inline void bench_append_jsonl(FILE *fp, const struct bench_prov *prov,
 	const char *backend, int mpi_ranks,
 	const char *scenario, const char *params_json,
-	int num_runs, const struct bench_stats *st)
+	int num_runs, int sub_samples, const struct bench_stats *st)
 {
 	fprintf(fp,
 		"{\"timestamp\":\"%s\","
@@ -330,12 +354,14 @@ static inline void bench_append_jsonl(FILE *fp, const struct bench_prov *prov,
 		"\"scenario\":\"%s\","
 		"\"params\":%s,"
 		"\"num_runs\":%d,"
+		"\"sub_samples\":%d,"
 		"\"median_ns\":%.2f,"
 		"\"min_ns\":%.2f,"
 		"\"max_ns\":%.2f,"
 		"\"noisy\":%s}\n",
 		prov->timestamp, prov->hostname, prov->commit, prov->compiler,
-		backend, mpi_ranks, scenario, params_json, num_runs,
+		backend, mpi_ranks, scenario, params_json,
+		num_runs, sub_samples,
 		st->median, st->min, st->max,
 		st->noisy ? "true" : "false");
 	fflush(fp);
@@ -346,11 +372,13 @@ static inline void bench_append_jsonl(FILE *fp, const struct bench_prov *prov,
 
 static inline void bench_print_header(void)
 {
-	printf("%-32s %12s %12s %12s %12s %8s\n",
+	printf("%-32s %5s %12s %12s %12s %12s %8s\n",
 		"scenario / params",
+		"K",
 		"min (ns)", "median (ns)", "max (ns)", "prev (ns)", "delta");
-	printf("%-32s %12s %12s %12s %12s %8s\n",
+	printf("%-32s %5s %12s %12s %12s %12s %8s\n",
 		"-----------------",
+		"-----",
 		"--------", "-----------", "--------", "---------", "-----");
 }
 
@@ -359,9 +387,9 @@ static inline void bench_print_header(void)
  * Noise at the nanosecond scale is additive -- interrupts, cache
  * evictions, frequency dips only ever make a call slower -- so the
  * minimum is the best estimator of the unperturbed cost.  Median and
- * max stay in the table for context.
+ * max stay in the table for context.  K is the per-sample MOM depth.
  */
-static inline void bench_print_row(const char *label,
+static inline void bench_print_row(const char *label, int sub_samples,
 	const struct bench_stats *st, const struct bench_baseline *bl,
 	bool has_baseline)
 {
@@ -376,8 +404,9 @@ static inline void bench_print_row(const char *label,
 			snprintf(warn, sizeof warn, " [stale]");
 	}
 
-	printf("%-32s %12.2f %12.2f %12.2f %12.2f %8s%s%s\n",
-		label, st->min, st->median, st->max,
+	printf("%-32s %5d %12.2f %12.2f %12.2f %12.2f %8s%s%s\n",
+		label, sub_samples,
+		st->min, st->median, st->max,
 		has_baseline ? bl->min_ns : 0.0,
 		delta,
 		st->noisy ? " [noisy]" : "", warn);
@@ -398,24 +427,54 @@ static inline void bench_print_row(const char *label,
 /* -- sample-gathering loop -------------------------------------------------*/
 
 /*
- * Gather NUM_RUNS samples by timing a tight loop of INNER_REPS
- * invocations of the op, returning per-op nanoseconds in samples[].
- * The op is called once with `warmup_arg` before the timed loop fires;
- * pass the same pointer for both warm-up and timed paths to keep cache
- * state realistic.
+ * Gather num_runs MOM-filtered samples in samples[].  Each sample is
+ * itself the minimum elapsed per-op time across K invocations of an
+ * inner_reps-deep tight loop around op_call.  Tail jitter (interrupts,
+ * frequency dips) only inflates the worst sub-sample and is discarded
+ * by the inner min, so samples[] approaches the unperturbed kernel
+ * cost as K grows.
  *
- * Defined as a macro so the op call inlines at the bench site.
+ * K = 1 reduces to a single-window measurement.  K is reported in the
+ * JSONL record and console table so the reader can judge how tightly
+ * each row is filtered.
+ *
+ * Defined as a macro so op_call inlines at the bench site.
  */
-#define BENCH_SAMPLE_LOOP(samples, num_runs, inner_reps, op_call)	\
+#define BENCH_SAMPLE_LOOP(samples, num_runs, K, inner_reps, op_call)	\
 	do {								\
 		for (int _br = 0; _br < (num_runs); _br++) {		\
-			const double _t0 = bench_now_ns();		\
-			for (int _bi = 0; _bi < (inner_reps); _bi++) {	\
-				op_call;				\
+			double _best = HUGE_VAL;			\
+			for (int _bk = 0; _bk < (K); _bk++) {		\
+				const double _t0 = bench_now_ns();	\
+				for (int _bi = 0;			\
+					_bi < (inner_reps); _bi++) {	\
+					op_call;			\
+				}					\
+				const double _t1 = bench_now_ns();	\
+				const double _per = (_t1 - _t0)		\
+					/ (double)(inner_reps);		\
+				if (_per < _best) _best = _per;		\
 			}						\
-			const double _t1 = bench_now_ns();		\
-			(samples)[_br] = (_t1 - _t0) / (double)(inner_reps); \
+			(samples)[_br] = _best;				\
 		}							\
+	} while (0)
+
+/*
+ * Per-sample MOM helper for hand-coded loops.  Use where the timed
+ * body is a function call (not an inline expression) with INNER_REPS
+ * = 1; sets `out` to the minimum elapsed time over K invocations.
+ */
+#define BENCH_SAMPLE_MIN(out, K, body)					\
+	do {								\
+		double _best = HUGE_VAL;				\
+		for (int _bk = 0; _bk < (K); _bk++) {			\
+			const double _t0 = bench_now_ns();		\
+			body;						\
+			const double _t1 = bench_now_ns();		\
+			const double _per = _t1 - _t0;			\
+			if (_per < _best) _best = _per;			\
+		}							\
+		(out) = _best;						\
 	} while (0)
 
 

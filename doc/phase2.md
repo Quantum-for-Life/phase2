@@ -1743,10 +1743,10 @@ today:
   `{1, 10, 100}` at `nqb=14` and `{1, 10}` at
   `nqb=18`.
 
-Both binaries are designed to run in under five
-seconds total so the maintainer can fire them
-often -- after every meaningful change, not "once
-a release".
+Both binaries together run in under a minute on a
+quiet host so the maintainer can fire them often
+-- after every meaningful change, not "once a
+release".
 
 ### 11.1 Running
 
@@ -1755,9 +1755,10 @@ a release".
 builds the binaries (if needed) and runs them.  Each
 scenario emits one row in a console table:
 
-    scenario / params           median   min   max  prev  delta
-    -------------------------   ------   ---   ---  ----  -----
-    paulis_set {"nqb":64}        4.27   3.96   6.17  5.35  -20%
+    scenario / params               K   min(ns)  median(ns)  max(ns)  prev(ns)  delta
+    -----------------               -   -------  ----------  -------  --------  -----
+    paulis_set {"nqb":64}        1000      1.88        1.88     1.93      1.85  +1.6%
+    paulirot {"nqb":18,"ncodes":1} 50  4480000.0   4521000.0  4620000  4500000  -0.4%
     ...
 
 and one JSON record per scenario in
@@ -1765,9 +1766,19 @@ and one JSON record per scenario in
 accumulate across runs; baselines are tracked
 per host because perf varies by machine.
 
+Each row's NUM_RUNS=11 samples are themselves
+each the minimum over K sub-samples (min-of-min)
+so a rare jitter event contaminates only one
+sub-sample and is discarded by the inner min.
+K is per-scenario and printed in the console
+table; high-K rows estimate the unperturbed
+kernel cost tightly enough that `[noisy]` rarely
+fires on the ns-scale micros.
+
 The console `prev` / `delta` columns compare the
-current run's median against the most recent
-record matching `(hostname, scenario, params)`.
+current run's `min` against the most recent
+record matching
+`(hostname, scenario, params, sub_samples)`.
 A `[stale]` flag appears if the baseline is more
 than 30 days old; a `[noisy]` flag appears when
 `(max - min) / median > 15%`.
@@ -1792,24 +1803,32 @@ delta column.
 One JSON object per line in
 `bench/runs/<hostname>.jsonl`.  Fields:
 
-| Field        | Type    | Example                  |
-|--------------|---------|--------------------------|
-| `timestamp`  | string  | `"2026-05-16T13:42:30Z"` |
-| `hostname`   | string  | `"kumath"`               |
-| `commit`     | string  | `"031cf25"`              |
-| `compiler`   | string  | `"13.3.0"`               |
-| `backend`    | string  | `"qreg"` / `"cuda"`      |
-| `mpi_ranks`  | integer | `1`                      |
-| `scenario`   | string  | `"paulirot"`             |
-| `params`     | object  | `{"nqb":18,"ncodes":10}` |
-| `num_runs`   | integer | `11`                     |
-| `median_ns`  | number  | `4521000.0`              |
-| `min_ns`     | number  | `4480000.0`              |
-| `max_ns`     | number  | `4620000.0`              |
-| `noisy`      | boolean | `false`                  |
+| Field         | Type    | Example                  |
+|---------------|---------|--------------------------|
+| `timestamp`   | string  | `"2026-05-16T13:42:30Z"` |
+| `hostname`    | string  | `"kumath"`               |
+| `commit`      | string  | `"031cf25"`              |
+| `compiler`    | string  | `"13.3.0"`               |
+| `backend`     | string  | `"qreg"` / `"cuda"`      |
+| `mpi_ranks`   | integer | `1`                      |
+| `scenario`    | string  | `"paulirot"`             |
+| `params`      | object  | `{"nqb":18,"ncodes":10}` |
+| `num_runs`    | integer | `11`                     |
+| `sub_samples` | integer | `100`                    |
+| `median_ns`   | number  | `4521000.0`              |
+| `min_ns`      | number  | `4480000.0`              |
+| `max_ns`      | number  | `4620000.0`              |
+| `noisy`       | boolean | `false`                  |
 
-Baseline lookup matches both `(scenario, params)`
+`min_ns` / `median_ns` / `max_ns` summarise
+`num_runs` MOM-filtered samples; each sample is
+itself the minimum over `sub_samples` (K)
+sub-samples.
+
+Baseline lookup matches
+`(hostname, scenario, params, sub_samples)`
 byte-for-byte, so records at different
-`(nqb, ncodes)` pairs stay distinct.  Reading is
-via the vendored single-header `include/jsmn.h`
-tokenizer (MIT, zserge/jsmn).
+`(nqb, ncodes)` pairs or different K stay
+distinct.  Reading is via the vendored single-
+header `include/jsmn.h` tokenizer (MIT,
+zserge/jsmn).

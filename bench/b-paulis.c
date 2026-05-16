@@ -21,6 +21,7 @@
 
 #define NUM_RUNS    11
 #define INNER_REPS  100000
+#define MOM_K       1000
 #define NQB         64
 
 static struct xoshiro256ss RNG;
@@ -38,7 +39,7 @@ static volatile _Complex double g_sink_z;
 
 static void run_scenario(FILE *out, const struct bench_prov *prov,
 	int mpi_ranks, const char *name, const char *params_json,
-	double *samples)
+	int sub_samples, double *samples)
 {
 	const struct bench_stats st = bench_compute_stats(samples, NUM_RUNS);
 
@@ -47,14 +48,14 @@ static void run_scenario(FILE *out, const struct bench_prov *prov,
 
 	struct bench_baseline bl;
 	const bool has_bl = bench_find_baseline(path, prov->hostname,
-		name, params_json, &bl);
+		name, params_json, sub_samples, &bl);
 
 	char label[80];
 	snprintf(label, sizeof label, "%s %s", name, params_json);
-	bench_print_row(label, &st, &bl, has_bl);
+	bench_print_row(label, sub_samples, &st, &bl, has_bl);
 
 	bench_append_jsonl(out, prov, BENCH_BACKEND, mpi_ranks,
-		name, params_json, NUM_RUNS, &st);
+		name, params_json, NUM_RUNS, sub_samples, &st);
 }
 
 int main(void)
@@ -108,37 +109,37 @@ int main(void)
 	/* --- paulis_set -- toggle every qubit, cycling through ops --- */
 	{
 		struct paulis p = paulis_new();
-		BENCH_SAMPLE_LOOP(samples, NUM_RUNS, INNER_REPS, ({
+		BENCH_SAMPLE_LOOP(samples, NUM_RUNS, MOM_K, INNER_REPS, ({
 			paulis_set(&p, (enum pauli_op)(_bi & 0x3),
 				(uint32_t)(_bi % NQB));
 		}));
 		if (out)
 			run_scenario(out, &prov, wd.size, "paulis_set",
-				PARAMS_NQB64, samples);
+				PARAMS_NQB64, MOM_K, samples);
 	}
 
 	/* --- paulis_get -- read every qubit --- */
 	{
-		BENCH_SAMPLE_LOOP(samples, NUM_RUNS, INNER_REPS, ({
+		BENCH_SAMPLE_LOOP(samples, NUM_RUNS, MOM_K, INNER_REPS, ({
 			g_sink_int = paulis_get(ps, (uint32_t)(_bi % NQB));
 		}));
 		if (out)
 			run_scenario(out, &prov, wd.size, "paulis_get",
-				PARAMS_NQB64, samples);
+				PARAMS_NQB64, MOM_K, samples);
 	}
 
 	/* --- paulis_effect -- per-amplitude rotation kernel --- */
 	{
 		_Complex double z = 1.0;
 		uint64_t i = 0x123456789ABCDEFULL;
-		BENCH_SAMPLE_LOOP(samples, NUM_RUNS, INNER_REPS, ({
+		BENCH_SAMPLE_LOOP(samples, NUM_RUNS, MOM_K, INNER_REPS, ({
 			i = paulis_effect(ps, i, &z);
 		}));
 		g_sink_u64 = i;
 		g_sink_z = z;
 		if (out)
 			run_scenario(out, &prov, wd.size, "paulis_effect",
-				PARAMS_NQB64, samples);
+				PARAMS_NQB64, MOM_K, samples);
 	}
 
 	if (out)

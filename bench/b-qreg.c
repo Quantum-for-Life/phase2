@@ -40,7 +40,7 @@ static enum pauli_op rand_pauli(void)
 
 static void record(FILE *out, const struct bench_prov *prov, int mpi_ranks,
 	const char *name, const char *params_json,
-	double *samples, int num_runs)
+	double *samples, int num_runs, int sub_samples)
 {
 	const struct bench_stats st = bench_compute_stats(samples, num_runs);
 
@@ -49,21 +49,21 @@ static void record(FILE *out, const struct bench_prov *prov, int mpi_ranks,
 
 	struct bench_baseline bl;
 	const bool has_bl = bench_find_baseline(path, prov->hostname,
-		name, params_json, &bl);
+		name, params_json, sub_samples, &bl);
 
 	char label[80];
 	snprintf(label, sizeof label, "%s %s", name, params_json);
-	bench_print_row(label, &st, &bl, has_bl);
+	bench_print_row(label, sub_samples, &st, &bl, has_bl);
 
 	bench_append_jsonl(out, prov, BENCH_BACKEND, mpi_ranks,
-		name, params_json, num_runs, &st);
+		name, params_json, num_runs, sub_samples, &st);
 }
 
 
 /* -- qreg_init -- alloc + zero of the amp vector --------------------------- */
 
 static void measure_qreg_init(FILE *out, const struct bench_prov *prov,
-	int mpi_ranks, uint32_t nqb)
+	int mpi_ranks, uint32_t nqb, int K)
 {
 	/* Warm-up: one init/free pair to fault the heap pages.  Without
 	 * this the first timed call carries the first-touch cost and
@@ -74,17 +74,17 @@ static void measure_qreg_init(FILE *out, const struct bench_prov *prov,
 
 	double samples[NUM_RUNS];
 	for (int r = 0; r < NUM_RUNS; r++) {
-		const double t0 = bench_now_ns();
 		struct qreg reg;
-		qreg_init(&reg, nqb);
-		const double t1 = bench_now_ns();
-		samples[r] = t1 - t0;
-		qreg_free(&reg);
+		BENCH_SAMPLE_MIN(samples[r], K, {
+			qreg_init(&reg, nqb);
+			qreg_free(&reg);
+		});
 	}
 
 	char params[32];
 	snprintf(params, sizeof params, "{\"nqb\":%u}", nqb);
-	record(out, prov, mpi_ranks, "qreg_init", params, samples, NUM_RUNS);
+	record(out, prov, mpi_ranks, "qreg_init", params,
+		samples, NUM_RUNS, K);
 }
 
 
@@ -128,7 +128,7 @@ static void rot_setup_free(struct rot_setup *s)
 }
 
 static void measure_paulirot(FILE *out, const struct bench_prov *prov,
-	int mpi_ranks, uint32_t nqb, size_t ncodes)
+	int mpi_ranks, uint32_t nqb, size_t ncodes, int K)
 {
 	struct qreg reg;
 	if (qreg_init(&reg, nqb) < 0) {
@@ -150,17 +150,16 @@ static void measure_paulirot(FILE *out, const struct bench_prov *prov,
 
 	double samples[NUM_RUNS];
 	for (int r = 0; r < NUM_RUNS; r++) {
-		const double t0 = bench_now_ns();
-		qreg_paulirot(&reg, s.code_hi, s.codes_lo, s.angles,
-			s.ncodes);
-		const double t1 = bench_now_ns();
-		samples[r] = t1 - t0;
+		BENCH_SAMPLE_MIN(samples[r], K,
+			qreg_paulirot(&reg, s.code_hi, s.codes_lo,
+				s.angles, s.ncodes));
 	}
 
 	char params[64];
 	snprintf(params, sizeof params, "{\"nqb\":%u,\"ncodes\":%zu}",
 		nqb, ncodes);
-	record(out, prov, mpi_ranks, "paulirot", params, samples, NUM_RUNS);
+	record(out, prov, mpi_ranks, "paulirot", params,
+		samples, NUM_RUNS, K);
 
 	rot_setup_free(&s);
 	qreg_free(&reg);
@@ -217,23 +216,33 @@ int main(void)
 	/* Two qubit sizes crossing the cache hierarchy.  Per-size ncodes
 	 * arrays differ: at nqb=18 the ncodes=100 case is ~600 ms / call
 	 * and 11 samples blows the fast-bench budget; ncodes={1, 10} is
-	 * enough to observe RAM-bound regressions. */
-	const uint32_t sizes[]            = {  14,  18 };
+	 * enough to observe RAM-bound regressions.
+	 *
+	 * Per-scenario K (MOM depth): cheap cells get K=100, the larger
+	 * paulirot cells get smaller K to fit the wall budget. */
+	const uint32_t sizes[]               = {  14,  18 };
+	const int      init_K_per_size[2]    = { 100, 100 };
 	const size_t   ncodes_per_size[2][3] = {
 		{ 1, 10, 100 },   /* nqb=14: in L2, all three cheap */
 		{ 1, 10,   0 },   /* nqb=18: skip ncodes=100 */
+	};
+	const int      paulirot_K_per_cell[2][3] = {
+		{ 100, 100, 100 },   /* nqb=14: each call ~us, K=100 cheap */
+		{  50,  10,   0 },   /* nqb=18: ncodes=1 ~ms, ncodes=10 ~10ms */
 	};
 
 	for (size_t si = 0; si < sizeof sizes / sizeof sizes[0]; si++) {
 		const uint32_t nqb = sizes[si];
 		if (nqb < nqb_min)
 			continue;
-		measure_qreg_init(out, &prov, wd.size, nqb);
+		measure_qreg_init(out, &prov, wd.size, nqb,
+			init_K_per_size[si]);
 		for (size_t ci = 0; ci < 3; ci++) {
 			const size_t nc = ncodes_per_size[si][ci];
 			if (nc == 0)
 				continue;
-			measure_paulirot(out, &prov, wd.size, nqb, nc);
+			measure_paulirot(out, &prov, wd.size, nqb, nc,
+				paulirot_K_per_cell[si][ci]);
 		}
 	}
 
