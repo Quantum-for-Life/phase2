@@ -113,7 +113,6 @@ static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
 
 	return 0;
 
-	prob_cdf_free(&rct->cdf);
 err_cdf:
 	circ_hamil_free(&rct->hm_ran);
 err_hm_ran:
