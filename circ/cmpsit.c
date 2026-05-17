@@ -12,7 +12,7 @@
 
 #include "circ/cmpsit.h"
 
-#include <float.h>
+#include "internal.h"
 
 static uint64_t SEED = UINT64_C(0xafb424901446f21f);
 
@@ -159,14 +159,6 @@ void cmpsit_free(struct cmpsit *cp)
 {
 	cmpsit_ranct_free(&cp->ranct);
 	circ_free(&cp->ct);
-}
-
-static double signof(double a)
-{
-	double f = fabs(a);
-	if (f < DBL_EPSILON)
-		return 0.0;
-	return a < f ? -1.0 : 1.0;
 }
 
 static int hm_sample(struct cmpsit *cp)

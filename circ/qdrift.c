@@ -15,6 +15,8 @@
 
 #include "circ/qdrift.h"
 
+#include "internal.h"
+
 static uint64_t SEED = UINT64_C(0xeccd9dcc749fcdca);
 
 static int ranct_init(struct qdrift_ranct *rct, const uint32_t qb,
@@ -85,14 +87,6 @@ void qdrift_free(struct qdrift *qd)
 {
 	ranct_free(&qd->ranct);
 	circ_free(&qd->ct);
-}
-
-static double signof(double a)
-{
-	const double f = fabs(a);
-	if (f < DBL_EPSILON)
-		return 0.0;
-	return a < f ? -1.0 : 1.0;
 }
 
 static void ranct_sample(struct qdrift *qd)
