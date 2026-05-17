@@ -242,6 +242,18 @@ struct subcommand {
 	int (*run)(void);
 };
 
+/*
+ * Long-only option keys.  Values above 0x80 sit outside
+ * the ASCII range, so argp treats them as identifiers
+ * for a "--name" option with no short alias.  Used for
+ * algorithm-specific parameters whose short letter would
+ * otherwise collide with another subcommand's flag.
+ */
+enum {
+	OPT_STEP_SIZE = 0x100,   /* qdrift --step-size */
+	OPT_ANGLE_DET = 0x101,   /* cmpsit --angle-det */
+};
+
 /* Command: "trott" */
 static struct cmd_trott_dt {
 	struct trott tt;
@@ -505,7 +517,7 @@ static void cmd_qdrift_summary(const struct cmd_qdrift_dt *dt)
 static struct qdrift_data *const args_qdrift = &cmd_qdrift_dt.qd_dt;
 
 static struct argp_option opts_qdrift[] = {
-	{ "step-size", 'D', "VAL", 0,
+	{ "step-size", OPT_STEP_SIZE, "VAL", 0,
 		"qDRIFT step size (default: 1.0)", 0 },
 	{ "depth", 'd', "N", 0,
 		"Number of randomised terms per sample (default: 64)", 0 },
@@ -521,7 +533,7 @@ static error_t opts_parser_qdrift(int key, char *arg, struct argp_state *state)
 	struct qdrift_data *dt = state->input;
 
 	switch (key) {
-	case 'D':
+	case OPT_STEP_SIZE:
 		dt->step_size = strtod(arg, nullptr);
 		break;
 	case 'd':
@@ -661,7 +673,7 @@ static struct argp_option opts_cmpsit[] = {
 		"Number of randomised terms per step (default: 64)", 0 },
 	{ "steps", 's', "N", 0,
 		"Number of Trotter steps (default: 1)", 0 },
-	{ "angle-det", 'D', "VAL", 0,
+	{ "angle-det", OPT_ANGLE_DET, "VAL", 0,
 		"Step size for the deterministic part (default: 1.0)", 0 },
 	{ "angle-rand", 'R', "VAL", 0,
 		"Step size for the randomised part (default: 1.0)", 0 },
@@ -680,7 +692,7 @@ static error_t opts_parser_cmpsit(int key, char *arg, struct argp_state *state)
 	case 's':
 		dt->steps = strtoull(arg, nullptr, 10);
 		break;
-	case 'D':
+	case OPT_ANGLE_DET:
 		dt->angle_det = strtod(arg, nullptr);
 		break;
 	case 'R':
