@@ -36,23 +36,13 @@ static void ranct_free(struct qdrift_ranct *rct)
 	prob_cdf_free(&rct->cdf);
 }
 
-struct get_vals_data {
-	size_t i;
-	struct circ_hamil_term *terms;
-};
-
-static double get_vals(void *data)
-{
-	struct get_vals_data *dt = data;
-
-	return dt->terms[dt->i++].cf;
-}
-
 static void ranct_calc_cdf(
 	struct qdrift_ranct *rct, struct circ_hamil_term *terms)
 {
-	struct get_vals_data data = { .i = 0, .terms = terms };
-	prob_cdf_from_iter(&rct->cdf, get_vals, &data);
+	/* cf is the first field of struct circ_hamil_term, so &terms[0].cf
+	 * equals (double *)terms; stride is the term-record size. */
+	prob_cdf_from_array_strided(&rct->cdf, &terms[0].cf,
+		sizeof terms[0], NULL);
 }
 
 int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt,

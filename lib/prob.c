@@ -24,35 +24,41 @@ void prob_cdf_free(struct prob_cdf *cdf)
 }
 
 /*
- * prob_cdf_from_iter - build a CDF from an iterator over
- * unnormalised weights.
+ * prob_cdf_from_array_strided - build a CDF from
+ * cdf->len possibly-negative weights at `stride`-byte
+ * intervals from `base`.
  *
  * Two-pass construction:
- *  1. Accumulate |f(i)| for each entry and sum into lambda.
+ *  1. Accumulate |w[i]| into cdf->y[i] and sum into lambda.
  *  2. Normalise each entry by lambda and compute the
  *     running sum to form the CDF: y[i] = sum_{k<=i} p(k).
  *
- * Returns -1 if lambda ~ 0 (all weights negligible).
+ * Returns -1 if lambda < DBL_EPSILON (all weights
+ * negligible).  Writes lambda through `out_lambda` on
+ * success when non-NULL.
  */
-int prob_cdf_from_iter(struct prob_cdf *cdf, double (*iter)(void *), void *data)
+int prob_cdf_from_array_strided(struct prob_cdf *cdf,
+	const double *base, size_t stride, double *out_lambda)
 {
-	/* Calculate PDF. */
 	double lambda = 0.0;
-	for (double *y = cdf->y; y < cdf->y + cdf->len; y++) {
-		const double yi = fabs(iter(data));
-		*y = yi;
+	for (size_t i = 0; i < cdf->len; i++) {
+		const double *w = (const double *)
+			((const char *)base + i * stride);
+		const double yi = fabs(*w);
+		cdf->y[i] = yi;
 		lambda += yi;
 	}
 	if (lambda < DBL_EPSILON)
 		return -1;
 
-	/* Calculate CDF */
 	double f = 0.0;
-	for (double *y = cdf->y; y < cdf->y + cdf->len; y++) {
-		f += *y / lambda;
-		*y = f;
+	for (size_t i = 0; i < cdf->len; i++) {
+		f += cdf->y[i] / lambda;
+		cdf->y[i] = f;
 	}
 
+	if (out_lambda)
+		*out_lambda = lambda;
 	return 0;
 }
 

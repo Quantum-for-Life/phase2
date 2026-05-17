@@ -14,14 +14,19 @@ int prob_cdf_init(struct prob_cdf *cdf, size_t len);
 void prob_cdf_free(struct prob_cdf *cdf);
 
 /*
- * Calculate probability distribution (cumulative distribution function) from
- * a set of not normalized, possibly negative samples of length pd->len.
+ * Build a CDF from cdf->len possibly-negative weights laid out at
+ * stride-byte intervals starting at `base` (so weight i is the double
+ * at byte offset i*stride).  The absolute values are normalised into
+ * a PDF and accumulated into cdf->y.
  *
- * The pdf is calculated by calling iter() pd->len times, taking
- * the absolute value, and normalizing to obtain a PDF.
+ * If `out_lambda` is non-NULL, the sum of |w[i]| (the L1 norm of the
+ * raw weights) is written there.  Pass NULL to discard.
+ *
+ * Returns -1 if the total mass is below DBL_EPSILON (the distribution
+ * is effectively zero), 0 on success.
  */
-int prob_cdf_from_iter(
-	struct prob_cdf *cdf, double (*iter)(void *), void *data);
+int prob_cdf_from_array_strided(struct prob_cdf *cdf,
+	const double *base, size_t stride, double *out_lambda);
 
 /*
  * Compute the inverse of a discrete cumulative distribution function (CDF).

@@ -38,28 +38,14 @@ static int hamil_term_cmp_abscf_desc(const void *a, const void *b)
 	return 0;
 }
 
-struct get_vals_data {
-	size_t i;
-	struct circ_hamil_term *terms;
-	double norm;
-};
-
-static double get_vals(void *data)
-{
-	struct get_vals_data *dt = data;
-
-	double d = dt->terms[dt->i++].cf;
-	dt->norm += fabs(d);
-
-	return d;
-}
-
 static void ranct_calc_cdf(
 	struct cmpsit_ranct *rct, struct circ_hamil_term *terms)
 {
-	struct get_vals_data data = { .i = 0, .terms = terms };
-	prob_cdf_from_iter(&rct->cdf, get_vals, &data);
-	rct->lambda_r = data.norm;
+	/* cf is the first field of struct circ_hamil_term, so &terms[0].cf
+	 * equals (double *)terms; stride is the term-record size.
+	 * out_lambda receives the L1 norm used downstream. */
+	prob_cdf_from_array_strided(&rct->cdf, &terms[0].cf,
+		sizeof terms[0], &rct->lambda_r);
 }
 
 /*
