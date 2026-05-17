@@ -195,6 +195,34 @@ static void ranct_hmsmpl_free(struct cmpsit *cp)
 }
 
 /*
+ * One half-sweep of a Suzuki-Trotter step: draw a fresh
+ * importance sample, apply circ_step (or _reverse for the
+ * second half), and free the sampled Hamiltonian.
+ */
+static int half_step(struct cmpsit *cp, size_t s, bool reverse)
+{
+	const char *tag = reverse ? "rev" : "fwd";
+	log_trace("step %zu/%zu %s half-sweep", s + 1, cp->dt.steps, tag);
+	(void)s; /* `s` only feeds the log_trace, which is a no-op in
+		    release builds. */
+
+	if (hm_sample(cp) < 0) {
+		log_error("simul: hm_sample failed");
+		return -1;
+	}
+	const int rc = reverse
+		? circ_step_reverse(&cp->ct, &cp->ranct.hm_smpl, 0.5)
+		: circ_step(&cp->ct, &cp->ranct.hm_smpl, 0.5);
+	if (rc < 0) {
+		log_error("simul: %s circ_step failed", tag);
+		ranct_hmsmpl_free(cp);
+		return -1;
+	}
+	ranct_hmsmpl_free(cp);
+	return 0;
+}
+
+/*
  * cmpsit_simul - run the composite-channel simulation.
  *
  * Each Trotter step uses second-order Suzuki-Trotter
@@ -223,31 +251,10 @@ int cmpsit_simul(struct cmpsit *cp)
 		log_debug("sample %zu/%zu", i + 1, vals->len);
 		circ_prepst(ct);
 		for (size_t s = 0; s < cp->dt.steps; s++) {
-			log_trace("step %zu/%zu fwd half-sweep", s + 1,
-				cp->dt.steps);
-			if (hm_sample(cp) < 0) {
-				log_error("simul: hm_sample failed");
+			if (half_step(cp, s, false) < 0)
 				return -1;
-			}
-			if (circ_step(&cp->ct, &cp->ranct.hm_smpl, 0.5) < 0) {
-				log_error("simul: fwd circ_step failed");
+			if (half_step(cp, s, true) < 0)
 				return -1;
-			}
-			ranct_hmsmpl_free(cp);
-
-			log_trace("step %zu/%zu rev half-sweep", s + 1,
-				cp->dt.steps);
-			if (hm_sample(cp) < 0) {
-				log_error("simul: hm_sample failed");
-				return -1;
-			}
-			if (circ_step_reverse(
-				    &cp->ct, &cp->ranct.hm_smpl, 0.5) < 0) {
-				log_error("simul: rev circ_step_reverse"
-					  " failed");
-				return -1;
-			}
-			ranct_hmsmpl_free(cp);
 		}
 		vals->z[i] = circ_measure(ct);
 		if (cp->sw && cp->sw->write(cp->sw->ctx, i, vals->z[i]) < 0) {
