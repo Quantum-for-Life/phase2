@@ -1727,3 +1727,137 @@ distclean` additionally removes the built binaries
 and `libphase2.so`.  Sub-makes refuse to run
 standalone -- they error with a pointer to the
 top-level Makefile.
+
+
+## 11. Benchmarking
+
+Micro-benchmarks live under `bench/`.  Four
+binaries today:
+
+- `b-paulis` -- `paulis_set` / `paulis_get` /
+  `paulis_effect` on 64-qubit Pauli strings.
+- `b-qreg`   -- `qreg_init` and `qreg_paulirot`
+  at two qubit sizes crossing the cache
+  hierarchy: `nqb=14` (L2-resident) and `nqb=18`
+  (RAM-bound), with batch counts `ncodes` in
+  `{1, 10, 100}` at `nqb=14` and `{1, 10}` at
+  `nqb=18`.
+- `b-log`    -- the `log_at` gating macro
+  (`include/log.h`): the filtered fast path
+  (`log_trace` under threshold=`info`) and the
+  emitted path (`log_warn` with stderr redirected
+  to `/dev/null`).
+- `b-circ`   -- the per-step Trotter kernel
+  (`circ_step`) at `nqb=12` with 10 and 100
+  Hamiltonian terms, and the overlap measurement
+  (`circ_measure`).  Fixtures are built
+  programmatically; no HDF5.
+
+The full set runs in about a minute on a quiet
+host so the maintainer can fire it often -- after
+every meaningful change, not "once a release".
+Per-binary MPI startup dominates the wall time
+(~7 s each); the measurement work itself is a
+few seconds in total.
+
+### 11.1 Running
+
+    make bench
+
+builds the binaries (if needed) and runs them.
+Each binary opens with a banner naming itself and
+emits one row per scenario in a console table
+sized to 80 columns:
+
+    == b-paulis (nqb=64) =========================================================
+
+    scenario                     K   min(ns)    median       max      prev   delta
+    --------                 ----- --------- --------- --------- --------- -------
+    paulis_set                1000      1.71      1.71      1.71      1.71   -0.1%
+    paulis_effect             1000      1.37      1.37      1.37      1.37   -0.3%
+    ...
+
+    == b-qreg ====================================================================
+
+    scenario                     K   min(ns)    median       max      prev   delta
+    --------                 ----- --------- --------- --------- --------- -------
+    paulirot nqb=18 nc=1        50  3.39e+06   3.4e+06  3.44e+06  3.41e+06   -0.7%
+    ...
+
+Timing columns use the `%9.3g` format so values
+ranging from sub-ns to tens of ms all fit; large
+values render in scientific notation.  Output is
+ANSI-coloured when stdout is a TTY (banner cyan,
+headers bold, delta red/green by sign, flags
+yellow) and plain ASCII when piped to a file.
+
+`bench/runs/$(hostname).jsonl`.  The records
+accumulate across runs; baselines are tracked
+per host because perf varies by machine.
+
+Each row's NUM_RUNS=11 samples are themselves
+each the minimum over K sub-samples (min-of-min)
+so a rare jitter event contaminates only one
+sub-sample and is discarded by the inner min.
+K is per-scenario and printed in the console
+table; high-K rows estimate the unperturbed
+kernel cost tightly enough that `[noisy]` rarely
+fires on the ns-scale micros.
+
+The console `prev` / `delta` columns compare the
+current run's `min` against the most recent
+record matching
+`(hostname, scenario, params, sub_samples)`.
+A `[stale]` flag appears if the baseline is more
+than 30 days old; a `[noisy]` flag appears when
+`(max - min) / median > 15%`.
+
+To run under MPI:
+
+    make bench-mpi MPIRANKS=4
+
+The `"mpi_ranks"` field in the record keeps multi-
+rank baselines distinct from single-rank ones.
+
+To wipe the host's baseline (after an intentional
+perf-affecting change has landed):
+
+    make bench-clean
+
+The next `make bench` will then show `--` in the
+delta column.
+
+### 11.2 JSONL schema
+
+One JSON object per line in
+`bench/runs/<hostname>.jsonl`.  Fields:
+
+| Field         | Type    | Example                  |
+|---------------|---------|--------------------------|
+| `timestamp`   | string  | `"2026-05-16T13:42:30Z"` |
+| `hostname`    | string  | `"kumath"`               |
+| `commit`      | string  | `"031cf25"`              |
+| `compiler`    | string  | `"13.3.0"`               |
+| `backend`     | string  | `"qreg"` / `"cuda"`      |
+| `mpi_ranks`   | integer | `1`                      |
+| `scenario`    | string  | `"paulirot"`             |
+| `params`      | object  | `{"nqb":18,"ncodes":10}` |
+| `num_runs`    | integer | `11`                     |
+| `sub_samples` | integer | `100`                    |
+| `median_ns`   | number  | `4521000.0`              |
+| `min_ns`      | number  | `4480000.0`              |
+| `max_ns`      | number  | `4620000.0`              |
+| `noisy`       | boolean | `false`                  |
+
+`min_ns` / `median_ns` / `max_ns` summarise
+`num_runs` MOM-filtered samples; each sample is
+itself the minimum over `sub_samples` (K)
+sub-samples.
+
+Baseline lookup matches
+`(hostname, scenario, params, sub_samples)`
+byte-for-byte, so records at different
+`(nqb, ncodes)` pairs or different K stay
+distinct.  Reading is via the vendored single-
+header `include/jsmn.h` tokenizer (MIT,
+zserge/jsmn).

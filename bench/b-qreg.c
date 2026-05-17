@@ -1,28 +1,36 @@
-#define LOG_SUBSYS "bench"
+/*
+ * b-qreg -- end-to-end micro-benchmarks for the
+ * MPI register and the Pauli-rotation kernel
+ * (phase2/qreg.h).
+ *
+ * Two fixed qubit sizes cross the CPU cache
+ * hierarchy:
+ *   - nqb=14 (16 K amps, ~256 KB, in L2 on most
+ *     cores),
+ *   - nqb=18 (262 K amps, ~4 MB, RAM-bound).
+ *
+ * Scenarios:
+ *   - qreg_init  (one per size)
+ *   - paulirot   (each size x ncodes in {1, 10, 100})
+ *
+ * Total bench time on a quiet host: ~3-4 s.
+ */
 
-#include "c23_compat.h"
+#include "bench.h"
+
 #include <complex.h>
-#include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 
-#include "log.h"
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
 #include "phase2/world.h"
 #include "xoshiro256ss.h"
 
-#include "bench.h"
+#define WD_SEED  UINT64_C(0x18c9ee04abeee30c)
+#define SEED     UINT64_C(0x2d1da81dc94cf64f)
 
-#define REPS_MAX (9UL)
+#define NUM_RUNS 11
 
-#define NQB_MAX (29)
-static uint32_t NQB_MIN = 1;
-
-#define WD_SEED UINT64_C(0x18c9ee04abeee30c)
-static struct world_info WD;
-
-#define SEED UINT64_C(0x2d1da81dc94cf64f)
 static struct xoshiro256ss RNG;
 
 static enum pauli_op rand_pauli(void)
@@ -30,205 +38,220 @@ static enum pauli_op rand_pauli(void)
 	return (enum pauli_op)(xoshiro256ss_next(&RNG) % 4);
 }
 
-struct b_qreg_init {
-	uint32_t n;
-};
-
-static int b_qreg_init(void *data)
+static void record(FILE *out, const struct bench_prov *prov, int mpi_ranks,
+	const char *name, const char *params_json, const char *display,
+	double *samples, int num_runs, int sub_samples)
 {
-	struct b_qreg_init *q = data;
-	struct qreg reg;
+	const struct bench_stats st = bench_compute_stats(samples, num_runs);
 
-	qreg_init(&reg, q->n);
-	qreg_free(&reg);
+	char path[256];
+	bench_runs_path(prov, path, sizeof path);
 
-	return 0;
+	struct bench_baseline bl;
+	const bool has_bl = bench_find_baseline(path, prov->hostname,
+		name, params_json, sub_samples, &bl);
+
+	bench_print_row(display, sub_samples, &st, &bl, has_bl);
+
+	bench_append_jsonl(out, prov, BENCH_BACKEND, mpi_ranks,
+		name, params_json, num_runs, sub_samples, &st);
 }
 
-static void measure_b_qreg_init(void)
+
+/* -- qreg_init -- alloc + zero of the amp vector --------------------------- */
+
+static void measure_qreg_init(FILE *out, const struct bench_prov *prov,
+	int mpi_ranks, uint32_t nqb, int K)
 {
-	for (uint32_t n = NQB_MIN; n <= NQB_MAX; n++) {
-		struct bench b;
-		struct b_qreg_init q = { .n = n };
+	/* Warm-up: one init/free pair to fault the heap pages.  Without
+	 * this the first timed call carries the first-touch cost and
+	 * skews the max. */
+	struct qreg warm;
+	qreg_init(&warm, nqb);
+	qreg_free(&warm);
 
-		bench_mark(&b, REPS_MAX, b_qreg_init, &q);
-		log_info("b_qreg_init [nqb,t_ms]: %2u,%11.6f", n,
-			bench_msrep(b));
-	}
-}
-
-struct b_qreg_get {
-	struct qreg *reg;
-	_Complex double amp;
-	uint64_t i;
-};
-
-static int b_qreg_get(void *data)
-{
-	struct b_qreg_get *d = data;
-
-	qreg_getamp(d->reg, d->i, &d->amp);
-
-	return 0;
-}
-
-static void measure_b_qreg_get(void)
-{
-	for (uint32_t n = NQB_MIN; n <= NQB_MAX; n++) {
-		struct bench b;
+	double samples[NUM_RUNS];
+	for (int r = 0; r < NUM_RUNS; r++) {
 		struct qreg reg;
-		struct b_qreg_get q;
-
-		qreg_init(&reg, n);
-
-		q.reg = &reg;
-		q.amp = 0.03 + I * 0.72;
-		q.i = (1 << n) - 1;
-
-		qreg_setamp(&reg, q.i, q.amp);
-
-		bench_mark(&b, REPS_MAX, b_qreg_get, &q);
-		log_info(
-			"b_qreg_get [nqb,t_ms]: %2u,%11.6f", n, bench_msrep(b));
-
-		qreg_free(&reg);
+		BENCH_SAMPLE_MIN(samples[r], K, {
+			qreg_init(&reg, nqb);
+			qreg_free(&reg);
+		});
 	}
+
+	char params[32];
+	snprintf(params, sizeof params, "{\"nqb\":%u}", nqb);
+	char display[32];
+	snprintf(display, sizeof display, "qreg_init nqb=%u", nqb);
+	record(out, prov, mpi_ranks, "qreg_init", params, display,
+		samples, NUM_RUNS, K);
 }
 
-struct b_qreg_zero {
-	struct qreg *reg;
-};
 
-static int b_qreg_zero(void *data)
-{
-	struct b_qreg_zero *d = data;
+/* -- paulirot -- the central rotation kernel ------------------------------- */
 
-	qreg_zero(d->reg);
-
-	return 0;
-}
-
-static void measure_b_qreg_zero(void)
-{
-	struct bench b;
-
-	for (uint64_t n = NQB_MIN; n <= NQB_MAX; n++) {
-		struct qreg reg;
-		struct b_qreg_zero q;
-
-		qreg_init(&reg, n);
-		q.reg = &reg;
-
-		bench_mark(&b, REPS_MAX, b_qreg_zero, &q);
-		log_info("b_qreg_zero [nqb,t_ms]: %2lu,%11.6f",
-			(unsigned long)n, bench_msrep(b));
-
-		qreg_free(&reg);
-	}
-}
-
-struct b_qreg_paulirot {
-	struct qreg *reg;
-	struct paulis code_hi, *codes_lo;
+struct rot_setup {
+	struct paulis code_hi;
+	struct paulis *codes_lo;
 	double *angles;
 	size_t ncodes;
 };
 
-static void b_qreg_paulirot_init(
-	struct b_qreg_paulirot *q, struct qreg *reg, size_t ncodes)
+static int rot_setup_init(struct rot_setup *s, const struct qreg *reg,
+	size_t ncodes)
 {
-	q->reg = reg;
-	q->code_hi = paulis_new();
-	if (!(q->codes_lo = malloc(sizeof(struct paulis) * ncodes)))
-		exit(-1);
-	if (!(q->angles = malloc(sizeof(double) * ncodes)))
-		exit(-1);
+	s->code_hi = paulis_new();
+	s->codes_lo = malloc(sizeof *s->codes_lo * ncodes);
+	s->angles = malloc(sizeof *s->angles * ncodes);
+	if (!s->codes_lo || !s->angles) {
+		free(s->codes_lo);
+		free(s->angles);
+		return -1;
+	}
+	s->ncodes = ncodes;
+
+	for (uint32_t k = reg->qb_lo; k < reg->qb_lo + reg->qb_hi; k++)
+		paulis_set(&s->code_hi, rand_pauli(), k);
 	for (size_t i = 0; i < ncodes; i++) {
-		q->codes_lo[i] = paulis_new();
-		q->angles[i] = 0.0;
+		s->codes_lo[i] = paulis_new();
+		for (uint32_t k = 0; k < reg->qb_lo; k++)
+			paulis_set(&s->codes_lo[i], rand_pauli(), k);
+		s->angles[i] = xoshiro256ss_dbl01(&RNG) * 2.0 - 1.0;
 	}
-	q->ncodes = ncodes;
-}
-
-static void b_qreg_paulirot_destroy(struct b_qreg_paulirot *q)
-{
-	free(q->codes_lo);
-	free(q->angles);
-}
-
-static void b_qreg_paulirot_rand(struct b_qreg_paulirot *q)
-{
-	for (size_t k = q->reg->qb_lo; k < q->reg->qb_lo + q->reg->qb_hi; k++) {
-		paulis_set(&q->code_hi, rand_pauli(), k);
-	}
-	for (size_t i = 0; i < q->ncodes; i++) {
-		for (size_t k = 0; k < q->reg->qb_lo; k++)
-			paulis_set(q->codes_lo + i, rand_pauli(), k);
-		q->angles[i] = xoshiro256ss_dbl01(&RNG) * 2.0 - 1.0;
-	}
-}
-
-static int b_qreg_paulirot(void *data)
-{
-	struct b_qreg_paulirot *q = data;
-
-	qreg_paulirot(q->reg, q->code_hi, q->codes_lo, q->angles, q->ncodes);
-
 	return 0;
 }
 
-static void measure_b_qreg_paulirot(void)
+static void rot_setup_free(struct rot_setup *s)
 {
-	for (uint64_t n = NQB_MIN; n <= NQB_MAX; n++) {
-		for (size_t ncodes = 1; ncodes <= 100; ncodes *= 10) {
-			struct bench b;
-			struct qreg reg;
-			struct b_qreg_paulirot q;
-
-			qreg_init(&reg, n);
-			b_qreg_paulirot_init(&q, &reg, ncodes);
-			b_qreg_paulirot_rand(&q);
-
-			bench_mark(&b, REPS_MAX, b_qreg_paulirot, &q);
-			log_info("b_qreg_paulirot [nqb,ncodes,t_ms]: "
-				 "%2lu,%3zu,%11.6f",
-				(unsigned long)n, ncodes, bench_msrep(b));
-
-			b_qreg_paulirot_destroy(&q);
-			qreg_free(&reg);
-		}
-	}
+	free(s->codes_lo);
+	free(s->angles);
 }
 
-int main(int argc, char **argv)
+static void measure_paulirot(FILE *out, const struct bench_prov *prov,
+	int mpi_ranks, uint32_t nqb, size_t ncodes, int K)
 {
-	(void)argc;
-	(void)argv;
+	struct qreg reg;
+	if (qreg_init(&reg, nqb) < 0) {
+		fprintf(stderr, "b-qreg: qreg_init(%u) failed\n", nqb);
+		return;
+	}
+	qreg_zero(&reg);
+
+	struct rot_setup s;
+	if (rot_setup_init(&s, &reg, ncodes) < 0) {
+		fprintf(stderr, "b-qreg: rot_setup_init failed\n");
+		qreg_free(&reg);
+		return;
+	}
+
+	/* Warm-up: one untimed call brings page caches and the cache batch
+	 * into a representative state. */
+	qreg_paulirot(&reg, s.code_hi, s.codes_lo, s.angles, s.ncodes);
+
+	double samples[NUM_RUNS];
+	for (int r = 0; r < NUM_RUNS; r++) {
+		BENCH_SAMPLE_MIN(samples[r], K,
+			qreg_paulirot(&reg, s.code_hi, s.codes_lo,
+				s.angles, s.ncodes));
+	}
+
+	char params[64];
+	snprintf(params, sizeof params, "{\"nqb\":%u,\"ncodes\":%zu}",
+		nqb, ncodes);
+	char display[40];
+	snprintf(display, sizeof display, "paulirot nqb=%u nc=%zu",
+		nqb, ncodes);
+	record(out, prov, mpi_ranks, "paulirot", params, display,
+		samples, NUM_RUNS, K);
+
+	rot_setup_free(&s);
+	qreg_free(&reg);
+}
+
+
+/* -- main ------------------------------------------------------------------ */
+
+int main(void)
+{
+	/* Quiet phase2's INFO banners by default so the bench table is
+	 * the only thing on stdout.  Don't overwrite an existing setting
+	 * -- `PHASE2_LOG=debug make bench` still works. */
+	setenv("PHASE2_LOG", "warn", 0);
+
+	/* Pin to CPU 0 so the OS scheduler doesn't migrate us mid-sample.
+	 * Best-effort: failures are ignored (containers may forbid it). */
+	bench_pin_cpu(0);
 
 	world_init(nullptr, nullptr, WD_SEED);
-	world_info(&WD);
-	log_info("Initialize world");
-
-	log_info("backend: %s", WORLD_BACKEND);
-	log_info("MPI World size: %d", WD.size);
-
-	uint64_t siz = WD.size;
-	while (siz >>= 1)
-		NQB_MIN++;
-	log_info("nqb_min= %u, nqb_max= %u", NQB_MIN, NQB_MAX);
-
+	struct world_info wd;
+	world_info(&wd);
 	xoshiro256ss_init(&RNG, SEED);
-	log_info("BENCHES >>>");
 
-	measure_b_qreg_init();
-	measure_b_qreg_get();
-	measure_b_qreg_zero();
-	measure_b_qreg_paulirot();
+	struct bench_prov prov;
+	bench_prov_init(&prov);
 
-	log_info("<<< END BENCHES");
+	FILE *out = NULL;
+	if (wd.rank == 0) {
+		char path[256];
+		if (bench_runs_path(&prov, path, sizeof path) < 0) {
+			fprintf(stderr,
+				"b-qreg: cannot create bench/runs/\n");
+			world_free();
+			return 1;
+		}
+		out = fopen(path, "a");
+		if (!out) {
+			fprintf(stderr,
+				"b-qreg: cannot open %s\n", path);
+			world_free();
+			return 1;
+		}
+		bench_print_banner("b-qreg");
+		bench_print_header();
+	}
 
-	log_info("Destroy world");
+	/* qreg requires nqb >= log2(world_size); skip the small size on
+	 * larger MPI runs. */
+	uint32_t nqb_min = 1;
+	int sz = wd.size;
+	while (sz >>= 1)
+		nqb_min++;
+
+	/* Two qubit sizes crossing the cache hierarchy.  Per-size ncodes
+	 * arrays differ: at nqb=18 the ncodes=100 case is ~600 ms / call
+	 * and 11 samples blows the fast-bench budget; ncodes={1, 10} is
+	 * enough to observe RAM-bound regressions.
+	 *
+	 * Per-scenario K (MOM depth): cheap cells get K=100, the larger
+	 * paulirot cells get smaller K to fit the wall budget. */
+	const uint32_t sizes[]               = {  14,  18 };
+	const int      init_K_per_size[2]    = { 100, 100 };
+	const size_t   ncodes_per_size[2][3] = {
+		{ 1, 10, 100 },   /* nqb=14: in L2, all three cheap */
+		{ 1, 10,   0 },   /* nqb=18: skip ncodes=100 */
+	};
+	const int      paulirot_K_per_cell[2][3] = {
+		{ 100, 100, 100 },   /* nqb=14: each call ~us, K=100 cheap */
+		{  50,  10,   0 },   /* nqb=18: ncodes=1 ~ms, ncodes=10 ~10ms */
+	};
+
+	for (size_t si = 0; si < sizeof sizes / sizeof sizes[0]; si++) {
+		const uint32_t nqb = sizes[si];
+		if (nqb < nqb_min)
+			continue;
+		measure_qreg_init(out, &prov, wd.size, nqb,
+			init_K_per_size[si]);
+		for (size_t ci = 0; ci < 3; ci++) {
+			const size_t nc = ncodes_per_size[si][ci];
+			if (nc == 0)
+				continue;
+			measure_paulirot(out, &prov, wd.size, nqb, nc,
+				paulirot_K_per_cell[si][ci]);
+		}
+	}
+
+	if (out)
+		fclose(out);
 	world_free();
-
 	return 0;
 }
