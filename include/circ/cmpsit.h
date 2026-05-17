@@ -27,13 +27,13 @@
  */
 
 struct cmpsit_data {
-	uint64_t seed;		/* PRNG seed; must be non-zero */
+	size_t samples;		/* number of independent samples */
+	size_t steps;		/* number of Trotter steps */
 	size_t length;		/* deterministic term count */
 	size_t depth;		/* randomised term count per step */
-	size_t steps;		/* number of Trotter steps */
 	double angle_det;	/* deterministic step size */
 	double angle_rand;	/* randomised step size */
-	size_t samples;		/* number of independent samples */
+	uint64_t seed;		/* PRNG seed; must be non-zero */
 };
 
 /* Working state for one sampled composite circuit. */

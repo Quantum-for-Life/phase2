@@ -17,8 +17,8 @@
  */
 
 struct trott2_data {
-	double delta;	/* step size */
 	size_t steps;	/* number of Trotter steps */
+	double delta;	/* step size */
 };
 
 struct trott2 {

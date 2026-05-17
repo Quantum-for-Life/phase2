@@ -26,8 +26,8 @@
  */
 
 struct qdrift_data {
-	size_t depth;		/* terms drawn per sample */
 	size_t samples;		/* number of independent samples */
+	size_t depth;		/* terms drawn per sample */
 	double step_size;	/* qDRIFT step size */
 	uint64_t seed;		/* PRNG seed; must be non-zero */
 };
