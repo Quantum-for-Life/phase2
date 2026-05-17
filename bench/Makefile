@@ -1,5 +1,6 @@
 # ========================================================================== #
-# bench -- micro-benchmarks (b-paulis, b-qreg, b-log, b-circ, b-prob)        #
+# bench -- micro-benchmarks (b-paulis, b-qreg, b-log, b-circ, b-prob,        #
+#                            b-algos)                                        #
 #                                                                            #
 # Each benchmark binary is built from a single b-NAME.c that includes the    #
 # header-only bench.h framework.  No shared bench.o.                         #
@@ -14,7 +15,7 @@ include $(TOPDIR)/build-rules.mk
 
 # Per-benchmark source files; each builds to a binary
 # at $(BUILDDIR)/bench/<name>.
-PROG_NAMES := b-paulis b-qreg b-log b-circ b-prob
+PROG_NAMES := b-paulis b-qreg b-log b-circ b-prob b-algos
 PROGS      := $(PROG_NAMES:%=$(BUILDDIR)/bench/%)
 
 # bench's headers live alongside its sources; tell gcc.
@@ -24,13 +25,16 @@ CFLAGS += -I.
 all: $(PROGS)
 
 # Per-binary link rule.  $(BUILDDIR)/bench/b-NAME built
-# from b-NAME.c + every upstream subsys object set.
+# from b-NAME.c + every upstream subsys object set
+# (CIRCOBJS reaches the circ algorithms for b-algos; the
+# others go through PHASE2OBJS / LIBOBJS).
 $(PROGS): $(BUILDDIR)/bench/%: %.c bench.h				\
-                               $(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)
+                               $(PHASE2OBJS) $(CIRCOBJS)		\
+                               $(LIBOBJS) $(PH2RUN_DATA_OBJS)
 	@$(MKDIR) $(@D)
 	$(CC) $(CFLAGS) $(LDFLAGS) $<					\
-	      $(PHASE2OBJS) $(LIBOBJS) $(PH2RUN_DATA_OBJS)		\
-	      $(LDLIBS) -o $@
+	      $(PHASE2OBJS) $(CIRCOBJS) $(LIBOBJS)			\
+	      $(PH2RUN_DATA_OBJS) $(LDLIBS) -o $@
 
 check-srcs-coverage:
 	@declared=" $(PROG_NAMES:%=%.c) ";				\
