@@ -4,8 +4,8 @@
 #include <stddef.h>
 
 #include "phase2/circ.h"
-#include "phase2/prob.h"
 #include "phase2/step_writer.h"
+#include "prob.h"
 #include "xoshiro256ss.h"
 
 /*

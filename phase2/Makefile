@@ -15,7 +15,7 @@ SUBSYS := phase2
 include $(TOPDIR)/build-rules.mk
 
 # Always-compiled sources.
-SRCS  := circ.c circ_cache.c paulis.c prob.c qreg.c \
+SRCS  := circ.c circ_cache.c paulis.c qreg.c \
          state_prep_coeff.c world.c
 
 # Extra source compiled only for the shared library

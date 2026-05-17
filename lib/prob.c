@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 #include "bug.h"
-#include "phase2/prob.h"
+#include "prob.h"
 
 int prob_cdf_init(struct prob_cdf *cdf, const size_t len)
 {

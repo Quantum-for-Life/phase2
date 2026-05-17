@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "phase2/prob.h"
+#include "prob.h"
 #include "phase2/world.h"
 
 #include "test.h"
