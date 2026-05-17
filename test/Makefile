@@ -27,8 +27,8 @@ TESTS_BASE := \
 	t-data_hamil_validate t-data_multidet t-data_open	\
 	t-data_dets_validate t-data_idempotence t-data_mpi	\
 	t-data_trott_steps t-det_small t-log t-log_release	\
-	t-paulis t-prob t-qreg t-ref-bendazzoli t-run		\
-	t-state_prep_coeff_csf t-state_prep_coeff_expand	\
+	t-paulis t-prob t-qdrift t-qreg t-ref-bendazzoli	\
+	t-run t-state_prep_coeff_csf t-state_prep_coeff_expand	\
 	t-world
 
 TBIN       := $(BUILDDIR)/test
