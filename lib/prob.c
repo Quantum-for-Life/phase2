@@ -3,11 +3,13 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#include "bug.h"
 #include "prob.h"
 
 int prob_cdf_init(struct prob_cdf *cdf, const size_t len)
 {
+	if (len == 0)
+		return -1;
+
 	double *x = malloc(sizeof *x * len);
 	if (!x)
 		return -1;
@@ -21,6 +23,8 @@ int prob_cdf_init(struct prob_cdf *cdf, const size_t len)
 void prob_cdf_free(struct prob_cdf *cdf)
 {
 	free(cdf->y);
+	cdf->y = NULL;
+	cdf->len = 0;
 }
 
 /*
@@ -63,25 +67,30 @@ int prob_cdf_from_array_strided(struct prob_cdf *cdf,
 }
 
 /*
- * prob_cdf_inverse - sample from the CDF via inverse
- * transform.
+ * prob_cdf_inverse - inverse-CDF lookup (sampler
+ * convention).
  *
- * Hybrid binary/linear search.  The binary phase repeatedly
- * halves the stride d and advances i only when F(i+d) <= y,
- * converging to the neighbourhood of the target in O(log n).
- * The linear scan handles the remaining entries where the
- * binary stride has reached zero.  Total cost: O(log n + k)
- * where k is a small constant from the linear tail.
+ * Returns the smallest index i such that cdf->y[i] > y,
+ * or cdf->len - 1 when no such index exists.  For a
+ * uniform draw y in [0, 1] this samples index i with
+ * probability f(i) = F(i) - F(i-1).
+ *
+ * Hybrid binary/linear walk: the binary phase halves
+ * `d` and advances `i` only when y[i+d] <= y, converging
+ * to the neighbourhood of the answer in O(log n).  The
+ * linear tail mops up the few entries left over when
+ * cdf->len is not a power of two.  Faster than a
+ * textbook upper_bound binary search at typical sizes
+ * (n in the hundreds) because each iteration carries
+ * less arithmetic.
  */
 size_t prob_cdf_inverse(const struct prob_cdf *cdf, const double y)
 {
 	size_t i = 0, d = cdf->len;
 
-	while ((d /= 2) > 0) {
-		BUG_ON(i >= cdf->len);
+	while ((d /= 2) > 0)
 		if (cdf->y[i + d] <= y)
 			i += d;
-	}
 	while (i < cdf->len - 1 && cdf->y[i] <= y)
 		i++;
 

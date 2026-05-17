@@ -170,6 +170,32 @@ static void t_prob_cdf_strided(void)
 }
 
 /*
+ * prob_cdf_init must reject len = 0.
+ */
+static void t_prob_init_zero(void)
+{
+	struct prob_cdf cdf;
+	TEST_EQ(prob_cdf_init(&cdf, 0), -1);
+}
+
+/*
+ * prob_cdf_free zeroes the struct so a second free is a
+ * clean no-op.
+ */
+static void t_prob_free_idempotent(void)
+{
+	struct prob_cdf cdf;
+	TEST_EQ(prob_cdf_init(&cdf, 3), 0);
+	prob_cdf_free(&cdf);
+
+	TEST_EQ(cdf.len, (size_t)0);
+	TEST_ASSERT(cdf.y == NULL, "free did not null cdf.y");
+
+	/* Second free must not crash. */
+	prob_cdf_free(&cdf);
+}
+
+/*
  * Boundary tests for prob_cdf_inverse at y=0 and y=1.
  */
 static void t_prob_cdf_inverse_boundaries(void)
@@ -207,6 +233,8 @@ int main(void)
 	t_prob_cdf_negative();
 	t_prob_cdf_zeros();
 	t_prob_cdf_strided();
+	t_prob_init_zero();
+	t_prob_free_idempotent();
 	t_prob_cdf_inverse_boundaries();
 
 	world_free();
