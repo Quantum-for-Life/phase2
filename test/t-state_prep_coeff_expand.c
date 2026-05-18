@@ -122,9 +122,12 @@ static void t_fixture(const char *path)
 	TEST_EQ(qreg_init(&reg, cm.nqb), 0);
 	qreg_zero(&reg);
 
-	TEST_EQ(state_prep_coeff_expand(&reg, cm.n_sites, cm.n_alpha, cm.n_beta,
-			cm.C_alpha, cm.C_beta, 1.0, cm.tapered, 0),
-		0);
+	struct state_prep_coeff_scratch sc;
+	TEST_EQ(state_prep_coeff_scratch_init(&sc, cm.n_sites,
+		cm.n_alpha, cm.n_beta), 0);
+	TEST_EQ(state_prep_coeff_expand(&reg, &sc, cm.C_alpha, cm.C_beta,
+		1.0, cm.tapered, 0), 0);
+	state_prep_coeff_scratch_free(&sc);
 
 	struct ref_amp *refs =
 		malloc(sizeof(struct ref_amp) * (size_t)1 << 18);
@@ -167,9 +170,10 @@ static void t_identity(void)
 	TEST_EQ(qreg_init(&reg, 2 * n_sites), 0);
 	qreg_zero(&reg);
 
-	TEST_EQ(state_prep_coeff_expand(&reg, n_sites, na, nb, Ca, NULL, 1.0,
-			0, 0),
-		0);
+	struct state_prep_coeff_scratch sc;
+	TEST_EQ(state_prep_coeff_scratch_init(&sc, n_sites, na, nb), 0);
+	TEST_EQ(state_prep_coeff_expand(&reg, &sc, Ca, NULL, 1.0, 0, 0), 0);
+	state_prep_coeff_scratch_free(&sc);
 
 	const uint64_t hf = (1u << 0) | (1u << 1) | (1u << (n_sites + 0))
 			    | (1u << (n_sites + 1));
@@ -195,9 +199,10 @@ static void t_boundary_zero(void)
 	struct qreg reg;
 	TEST_EQ(qreg_init(&reg, 2 * n_sites), 0);
 	qreg_zero(&reg);
-	TEST_EQ(state_prep_coeff_expand(
-			&reg, n_sites, 0, 0, NULL, NULL, 1.0, 0, 0),
-		0);
+	struct state_prep_coeff_scratch sc;
+	TEST_EQ(state_prep_coeff_scratch_init(&sc, n_sites, 0, 0), 0);
+	TEST_EQ(state_prep_coeff_expand(&reg, &sc, NULL, NULL, 1.0, 0, 0), 0);
+	state_prep_coeff_scratch_free(&sc);
 	_Complex double z;
 	qreg_getamp(&reg, 0, &z);
 	TEST_NEAR(creal(z), 1.0, 1e-14);
@@ -217,14 +222,59 @@ static void t_boundary_full(void)
 	struct qreg reg;
 	TEST_EQ(qreg_init(&reg, 2 * n_sites), 0);
 	qreg_zero(&reg);
-	TEST_EQ(state_prep_coeff_expand(
-			&reg, n_sites, n_sites, 0, Ca, NULL, 1.0, 0, 0),
-		0);
+	struct state_prep_coeff_scratch sc;
+	TEST_EQ(state_prep_coeff_scratch_init(&sc, n_sites, n_sites, 0), 0);
+	TEST_EQ(state_prep_coeff_expand(&reg, &sc, Ca, NULL, 1.0, 0, 0), 0);
+	state_prep_coeff_scratch_free(&sc);
 	const uint64_t target = 0xfu;
 	_Complex double z;
 	qreg_getamp(&reg, target, &z);
 	TEST_NEAR(creal(z), 1.0, 1e-14);
 	qreg_free(&reg);
+}
+
+/*
+ * One scratch, two expansions with identical inputs must
+ * produce bit-identical amplitudes.  Regression guard for
+ * the scratch lifecycle: tuples filled once at init are
+ * reused; dets recomputed per call from the same C must
+ * land on the same values.
+ */
+static void t_scratch_reuse(void)
+{
+	const uint32_t n_sites = 4, na = 2, nb = 2;
+	double Ca[4 * 2] = {
+		0.6, 0.3,
+		0.2, 0.5,
+		0.1, 0.8,
+		0.4, 0.7,
+	};
+
+	struct qreg r0, r1;
+	TEST_EQ(qreg_init(&r0, 2 * n_sites), 0);
+	TEST_EQ(qreg_init(&r1, 2 * n_sites), 0);
+	qreg_zero(&r0);
+	qreg_zero(&r1);
+
+	struct state_prep_coeff_scratch sc;
+	TEST_EQ(state_prep_coeff_scratch_init(&sc, n_sites, na, nb), 0);
+	TEST_EQ(state_prep_coeff_expand(&r0, &sc, Ca, NULL, 1.0, 0, 0), 0);
+	TEST_EQ(state_prep_coeff_expand(&r1, &sc, Ca, NULL, 1.0, 0, 0), 0);
+	state_prep_coeff_scratch_free(&sc);
+
+	const uint64_t namp = UINT64_C(1) << (2 * n_sites);
+	for (uint64_t i = 0; i < namp; i++) {
+		_Complex double a, b;
+		qreg_getamp(&r0, i, &a);
+		qreg_getamp(&r1, i, &b);
+		TEST_ASSERT(a == b,
+			"scratch reuse: i=%lu a=%g+%gi b=%g+%gi",
+			(unsigned long)i, creal(a), cimag(a),
+			creal(b), cimag(b));
+	}
+
+	qreg_free(&r1);
+	qreg_free(&r0);
 }
 
 /*
@@ -265,12 +315,22 @@ static int dump_expand(const char *fixture, FILE *out)
 	}
 	qreg_zero(&reg);
 
-	if (state_prep_coeff_expand_all(&reg, &cm) < 0) {
+	struct state_prep_coeff_scratch sc;
+	if (state_prep_coeff_scratch_init(&sc, cm.n_sites,
+		    cm.n_alpha, cm.n_beta) < 0) {
 		qreg_free(&reg);
 		data_coeff_matrix_free(&cm);
 		data_close(fid);
 		return -1;
 	}
+	if (state_prep_coeff_expand_all(&reg, &sc, &cm) < 0) {
+		state_prep_coeff_scratch_free(&sc);
+		qreg_free(&reg);
+		data_coeff_matrix_free(&cm);
+		data_close(fid);
+		return -1;
+	}
+	state_prep_coeff_scratch_free(&sc);
 
 	const uint64_t namp = UINT64_C(1) << cm.nqb;
 	for (uint64_t idx = 0; idx < namp; idx++) {
@@ -329,6 +389,7 @@ int main(int argc, char **argv)
 	t_identity();
 	t_boundary_zero();
 	t_boundary_full();
+	t_scratch_reuse();
 
 	t_fixture(PH2_TESTDIR "/data/N4_closed.h5");
 	t_fixture(PH2_TESTDIR "/data/N4_open.h5");

@@ -60,11 +60,12 @@ int main(void)
 	TEST_EQ(qreg_init(&reg, 2 * N_SITES), 0);
 	qreg_zero(&reg);
 
+	struct state_prep_coeff_scratch sc;
+	TEST_EQ(state_prep_coeff_scratch_init(&sc, N_SITES, N_OCC, N_OCC), 0);
+
 	struct timespec t1, t2;
 	clock_gettime(CLOCK_MONOTONIC, &t1);
-	TEST_EQ(state_prep_coeff_expand(&reg, N_SITES, N_OCC, N_OCC, Ca, NULL,
-			1.0, 0, 0),
-		0);
+	TEST_EQ(state_prep_coeff_expand(&reg, &sc, Ca, NULL, 1.0, 0, 0), 0);
 	clock_gettime(CLOCK_MONOTONIC, &t2);
 	const double dt =
 		(t2.tv_sec - t1.tv_sec)
@@ -81,8 +82,9 @@ int main(void)
 	 * <psi|psi> directly, which is independent of the
 	 * scatter-and-gather path qreg_getamp would take.
 	 */
-	const _Complex double inner = state_prep_coeff_inner(&reg, N_SITES,
-		N_OCC, N_OCC, Ca, NULL, 1.0, 0);
+	_Complex double inner = 0.0;
+	TEST_EQ(state_prep_coeff_inner(&reg, &sc, Ca, NULL, 1.0, 0, &inner), 0);
+	state_prep_coeff_scratch_free(&sc);
 	const double nsq = creal(inner);
 	fprintf(stderr, "N=14 <psi|psi>: %.6f (imag=%.2e)\n", nsq,
 		cimag(inner));

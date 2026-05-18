@@ -711,6 +711,22 @@ from `/state_prep/coeff_matrix`; no per-determinant
 amplitudes appear in the file (see §3 of
 `doc/simul-h5-specs.md`).
 
+**Scratch lifecycle.**  Slater-Condon expansion needs four
+buffers (alpha / beta k-subset tuples and per-call dets)
+sized by `(n_sites, n_alpha, n_beta)`.  `circ_init`
+allocates a `struct state_prep_coeff_scratch` once when
+`stprep_kind == STPREP_COEFF_MATRIX`, fills the tuples
+(pure combinatorics, no dependence on `C`), and reuses it
+across every `circ_prepst` and `circ_measure` call for the
+lifetime of the `struct circ`.  `circ_free` releases the
+scratch.
+
+**Register-zero invariant.**  `state_prep_coeff_expand_all`
+calls `qreg_zero` internally before writing -- callers do
+not need to zero first.  Pruned slots (coefficient
+magnitude below 1e-12) read as exactly zero after the
+call.
+
 All commands write results back into the respective HDF5
 groups in the simulation file.
 

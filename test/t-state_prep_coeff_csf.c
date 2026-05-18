@@ -30,7 +30,11 @@ static void t_two_component(void)
 	struct qreg reg;
 	TEST_EQ(qreg_init(&reg, cm.nqb), 0);
 	qreg_zero(&reg);
-	TEST_EQ(state_prep_coeff_expand_all(&reg, &cm), 0);
+	struct state_prep_coeff_scratch sc;
+	TEST_EQ(state_prep_coeff_scratch_init(&sc, cm.n_sites,
+		cm.n_alpha, cm.n_beta), 0);
+	TEST_EQ(state_prep_coeff_expand_all(&reg, &sc, &cm), 0);
+	state_prep_coeff_scratch_free(&sc);
 
 	/* Sanity: the superposed state must have at least one
 	 * non-zero amplitude. */
@@ -66,10 +70,13 @@ static void t_single_block_csf_equiv(void)
 	qreg_zero(&r0);
 	qreg_zero(&r1);
 
-	TEST_EQ(state_prep_coeff_expand_all(&r0, &cm), 0);
-	TEST_EQ(state_prep_coeff_expand(&r1, cm.n_sites, cm.n_alpha,
-			cm.n_beta, cm.C_alpha, NULL, 1.0, cm.tapered, 0),
-		0);
+	struct state_prep_coeff_scratch sc;
+	TEST_EQ(state_prep_coeff_scratch_init(&sc, cm.n_sites,
+		cm.n_alpha, cm.n_beta), 0);
+	TEST_EQ(state_prep_coeff_expand_all(&r0, &sc, &cm), 0);
+	TEST_EQ(state_prep_coeff_expand(&r1, &sc, cm.C_alpha, NULL,
+		1.0, cm.tapered, 0), 0);
+	state_prep_coeff_scratch_free(&sc);
 
 	const uint64_t namp = UINT64_C(1) << cm.nqb;
 	for (uint64_t i = 0; i < namp; i++) {
