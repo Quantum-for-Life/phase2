@@ -1,3 +1,12 @@
+/*
+ * CUDA backend for qreg.  damp[] / dbuf[] are device-
+ * resident counterparts to the CPU backend's amp[] /
+ * buf[].  MPI calls receive raw device pointers and
+ * therefore require a CUDA-aware MPI build; without
+ * one, the Isend/Irecv pair in exch_init would copy
+ * garbage.  Operator kernels live in qreg_cuda_lo.cu.
+ */
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <stdlib.h>
@@ -28,11 +37,10 @@ int qreg_backend_init(struct qreg *reg)
 		goto err_cuda_malloc_dbuf;
 	cu->damp = damp;
 	cu->dbuf = dbuf;
-	reg->data = cu;
+	reg->backend = cu;
 
 	return 0;
 
-	cudaFree(dbuf);
 err_cuda_malloc_dbuf:
 	cudaFree(damp);
 err_cuda_malloc_damp:
@@ -44,7 +52,7 @@ err_cu_alloc:
 
 void qreg_backend_free(struct qreg *reg)
 {
-	struct qreg_cuda *cu = reg->data;
+	struct qreg_cuda *cu = reg->backend;
 	cudaFree(cu->dbuf);
 	cudaFree(cu->damp);
 	free(cu);
@@ -52,7 +60,7 @@ void qreg_backend_free(struct qreg *reg)
 
 void qreg_getamp(struct qreg *reg, const uint64_t i, c64 *z)
 {
-	struct qreg_cuda *cu = reg->data;
+	struct qreg_cuda *cu = reg->backend;
 
 	const uint64_t i_lo = qreg_getilo(reg, i);
 	const uint64_t rank = qreg_getihi(reg, i);
@@ -67,7 +75,7 @@ void qreg_getamp(struct qreg *reg, const uint64_t i, c64 *z)
 
 void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 {
-	struct qreg_cuda *cu = reg->data;
+	struct qreg_cuda *cu = reg->backend;
 
 	const uint64_t i_lo = qreg_getilo(reg, i);
 	const uint64_t rank = qreg_getihi(reg, i);
@@ -82,7 +90,7 @@ void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 
 void qreg_zero(struct qreg *reg)
 {
-	struct qreg_cuda *cu = reg->data;
+	struct qreg_cuda *cu = reg->backend;
 
 	/* cuDoubleComplex zero representation is all bits set to zero */
 	cudaMemset(cu->damp, 0, reg->namp * sizeof(cuDoubleComplex));
@@ -90,9 +98,9 @@ void qreg_zero(struct qreg *reg)
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
-static void exch_init(struct qreg *reg, const int rnk_rem)
+void qreg_backend_exch_init(struct qreg *reg, const int rnk_rem)
 {
-	struct qreg_cuda *cu = reg->data;
+	struct qreg_cuda *cu = reg->backend;
 
 	cudaDeviceSynchronize();
 	const int nr = reg->nreqs;
@@ -106,33 +114,11 @@ static void exch_init(struct qreg *reg, const int rnk_rem)
 	}
 }
 
-static void exch_waitall(struct qreg *reg)
+void qreg_backend_exch_waitall(struct qreg *reg)
 {
 	const int nr = reg->nreqs;
 
 	MPI_Waitall(nr, reg->reqs_snd, MPI_STATUSES_IGNORE);
 	MPI_Waitall(nr, reg->reqs_rcv, MPI_STATUSES_IGNORE);
 	cudaDeviceSynchronize();
-}
-
-static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi, c64 *bm)
-{
-	paulis_shr(&code_hi, reg->qb_lo);
-	const uint64_t rnk_rem = paulis_effect(code_hi, reg->wd.rank, nullptr);
-
-	exch_init(reg, rnk_rem);
-	paulis_effect(code_hi, rnk_rem, bm);
-	exch_waitall(reg);
-}
-
-/* Defined in qreg_cuda_lo.cu */
-void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
-	const double *angles, const size_t ncodes, c64 bm);
-
-void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
-	const struct paulis *codes_lo, const double *phis, const size_t ncodes)
-{
-	c64 bm = 1.0;
-	qreg_paulirot_hi(reg, code_hi, &bm);
-	qreg_paulirot_lo(reg, codes_lo, phis, ncodes, bm);
 }

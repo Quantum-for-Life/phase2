@@ -404,6 +404,14 @@ amplitude loop.
 
 ### 4.2 CUDA Kernels (qreg_cuda_lo.cu)
 
+> **CUDA-aware MPI required.**  The CUDA backend
+> passes raw device pointers (`cu->damp`, `cu->dbuf`)
+> directly to `MPI_Isend` / `MPI_Irecv`.  Without an
+> MPI build that recognises CUDA pointers, the
+> exchange will read garbage.  OpenMPI requires
+> `--with-cuda` at build time; check with
+> `ompi_info | grep -i cuda`.
+
 The CUDA backend maps each amplitude to one GPU thread.
 All kernels use 512 threads per block, with
 grid = ceil(namp / 512).
@@ -861,16 +869,23 @@ struct qreg {
     int msg_count;
     MPI_Request *reqs_snd, *reqs_rcv;
     size_t nreqs;
-    void *data;
+    void *backend;
 };
 ```
 
 Distributed quantum register.  `amp` points to the local
 amplitude array of size `namp = 2^qb_lo`.  `buf` is a
 communication buffer of the same size, allocated
-contiguously after `amp`.  `data` is an opaque handle to
+contiguously after `amp`.  `backend` is an opaque handle to
 backend-specific resources (e.g. GPU device pointers for
 the CUDA backend).
+
+Per-MPI-message size is capped at `MAX_COUNT = 2^29`
+cdouble elements (8 GiB / message): each cdouble is sent
+as 2 `MPI_DOUBLE`, and `MPI_Isend`'s `count` is `int`, so
+`2 * MAX_COUNT` must fit there.  Larger amplitude arrays
+split into `nreqs = namp / msg_count` non-blocking
+message pairs.
 
 ---
 

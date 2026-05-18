@@ -1,3 +1,13 @@
+/*
+ * CUDA kernels for the lo-part of qreg_paulirot.
+ * One thread per amplitude; grid sized to ceil(namp /
+ * 512).  kernelPauliRot mirrors the CPU kernel_rot
+ * with the same j < i pairing guard, so each coupled
+ * pair is touched once and no atomics are needed.
+ * Launches go into the default stream; implicit
+ * ordering keeps mix -> rotate -> add correct.
+ */
+
 #include <complex.h>
 #include <stddef.h>
 
@@ -97,11 +107,12 @@ __global__ void kernelAdd(cuDoubleComplex *__restrict__ a,
  * rotations complete before kernelAdd.  No explicit
  * synchronisation is needed between launches.
  */
-void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
-	const double *angles, const size_t ncodes, double _Complex bm)
+void qreg_backend_paulirot_lo(struct qreg *reg,
+	const struct paulis *codes_lo, const double *angles,
+	const size_t ncodes, double _Complex bm)
 {
 	const size_t blocks = (reg->namp + threadPerBlock - 1) / threadPerBlock;
-	const struct qreg_cuda *cu = (const struct qreg_cuda *)reg->data;
+	const struct qreg_cuda *cu = (const struct qreg_cuda *)reg->backend;
 
 	const cuDoubleComplex z = { .x = creal(bm), .y = cimag(bm) };
 	kernelMix<<<blocks, threadPerBlock>>>(cu->damp, cu->dbuf, z, reg->namp);

@@ -1,3 +1,13 @@
+/*
+ * CPU backend for qreg.  amp[] holds this rank's
+ * 2^qb_lo amplitudes; buf[] is a same-size scratch
+ * paired with amp[] for partner-rank exchange.  The
+ * hot path is qreg_paulirot: one MPI Isend/Irecv pair
+ * with the partner rank determined by the hi-part
+ * Pauli operator, then in-place mix + per-term lo
+ * rotations + recombination on each rank.
+ */
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
@@ -16,7 +26,7 @@ typedef _Complex double c64;
 
 int qreg_backend_init(struct qreg *reg)
 {
-	reg->data = nullptr;
+	reg->backend = nullptr;
 
 	return 0;
 }
@@ -52,7 +62,7 @@ void qreg_zero(struct qreg *reg)
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
-static void exch_init(struct qreg *reg, const int rnk_rem)
+void qreg_backend_exch_init(struct qreg *reg, const int rnk_rem)
 {
 	const int nr = reg->nreqs;
 
@@ -66,7 +76,7 @@ static void exch_init(struct qreg *reg, const int rnk_rem)
 	}
 }
 
-static void exch_waitall(struct qreg *reg)
+void qreg_backend_exch_waitall(struct qreg *reg)
 {
 	MPI_Waitall(reg->nreqs, reg->reqs_snd, MPI_STATUSES_IGNORE);
 	MPI_Waitall(reg->nreqs, reg->reqs_rcv, MPI_STATUSES_IGNORE);
@@ -138,28 +148,8 @@ static __inline__ void kernel_add(
 }
 
 /*
- * qreg_paulirot_hi - MPI amplitude exchange for the hi-part
- * Pauli operator.
- *
- * The hi qubits are distributed across MPI ranks.  Applying
- * paulis_effect to this rank's index gives the partner rank
- * that holds the paired amplitudes.  Non-blocking send/recv
- * exchanges the full local amplitude vector with the partner.
- * The phase bm from applying P_hi to the partner's rank
- * index is returned for use in kernel_mix.
- */
-static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi, c64 *bm)
-{
-	paulis_shr(&code_hi, reg->qb_lo);
-	const uint64_t rnk_rem = paulis_effect(code_hi, reg->wd.rank, nullptr);
-
-	exch_init(reg, rnk_rem);
-	paulis_effect(code_hi, rnk_rem, bm);
-	exch_waitall(reg);
-}
-
-/*
- * qreg_paulirot_lo - apply batched lo-qubit Pauli rotations.
+ * qreg_backend_paulirot_lo - apply batched lo-qubit Pauli
+ * rotations on the post-exchange buffers.
  *
  * Three-phase protocol:
  *  1. Mix: project amp[] and buf[] (partner data) into the
@@ -170,8 +160,9 @@ static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi, c64 *bm)
  *  3. Add: recombine amp[] += buf[] to reconstruct the
  *     full state vector on this rank.
  */
-static void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
-	const double *angles, const size_t ncodes, const c64 bm)
+void qreg_backend_paulirot_lo(struct qreg *reg,
+	const struct paulis *codes_lo, const double *angles,
+	const size_t ncodes, const c64 bm)
 {
 	for (size_t i = 0; i < reg->namp; i++)
 		kernel_mix(i, reg->amp, reg->buf, bm);
@@ -186,13 +177,4 @@ static void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
 
 	for (size_t i = 0; i < reg->namp; i++)
 		kernel_add(i, reg->amp, reg->buf);
-}
-
-void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
-	const struct paulis *codes_lo, const double *phis, const size_t ncodes)
-{
-	c64 bm = 1.0;
-
-	qreg_paulirot_hi(reg, code_hi, &bm);
-	qreg_paulirot_lo(reg, codes_lo, phis, ncodes, bm);
 }
