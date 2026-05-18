@@ -112,7 +112,11 @@ static void t_n4_oss_k0_expansion(void)
 	struct qreg reg;
 	TEST_EQ(qreg_init(&reg, cm.nqb), 0);
 	qreg_zero(&reg);
-	TEST_EQ(state_prep_coeff_expand_all(&reg, &cm), 0);
+	struct state_prep_coeff_scratch sc;
+	TEST_EQ(state_prep_coeff_scratch_init(&sc, cm.n_sites,
+		cm.n_alpha, cm.n_beta), 0);
+	TEST_EQ(state_prep_coeff_expand_all(&reg, &sc, &cm), 0);
+	state_prep_coeff_scratch_free(&sc);
 
 	struct ref_amp *ref = malloc(sizeof(*ref) * MAX_EXPECTED);
 	TEST_ASSERT(ref != NULL, "malloc ref");

@@ -122,9 +122,12 @@ static void t_fixture(const char *path)
 	TEST_EQ(qreg_init(&reg, cm.nqb), 0);
 	qreg_zero(&reg);
 
-	TEST_EQ(state_prep_coeff_expand(&reg, cm.n_sites, cm.n_alpha, cm.n_beta,
-			cm.C_alpha, cm.C_beta, 1.0, cm.tapered, 0),
-		0);
+	struct state_prep_coeff_scratch sc;
+	TEST_EQ(state_prep_coeff_scratch_init(&sc, cm.n_sites,
+		cm.n_alpha, cm.n_beta), 0);
+	TEST_EQ(state_prep_coeff_expand(&reg, &sc, cm.C_alpha, cm.C_beta,
+		1.0, cm.tapered, 0), 0);
+	state_prep_coeff_scratch_free(&sc);
 
 	struct ref_amp *refs =
 		malloc(sizeof(struct ref_amp) * (size_t)1 << 18);
@@ -167,9 +170,10 @@ static void t_identity(void)
 	TEST_EQ(qreg_init(&reg, 2 * n_sites), 0);
 	qreg_zero(&reg);
 
-	TEST_EQ(state_prep_coeff_expand(&reg, n_sites, na, nb, Ca, NULL, 1.0,
-			0, 0),
-		0);
+	struct state_prep_coeff_scratch sc;
+	TEST_EQ(state_prep_coeff_scratch_init(&sc, n_sites, na, nb), 0);
+	TEST_EQ(state_prep_coeff_expand(&reg, &sc, Ca, NULL, 1.0, 0, 0), 0);
+	state_prep_coeff_scratch_free(&sc);
 
 	const uint64_t hf = (1u << 0) | (1u << 1) | (1u << (n_sites + 0))
 			    | (1u << (n_sites + 1));
@@ -195,9 +199,10 @@ static void t_boundary_zero(void)
 	struct qreg reg;
 	TEST_EQ(qreg_init(&reg, 2 * n_sites), 0);
 	qreg_zero(&reg);
-	TEST_EQ(state_prep_coeff_expand(
-			&reg, n_sites, 0, 0, NULL, NULL, 1.0, 0, 0),
-		0);
+	struct state_prep_coeff_scratch sc;
+	TEST_EQ(state_prep_coeff_scratch_init(&sc, n_sites, 0, 0), 0);
+	TEST_EQ(state_prep_coeff_expand(&reg, &sc, NULL, NULL, 1.0, 0, 0), 0);
+	state_prep_coeff_scratch_free(&sc);
 	_Complex double z;
 	qreg_getamp(&reg, 0, &z);
 	TEST_NEAR(creal(z), 1.0, 1e-14);
@@ -217,9 +222,10 @@ static void t_boundary_full(void)
 	struct qreg reg;
 	TEST_EQ(qreg_init(&reg, 2 * n_sites), 0);
 	qreg_zero(&reg);
-	TEST_EQ(state_prep_coeff_expand(
-			&reg, n_sites, n_sites, 0, Ca, NULL, 1.0, 0, 0),
-		0);
+	struct state_prep_coeff_scratch sc;
+	TEST_EQ(state_prep_coeff_scratch_init(&sc, n_sites, n_sites, 0), 0);
+	TEST_EQ(state_prep_coeff_expand(&reg, &sc, Ca, NULL, 1.0, 0, 0), 0);
+	state_prep_coeff_scratch_free(&sc);
 	const uint64_t target = 0xfu;
 	_Complex double z;
 	qreg_getamp(&reg, target, &z);
@@ -265,12 +271,22 @@ static int dump_expand(const char *fixture, FILE *out)
 	}
 	qreg_zero(&reg);
 
-	if (state_prep_coeff_expand_all(&reg, &cm) < 0) {
+	struct state_prep_coeff_scratch sc;
+	if (state_prep_coeff_scratch_init(&sc, cm.n_sites,
+		    cm.n_alpha, cm.n_beta) < 0) {
 		qreg_free(&reg);
 		data_coeff_matrix_free(&cm);
 		data_close(fid);
 		return -1;
 	}
+	if (state_prep_coeff_expand_all(&reg, &sc, &cm) < 0) {
+		state_prep_coeff_scratch_free(&sc);
+		qreg_free(&reg);
+		data_coeff_matrix_free(&cm);
+		data_close(fid);
+		return -1;
+	}
+	state_prep_coeff_scratch_free(&sc);
 
 	const uint64_t namp = UINT64_C(1) << cm.nqb;
 	for (uint64_t idx = 0; idx < namp; idx++) {

@@ -214,8 +214,16 @@ int circ_prepst(struct circ *ct)
 			qreg_setamp(&ct->reg, md->dets[i].idx, md->dets[i].cf);
 		return 0;
 	}
-	case STPREP_COEFF_MATRIX:
-		return state_prep_coeff_expand_all(&ct->reg, &ct->cm);
+	case STPREP_COEFF_MATRIX: {
+		struct state_prep_coeff_scratch sc;
+		if (state_prep_coeff_scratch_init(&sc, ct->cm.n_sites,
+			    ct->cm.n_alpha, ct->cm.n_beta) < 0)
+			return -1;
+		const int rc = state_prep_coeff_expand_all(
+			&ct->reg, &sc, &ct->cm);
+		state_prep_coeff_scratch_free(&sc);
+		return rc;
+	}
 	}
 
 	return -1;
@@ -290,13 +298,13 @@ inline int circ_step_reverse(struct circ *ct, const struct circ_hamil *hm,
  * same order as expansion itself.
  */
 static _Complex double measure_coeff_block(struct qreg *reg,
-	uint32_t n_sites, uint32_t n_alpha, uint32_t n_beta,
+	struct state_prep_coeff_scratch *sc,
 	const double *C_alpha, const double *C_beta, double weight,
 	int tapered)
 {
 	_Complex double z = 0.0;
-	if (state_prep_coeff_inner(reg, n_sites, n_alpha, n_beta,
-		    C_alpha, C_beta, weight, tapered, &z) < 0)
+	if (state_prep_coeff_inner(reg, sc, C_alpha, C_beta,
+		    weight, tapered, &z) < 0)
 		return 0.0;
 	return z;
 }
@@ -306,21 +314,25 @@ static _Complex double measure_coeff(struct circ *ct)
 	const struct data_coeff_matrix *cm = &ct->cm;
 	_Complex double pr = 0.0;
 
+	struct state_prep_coeff_scratch sc;
+	if (state_prep_coeff_scratch_init(&sc, cm->n_sites,
+		    cm->n_alpha, cm->n_beta) < 0)
+		return 0.0;
+
 	if (cm->n_components == 0) {
-		pr = measure_coeff_block(&ct->reg, cm->n_sites, cm->n_alpha,
-			cm->n_beta, cm->C_alpha,
+		pr = measure_coeff_block(&ct->reg, &sc, cm->C_alpha,
 			cm->closed_shell ? NULL : cm->C_beta, 1.0,
 			cm->tapered);
 	} else {
 		for (size_t k = 0; k < cm->n_components; k++) {
 			const struct data_coeff_block *b = &cm->blocks[k];
-			pr += measure_coeff_block(&ct->reg, cm->n_sites,
-				cm->n_alpha, cm->n_beta, b->C_alpha,
+			pr += measure_coeff_block(&ct->reg, &sc, b->C_alpha,
 				cm->closed_shell ? NULL : b->C_beta, b->cf,
 				cm->tapered);
 		}
 	}
 
+	state_prep_coeff_scratch_free(&sc);
 	return pr;
 }
 
