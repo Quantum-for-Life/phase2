@@ -406,6 +406,102 @@ static void t_qreg_paulirot_03(size_t tag, size_t n)
 	free(ps);
 }
 
+/*
+ * Smallest valid nqb (= log2(world size) + 1) must
+ * still init / zero / round-trip both endpoints.
+ */
+static void t_qb_boundary_min(void)
+{
+	uint32_t nqb_min = 1;
+	for (int s = WD.size; s >>= 1;)
+		nqb_min++;
+
+	struct qreg reg;
+	TEST_ASSERT(qreg_init(&reg, nqb_min) == 0,
+		"qreg_init(nqb_min=%u) failed", nqb_min);
+
+	qreg_zero(&reg);
+
+	const uint64_t hi_idx = (UINT64_C(1) << nqb_min) - 1;
+	const _Complex double a = 0.3 - 0.4 * I;
+	const _Complex double b = -0.5 + 0.6 * I;
+
+	qreg_setamp(&reg, 0, a);
+	qreg_setamp(&reg, hi_idx, b);
+
+	_Complex double z = 0.0;
+	qreg_getamp(&reg, 0, &z);
+	TEST_ASSERT(z == a, "amp 0: z=%g+%gi", creal(z), cimag(z));
+	z = 0.0;
+	qreg_getamp(&reg, hi_idx, &z);
+	TEST_ASSERT(z == b, "amp %llu: z=%g+%gi",
+		(unsigned long long)hi_idx, creal(z), cimag(z));
+
+	qreg_free(&reg);
+}
+
+/*
+ * qreg_paulirot is deterministic: from the same
+ * initial state, the same (code_hi, codes_lo, phis)
+ * must produce bit-identical amplitudes.  Regression
+ * guard for any refactor of the dispatch path.
+ */
+#define DET_NCODES 5
+static struct paulis DET_CODES_LO[DET_NCODES];
+static double DET_PHIS[DET_NCODES];
+static _Complex double DET_INIT[NUM_AMPS];
+static _Complex double DET_OUT_A[NUM_AMPS];
+static _Complex double DET_OUT_B[NUM_AMPS];
+
+static void t_paulirot_determinism(void)
+{
+	/* Split NUM_QUBITS into hi (= log2(world size)) + lo.
+	 * qreg_paulirot's contract requires code_hi to act
+	 * only on hi qubits and codes_lo[k] only on lo. */
+	uint32_t qb_hi = 0;
+	for (int s = WD.size; s >>= 1;)
+		qb_hi++;
+	const uint32_t qb_lo = NUM_QUBITS - qb_hi;
+
+	struct paulis code_hi = paulis_new();
+	for (uint32_t k = qb_lo; k < qb_lo + qb_hi; k++)
+		paulis_set(&code_hi, rand_pauli_op(), k);
+
+	for (size_t i = 0; i < DET_NCODES; i++) {
+		DET_CODES_LO[i] = paulis_new();
+		for (uint32_t k = 0; k < qb_lo; k++)
+			paulis_set(&DET_CODES_LO[i], rand_pauli_op(), k);
+		DET_PHIS[i] = xoshiro256ss_dbl01(&RNG) - 0.5;
+	}
+
+	for (size_t i = 0; i < NUM_AMPS; i++)
+		DET_INIT[i] = xoshiro256ss_dbl01(&RNG)
+			+ xoshiro256ss_dbl01(&RNG) * I;
+
+	struct qreg reg;
+	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "qreg_init A");
+	for (size_t i = 0; i < NUM_AMPS; i++)
+		qreg_setamp(&reg, i, DET_INIT[i]);
+	qreg_paulirot(&reg, code_hi, DET_CODES_LO, DET_PHIS, DET_NCODES);
+	for (size_t i = 0; i < NUM_AMPS; i++)
+		qreg_getamp(&reg, i, &DET_OUT_A[i]);
+	qreg_free(&reg);
+
+	TEST_ASSERT(qreg_init(&reg, NUM_QUBITS) == 0, "qreg_init B");
+	for (size_t i = 0; i < NUM_AMPS; i++)
+		qreg_setamp(&reg, i, DET_INIT[i]);
+	qreg_paulirot(&reg, code_hi, DET_CODES_LO, DET_PHIS, DET_NCODES);
+	for (size_t i = 0; i < NUM_AMPS; i++)
+		qreg_getamp(&reg, i, &DET_OUT_B[i]);
+	qreg_free(&reg);
+
+	for (size_t i = 0; i < NUM_AMPS; i++)
+		TEST_ASSERT(DET_OUT_A[i] == DET_OUT_B[i],
+			"i=%zu: a=%g+%gi b=%g+%gi", i,
+			creal(DET_OUT_A[i]), cimag(DET_OUT_A[i]),
+			creal(DET_OUT_B[i]), cimag(DET_OUT_B[i]));
+}
+
 int main(void)
 {
 	world_init(nullptr, nullptr, WD_SEED);
@@ -415,6 +511,8 @@ int main(void)
 	xoshiro256ss_init(&RNG, SEED);
 
 	t_qreg_init();
+	t_qb_boundary_min();
+	t_paulirot_determinism();
 
 	t_qreg_getsetamp_01();
 	for (size_t k = 0; k < 99; k++)
