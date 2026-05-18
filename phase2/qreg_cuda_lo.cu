@@ -101,7 +101,7 @@ void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
 	const double *angles, const size_t ncodes, double _Complex bm)
 {
 	const size_t blocks = (reg->namp + threadPerBlock - 1) / threadPerBlock;
-	const struct qreg_cuda *cu = (const struct qreg_cuda *)reg->data;
+	const struct qreg_cuda *cu = (const struct qreg_cuda *)reg->backend;
 
 	const cuDoubleComplex z = { .x = creal(bm), .y = cimag(bm) };
 	kernelMix<<<blocks, threadPerBlock>>>(cu->damp, cu->dbuf, z, reg->namp);

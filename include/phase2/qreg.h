@@ -26,7 +26,11 @@ struct qreg {
 	MPI_Request *reqs_snd, *reqs_rcv;
 	size_t nreqs;
 
-	void *data; /* Handle to e.g. alternative engines. */
+	/* Backend-private handle.  Opaque to the
+	 * public surface; set by qreg_backend_init,
+	 * dereferenced inside the backend-specific
+	 * sources (qreg_qreg.c, qreg_cuda.c, etc.). */
+	void *backend;
 };
 
 int qreg_init(struct qreg *reg, uint32_t qb);

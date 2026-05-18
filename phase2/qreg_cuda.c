@@ -28,7 +28,7 @@ int qreg_backend_init(struct qreg *reg)
 		goto err_cuda_malloc_dbuf;
 	cu->damp = damp;
 	cu->dbuf = dbuf;
-	reg->data = cu;
+	reg->backend = cu;
 
 	return 0;
 
@@ -43,7 +43,7 @@ err_cu_alloc:
 
 void qreg_backend_free(struct qreg *reg)
 {
-	struct qreg_cuda *cu = reg->data;
+	struct qreg_cuda *cu = reg->backend;
 	cudaFree(cu->dbuf);
 	cudaFree(cu->damp);
 	free(cu);
@@ -51,7 +51,7 @@ void qreg_backend_free(struct qreg *reg)
 
 void qreg_getamp(struct qreg *reg, const uint64_t i, c64 *z)
 {
-	struct qreg_cuda *cu = reg->data;
+	struct qreg_cuda *cu = reg->backend;
 
 	const uint64_t i_lo = qreg_getilo(reg, i);
 	const uint64_t rank = qreg_getihi(reg, i);
@@ -66,7 +66,7 @@ void qreg_getamp(struct qreg *reg, const uint64_t i, c64 *z)
 
 void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 {
-	struct qreg_cuda *cu = reg->data;
+	struct qreg_cuda *cu = reg->backend;
 
 	const uint64_t i_lo = qreg_getilo(reg, i);
 	const uint64_t rank = qreg_getihi(reg, i);
@@ -81,7 +81,7 @@ void qreg_setamp(struct qreg *reg, const uint64_t i, c64 z)
 
 void qreg_zero(struct qreg *reg)
 {
-	struct qreg_cuda *cu = reg->data;
+	struct qreg_cuda *cu = reg->backend;
 
 	/* cuDoubleComplex zero representation is all bits set to zero */
 	cudaMemset(cu->damp, 0, reg->namp * sizeof(cuDoubleComplex));
@@ -91,7 +91,7 @@ void qreg_zero(struct qreg *reg)
 
 static void exch_init(struct qreg *reg, const int rnk_rem)
 {
-	struct qreg_cuda *cu = reg->data;
+	struct qreg_cuda *cu = reg->backend;
 
 	cudaDeviceSynchronize();
 	const int nr = reg->nreqs;

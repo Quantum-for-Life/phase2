@@ -16,7 +16,7 @@ typedef _Complex double c64;
 
 int qreg_backend_init(struct qreg *reg)
 {
-	reg->data = nullptr;
+	reg->backend = nullptr;
 
 	return 0;
 }
