@@ -1,3 +1,13 @@
+/*
+ * CUDA kernels for the lo-part of qreg_paulirot.
+ * One thread per amplitude; grid sized to ceil(namp /
+ * 512).  kernelPauliRot mirrors the CPU kernel_rot
+ * with the same j < i pairing guard, so each coupled
+ * pair is touched once and no atomics are needed.
+ * Launches go into the default stream; implicit
+ * ordering keeps mix -> rotate -> add correct.
+ */
+
 #include <complex.h>
 #include <stddef.h>
 

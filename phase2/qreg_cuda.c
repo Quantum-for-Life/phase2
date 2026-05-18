@@ -1,3 +1,12 @@
+/*
+ * CUDA backend for qreg.  damp[] / dbuf[] are device-
+ * resident counterparts to the CPU backend's amp[] /
+ * buf[].  MPI calls receive raw device pointers and
+ * therefore require a CUDA-aware MPI build; without
+ * one, the Isend/Irecv pair in exch_init would copy
+ * garbage.  Operator kernels live in qreg_cuda_lo.cu.
+ */
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <stdlib.h>

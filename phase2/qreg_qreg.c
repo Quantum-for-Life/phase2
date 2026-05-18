@@ -1,3 +1,13 @@
+/*
+ * CPU backend for qreg.  amp[] holds this rank's
+ * 2^qb_lo amplitudes; buf[] is a same-size scratch
+ * paired with amp[] for partner-rank exchange.  The
+ * hot path is qreg_paulirot: one MPI Isend/Irecv pair
+ * with the partner rank determined by the hi-part
+ * Pauli operator, then in-place mix + per-term lo
+ * rotations + recombination on each rank.
+ */
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <math.h>

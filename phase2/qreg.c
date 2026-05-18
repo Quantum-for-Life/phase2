@@ -1,3 +1,12 @@
+/*
+ * Backend-neutral qreg lifecycle: amplitude buffer
+ * allocation, hi/lo index split (qb_hi = log2(MPI
+ * ranks), qb_lo = nqb - qb_hi), MPI request scratch.
+ * The two backends (qreg_qreg.c CPU, qreg_cuda.c GPU)
+ * supply the operator kernels via the private hooks
+ * declared in phase2/qreg.h.
+ */
+
 #define LOG_SUBSYS "qreg"
 
 #include "c23_compat.h"
