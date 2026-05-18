@@ -22,13 +22,13 @@ TESTS_BASE := \
 	t-bench t-bitstring_index t-circ_cache			\
 	t-circ_prepst_coeff					\
 	t-circ_trott t-circ_trott2 t-circ_trott2_coeff		\
-	t-circ_trott_coeff t-circ t-combinations		\
+	t-circ_trott_coeff t-circ t-cmpsit t-combinations	\
 	t-data_attr t-data_coeff_matrix t-data_hamil		\
 	t-data_hamil_validate t-data_multidet t-data_open	\
 	t-data_dets_validate t-data_idempotence t-data_mpi	\
 	t-data_trott_steps t-det_small t-log t-log_release	\
-	t-paulis t-prob t-qreg t-ref-bendazzoli t-run		\
-	t-state_prep_coeff_csf t-state_prep_coeff_expand	\
+	t-paulis t-prob t-qdrift t-qreg t-ref-bendazzoli	\
+	t-run t-state_prep_coeff_csf t-state_prep_coeff_expand	\
 	t-world
 
 TBIN       := $(BUILDDIR)/test

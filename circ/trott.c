@@ -1,3 +1,10 @@
+/*
+ * 1st-order Lie-Trotter.  Each step: one forward
+ * sweep of the lex-sorted Hamiltonian at `dt.delta`,
+ * then circ_measure.  Overlap goes to ct.vals and,
+ * if non-NULL, tt->sw.  Per-step error O(delta^2).
+ */
+
 #define LOG_SUBSYS "trott"
 
 #include "c23_compat.h"

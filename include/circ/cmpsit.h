@@ -27,13 +27,13 @@
  */
 
 struct cmpsit_data {
-	uint64_t seed;		/* PRNG seed; must be non-zero */
+	size_t samples;		/* number of independent samples */
+	size_t steps;		/* number of Trotter steps */
 	size_t length;		/* deterministic term count */
 	size_t depth;		/* randomised term count per step */
-	size_t steps;		/* number of Trotter steps */
 	double angle_det;	/* deterministic step size */
 	double angle_rand;	/* randomised step size */
-	size_t samples;		/* number of independent samples */
+	uint64_t seed;		/* PRNG seed; must be non-zero */
 };
 
 /* Working state for one sampled composite circuit. */
@@ -53,12 +53,21 @@ struct cmpsit {
 	struct phase2_step_writer *sw;
 };
 
+/* Adopt hm and *sp_data (ownership transfers, see
+ * circ_init), split into hm_det (top dt->length by
+ * |c_k|) and hm_ran with a CDF on the latter, seed
+ * the PRNG from dt->seed; sw is held by reference,
+ * must outlive cmpsit_simul.  Returns 0 or -1. */
 int cmpsit_init(struct cmpsit *cp, const struct cmpsit_data *dt,
 	struct circ_hamil hm, enum stprep_kind sp_kind, const void *sp_data,
 	struct phase2_step_writer *sw);
 
 void cmpsit_free(struct cmpsit *cp);
 
+/* Run dt.samples independent samples, each
+ * dt.steps symmetric Trotter steps; overlap per
+ * sample into ct.vals and, if non-NULL, cp->sw.
+ * Returns 0 or -1. */
 int cmpsit_simul(struct cmpsit *cp);
 
 #endif // CMPSIT_H

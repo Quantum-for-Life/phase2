@@ -1,3 +1,10 @@
+/*
+ * Symmetric (Strang) 2nd-order Trotter.  Each step:
+ * forward sweep at delta/2, reverse sweep at delta/2,
+ * then circ_measure.  Overlap goes to ct.vals and, if
+ * non-NULL, t2->sw.  Per-step error O(delta^3).
+ */
+
 #define LOG_SUBSYS "trott2"
 
 #include "c23_compat.h"

@@ -5,9 +5,9 @@
 
 #include "phase2/circ.h"
 #include "phase2/paulis.h"
-#include "phase2/prob.h"
 #include "phase2/qreg.h"
 #include "phase2/step_writer.h"
 #include "phase2/world.h"
+#include "prob.h"
 
 #endif // PHASE2_H

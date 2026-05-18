@@ -1,3 +1,16 @@
+/*
+ * Composite (partially-randomised) symmetric Trotter.
+ * Init splits H into hm_det (top `length` terms by
+ * |c_k|, lex-sorted, step `angle_det`) and hm_ran
+ * (rest, qDRIFT-sampled at step `angle_rand`).  Each
+ * Trotter step: forward half-sweep of one composite
+ * sample at omega=0.5, reverse half-sweep of an
+ * independent draw at omega=0.5.  Overlap goes to
+ * ct.vals and, if non-NULL, cp->sw.  Error hybrid:
+ * O(delta^3) deterministic + O(1/sqrt(samples))
+ * stochastic.
+ */
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <math.h>
@@ -12,7 +25,7 @@
 
 #include "circ/cmpsit.h"
 
-#include <float.h>
+#include "internal.h"
 
 static uint64_t SEED = UINT64_C(0xafb424901446f21f);
 
@@ -20,9 +33,7 @@ static uint64_t SEED = UINT64_C(0xafb424901446f21f);
 #define FRAC_PI_2 1.57079632679489661923132169163975144
 #endif
 
-/*
- * Sort the Hamiltonian by absolute val of coefficients, in descending order.
- */
+/* qsort comparator: |cf| descending. */
 static int hamil_term_cmp_abscf_desc(const void *a, const void *b)
 {
 	const struct circ_hamil_term ta = *(const struct circ_hamil_term *)a;
@@ -38,43 +49,19 @@ static int hamil_term_cmp_abscf_desc(const void *a, const void *b)
 	return 0;
 }
 
-struct get_vals_data {
-	size_t i;
-	struct circ_hamil_term *terms;
-	double norm;
-};
-
-static double get_vals(void *data)
-{
-	struct get_vals_data *dt = data;
-
-	double d = dt->terms[dt->i++].cf;
-	dt->norm += fabs(d);
-
-	return d;
-}
-
 static void ranct_calc_cdf(
 	struct cmpsit_ranct *rct, struct circ_hamil_term *terms)
 {
-	struct get_vals_data data = { .i = 0, .terms = terms };
-	prob_cdf_from_iter(&rct->cdf, get_vals, &data);
-	rct->lambda_r = data.norm;
+	/* cf is the first field of struct circ_hamil_term, so &terms[0].cf
+	 * equals (double *)terms; stride is the term-record size.
+	 * out_lambda receives the L1 norm used downstream. */
+	prob_cdf_from_array_strided(&rct->cdf, &terms[0].cf,
+		sizeof terms[0], &rct->lambda_r);
 }
 
-/*
- * ranct_init - initialise the randomised composite channel.
- *
- * Splits the Hamiltonian into deterministic and randomised
- * parts:
- *  1. Sort all terms by |coeff| in descending order.
- *  2. The top L = dt->length terms form the deterministic
- *     sub-Hamiltonian (sorted lexicographically for cache-
- *     friendly MPI batching).
- *  3. The remaining terms form the randomised pool, from
- *     which terms are importance-sampled via a CDF built
- *     from their absolute coefficients.
- */
+/* Split H by |c_k| desc: top dt->length terms into
+ * hm_det (then lex-sorted), rest into hm_ran with a
+ * CDF over their |c_k|. */
 static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
 	const struct cmpsit_data *dt)
 {
@@ -113,7 +100,6 @@ static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
 
 	return 0;
 
-	prob_cdf_free(&rct->cdf);
 err_cdf:
 	circ_hamil_free(&rct->hm_ran);
 err_hm_ran:
@@ -162,14 +148,6 @@ void cmpsit_free(struct cmpsit *cp)
 	circ_free(&cp->ct);
 }
 
-static double signof(double a)
-{
-	double f = fabs(a);
-	if (f < DBL_EPSILON)
-		return 0.0;
-	return a < f ? -1.0 : 1.0;
-}
-
 static int hm_sample(struct cmpsit *cp)
 {
 	int rt = -1;
@@ -203,21 +181,30 @@ static void ranct_hmsmpl_free(struct cmpsit *cp)
 	circ_hamil_free(&cp->ranct.hm_smpl);
 }
 
-/*
- * cmpsit_simul - run the composite-channel simulation.
- *
- * Each Trotter step uses second-order Suzuki-Trotter
- * decomposition with two independently drawn random
- * samples per step:
- *
- *   1. Draw sample S1, apply forward half-step
- *      exp(i * 0.5 * S1).
- *   2. Draw fresh sample S2, apply reverse half-step
- *      exp(i * 0.5 * S2) (terms in reversed order).
- *
- * The two independent samples ensure unbiased stochastic
- * error cancellation across the symmetric decomposition.
- */
+/* Draw a fresh composite sample, apply forward or
+ * reverse half-step at omega=0.5, free the sample. */
+static int half_step(struct cmpsit *cp, size_t s, bool reverse)
+{
+	const char *tag = reverse ? "rev" : "fwd";
+	log_trace("step %zu/%zu %s half-sweep", s + 1, cp->dt.steps, tag);
+	(void)s; /* unused when log_trace expands to no-op */
+
+	if (hm_sample(cp) < 0) {
+		log_error("simul: hm_sample failed");
+		return -1;
+	}
+	const int rc = reverse
+		? circ_step_reverse(&cp->ct, &cp->ranct.hm_smpl, 0.5)
+		: circ_step(&cp->ct, &cp->ranct.hm_smpl, 0.5);
+	if (rc < 0) {
+		log_error("simul: %s circ_step failed", tag);
+		ranct_hmsmpl_free(cp);
+		return -1;
+	}
+	ranct_hmsmpl_free(cp);
+	return 0;
+}
+
 int cmpsit_simul(struct cmpsit *cp)
 {
 	struct circ *ct = &cp->ct;
@@ -232,31 +219,10 @@ int cmpsit_simul(struct cmpsit *cp)
 		log_debug("sample %zu/%zu", i + 1, vals->len);
 		circ_prepst(ct);
 		for (size_t s = 0; s < cp->dt.steps; s++) {
-			log_trace("step %zu/%zu fwd half-sweep", s + 1,
-				cp->dt.steps);
-			if (hm_sample(cp) < 0) {
-				log_error("simul: hm_sample failed");
+			if (half_step(cp, s, false) < 0)
 				return -1;
-			}
-			if (circ_step(&cp->ct, &cp->ranct.hm_smpl, 0.5) < 0) {
-				log_error("simul: fwd circ_step failed");
+			if (half_step(cp, s, true) < 0)
 				return -1;
-			}
-			ranct_hmsmpl_free(cp);
-
-			log_trace("step %zu/%zu rev half-sweep", s + 1,
-				cp->dt.steps);
-			if (hm_sample(cp) < 0) {
-				log_error("simul: hm_sample failed");
-				return -1;
-			}
-			if (circ_step_reverse(
-				    &cp->ct, &cp->ranct.hm_smpl, 0.5) < 0) {
-				log_error("simul: rev circ_step_reverse"
-					  " failed");
-				return -1;
-			}
-			ranct_hmsmpl_free(cp);
 		}
 		vals->z[i] = circ_measure(ct);
 		if (cp->sw && cp->sw->write(cp->sw->ctx, i, vals->z[i]) < 0) {

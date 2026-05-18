@@ -469,7 +469,32 @@ The simulation loop:
    b. Measure the overlap <psi|state> and store in
       `vals[s]`.
 
-### 5.2 qDRIFT (circ/qdrift.c)
+**Error order.** Per step `O(delta^2 [H,H'])`; cumulative
+over `steps` independent steps `O(steps * delta^2)`.
+First-order in the global step count.
+
+### 5.2 Strang-Trotter (circ/trott2.c)
+
+Second-order symmetric (Strang) product formula.  Each
+step applies a forward half-sweep over the Hamiltonian
+at angle `delta/2`, immediately followed by a reverse
+half-sweep at the same angle:
+
+    prod_k     exp(i * (delta/2) * c_k * P_k)
+    prod_k_rev exp(i * (delta/2) * c_k * P_k)
+
+The reverse half-sweep uses `circ_step_reverse`, which
+traverses `hm->terms[]` in reverse order.  Cache
+warmup, MPI exchange batching, and step_writer callbacks
+match `trott`'s structure.
+
+**Error order.** Per step `O(delta^3 [H,H',H''])`;
+cumulative `O(steps * delta^3)`.  At fixed total time
+T = steps * delta, halving `delta` (and doubling `steps`)
+should shrink error ~4x for `trott2` versus ~2x for
+`trott`.
+
+### 5.3 qDRIFT (circ/qdrift.c)
 
 Randomised product formula based on the qDRIFT channel
 (Campbell, 2019).  Instead of applying all Hamiltonian
@@ -499,7 +524,12 @@ initialised from the user-supplied seed.  The PRNG state
 is deterministically split across MPI ranks via the
 `world_init` seed-splitting mechanism.
 
-### 5.3 Composite (circ/cmpsit.c)
+**Error order.** Stochastic.  Mean-square error per
+sample `O((Lambda * step_size)^2)` where
+`Lambda = sum_k |c_k|`; averaging over `samples`
+independent draws shrinks the variance as `1/sqrt(samples)`.
+
+### 5.4 Composite (circ/cmpsit.c)
 
 Partially randomised second-order Suzuki-Trotter formula.
 The Hamiltonian is split into two parts:
@@ -527,6 +557,14 @@ difference from a naive first-order scheme: it yields the
 symmetric S2 integrator, which has second-order error
 scaling.
 
+**Error order.** Hybrid.  The deterministic-part error
+follows `trott2`'s `O(steps * delta^3)` scaling at fixed
+`angle_det`; the randomised-part error is stochastic,
+inheriting qDRIFT's `1/sqrt(samples)` Monte Carlo scaling
+with `Lambda_r = sum_{k in random pool} |c_k|`.  Useful
+when a small set of large-coefficient terms dominates --
+keep them deterministic, sample the tail.
+
 ---
 
 ## 6. Usage
@@ -546,48 +584,56 @@ scaling.
 
 ### 6.2 Subcommands
 
+Long options are canonical across all subcommands.  Short
+aliases exist only where the meaning is unambiguous across
+the family (`-s` for steps, `-d` for depth, `-n` for
+samples, `-x` for seed, `-D` for `delta` on the
+trotter-family only).  Step-size parameters with diverging
+meanings (`--step-size`, `--angle-det`, `--angle-rand`) are
+long-only to avoid the previous `-D` overload.
+
 #### `trott` -- 1st-order Trotter
 
     ph2run [OPTS] trott [TROTT_OPTS]
 
-| Flag    | Description                          | Default |
-|---------|--------------------------------------|---------|
-| `-D VAL`| Trotter step size (delta)            | 1.0     |
-| `-s N`  | Number of Trotter steps              | 1       |
+| Flag                  | Description                | Default |
+|-----------------------|----------------------------|---------|
+| `-D, --delta=VAL`     | Trotter step size          | 1.0     |
+| `-s, --steps=N`       | Number of Trotter steps    | 1       |
 
 #### `trott2` -- 2nd-order symmetric (Strang) Trotter
 
     ph2run [OPTS] trott2 [TROTT2_OPTS]
 
-| Flag    | Description                          | Default |
-|---------|--------------------------------------|---------|
-| `-D VAL`| Trotter step size (delta)            | 1.0     |
-| `-s N`  | Number of Trotter steps              | 1       |
+| Flag                  | Description                | Default |
+|-----------------------|----------------------------|---------|
+| `-D, --delta=VAL`     | Trotter step size          | 1.0     |
+| `-s, --steps=N`       | Number of Trotter steps    | 1       |
 
 #### `qdrift` -- qDRIFT randomised product formula
 
     ph2run [OPTS] qdrift [QDRIFT_OPTS]
 
-| Flag    | Description                          | Default |
-|---------|--------------------------------------|---------|
-| `-D VAL`| qDRIFT step size                     | 1.0     |
-| `-d N`  | Randomised terms per sample          | 64      |
-| `-n N`  | Number of independent samples        | 1       |
-| `-x N`  | PRNG seed (must be non-zero)         | 1       |
+| Flag                  | Description                | Default |
+|-----------------------|----------------------------|---------|
+| `    --step-size=VAL` | qDRIFT step size           | 1.0     |
+| `-d, --depth=N`       | Random terms per sample    | 64      |
+| `-n, --samples=N`     | Independent samples        | 1       |
+| `-x, --seed=N`        | PRNG seed (non-zero)       | 1       |
 
 #### `cmpsit` -- Composite (2nd-order, partially randomised)
 
     ph2run [OPTS] cmpsit [CMPSIT_OPTS]
 
-| Flag    | Description                          | Default |
-|---------|--------------------------------------|---------|
-| `-l N`  | Number of deterministic top-|c_k|    | 1       |
-| `-d N`  | Randomised terms per step            | 64      |
-| `-s N`  | Number of Trotter steps              | 1       |
-| `-D VAL`| Deterministic step size (angle_det)  | 1.0     |
-| `-R VAL`| Randomised step size (angle_rand)    | 1.0     |
-| `-n N`  | Number of independent samples        | 1       |
-| `-x N`  | PRNG seed (must be non-zero)         | 1       |
+| Flag                  | Description                | Default |
+|-----------------------|----------------------------|---------|
+| `-l, --length=N`      | Deterministic top-`|c_k|`  | 1       |
+| `-d, --depth=N`       | Random terms per step      | 64      |
+| `-s, --steps=N`       | Number of Trotter steps    | 1       |
+| `    --angle-det=VAL` | Deterministic step size    | 1.0     |
+| `-R, --angle-rand=VAL`| Randomised step size       | 1.0     |
+| `-n, --samples=N`     | Independent samples        | 1       |
+| `-x, --seed=N`        | PRNG seed (non-zero)       | 1       |
 
 ### 6.3 Environment Variables
 

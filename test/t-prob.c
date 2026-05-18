@@ -4,23 +4,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "phase2/prob.h"
+#include "prob.h"
 #include "phase2/world.h"
 
 #include "test.h"
 
 #define WD_SEED UINT64_C(0xb3f7a28e510cd946)
-
-struct iter_data {
-	size_t i;
-	double *vals;
-};
-
-static double iter_cb(void *data)
-{
-	struct iter_data *d = data;
-	return d->vals[d->i++];
-}
 
 /*
  * 4-element uniform distribution [1, 1, 1, 1].
@@ -30,10 +19,9 @@ static void t_prob_cdf_uniform(void)
 {
 	struct prob_cdf cdf;
 	double vals[] = { 1.0, 1.0, 1.0, 1.0 };
-	struct iter_data d = { .i = 0, .vals = vals };
-
 	TEST_EQ(prob_cdf_init(&cdf, 4), 0);
-	TEST_EQ(prob_cdf_from_iter(&cdf, iter_cb, &d), 0);
+	TEST_EQ(prob_cdf_from_array_strided(&cdf, vals,
+		sizeof vals[0], NULL), 0);
 
 	/* CDF must be monotonically non-decreasing. */
 	for (size_t k = 1; k < cdf.len; k++)
@@ -65,10 +53,10 @@ static void t_prob_cdf_single(void)
 {
 	struct prob_cdf cdf;
 	double vals[] = { 5.0 };
-	struct iter_data d = { .i = 0, .vals = vals };
 
 	TEST_EQ(prob_cdf_init(&cdf, 1), 0);
-	TEST_EQ(prob_cdf_from_iter(&cdf, iter_cb, &d), 0);
+	TEST_EQ(prob_cdf_from_array_strided(&cdf, vals,
+		sizeof vals[0], NULL), 0);
 
 	TEST_NEAR(cdf.y[0], 1.0, DBL_EPSILON);
 
@@ -88,10 +76,9 @@ static void t_prob_cdf_known(void)
 {
 	struct prob_cdf cdf;
 	double vals[] = { 1.0, 2.0, 1.0 };
-	struct iter_data d = { .i = 0, .vals = vals };
-
 	TEST_EQ(prob_cdf_init(&cdf, 3), 0);
-	TEST_EQ(prob_cdf_from_iter(&cdf, iter_cb, &d), 0);
+	TEST_EQ(prob_cdf_from_array_strided(&cdf, vals,
+		sizeof vals[0], NULL), 0);
 
 	TEST_NEAR(cdf.y[0], 0.25, 1e-12);
 	TEST_NEAR(cdf.y[1], 0.75, 1e-12);
@@ -126,10 +113,9 @@ static void t_prob_cdf_negative(void)
 {
 	struct prob_cdf cdf;
 	double vals[] = { -1.0, 2.0, -1.0 };
-	struct iter_data d = { .i = 0, .vals = vals };
-
 	TEST_EQ(prob_cdf_init(&cdf, 3), 0);
-	TEST_EQ(prob_cdf_from_iter(&cdf, iter_cb, &d), 0);
+	TEST_EQ(prob_cdf_from_array_strided(&cdf, vals,
+		sizeof vals[0], NULL), 0);
 
 	TEST_NEAR(cdf.y[0], 0.25, 1e-12);
 	TEST_NEAR(cdf.y[1], 0.75, 1e-12);
@@ -139,17 +125,73 @@ static void t_prob_cdf_negative(void)
 }
 
 /*
- * All-zero weights: prob_cdf_from_iter must return -1.
+ * All-zero weights: prob_cdf_from_array_strided must return -1.
  */
 static void t_prob_cdf_zeros(void)
 {
 	struct prob_cdf cdf;
 	double vals[] = { 0.0, 0.0, 0.0 };
-	struct iter_data d = { .i = 0, .vals = vals };
 
 	TEST_EQ(prob_cdf_init(&cdf, 3), 0);
-	TEST_EQ(prob_cdf_from_iter(&cdf, iter_cb, &d), -1);
+	TEST_EQ(prob_cdf_from_array_strided(&cdf, vals,
+		sizeof vals[0], NULL), -1);
 
+	prob_cdf_free(&cdf);
+}
+
+/*
+ * Strided walk: weights interleaved with payload bytes.
+ * Mirrors the qdrift / cmpsit usage where the CDF is built
+ * over the `.cf` field of a `struct circ_hamil_term`.  Also
+ * checks the out_lambda parameter.
+ */
+static void t_prob_cdf_strided(void)
+{
+	struct cell {
+		double w;
+		uint64_t pad;
+	};
+	struct cell cells[] = {
+		{ .w = 1.0 }, { .w = 2.0 }, { .w = 1.0 },
+	};
+	struct prob_cdf cdf;
+	double lambda = -1.0;
+
+	TEST_EQ(prob_cdf_init(&cdf, 3), 0);
+	TEST_EQ(prob_cdf_from_array_strided(&cdf, &cells[0].w,
+		sizeof cells[0], &lambda), 0);
+
+	TEST_NEAR(lambda, 4.0, 1e-12);
+	TEST_NEAR(cdf.y[0], 0.25, 1e-12);
+	TEST_NEAR(cdf.y[1], 0.75, 1e-12);
+	TEST_NEAR(cdf.y[2], 1.0, 1e-12);
+
+	prob_cdf_free(&cdf);
+}
+
+/*
+ * prob_cdf_init must reject len = 0.
+ */
+static void t_prob_init_zero(void)
+{
+	struct prob_cdf cdf;
+	TEST_EQ(prob_cdf_init(&cdf, 0), -1);
+}
+
+/*
+ * prob_cdf_free zeroes the struct so a second free is a
+ * clean no-op.
+ */
+static void t_prob_free_idempotent(void)
+{
+	struct prob_cdf cdf;
+	TEST_EQ(prob_cdf_init(&cdf, 3), 0);
+	prob_cdf_free(&cdf);
+
+	TEST_EQ(cdf.len, (size_t)0);
+	TEST_ASSERT(cdf.y == NULL, "free did not null cdf.y");
+
+	/* Second free must not crash. */
 	prob_cdf_free(&cdf);
 }
 
@@ -160,11 +202,11 @@ static void t_prob_cdf_inverse_boundaries(void)
 {
 	struct prob_cdf cdf;
 	double vals[] = { 1.0, 3.0, 1.0 };
-	struct iter_data d = { .i = 0, .vals = vals };
 
 	/* CDF: [0.2, 0.8, 1.0] */
 	TEST_EQ(prob_cdf_init(&cdf, 3), 0);
-	TEST_EQ(prob_cdf_from_iter(&cdf, iter_cb, &d), 0);
+	TEST_EQ(prob_cdf_from_array_strided(&cdf, vals,
+		sizeof vals[0], NULL), 0);
 
 	/* y=0: strictly below CDF[0]=0.2, returns 0. */
 	TEST_EQ(prob_cdf_inverse(&cdf, 0.0), (size_t)0);
@@ -190,6 +232,9 @@ int main(void)
 	t_prob_cdf_known();
 	t_prob_cdf_negative();
 	t_prob_cdf_zeros();
+	t_prob_cdf_strided();
+	t_prob_init_zero();
+	t_prob_free_idempotent();
 	t_prob_cdf_inverse_boundaries();
 
 	world_free();

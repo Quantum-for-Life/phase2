@@ -125,7 +125,6 @@ BACKEND_CFLAGS  += -DPHASE2_BACKEND=$(BACKEND_N)
 PHASE2OBJS      := $(BUILDDIR)/phase2/circ.o			\
                    $(BUILDDIR)/phase2/circ_cache.o		\
                    $(BUILDDIR)/phase2/paulis.o			\
-                   $(BUILDDIR)/phase2/prob.o			\
                    $(BUILDDIR)/phase2/qreg.o			\
                    $(BUILDDIR)/phase2/state_prep_coeff.o	\
                    $(BUILDDIR)/phase2/world.o			\
@@ -137,6 +136,7 @@ CIRCOBJS        := $(BUILDDIR)/circ/cmpsit.o			\
 LIBOBJS         := $(BUILDDIR)/lib/combinations.o		\
                    $(BUILDDIR)/lib/det_small.o			\
                    $(BUILDDIR)/lib/log.o			\
+                   $(BUILDDIR)/lib/prob.o			\
                    $(BUILDDIR)/lib/xoshiro256ss.o
 PH2RUN_DATA_OBJS := $(BUILDDIR)/ph2run/data.o
 

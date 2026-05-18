@@ -227,12 +227,31 @@ static error_t opts_parser(int key, char *arg, struct argp_state *state)
 
 static struct argp argp = { opts, opts_parser, args_doc, doc, 0, 0, 0 };
 
-/* Commands */
+/*
+ * Subcommand dispatch table.
+ *
+ * Populated below the per-command sections so each entry
+ * can reference its own argp_*, argv0_*, args_*, and
+ * cmd_* symbols.  See SUBCMDS at the bottom of the file.
+ */
+struct subcommand {
+	const char *name;
+	const char *argv0;
+	struct argp *argp;
+	void *args;
+	int (*run)(void);
+};
+
+/*
+ * Long-only option keys.  Values above 0x80 sit outside
+ * the ASCII range, so argp treats them as identifiers
+ * for a "--name" option with no short alias.  Used for
+ * algorithm-specific parameters whose short letter would
+ * otherwise collide with another subcommand's flag.
+ */
 enum {
-	CMD_TROTT = 0,
-	CMD_QDRIFT = 1,
-	CMD_CMPSIT = 2,
-	CMD_TROTT2 = 3,
+	OPT_STEP_SIZE = 0x100,   /* qdrift --step-size */
+	OPT_ANGLE_DET = 0x101,   /* cmpsit --angle-det */
 };
 
 /* Command: "trott" */
@@ -498,7 +517,7 @@ static void cmd_qdrift_summary(const struct cmd_qdrift_dt *dt)
 static struct qdrift_data *const args_qdrift = &cmd_qdrift_dt.qd_dt;
 
 static struct argp_option opts_qdrift[] = {
-	{ "step-size", 'D', "VAL", 0,
+	{ "step-size", OPT_STEP_SIZE, "VAL", 0,
 		"qDRIFT step size (default: 1.0)", 0 },
 	{ "depth", 'd', "N", 0,
 		"Number of randomised terms per sample (default: 64)", 0 },
@@ -514,7 +533,7 @@ static error_t opts_parser_qdrift(int key, char *arg, struct argp_state *state)
 	struct qdrift_data *dt = state->input;
 
 	switch (key) {
-	case 'D':
+	case OPT_STEP_SIZE:
 		dt->step_size = strtod(arg, nullptr);
 		break;
 	case 'd':
@@ -654,7 +673,7 @@ static struct argp_option opts_cmpsit[] = {
 		"Number of randomised terms per step (default: 64)", 0 },
 	{ "steps", 's', "N", 0,
 		"Number of Trotter steps (default: 1)", 0 },
-	{ "angle-det", 'D', "VAL", 0,
+	{ "angle-det", OPT_ANGLE_DET, "VAL", 0,
 		"Step size for the deterministic part (default: 1.0)", 0 },
 	{ "angle-rand", 'R', "VAL", 0,
 		"Step size for the randomised part (default: 1.0)", 0 },
@@ -673,7 +692,7 @@ static error_t opts_parser_cmpsit(int key, char *arg, struct argp_state *state)
 	case 's':
 		dt->steps = strtoull(arg, nullptr, 10);
 		break;
-	case 'D':
+	case OPT_ANGLE_DET:
 		dt->angle_det = strtod(arg, nullptr);
 		break;
 	case 'R':
@@ -773,6 +792,19 @@ ex_open:
 	return rt;
 }
 
+/*
+ * One entry per algorithm; exact-string lookup at dispatch
+ * time.  Order is purely cosmetic -- strcmp eliminates the
+ * old trott2-before-trott prefix trap.
+ */
+static const struct subcommand SUBCMDS[] = {
+	{ "trott",  argv0_trott,  &argp_trott,  args_trott,  cmd_trott  },
+	{ "trott2", argv0_trott2, &argp_trott2, args_trott2, cmd_trott2 },
+	{ "qdrift", argv0_qdrift, &argp_qdrift, args_qdrift, cmd_qdrift },
+	{ "cmpsit", argv0_cmpsit, &argp_cmpsit, args_cmpsit, cmd_cmpsit },
+	{ nullptr,  nullptr,      nullptr,      nullptr,     nullptr    },
+};
+
 int main(int argc, char **argv)
 {
 	int rt = -1;
@@ -782,26 +814,20 @@ int main(int argc, char **argv)
 	/* Parse subcommands. */
 	argc -= args.cmd_num;
 	argv += args.cmd_num;
-	int cmd = -1;
 
-#define cmd_parse(name, val)                                                   \
-	({                                                                     \
-		if (strncmp(args.cmd, xstr(name), strlen(xstr(name))) == 0) {  \
-			argv[0] = argv0_##name;                                \
-			argp_parse(&argp_##name, argc, argv, ARGP_IN_ORDER,    \
-				nullptr, args_##name);                         \
-			cmd = val;                                             \
-			break;                                                 \
-		}                                                              \
-	})
-
-	while (1) {
-		/* trott2 must precede trott: strncmp uses strlen("trott")
-		 * so "trott" alone would otherwise swallow "trott2". */
-		cmd_parse(trott2, CMD_TROTT2);
-		cmd_parse(trott, CMD_TROTT);
-		cmd_parse(qdrift, CMD_QDRIFT);
-		cmd_parse(cmpsit, CMD_CMPSIT);
+	const struct subcommand *sc = nullptr;
+	if (args.cmd) {
+		for (const struct subcommand *p = SUBCMDS; p->name; p++) {
+			if (strcmp(args.cmd, p->name) == 0) {
+				sc = p;
+				break;
+			}
+		}
+	}
+	if (sc) {
+		argv[0] = (char *)sc->argv0;
+		argp_parse(sc->argp, argc, argv, ARGP_IN_ORDER,
+			nullptr, sc->args);
 	}
 
 	if (world_init(nullptr, nullptr, WD_SEED) != WORLD_READY) {
@@ -809,7 +835,7 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-	if (cmd < 0) {
+	if (!sc) {
 		log_error("unrecognised subcommand: %s",
 			args.cmd ? args.cmd : "(none)");
 		world_free();
@@ -819,20 +845,7 @@ int main(int argc, char **argv)
 	log_info("subcommand: %s", args.cmd);
 	log_info("simul file: %s", args.simul);
 
-	switch (cmd) {
-	case CMD_TROTT:
-		rt = cmd_trott();
-		break;
-	case CMD_TROTT2:
-		rt = cmd_trott2();
-		break;
-	case CMD_QDRIFT:
-		rt = cmd_qdrift();
-		break;
-	case CMD_CMPSIT:
-		rt = cmd_cmpsit();
-		break;
-	}
+	rt = sc->run();
 
 	world_free();
 	exit(rt);

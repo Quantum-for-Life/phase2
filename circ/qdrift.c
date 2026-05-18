@@ -1,3 +1,13 @@
+/*
+ * qDRIFT randomised product formula (Campbell, 2019).
+ * For each of dt.samples runs, draw dt.depth terms
+ * i.i.d. from p_k = |c_k|/sum_j|c_j| and apply
+ * exp(i * asin(step_size) * sign(c_k) * P_k) per draw.
+ * Overlap goes to ct.vals and, if non-NULL, qd->sw.
+ * PRNG: xoshiro256** seeded from dt.seed.  Per-sample
+ * error stochastic O(1/sqrt(samples)).
+ */
+
 #define LOG_SUBSYS "qdrift"
 
 #include "c23_compat.h"
@@ -14,6 +24,8 @@
 #include "xoshiro256ss.h"
 
 #include "circ/qdrift.h"
+
+#include "internal.h"
 
 static uint64_t SEED = UINT64_C(0xeccd9dcc749fcdca);
 
@@ -34,23 +46,13 @@ static void ranct_free(struct qdrift_ranct *rct)
 	prob_cdf_free(&rct->cdf);
 }
 
-struct get_vals_data {
-	size_t i;
-	struct circ_hamil_term *terms;
-};
-
-static double get_vals(void *data)
-{
-	struct get_vals_data *dt = data;
-
-	return dt->terms[dt->i++].cf;
-}
-
 static void ranct_calc_cdf(
 	struct qdrift_ranct *rct, struct circ_hamil_term *terms)
 {
-	struct get_vals_data data = { .i = 0, .terms = terms };
-	prob_cdf_from_iter(&rct->cdf, get_vals, &data);
+	/* cf is the first field of struct circ_hamil_term;
+	 * stride is sizeof terms[0]. */
+	prob_cdf_from_array_strided(&rct->cdf, &terms[0].cf,
+		sizeof terms[0], NULL);
 }
 
 int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt,
@@ -87,14 +89,9 @@ void qdrift_free(struct qdrift *qd)
 	circ_free(&qd->ct);
 }
 
-static double signof(double a)
-{
-	const double f = fabs(a);
-	if (f < DBL_EPSILON)
-		return 0.0;
-	return a < f ? -1.0 : 1.0;
-}
-
+/* Fill hm_ran with `depth` i.i.d. draws from the
+ * |c_k| CDF; carry signof(c_k) as the unit-magnitude
+ * coefficient. */
 static void ranct_sample(struct qdrift *qd)
 {
 	for (size_t i = 0; i < qd->ranct.hm_ran.len; i++) {

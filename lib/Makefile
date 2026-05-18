@@ -1,5 +1,5 @@
 # ========================================================================== #
-# lib -- utilities (combinations, det_small, log, xoshiro256ss)              #
+# lib -- utilities (combinations, det_small, log, prob, xoshiro256ss)        #
 # ========================================================================== #
 
 ifndef TOPDIR
@@ -9,7 +9,7 @@ endif
 SUBSYS := lib
 include $(TOPDIR)/build-rules.mk
 
-SRCS  := combinations.c det_small.c log.c xoshiro256ss.c
+SRCS  := combinations.c det_small.c log.c prob.c xoshiro256ss.c
 OBJS  := $(SRCS:%.c=$(BUILDDIR)/lib/%.o)
 SOBJS := $(SRCS:%.c=$(BUILDDIR)/shared/lib/%.o)
 
