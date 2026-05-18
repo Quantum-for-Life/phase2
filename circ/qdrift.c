@@ -1,3 +1,34 @@
+/*
+ * circ/qdrift.c -- qDRIFT randomised product formula
+ * (Campbell, 2019).  See include/circ/qdrift.h for the
+ * public API.
+ *
+ * The driver builds a normalised CDF from the
+ * Hamiltonian's |c_k| weights and, for each of
+ * `dt.samples` independent runs, draws `dt.depth`
+ * terms i.i.d. from that distribution and applies one
+ * rotation per draw at angle asin(step_size) carrying
+ * sign(c_k).  Per-sample overlap goes into `ct.vals`
+ * and through `qd->sw`.
+ *
+ * Module-private helpers live in the unnamed block
+ * below:
+ *   - ranct_init / _free      -- carrier for the
+ *                                random pool + CDF.
+ *   - ranct_calc_cdf          -- thin wrapper over
+ *                                prob_cdf_from_array_strided.
+ *   - ranct_sample            -- one independent draw,
+ *                                filling hm_ran with
+ *                                signed unit-weight
+ *                                terms.
+ *
+ * The PRNG is xoshiro256** seeded from `dt.seed` (or a
+ * static fallback when zero).  Sign carrying uses
+ * `signof` from circ/internal.h.  Error order is
+ * stochastic O(1/sqrt(samples)); see doc/phase2.md
+ * §5.3.
+ */
+
 #define LOG_SUBSYS "qdrift"
 
 #include "c23_compat.h"

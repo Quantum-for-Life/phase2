@@ -1,3 +1,42 @@
+/*
+ * circ/cmpsit.c -- composite (partially-randomised)
+ * 2nd-order Suzuki-Trotter product formula.  See
+ * include/circ/cmpsit.h for the public API.
+ *
+ * The Hamiltonian is split once at init time into
+ *   - hm_det:  top `length` terms by |c_k|, sorted
+ *              lexicographically, applied
+ *              deterministically with step
+ *              `angle_det`;
+ *   - hm_ran:  the remaining terms, importance-
+ *              sampled qDRIFT-style with step
+ *              `angle_rand`.
+ *
+ * Each Trotter step is two half-sweeps: forward at
+ * omega = 0.5 over a fresh composite sample, reverse
+ * at omega = 0.5 over an independent draw -- the
+ * symmetric S_2 integrator.  Per-sample overlap is
+ * stored in `ct.vals` and forwarded through `cp->sw`.
+ *
+ * Module-private helpers below:
+ *   - hamil_term_cmp_abscf_desc  qsort comparator on
+ *                                |c_k|, descending.
+ *   - ranct_init / _free          carrier for the split
+ *                                Hamiltonian + CDF +
+ *                                per-sample workspace.
+ *   - ranct_calc_cdf             thin wrapper over
+ *                                prob_cdf_from_array_strided
+ *                                (out_lambda -> lambda_r).
+ *   - hm_sample / ranct_hmsmpl_free  one draw of the
+ *                                composite Hamiltonian.
+ *   - half_step                  one half-sweep of the
+ *                                inner Trotter loop.
+ *
+ * Error order is hybrid: O(delta^3) per deterministic
+ * step, stochastic 1/sqrt(samples) for the randomised
+ * part.  See doc/phase2.md §5.4.
+ */
+
 #include "c23_compat.h"
 #include <complex.h>
 #include <math.h>

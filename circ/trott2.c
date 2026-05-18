@@ -1,3 +1,20 @@
+/*
+ * circ/trott2.c -- 2nd-order symmetric (Strang)
+ * Trotter product formula.  See
+ * include/circ/trott2.h for the public API.
+ *
+ * Each Trotter step is a forward sweep at `delta/2`
+ * (circ_step) followed by a reverse sweep at the same
+ * angle (circ_step_reverse).  The reverse sweep
+ * traverses the lex-sorted Hamiltonian in reverse
+ * order; the two sweeps together yield the symmetric
+ * S_2 integrator.  Per-step overlap is stored in
+ * `ct.vals` and forwarded through `t2->sw` when set.
+ *
+ * Error order O(delta^3) per step.  See doc/phase2.md
+ * §5.2 for the algorithmic statement.
+ */
+
 #define LOG_SUBSYS "trott2"
 
 #include "c23_compat.h"
