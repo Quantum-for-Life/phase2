@@ -1,40 +1,14 @@
 /*
- * circ/cmpsit.c -- composite (partially-randomised)
- * 2nd-order Suzuki-Trotter product formula.  See
- * include/circ/cmpsit.h for the public API.
- *
- * The Hamiltonian is split once at init time into
- *   - hm_det:  top `length` terms by |c_k|, sorted
- *              lexicographically, applied
- *              deterministically with step
- *              `angle_det`;
- *   - hm_ran:  the remaining terms, importance-
- *              sampled qDRIFT-style with step
- *              `angle_rand`.
- *
- * Each Trotter step is two half-sweeps: forward at
- * omega = 0.5 over a fresh composite sample, reverse
- * at omega = 0.5 over an independent draw -- the
- * symmetric S_2 integrator.  Per-sample overlap is
- * stored in `ct.vals` and forwarded through `cp->sw`.
- *
- * Module-private helpers below:
- *   - hamil_term_cmp_abscf_desc  qsort comparator on
- *                                |c_k|, descending.
- *   - ranct_init / _free          carrier for the split
- *                                Hamiltonian + CDF +
- *                                per-sample workspace.
- *   - ranct_calc_cdf             thin wrapper over
- *                                prob_cdf_from_array_strided
- *                                (out_lambda -> lambda_r).
- *   - hm_sample / ranct_hmsmpl_free  one draw of the
- *                                composite Hamiltonian.
- *   - half_step                  one half-sweep of the
- *                                inner Trotter loop.
- *
- * Error order is hybrid: O(delta^3) per deterministic
- * step, stochastic 1/sqrt(samples) for the randomised
- * part.  See doc/phase2.md §5.4.
+ * Composite (partially-randomised) symmetric Trotter.
+ * Init splits H into hm_det (top `length` terms by
+ * |c_k|, lex-sorted, step `angle_det`) and hm_ran
+ * (rest, qDRIFT-sampled at step `angle_rand`).  Each
+ * Trotter step: forward half-sweep of one composite
+ * sample at omega=0.5, reverse half-sweep of an
+ * independent draw at omega=0.5.  Overlap goes to
+ * ct.vals and, if non-NULL, cp->sw.  Error hybrid:
+ * O(delta^3) deterministic + O(1/sqrt(samples))
+ * stochastic.
  */
 
 #include "c23_compat.h"
@@ -59,11 +33,7 @@ static uint64_t SEED = UINT64_C(0xafb424901446f21f);
 #define FRAC_PI_2 1.57079632679489661923132169163975144
 #endif
 
-/*
- * qsort comparator: order struct circ_hamil_term by
- * |cf| in descending order.  Used at split time so the
- * top `length` entries become the deterministic pool.
- */
+/* qsort comparator: |cf| descending. */
 static int hamil_term_cmp_abscf_desc(const void *a, const void *b)
 {
 	const struct circ_hamil_term ta = *(const struct circ_hamil_term *)a;
@@ -89,19 +59,9 @@ static void ranct_calc_cdf(
 		sizeof terms[0], &rct->lambda_r);
 }
 
-/*
- * ranct_init - initialise the randomised composite channel.
- *
- * Splits the Hamiltonian into deterministic and randomised
- * parts:
- *  1. Sort all terms by |coeff| in descending order.
- *  2. The top L = dt->length terms form the deterministic
- *     sub-Hamiltonian (sorted lexicographically for cache-
- *     friendly MPI batching).
- *  3. The remaining terms form the randomised pool, from
- *     which terms are importance-sampled via a CDF built
- *     from their absolute coefficients.
- */
+/* Split H by |c_k| desc: top dt->length terms into
+ * hm_det (then lex-sorted), rest into hm_ran with a
+ * CDF over their |c_k|. */
 static int ranct_init(struct cmpsit_ranct *rct, const struct circ_hamil *hm,
 	const struct cmpsit_data *dt)
 {
@@ -221,17 +181,13 @@ static void ranct_hmsmpl_free(struct cmpsit *cp)
 	circ_hamil_free(&cp->ranct.hm_smpl);
 }
 
-/*
- * One half-sweep of a Suzuki-Trotter step: draw a fresh
- * importance sample, apply circ_step (or _reverse for the
- * second half), and free the sampled Hamiltonian.
- */
+/* Draw a fresh composite sample, apply forward or
+ * reverse half-step at omega=0.5, free the sample. */
 static int half_step(struct cmpsit *cp, size_t s, bool reverse)
 {
 	const char *tag = reverse ? "rev" : "fwd";
 	log_trace("step %zu/%zu %s half-sweep", s + 1, cp->dt.steps, tag);
-	(void)s; /* `s` only feeds the log_trace, which is a no-op in
-		    release builds. */
+	(void)s; /* unused when log_trace expands to no-op */
 
 	if (hm_sample(cp) < 0) {
 		log_error("simul: hm_sample failed");
@@ -249,21 +205,6 @@ static int half_step(struct cmpsit *cp, size_t s, bool reverse)
 	return 0;
 }
 
-/*
- * cmpsit_simul - run the composite-channel simulation.
- *
- * Each Trotter step uses second-order Suzuki-Trotter
- * decomposition with two independently drawn random
- * samples per step:
- *
- *   1. Draw sample S1, apply forward half-step
- *      exp(i * 0.5 * S1).
- *   2. Draw fresh sample S2, apply reverse half-step
- *      exp(i * 0.5 * S2) (terms in reversed order).
- *
- * The two independent samples ensure unbiased stochastic
- * error cancellation across the symmetric decomposition.
- */
 int cmpsit_simul(struct cmpsit *cp)
 {
 	struct circ *ct = &cp->ct;

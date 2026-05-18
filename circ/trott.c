@@ -1,17 +1,8 @@
 /*
- * circ/trott.c -- 1st-order Lie-Trotter product
- * formula.  See include/circ/trott.h for the public
- * API (struct trott, trott_data, init / simul / free).
- *
- * The simulation loop runs `dt.steps` Trotter steps;
- * each step calls circ_step once (forward sweep over
- * the lex-sorted Hamiltonian at angle `dt.delta`)
- * followed by circ_measure.  The per-step overlap is
- * stored in `ct.vals` and, when `tt->sw` is non-NULL,
- * forwarded through the step writer.
- *
- * Error order O(delta^2) per step.  See doc/phase2.md
- * §5.1 for the algorithmic statement.
+ * 1st-order Lie-Trotter.  Each step: one forward
+ * sweep of the lex-sorted Hamiltonian at `dt.delta`,
+ * then circ_measure.  Overlap goes to ct.vals and,
+ * if non-NULL, tt->sw.  Per-step error O(delta^2).
  */
 
 #define LOG_SUBSYS "trott"

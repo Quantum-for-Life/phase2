@@ -1,32 +1,11 @@
 /*
- * circ/qdrift.c -- qDRIFT randomised product formula
- * (Campbell, 2019).  See include/circ/qdrift.h for the
- * public API.
- *
- * The driver builds a normalised CDF from the
- * Hamiltonian's |c_k| weights and, for each of
- * `dt.samples` independent runs, draws `dt.depth`
- * terms i.i.d. from that distribution and applies one
- * rotation per draw at angle asin(step_size) carrying
- * sign(c_k).  Per-sample overlap goes into `ct.vals`
- * and through `qd->sw`.
- *
- * Module-private helpers live in the unnamed block
- * below:
- *   - ranct_init / _free      -- carrier for the
- *                                random pool + CDF.
- *   - ranct_calc_cdf          -- thin wrapper over
- *                                prob_cdf_from_array_strided.
- *   - ranct_sample            -- one independent draw,
- *                                filling hm_ran with
- *                                signed unit-weight
- *                                terms.
- *
- * The PRNG is xoshiro256** seeded from `dt.seed` (or a
- * static fallback when zero).  Sign carrying uses
- * `signof` from circ/internal.h.  Error order is
- * stochastic O(1/sqrt(samples)); see doc/phase2.md
- * §5.3.
+ * qDRIFT randomised product formula (Campbell, 2019).
+ * For each of dt.samples runs, draw dt.depth terms
+ * i.i.d. from p_k = |c_k|/sum_j|c_j| and apply
+ * exp(i * asin(step_size) * sign(c_k) * P_k) per draw.
+ * Overlap goes to ct.vals and, if non-NULL, qd->sw.
+ * PRNG: xoshiro256** seeded from dt.seed.  Per-sample
+ * error stochastic O(1/sqrt(samples)).
  */
 
 #define LOG_SUBSYS "qdrift"
@@ -50,20 +29,6 @@
 
 static uint64_t SEED = UINT64_C(0xeccd9dcc749fcdca);
 
-/*
- * ranct_init -- allocate the importance-sampling
- * scratch.  Two sibling buffers:
- *
- *   - cdf:    cdf_len entries (one per Hamiltonian
- *             term), filled by ranct_calc_cdf.
- *   - hm_ran: `depth` term slots overwritten by
- *             ranct_sample each draw, then handed to
- *             circ_step as the rotation list.
- *
- * Returns 0 on success, -1 if either allocation
- * fails.  Caller owns the cleanup pair via
- * ranct_free.
- */
 static int ranct_init(struct qdrift_ranct *rct, const uint32_t qb,
 	const size_t depth, const size_t cdf_len)
 {
@@ -75,24 +40,17 @@ static int ranct_init(struct qdrift_ranct *rct, const uint32_t qb,
 	return 0;
 }
 
-/* Release both buffers allocated by ranct_init. */
 static void ranct_free(struct qdrift_ranct *rct)
 {
 	circ_hamil_free(&rct->hm_ran);
 	prob_cdf_free(&rct->cdf);
 }
 
-/*
- * Fill rct->cdf with the normalised |c_k| probability
- * distribution over the Hamiltonian terms.  Lambda
- * (the L1 norm) is discarded -- qDRIFT folds it into
- * the sampling step at draw time.
- */
 static void ranct_calc_cdf(
 	struct qdrift_ranct *rct, struct circ_hamil_term *terms)
 {
-	/* cf is the first field of struct circ_hamil_term, so &terms[0].cf
-	 * equals (double *)terms; stride is the term-record size. */
+	/* cf is the first field of struct circ_hamil_term;
+	 * stride is sizeof terms[0]. */
 	prob_cdf_from_array_strided(&rct->cdf, &terms[0].cf,
 		sizeof terms[0], NULL);
 }
@@ -131,14 +89,9 @@ void qdrift_free(struct qdrift *qd)
 	circ_free(&qd->ct);
 }
 
-/*
- * Draw one qDRIFT sample: fill hm_ran with `depth`
- * Pauli operators sampled i.i.d. from the |c_k|
- * distribution, each carrying signof(c_k) as its
- * unit-magnitude coefficient.  The rotation angle
- * itself is folded in by circ_step at call time
- * (asin(step_size)).
- */
+/* Fill hm_ran with `depth` i.i.d. draws from the
+ * |c_k| CDF; carry signof(c_k) as the unit-magnitude
+ * coefficient. */
 static void ranct_sample(struct qdrift *qd)
 {
 	for (size_t i = 0; i < qd->ranct.hm_ran.len; i++) {

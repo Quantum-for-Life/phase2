@@ -1,24 +1,10 @@
 /*
- * lib/prob.c -- discrete CDF builder and
- * inverse-sampler.  See include/prob.h for the public
- * API and contract.
- *
- * The module is used by the qDRIFT (circ/qdrift.c)
- * and composite (circ/cmpsit.c) samplers; both build
- * a CDF over the Hamiltonian's |c_k| weights at init
- * time and call prob_cdf_inverse(cdf, x) per random
- * draw to map a uniform x in [0, 1] to a term index.
- *
- * Implementation notes:
- *   - prob_cdf_from_array_strided is a two-pass
- *     normalisation; lambda (the L1 norm) is exposed
- *     to callers via the `out_lambda` parameter.
- *   - prob_cdf_inverse uses a hybrid binary/linear
- *     walk; bench/b-prob compares it against a
- *     textbook upper_bound and the hybrid wins by
- *     ~20% at the typical n in [100, 1000].
- *
- * No dependencies beyond libc.
+ * Discrete CDF over possibly-negative weighted
+ * samples.  Two-pass normalisation:
+ * prob_cdf_from_array_strided fills cdf->y with the
+ * running sum of |w[i]| / lambda.  prob_cdf_inverse
+ * is a hybrid binary/linear walk -- ~20% faster than
+ * a textbook upper_bound at n in [100, 1000].
  */
 
 #include <float.h>
@@ -50,20 +36,6 @@ void prob_cdf_free(struct prob_cdf *cdf)
 	cdf->len = 0;
 }
 
-/*
- * prob_cdf_from_array_strided - build a CDF from
- * cdf->len possibly-negative weights at `stride`-byte
- * intervals from `base`.
- *
- * Two-pass construction:
- *  1. Accumulate |w[i]| into cdf->y[i] and sum into lambda.
- *  2. Normalise each entry by lambda and compute the
- *     running sum to form the CDF: y[i] = sum_{k<=i} p(k).
- *
- * Returns -1 if lambda < DBL_EPSILON (all weights
- * negligible).  Writes lambda through `out_lambda` on
- * success when non-NULL.
- */
 int prob_cdf_from_array_strided(struct prob_cdf *cdf,
 	const double *base, size_t stride, double *out_lambda)
 {
@@ -89,24 +61,9 @@ int prob_cdf_from_array_strided(struct prob_cdf *cdf,
 	return 0;
 }
 
-/*
- * prob_cdf_inverse - inverse-CDF lookup (sampler
- * convention).
- *
- * Returns the smallest index i such that cdf->y[i] > y,
- * or cdf->len - 1 when no such index exists.  For a
- * uniform draw y in [0, 1] this samples index i with
- * probability f(i) = F(i) - F(i-1).
- *
- * Hybrid binary/linear walk: the binary phase halves
- * `d` and advances `i` only when y[i+d] <= y, converging
- * to the neighbourhood of the answer in O(log n).  The
- * linear tail mops up the few entries left over when
- * cdf->len is not a power of two.  Faster than a
- * textbook upper_bound binary search at typical sizes
- * (n in the hundreds) because each iteration carries
- * less arithmetic.
- */
+/* Binary phase halves d and advances i only when
+ * y[i+d] <= y; linear tail handles non-power-of-2
+ * cdf->len. */
 size_t prob_cdf_inverse(const struct prob_cdf *cdf, const double y)
 {
 	size_t i = 0, d = cdf->len;

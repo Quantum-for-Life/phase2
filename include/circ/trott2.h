@@ -27,22 +27,17 @@ struct trott2 {
 	struct phase2_step_writer *sw;
 };
 
-/* Adopt the pre-loaded Hamiltonian + state-prep into a
- * fresh trott2 context.  Ownership of `hm` and `*sp_data`
- * transfers (see circ_init).  `sw` is held by reference;
- * its lifetime must outlive trott2_simul.  Returns 0 on
- * success, -1 on error. */
+/* Adopt hm and *sp_data (ownership transfers, see
+ * circ_init); sw is held by reference, must outlive
+ * trott2_simul.  Returns 0 or -1. */
 int trott2_init(struct trott2 *t2, const struct trott2_data *dt,
 	struct circ_hamil hm, enum stprep_kind sp_kind,
 	const void *sp_data, struct phase2_step_writer *sw);
 
-/* Release all resources held by `t2`. */
 void trott2_free(struct trott2 *t2);
 
-/* Run `dt.steps` Strang steps.  Each step's overlap is
- * stored in `ct.vals` for in-memory use and, when
- * `t2->sw` is non-NULL, also forwarded through the step
- * writer.  Returns 0 on success, -1 on error. */
+/* Run dt.steps Strang steps; overlap per step into
+ * ct.vals and, if non-NULL, t2->sw.  Returns 0 or -1. */
 int trott2_simul(struct trott2 *t2);
 
 #endif // TROTT2_H
