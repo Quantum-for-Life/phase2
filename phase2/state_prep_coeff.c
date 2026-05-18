@@ -267,6 +267,8 @@ int state_prep_coeff_expand_all(struct qreg *reg,
 		cm->n_sites, cm->n_alpha, cm->n_beta, cm->closed_shell,
 		cm->tapered, cm->n_components);
 
+	qreg_zero(reg);
+
 	if (cm->n_components == 0) {
 		if (state_prep_coeff_expand(reg, sc, cm->C_alpha,
 			    cm->closed_shell ? NULL : cm->C_beta, 1.0,
@@ -277,7 +279,6 @@ int state_prep_coeff_expand_all(struct qreg *reg,
 		return 0;
 	}
 
-	qreg_zero(reg);
 	for (size_t k = 0; k < cm->n_components; k++) {
 		const struct data_coeff_block *b = &cm->blocks[k];
 		log_trace("expand_all: block %zu/%zu cf=%.6f", k + 1,

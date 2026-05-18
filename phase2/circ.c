@@ -214,16 +214,17 @@ void circ_free(struct circ *ct)
 
 int circ_prepst(struct circ *ct)
 {
-	qreg_zero(&ct->reg);
-
 	switch (ct->stprep_kind) {
 	case STPREP_MULTIDET: {
+		qreg_zero(&ct->reg);
 		const struct circ_muldet *md = &ct->md;
 		for (size_t i = 0; i < md->len; i++)
 			qreg_setamp(&ct->reg, md->dets[i].idx, md->dets[i].cf);
 		return 0;
 	}
 	case STPREP_COEFF_MATRIX:
+		/* state_prep_coeff_expand_all zeros the register
+		 * internally; no separate qreg_zero needed here. */
 		return state_prep_coeff_expand_all(&ct->reg,
 			&ct->sp_scratch, &ct->cm);
 	}
