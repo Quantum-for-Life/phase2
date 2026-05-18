@@ -15,6 +15,12 @@
 
 #include "qreg.h"
 
+/* Per-MPI-message element count cap.  Each cdouble
+ * is sent as 2 * MPI_DOUBLE; MPI_Isend's `count`
+ * is int, so 2 * MAX_COUNT must fit in int.  At
+ * 2^29 cdoubles (= 8 GiB / send) the per-chunk MPI
+ * overhead is negligible and the doubles count
+ * 2^30 fits the int boundary with headroom. */
 #define MAX_COUNT (1 << 29)
 
 uint64_t qreg_getilo(const struct qreg *reg, uint64_t i)
