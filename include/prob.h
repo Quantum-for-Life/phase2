@@ -1,6 +1,24 @@
 #ifndef PROB_H
 #define PROB_H
 
+/*
+ * Discrete CDF builder and inverse-sampler over
+ * possibly-negative weighted samples.
+ *
+ * Two operations:
+ *   - build:  normalise |w[i]| over n samples into
+ *             a cumulative distribution F(i).
+ *   - lookup: given y in [0, 1], return the index
+ *             sampled with probability f(i) =
+ *             F(i) - F(i-1).  Sampler convention
+ *             (smallest i with F(i) > y, clamped).
+ *
+ * No thread-safety guarantees: each struct prob_cdf
+ * is owned by one writer at a time; concurrent
+ * readers of an unchanging CDF are fine.  Used by
+ * the qDRIFT-family samplers in circ/.
+ */
+
 #include <stddef.h>
 
 struct prob_cdf {
@@ -8,12 +26,17 @@ struct prob_cdf {
 	size_t len;
 };
 
-/* Allocate the CDF buffer.  `len` must be greater than 0;
- * returns -1 if it is 0 or the allocation fails, else 0. */
+/* Allocate cdf->y for `len` entries and record the
+ * length.  Returns -1 if `len == 0` or the malloc
+ * fails (the `len == 0` rejection is an enforced
+ * contract -- the rest of the API assumes len > 0),
+ * 0 on success.  The buffer is uninitialised; call
+ * prob_cdf_from_array_strided to fill it. */
 int prob_cdf_init(struct prob_cdf *cdf, size_t len);
 
-/* Release the buffer and zero `y` + `len` so a second
- * free is a clean no-op. */
+/* Release the buffer and zero cdf->y + cdf->len so
+ * a second free is a clean no-op.  Safe to call on
+ * a default-zero struct prob_cdf. */
 void prob_cdf_free(struct prob_cdf *cdf);
 
 /*

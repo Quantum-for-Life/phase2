@@ -1,3 +1,26 @@
+/*
+ * lib/prob.c -- discrete CDF builder and
+ * inverse-sampler.  See include/prob.h for the public
+ * API and contract.
+ *
+ * The module is used by the qDRIFT (circ/qdrift.c)
+ * and composite (circ/cmpsit.c) samplers; both build
+ * a CDF over the Hamiltonian's |c_k| weights at init
+ * time and call prob_cdf_inverse(cdf, x) per random
+ * draw to map a uniform x in [0, 1] to a term index.
+ *
+ * Implementation notes:
+ *   - prob_cdf_from_array_strided is a two-pass
+ *     normalisation; lambda (the L1 norm) is exposed
+ *     to callers via the `out_lambda` parameter.
+ *   - prob_cdf_inverse uses a hybrid binary/linear
+ *     walk; bench/b-prob compares it against a
+ *     textbook upper_bound and the hybrid wins by
+ *     ~20% at the typical n in [100, 1000].
+ *
+ * No dependencies beyond libc.
+ */
+
 #include <float.h>
 #include <math.h>
 #include <stddef.h>
