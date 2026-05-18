@@ -180,17 +180,26 @@ err_tb:
 	return rt;
 }
 
-_Complex double state_prep_coeff_inner(struct qreg *reg,
+int state_prep_coeff_inner(struct qreg *reg,
 	const uint32_t n_sites, const uint32_t n_alpha, const uint32_t n_beta,
 	const double *C_alpha, const double *C_beta, const double weight,
-	const int tapered)
+	const int tapered, _Complex double *out)
 {
-	if (n_alpha > n_sites || n_beta > n_sites)
-		return 0.0;
-	if (n_alpha > DET_SMALL_MAX_N || n_beta > DET_SMALL_MAX_N)
-		return 0.0;
-	if (n_alpha > COMBINATIONS_MAX_K || n_beta > COMBINATIONS_MAX_K)
-		return 0.0;
+	if (n_alpha > n_sites || n_beta > n_sites) {
+		log_error("inner: n_alpha=%u n_beta=%u > n_sites=%u",
+			n_alpha, n_beta, n_sites);
+		return -1;
+	}
+	if (n_alpha > DET_SMALL_MAX_N || n_beta > DET_SMALL_MAX_N) {
+		log_error("inner: n_alpha=%u or n_beta=%u > DET_SMALL_MAX_N=%d",
+			n_alpha, n_beta, DET_SMALL_MAX_N);
+		return -1;
+	}
+	if (n_alpha > COMBINATIONS_MAX_K || n_beta > COMBINATIONS_MAX_K) {
+		log_error("inner: n_alpha=%u or n_beta=%u > COMBINATIONS_MAX_K=%d",
+			n_alpha, n_beta, COMBINATIONS_MAX_K);
+		return -1;
+	}
 
 	const double *Cb = C_beta ? C_beta : C_alpha;
 	const size_t Ma = (size_t)binomial(n_sites, n_alpha);
@@ -198,25 +207,36 @@ _Complex double state_prep_coeff_inner(struct qreg *reg,
 	const uint32_t ka = n_alpha ? n_alpha : 1;
 	const uint32_t kb = n_beta ? n_beta : 1;
 
+	int rt = -1;
+
 	uint32_t *tup_a = malloc(sizeof(uint32_t) * Ma * ka);
-	uint32_t *tup_b = malloc(sizeof(uint32_t) * Mb * kb);
-	double *det_a = malloc(sizeof(double) * Ma);
-	double *det_b = malloc(sizeof(double) * Mb);
-	if (!tup_a || !tup_b || !det_a || !det_b) {
-		free(tup_a);
-		free(tup_b);
-		free(det_a);
-		free(det_b);
-		return 0.0;
+	if (!tup_a) {
+		log_error("inner: alloc tup_a");
+		return -1;
 	}
-	if (precompute_dets(n_sites, n_alpha, C_alpha, tup_a, det_a, Ma) < 0
-		|| precompute_dets(n_sites, n_beta, Cb, tup_b, det_b, Mb)
-			< 0) {
-		free(tup_a);
-		free(tup_b);
-		free(det_a);
-		free(det_b);
-		return 0.0;
+	uint32_t *tup_b = malloc(sizeof(uint32_t) * Mb * kb);
+	if (!tup_b) {
+		log_error("inner: alloc tup_b");
+		goto err_tb;
+	}
+	double *det_a = malloc(sizeof(double) * Ma);
+	if (!det_a) {
+		log_error("inner: alloc det_a");
+		goto err_da;
+	}
+	double *det_b = malloc(sizeof(double) * Mb);
+	if (!det_b) {
+		log_error("inner: alloc det_b");
+		goto err_db;
+	}
+
+	if (precompute_dets(n_sites, n_alpha, C_alpha, tup_a, det_a, Ma) < 0) {
+		log_error("inner: precompute_dets alpha");
+		goto err_pre;
+	}
+	if (precompute_dets(n_sites, n_beta, Cb, tup_b, det_b, Mb) < 0) {
+		log_error("inner: precompute_dets beta");
+		goto err_pre;
 	}
 
 	const int my_rank = reg->wd.rank;
@@ -247,13 +267,17 @@ _Complex double state_prep_coeff_inner(struct qreg *reg,
 	double partial[2] = { acc_r, acc_i };
 	double total[2] = { 0.0, 0.0 };
 	MPI_Allreduce(partial, total, 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-	free(tup_a);
-	free(tup_b);
-	free(det_a);
+	*out = CMPLX(total[0], total[1]);
+	rt = 0;
+err_pre:
 	free(det_b);
-
-	return CMPLX(total[0], total[1]);
+err_db:
+	free(det_a);
+err_da:
+	free(tup_b);
+err_tb:
+	free(tup_a);
+	return rt;
 }
 
 int state_prep_coeff_expand_all(

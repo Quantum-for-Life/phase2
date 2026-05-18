@@ -53,22 +53,23 @@ int state_prep_coeff_expand_all(
 	struct qreg *reg, const struct data_coeff_matrix *cm);
 
 /*
- * Inner product <trial | reg> over the coefficient-matrix trial
- * state described by (n_sites, n_alpha, n_beta, C_alpha, C_beta,
- * weight, tapered).
+ * Inner product <trial | reg> over the coefficient-matrix
+ * trial state described by (n_sites, n_alpha, n_beta,
+ * C_alpha, C_beta, weight, tapered).  Writes the result to
+ * `*out` on every rank; returns 0 on success, -1 on error
+ * (bad sizes; allocation failure).
  *
  * Walks the same outer product used at expand time, sums
  * weight * conj(C-amplitude(idx)) * reg->amp[idx] over the
- * amplitudes owned by this rank, and MPI_Allreduces the
- * partial sum.  Returns the inner product on all ranks.
- *
- * The trial state is taken to be real (C is real), so the
- * conjugation is purely on the register amplitudes.  The
- * weight argument supports the CSF superposition: a CSF inner
- * product is the weighted sum over blocks.
+ * amplitudes owned by this rank, then MPI_Allreduces the
+ * partial sum.  The trial state is taken to be real
+ * (C is real), so conjugation is purely on the register
+ * amplitudes.  Weight supports the CSF superposition: a
+ * CSF inner product is the weighted sum over blocks.
  */
-_Complex double state_prep_coeff_inner(struct qreg *reg, uint32_t n_sites,
+int state_prep_coeff_inner(struct qreg *reg, uint32_t n_sites,
 	uint32_t n_alpha, uint32_t n_beta, const double *C_alpha,
-	const double *C_beta, double weight, int tapered);
+	const double *C_beta, double weight, int tapered,
+	_Complex double *out);
 
 #endif /* PHASE2_STATE_PREP_COEFF_H */

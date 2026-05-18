@@ -294,8 +294,11 @@ static _Complex double measure_coeff_block(struct qreg *reg,
 	const double *C_alpha, const double *C_beta, double weight,
 	int tapered)
 {
-	return state_prep_coeff_inner(reg, n_sites, n_alpha, n_beta, C_alpha,
-		C_beta, weight, tapered);
+	_Complex double z = 0.0;
+	if (state_prep_coeff_inner(reg, n_sites, n_alpha, n_beta,
+		    C_alpha, C_beta, weight, tapered, &z) < 0)
+		return 0.0;
+	return z;
 }
 
 static _Complex double measure_coeff(struct circ *ct)
