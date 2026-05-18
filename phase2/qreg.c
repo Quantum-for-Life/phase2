@@ -118,3 +118,25 @@ void qreg_free(struct qreg *reg)
 	if (reg->reqs_snd != nullptr)
 		free(reg->reqs_snd);
 }
+
+/* Resolve partner rank from code_hi, post the exchange,
+ * compute the phase bm carried from the partner, wait. */
+static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi,
+	_Complex double *bm)
+{
+	paulis_shr(&code_hi, reg->qb_lo);
+	const uint64_t rnk_rem = paulis_effect(code_hi, reg->wd.rank, nullptr);
+
+	qreg_backend_exch_init(reg, rnk_rem);
+	paulis_effect(code_hi, rnk_rem, bm);
+	qreg_backend_exch_waitall(reg);
+}
+
+void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
+	const struct paulis *codes_lo, const double *phis,
+	const size_t ncodes)
+{
+	_Complex double bm = 1.0;
+	qreg_paulirot_hi(reg, code_hi, &bm);
+	qreg_backend_paulirot_lo(reg, codes_lo, phis, ncodes, bm);
+}

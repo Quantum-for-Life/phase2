@@ -14,8 +14,8 @@ struct qreg_cuda {
 	cuDoubleComplex *damp, *dbuf;
 };
 
-void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
-	const double *angles, const size_t ncodes, _Complex double buf_mul);
+/* qreg_backend_paulirot_lo lives in qreg_cuda_lo.cu;
+ * declared in phase2/qreg.h for backend-neutral dispatch. */
 
 #ifdef __cplusplus
 }

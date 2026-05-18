@@ -98,7 +98,7 @@ void qreg_zero(struct qreg *reg)
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
-static void exch_init(struct qreg *reg, const int rnk_rem)
+void qreg_backend_exch_init(struct qreg *reg, const int rnk_rem)
 {
 	struct qreg_cuda *cu = reg->backend;
 
@@ -114,33 +114,11 @@ static void exch_init(struct qreg *reg, const int rnk_rem)
 	}
 }
 
-static void exch_waitall(struct qreg *reg)
+void qreg_backend_exch_waitall(struct qreg *reg)
 {
 	const int nr = reg->nreqs;
 
 	MPI_Waitall(nr, reg->reqs_snd, MPI_STATUSES_IGNORE);
 	MPI_Waitall(nr, reg->reqs_rcv, MPI_STATUSES_IGNORE);
 	cudaDeviceSynchronize();
-}
-
-static void qreg_paulirot_hi(struct qreg *reg, struct paulis code_hi, c64 *bm)
-{
-	paulis_shr(&code_hi, reg->qb_lo);
-	const uint64_t rnk_rem = paulis_effect(code_hi, reg->wd.rank, nullptr);
-
-	exch_init(reg, rnk_rem);
-	paulis_effect(code_hi, rnk_rem, bm);
-	exch_waitall(reg);
-}
-
-/* Defined in qreg_cuda_lo.cu */
-void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
-	const double *angles, const size_t ncodes, c64 bm);
-
-void qreg_paulirot(struct qreg *reg, const struct paulis code_hi,
-	const struct paulis *codes_lo, const double *phis, const size_t ncodes)
-{
-	c64 bm = 1.0;
-	qreg_paulirot_hi(reg, code_hi, &bm);
-	qreg_paulirot_lo(reg, codes_lo, phis, ncodes, bm);
 }

@@ -107,8 +107,9 @@ __global__ void kernelAdd(cuDoubleComplex *__restrict__ a,
  * rotations complete before kernelAdd.  No explicit
  * synchronisation is needed between launches.
  */
-void qreg_paulirot_lo(struct qreg *reg, const struct paulis *codes_lo,
-	const double *angles, const size_t ncodes, double _Complex bm)
+void qreg_backend_paulirot_lo(struct qreg *reg,
+	const struct paulis *codes_lo, const double *angles,
+	const size_t ncodes, double _Complex bm)
 {
 	const size_t blocks = (reg->namp + threadPerBlock - 1) / threadPerBlock;
 	const struct qreg_cuda *cu = (const struct qreg_cuda *)reg->backend;
