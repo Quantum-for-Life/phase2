@@ -32,7 +32,6 @@ int qreg_backend_init(struct qreg *reg)
 
 	return 0;
 
-	cudaFree(dbuf);
 err_cuda_malloc_dbuf:
 	cudaFree(damp);
 err_cuda_malloc_damp:
