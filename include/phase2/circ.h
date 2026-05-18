@@ -174,6 +174,7 @@ struct circ {
 	struct qreg reg;
 	enum stprep_kind stprep_kind;
 	struct data_coeff_matrix cm;
+	struct state_prep_coeff_scratch sp_scratch;
 };
 
 
