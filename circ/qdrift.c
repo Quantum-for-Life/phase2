@@ -50,6 +50,20 @@
 
 static uint64_t SEED = UINT64_C(0xeccd9dcc749fcdca);
 
+/*
+ * ranct_init -- allocate the importance-sampling
+ * scratch.  Two sibling buffers:
+ *
+ *   - cdf:    cdf_len entries (one per Hamiltonian
+ *             term), filled by ranct_calc_cdf.
+ *   - hm_ran: `depth` term slots overwritten by
+ *             ranct_sample each draw, then handed to
+ *             circ_step as the rotation list.
+ *
+ * Returns 0 on success, -1 if either allocation
+ * fails.  Caller owns the cleanup pair via
+ * ranct_free.
+ */
 static int ranct_init(struct qdrift_ranct *rct, const uint32_t qb,
 	const size_t depth, const size_t cdf_len)
 {
@@ -61,12 +75,19 @@ static int ranct_init(struct qdrift_ranct *rct, const uint32_t qb,
 	return 0;
 }
 
+/* Release both buffers allocated by ranct_init. */
 static void ranct_free(struct qdrift_ranct *rct)
 {
 	circ_hamil_free(&rct->hm_ran);
 	prob_cdf_free(&rct->cdf);
 }
 
+/*
+ * Fill rct->cdf with the normalised |c_k| probability
+ * distribution over the Hamiltonian terms.  Lambda
+ * (the L1 norm) is discarded -- qDRIFT folds it into
+ * the sampling step at draw time.
+ */
 static void ranct_calc_cdf(
 	struct qdrift_ranct *rct, struct circ_hamil_term *terms)
 {
@@ -110,6 +131,14 @@ void qdrift_free(struct qdrift *qd)
 	circ_free(&qd->ct);
 }
 
+/*
+ * Draw one qDRIFT sample: fill hm_ran with `depth`
+ * Pauli operators sampled i.i.d. from the |c_k|
+ * distribution, each carrying signof(c_k) as its
+ * unit-magnitude coefficient.  The rotation angle
+ * itself is folded in by circ_step at call time
+ * (asin(step_size)).
+ */
 static void ranct_sample(struct qdrift *qd)
 {
 	for (size_t i = 0; i < qd->ranct.hm_ran.len; i++) {

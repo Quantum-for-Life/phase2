@@ -60,7 +60,9 @@ static uint64_t SEED = UINT64_C(0xafb424901446f21f);
 #endif
 
 /*
- * Sort the Hamiltonian by absolute val of coefficients, in descending order.
+ * qsort comparator: order struct circ_hamil_term by
+ * |cf| in descending order.  Used at split time so the
+ * top `length` entries become the deterministic pool.
  */
 static int hamil_term_cmp_abscf_desc(const void *a, const void *b)
 {

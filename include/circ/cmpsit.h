@@ -53,12 +53,28 @@ struct cmpsit {
 	struct phase2_step_writer *sw;
 };
 
+/* Adopt the Hamiltonian + state-prep into a fresh
+ * cmpsit context, split the Hamiltonian into
+ * deterministic (top `dt->length` by |c_k|) and
+ * randomised parts, build the importance-sampling CDF
+ * on the randomised pool, and seed the per-context
+ * PRNG from `dt->seed`.  Ownership of `hm` and
+ * `*sp_data` transfers (see circ_init).  `sw` is held
+ * by reference; its lifetime must outlive
+ * cmpsit_simul.  Returns 0 on success, -1 on error. */
 int cmpsit_init(struct cmpsit *cp, const struct cmpsit_data *dt,
 	struct circ_hamil hm, enum stprep_kind sp_kind, const void *sp_data,
 	struct phase2_step_writer *sw);
 
+/* Release all resources held by `cp`. */
 void cmpsit_free(struct cmpsit *cp);
 
+/* Run `dt.samples` independent composite samples; each
+ * sample applies `dt.steps` symmetric Trotter steps
+ * over the deterministic + randomised pools.  Per-
+ * sample overlap is stored in `ct.vals` and forwarded
+ * through `cp->sw` when non-NULL.  Returns 0 on
+ * success, -1 on error. */
 int cmpsit_simul(struct cmpsit *cp);
 
 #endif // CMPSIT_H

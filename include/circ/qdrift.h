@@ -45,12 +45,24 @@ struct qdrift {
 	struct phase2_step_writer *sw;
 };
 
+/* Adopt the Hamiltonian + state-prep into a fresh
+ * qdrift context, build the importance-sampling CDF
+ * from |c_k|, and seed the per-context PRNG from
+ * `dt->seed`.  Ownership of `hm` and `*sp_data`
+ * transfers (see circ_init).  `sw` is held by
+ * reference; its lifetime must outlive qdrift_simul.
+ * Returns 0 on success, -1 on error. */
 int qdrift_init(struct qdrift *qd, const struct qdrift_data *dt,
 	struct circ_hamil hm, enum stprep_kind sp_kind, const void *sp_data,
 	struct phase2_step_writer *sw);
 
+/* Release all resources held by `qd`. */
 void qdrift_free(struct qdrift *qd);
 
+/* Run `dt.samples` independent qDRIFT samples.  Each
+ * sample's overlap is stored in `ct.vals` and, when
+ * `qd->sw` is non-NULL, forwarded through the step
+ * writer.  Returns 0 on success, -1 on error. */
 int qdrift_simul(struct qdrift *qd);
 
 #endif // QDRIFT_H
