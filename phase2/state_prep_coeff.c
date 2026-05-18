@@ -26,8 +26,12 @@
 
 #include "qreg.h"
 
+/* Coefficient magnitudes below this are skipped at
+ * expand / inner time (sparsity prune). */
 #define SPARSITY_PRUNE (1.0e-12)
 
+/* Pack alpha occupations into the low n_sites bits and
+ * beta occupations into the next n_sites bits. */
 static inline uint64_t occ_pair_to_idx(const uint32_t *occ_a,
 	const uint32_t na, const uint32_t *occ_b, const uint32_t nb,
 	const uint32_t n_sites)
@@ -40,6 +44,9 @@ static inline uint64_t occ_pair_to_idx(const uint32_t *occ_a,
 	return idx;
 }
 
+/* Tapered-state index transform: drop bit 0 (the alpha
+ * symmetry generator) and bit n_sites (the beta one),
+ * compacting the remaining bits into 2*(n_sites-1). */
 static inline uint64_t drop_two_bits(const uint64_t idx, const uint32_t n_sites)
 {
 	const uint64_t lo = (idx >> 1) & ((UINT64_C(1) << (n_sites - 1)) - 1);
@@ -47,6 +54,7 @@ static inline uint64_t drop_two_bits(const uint64_t idx, const uint32_t n_sites)
 	return lo | (hi << (n_sites - 1));
 }
 
+/* C(n, k); 0 when k > n. */
 static uint64_t binomial(const uint32_t n, const uint32_t k)
 {
 	if (k > n)
