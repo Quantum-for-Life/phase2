@@ -16,6 +16,7 @@
 
 #include "phase2/paulis.h"
 #include "phase2/qreg.h"
+#include "qreg.h"
 #include "qreg_cuda.h"
 
 constexpr size_t threadPerBlock = 512;
