@@ -228,6 +228,13 @@ int state_prep_coeff_inner(struct qreg *reg,
 {
 	const double *Cb = C_beta ? C_beta : C_alpha;
 
+	/* On the CUDA backend the canonical state lives in
+	 * cu->damp; reg->amp may be stale after any kernel
+	 * run (circuit evolution, paulirot, etc.).  Pull the
+	 * device slab back to the host before reading.  CPU
+	 * backend: no-op + barrier. */
+	qreg_sync_device_to_host(reg);
+
 	compute_dets(sc->n_alpha, sc->tup_a, C_alpha, sc->det_a, sc->Ma);
 	compute_dets(sc->n_beta, sc->tup_b, Cb, sc->det_b, sc->Mb);
 
@@ -277,6 +284,15 @@ int state_prep_coeff_expand_all(struct qreg *reg,
 
 	qreg_zero(reg);
 
+	/* qreg_zero clears the canonical state (reg->amp on
+	 * CPU, cu->damp on CUDA).  state_prep_coeff_expand
+	 * accumulates into reg->amp directly for
+	 * performance, so the host buffer must also start
+	 * from a known-zero state on the CUDA backend (where
+	 * qreg_zero touches the device buffer only). */
+	memset(reg->amp, 0,
+		reg->namp * sizeof(_Complex double));
+
 	if (cm->n_components == 0) {
 		if (state_prep_coeff_expand(reg, sc, cm->C_alpha,
 			    cm->closed_shell ? NULL : cm->C_beta, 1.0,
@@ -284,6 +300,7 @@ int state_prep_coeff_expand_all(struct qreg *reg,
 			log_error("expand_all: single-block expand failed");
 			return -1;
 		}
+		qreg_sync_host_to_device(reg);
 		return 0;
 	}
 
@@ -298,5 +315,11 @@ int state_prep_coeff_expand_all(struct qreg *reg,
 			return -1;
 		}
 	}
+
+	/* Push the fully-accumulated host buffer to the
+	 * canonical state.  One bulk transfer per pak;
+	 * preserves the tight host-side accumulation loop's
+	 * performance. */
+	qreg_sync_host_to_device(reg);
 	return 0;
 }

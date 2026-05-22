@@ -360,9 +360,56 @@ Both backends implement the same internal interface:
 - `qreg_paulirot(reg, code_hi, codes_lo, phis, ncodes)`:
   apply a batch of Pauli rotations sharing the same
   hi-part.
+- `qreg_sync_host_to_device(reg)` /
+  `qreg_sync_device_to_host(reg)`: bulk host-shadow
+  round-trip; see "Host/device sync" below.
 
 The backend is selected at build time via `make
 BACKEND=qreg` (default) or `make BACKEND=cuda`.
+
+#### Host/device sync invariant
+
+Callers that build or read a large fraction of the
+register in a tight host-side loop -- e.g.
+`state_prep_coeff_expand_all` walking a Slater-Condon
+expansion of millions of determinants, or
+`state_prep_coeff_inner` reading them back to compute an
+inner product -- amortise the backend round-trip with
+**one bulk transfer** instead of one
+`qreg_setamp` / `qreg_getamp` per amplitude.  The pattern:
+
+1. After `qreg_zero(reg)`, the canonical state is empty
+   on the backend's preferred buffer (CPU: `reg->amp`;
+   CUDA: `cu->damp`).  On CUDA, callers that will write
+   directly to `reg->amp` must also `memset(reg->amp,
+   0, ...)` first -- `qreg_zero` does not touch the
+   host shadow.
+
+2. Build (or accumulate into) `reg->amp` directly in
+   the hot loop.  No barriers, no per-amplitude device
+   transfers.
+
+3. Call `qreg_sync_host_to_device(reg)` once after the
+   loop.  CPU backend: barrier (`reg->amp` IS the
+   canonical state, no transfer needed).  CUDA backend:
+   one `cudaMemcpy` of the full rank-local slab from
+   `reg->amp` to `cu->damp` + sync + barrier.  Cost is
+   PCIe-bandwidth-bound, independent of amplitude or
+   rank count.
+
+4. Symmetric `qreg_sync_device_to_host(reg)` at the top
+   of any host-side reader (e.g.
+   `state_prep_coeff_inner`) that runs after on-device
+   evolution; otherwise the host shadow is stale.
+
+A backend-coverage regression test
+(`test/t-state_prep_coeff_sync.c`) gates the invariant
+on both backends: an
+expand-all-then-`qreg_getamp` check + an
+expand-then-`qreg_paulirot`-then-`state_prep_coeff_inner`
+check that detects a missing device->host sync via the
+post-rotation inner product matching the pre-rotation
+value exactly.
 
 ---
 

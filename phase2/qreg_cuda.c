@@ -98,6 +98,44 @@ void qreg_zero(struct qreg *reg)
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
+/*
+ * Bulk host->device transfer.  The CUDA backend keeps
+ * the canonical state on the device (cu->damp); callers
+ * that build a state by writing reg->amp in a tight host
+ * loop (state_prep_coeff_expand and friends) must push
+ * the buffer to the device before any kernel runs.
+ *
+ * One cudaMemcpy per call, PCIe-bandwidth-bound: ~1 s
+ * per 32 GiB local slab.  No per-amplitude overhead.
+ */
+void qreg_sync_host_to_device(struct qreg *reg)
+{
+	struct qreg_cuda *cu = reg->backend;
+
+	cudaMemcpy(cu->damp, reg->amp,
+		reg->namp * sizeof(cuDoubleComplex),
+		cudaMemcpyHostToDevice);
+	cudaDeviceSynchronize();
+	MPI_Barrier(MPI_COMM_WORLD);
+}
+
+/*
+ * Bulk device->host transfer.  Symmetric companion of
+ * qreg_sync_host_to_device.  Required before any
+ * host-side bulk read (reg->amp[i]) of a state that may
+ * have evolved on the device since the last sync.
+ */
+void qreg_sync_device_to_host(struct qreg *reg)
+{
+	struct qreg_cuda *cu = reg->backend;
+
+	cudaMemcpy(reg->amp, cu->damp,
+		reg->namp * sizeof(cuDoubleComplex),
+		cudaMemcpyDeviceToHost);
+	cudaDeviceSynchronize();
+	MPI_Barrier(MPI_COMM_WORLD);
+}
+
 void qreg_backend_exch_init(struct qreg *reg, const int rnk_rem)
 {
 	struct qreg_cuda *cu = reg->backend;
