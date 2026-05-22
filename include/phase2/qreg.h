@@ -60,6 +60,23 @@ void qreg_setamp(struct qreg *reg, uint64_t i, _Complex double z);
 /* Zero every amplitude on every rank. */
 void qreg_zero(struct qreg *reg);
 
+/* Bulk transfer of the rank-local slab between the host
+ * shadow (reg->amp) and the backend-private canonical
+ * state buffer.  Required after host-side bulk
+ * accumulation (e.g. coeff-matrix state-prep loops that
+ * write reg->amp[] directly to avoid per-amplitude
+ * setamp overhead) and before host-side bulk read of a
+ * device-evolved state (e.g. inner-product loops).
+ *
+ * On the CPU backend reg->amp IS the canonical state;
+ * both functions are an MPI barrier.  On the CUDA
+ * backend the canonical state is the device buffer; the
+ * functions issue one cudaMemcpy of the full local slab
+ * and synchronise.  Cost: O(slab) PCIe per call,
+ * independent of amplitude or rank count. */
+void qreg_sync_host_to_device(struct qreg *reg);
+void qreg_sync_device_to_host(struct qreg *reg);
+
 /* Apply product of Pauli rotations sharing one hi-
  * qubit code: exp(i * phis[k] * code_hi (x) codes_lo[k])
  * for k = 0..ncodes-1.  One MPI exchange amortises

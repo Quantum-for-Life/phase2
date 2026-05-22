@@ -62,6 +62,24 @@ void qreg_zero(struct qreg *reg)
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
+/*
+ * Host/device sync on the CPU backend: reg->amp IS the
+ * canonical state, so the transfer is a no-op.  The
+ * barrier keeps the contract semantically identical to
+ * the CUDA backend's full host/device round-trip.
+ */
+void qreg_sync_host_to_device(struct qreg *reg)
+{
+	(void)reg;
+	MPI_Barrier(MPI_COMM_WORLD);
+}
+
+void qreg_sync_device_to_host(struct qreg *reg)
+{
+	(void)reg;
+	MPI_Barrier(MPI_COMM_WORLD);
+}
+
 void qreg_backend_exch_init(struct qreg *reg, const int rnk_rem)
 {
 	const int nr = reg->nreqs;
