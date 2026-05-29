@@ -5,7 +5,6 @@
 
 #define LOG_SUBSYS "world"
 #include "log.h"
-#include "xoshiro256ss.h"
 
 #include "phase2/world.h"
 
@@ -15,8 +14,6 @@ static struct world_info WORLD = {
 	.rank = 0,
 	.seed = UINT64_C(0x77dd8e60521fb661),
 };
-
-static struct xoshiro256ss rng;
 
 int world_backend_init(const struct world_info *wd);
 void world_backend_destroy(const struct world_info *wd);
@@ -46,12 +43,7 @@ int world_init(int *argc, char ***argv, uint64_t seed)
 
 	WORLD.size = sz;
 	WORLD.rank = rk;
-
 	WORLD.seed = seed;
-	xoshiro256ss_init(&rng, WORLD.seed);
-	/* Split the state for parrallel distributed computation. */
-	for (int i = 0; i < WORLD.rank; i++)
-		xoshiro256ss_longjump(&rng);
 
 	if (world_backend_init(&WORLD) < 0)
 		goto err;
