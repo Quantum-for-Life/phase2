@@ -1,3 +1,11 @@
+/*
+ * Process-lifecycle owner: MPI init / finalize, log
+ * init, backend init.  Holds the file-static
+ * WORLD singleton; callers read a snapshot via
+ * world_info.  Per-rank PRNG splitting is not done
+ * here -- algorithms manage their own PRNGs.
+ */
+
 #include "c23_compat.h"
 #include <stdlib.h>
 
@@ -5,7 +13,6 @@
 
 #define LOG_SUBSYS "world"
 #include "log.h"
-#include "xoshiro256ss.h"
 
 #include "phase2/world.h"
 
@@ -15,8 +22,6 @@ static struct world_info WORLD = {
 	.rank = 0,
 	.seed = UINT64_C(0x77dd8e60521fb661),
 };
-
-static struct xoshiro256ss rng;
 
 int world_backend_init(const struct world_info *wd);
 void world_backend_destroy(const struct world_info *wd);
@@ -46,12 +51,7 @@ int world_init(int *argc, char ***argv, uint64_t seed)
 
 	WORLD.size = sz;
 	WORLD.rank = rk;
-
 	WORLD.seed = seed;
-	xoshiro256ss_init(&rng, WORLD.seed);
-	/* Split the state for parrallel distributed computation. */
-	for (int i = 0; i < WORLD.rank; i++)
-		xoshiro256ss_longjump(&rng);
 
 	if (world_backend_init(&WORLD) < 0)
 		goto err;
@@ -69,11 +69,15 @@ err:
 
 int world_free(void)
 {
-	if (WORLD.stat == WORLD_READY) {
-		if (MPI_Finalize() == MPI_SUCCESS)
-			WORLD.stat = WORLD_DONE;
-		else
+	int mpi_init = 0;
+	MPI_Initialized(&mpi_init);
+	if (mpi_init) {
+		if (MPI_Finalize() == MPI_SUCCESS) {
+			if (WORLD.stat == WORLD_READY)
+				WORLD.stat = WORLD_DONE;
+		} else {
 			WORLD.stat = WORLD_ERR;
+		}
 	}
 
 	world_backend_destroy(&WORLD);

@@ -1,6 +1,17 @@
 #ifndef WORLD_H
 #define WORLD_H
 
+/*
+ * Process-lifecycle module.  world_init brings up
+ * MPI, the logging subsystem, and the
+ * backend-specific bits (CUDA device selection on
+ * the CUDA backend); world_free tears them down.
+ * Callers read a snapshot of the lifecycle state
+ * through world_info.
+ *
+ * The number of MPI ranks must be a power of two.
+ */
+
 #include <stdint.h>
 
 enum world_stat {

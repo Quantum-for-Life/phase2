@@ -1072,19 +1072,23 @@ struct world_info {
 int world_init(int *argc, char ***argv, uint64_t seed);
 ```
 
-Initialise the global simulation environment.  Must be
-called exactly once at the start of the program.
-Initialises MPI, the logging facility, and the PRNG.
+Initialise the global simulation environment.  Brings up
+MPI (if not already initialised), the logging facility,
+and the backend-specific bits (CUDA device selection on
+the CUDA backend).  Idempotent: a second call with MPI
+already up just refreshes the WORLD snapshot.
 
 **Parameters:**
 - `argc`, `argv`: pointers to command-line argument count
   and vector (forwarded to MPI_Init).  May be NULL.
-- `seed`: seed for the xoshiro256** PRNG.  Must not be
-  zero.  The PRNG state is deterministically split across
-  MPI ranks.
+- `seed`: stored in the world snapshot for downstream
+  consumers (algorithm-level PRNGs seed themselves; the
+  world does not).  Must not be zero.
 
 **Return value:** WORLD_READY on success, WORLD_ERR on
 failure.
+
+The number of MPI ranks must be a power of two.
 
 ---
 
@@ -1093,11 +1097,15 @@ int world_free(void);
 ```
 
 Destroy the global simulation environment.  Finalises MPI
-and the logging facility.  Must be called exactly once at
-the end of the program.
+(if it was initialised, regardless of whether
+`world_init` succeeded later steps) and the
+backend-specific bits.  Safe to call on a
+never-initialised world: returns WORLD_UNDEF in that
+case.
 
-**Return value:** WORLD_DONE on success, WORLD_ERR on
-failure.
+**Return value:** WORLD_DONE on a successful tear-down
+from WORLD_READY; WORLD_UNDEF if no world_init ever ran;
+WORLD_ERR on MPI_Finalize failure.
 
 ---
 
