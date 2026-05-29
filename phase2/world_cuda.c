@@ -1,3 +1,10 @@
+/*
+ * CUDA backend for world.  Picks one GPU per process
+ * via local-rank within an MPI_COMM_TYPE_SHARED
+ * subgroup.  Caller (world_init) wires this in via
+ * world_backend_init.
+ */
+
 #include "c23_compat.h"
 #include <stdlib.h>
 

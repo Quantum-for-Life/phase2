@@ -1,3 +1,11 @@
+/*
+ * Process-lifecycle owner: MPI init / finalize, log
+ * init, backend init.  Holds the file-static
+ * WORLD singleton; callers read a snapshot via
+ * world_info.  Per-rank PRNG splitting is not done
+ * here -- algorithms manage their own PRNGs.
+ */
+
 #include "c23_compat.h"
 #include <stdlib.h>
 
