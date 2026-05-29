@@ -61,11 +61,15 @@ err:
 
 int world_free(void)
 {
-	if (WORLD.stat == WORLD_READY) {
-		if (MPI_Finalize() == MPI_SUCCESS)
-			WORLD.stat = WORLD_DONE;
-		else
+	int mpi_init = 0;
+	MPI_Initialized(&mpi_init);
+	if (mpi_init) {
+		if (MPI_Finalize() == MPI_SUCCESS) {
+			if (WORLD.stat == WORLD_READY)
+				WORLD.stat = WORLD_DONE;
+		} else {
 			WORLD.stat = WORLD_ERR;
+		}
 	}
 
 	world_backend_destroy(&WORLD);
