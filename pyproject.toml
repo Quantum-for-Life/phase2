@@ -14,6 +14,11 @@ where = ["python"]
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
+# Analysis scripts for the examples/simul pipelines.
+examples = ["h5py>=3", "numpy>=1.23", "scipy>=1.10"]
+# Input preparation: FCIDUMP -> Jordan-Wigner Pauli Hamiltonian.
+# Only needed to regenerate examples/data/hamil.h5 (make regen).
+prep = ["h5py>=3", "numpy>=1.23", "qiskit-nature>=0.7", "pyscf>=2.3"]
 
 [tool.pytest.ini_options]
 testpaths = ["python/tests"]
