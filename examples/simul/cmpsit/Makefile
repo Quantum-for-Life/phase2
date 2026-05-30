@@ -34,7 +34,7 @@ PHASE2_LOG	?= info
 
 PARSE_FCIDUMP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
 PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
-CMPSIT_RPE	= $(PYTHON) $(SCRIPTS)/cmpsit_rpe.py
+ENERGY_MC	= $(PYTHON) $(SCRIPTS)/energy_mc.py --group circ_cmpsit
 
 PH2RUN_FLAGS	= --simul=$(SIMUL_H5) cmpsit		\
 			--length=$(LENGTH) --depth=$(DEPTH)	\
@@ -53,8 +53,9 @@ $(SIMUL_H5): $(HAMIL_H5)
 	$(MPIRUN) -n $(MPI_RANKS) -x PHASE2_LOG=$(PHASE2_LOG)	\
 		$(PH2RUN) $(PH2RUN_FLAGS)
 
+# Ground-state energy (CSV: E0, E0 + offset, in Hartree).
 $(SIMUL_PROC): $(SIMUL_H5)
-	$(CMPSIT_RPE) $(SIMUL_H5) | tee $@
+	$(ENERGY_MC) $(SIMUL_H5) | tee $@
 
 run: $(SIMUL_H5)
 analyze: $(SIMUL_PROC)

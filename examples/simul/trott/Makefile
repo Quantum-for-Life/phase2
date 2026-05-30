@@ -1,10 +1,12 @@
 # -----------------------------------------------------------------------------
 # 1st-order Trotter: prepare simul.h5, run ph2run, estimate the
-# ground-state energy by robust phase estimation (trott_rpe.py).
+# ground-state energy from the FFT of the overlap time series
+# (energy_fft.py).  The default step count resolves the ground-state
+# line onto an FFT bin; lower it for a quick, coarser run.
 #
 # Simulation parameters (override on the command line):
 DELTA		?= 0.1
-TROTT_STEPS	?= 1024
+TROTT_STEPS	?= 4096
 MPI_RANKS	?= 2
 # -----------------------------------------------------------------------------
 
@@ -25,7 +27,7 @@ PHASE2_LOG	?= info
 
 PARSE_FCIDUMP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
 PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
-TROTT_RPE	= $(PYTHON) $(SCRIPTS)/trott_rpe.py
+ENERGY_FFT	= $(PYTHON) $(SCRIPTS)/energy_fft.py --group circ_trott
 
 PH2RUN_FLAGS	= --simul=$(SIMUL_H5) trott		\
 			--delta=$(DELTA) --steps=$(TROTT_STEPS)
@@ -42,9 +44,9 @@ $(SIMUL_H5): $(HAMIL_H5)
 	$(MPIRUN) -n $(MPI_RANKS) -x PHASE2_LOG=$(PHASE2_LOG)	\
 		$(PH2RUN) $(PH2RUN_FLAGS)
 
-# Energy estimate (CSV: E0, E0 + offset).
+# Ground-state energy (dominant FFT peak, in Hartree).
 $(SIMUL_PROC): $(SIMUL_H5)
-	$(TROTT_RPE) $(SIMUL_H5) | tee $@
+	$(ENERGY_FFT) $(SIMUL_H5) | tee $@
 
 run: $(SIMUL_H5)
 analyze: $(SIMUL_PROC)

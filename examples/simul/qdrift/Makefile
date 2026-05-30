@@ -1,15 +1,18 @@
 # -----------------------------------------------------------------------------
-# qDRIFT randomised product formula with robust phase estimation.
+# qDRIFT randomised product formula: prepare simul.h5, run ph2run,
+# estimate the ground-state energy from the averaged sample overlap
+# (energy_mc.py).  One run at fixed step size and depth; the analysis
+# averages over SAMPLES independent draws.
 #
-# RPE drives a sweep of J+1 runs at a fixed step size x = 2^-J and
-# doubling depth (2^J, 2^(J+1), ..., 2^(2J)), where
-# J = ceil(log2(DELTA / EPSILON)).  qdrift_rpe.py unwraps the
-# accumulated phase across the sweep into a ground-state energy.
+# The estimate is accurate while the effective time
+# T = depth * asin(step_size) is order 1 (the averaged overlap stays
+# coherent).  Small step_size keeps the per-gate Trotter error low;
+# raise SAMPLES to shrink the 1/sqrt(N) statistical error.
 #
 # Simulation parameters (override on the command line):
-DELTA		?= 1.0
-EPSILON		?= 0.125
-SAMPLES		?= 64
+STEP_SIZE	?= 0.0625
+DEPTH		?= 16
+SAMPLES		?= 1024
 SEED		?= 3924873492
 MPI_RANKS	?= 2
 # -----------------------------------------------------------------------------
@@ -31,39 +34,27 @@ PHASE2_LOG	?= info
 
 PARSE_FCIDUMP	= $(PYTHON) $(SCRIPTS)/parse_fcidump.py
 PARSE_INPUTST	= $(PYTHON) $(SCRIPTS)/parse_inputst.py
-QDRIFT_RPE	= $(PYTHON) $(SCRIPTS)/qdrift_rpe.py
+ENERGY_MC	= $(PYTHON) $(SCRIPTS)/energy_mc.py --group circ_qdrift
 
-# Sweep schedule derived from DELTA / EPSILON (GNU make + coreutils).
-J		:= $(shell $(PYTHON) -c "import math;print(math.ceil(math.log2($(DELTA)/$(EPSILON))))")
-STEP_SIZE	:= $(shell $(PYTHON) -c "print(2.0**-$(J))")
-LEVELS		:= $(shell seq 0 $(J))
+PH2RUN_FLAGS	= --simul=$(SIMUL_H5) qdrift			\
+			--step-size=$(STEP_SIZE) --depth=$(DEPTH)	\
+			--samples=$(SAMPLES) --seed=$(SEED)
 
 .DEFAULT_GOAL := all
-.PHONY: all sweep analyze regen clean
+.PHONY: all run analyze regen clean
 
 all: $(SIMUL_PROC)
 
-# One run per RPE level i: depth = 2^(i+J), constant step size.
-# Each level lands in its own simul.h5-<i> file.
-sweep:
-	@for i in $(LEVELS); do						\
-		depth=$$($(PYTHON) -c "print(int(2**($$i+$(J))))");	\
-		echo "qdrift RPE level $$i: depth=$$depth"		\
-			"step_size=$(STEP_SIZE)";			\
-		cp $(HAMIL_H5) $(SIMUL_H5)-$$i;				\
-		$(MPIRUN) -n $(MPI_RANKS) -x PHASE2_LOG=$(PHASE2_LOG)	\
-			$(PH2RUN) --simul=$(SIMUL_H5)-$$i qdrift	\
-			--step-size=$(STEP_SIZE) --depth=$$depth	\
-			--samples=$(SAMPLES) --seed=$(SEED);		\
-	done
+$(SIMUL_H5): $(HAMIL_H5)
+	cp $(HAMIL_H5) $@
+	$(MPIRUN) -n $(MPI_RANKS) -x PHASE2_LOG=$(PHASE2_LOG)	\
+		$(PH2RUN) $(PH2RUN_FLAGS)
 
-# The base simul.h5 carries /pauli_hamil (normalization, offset);
-# qdrift_rpe.py reads the per-level simul.h5-<i> circuit results.
-$(SIMUL_PROC): sweep
-	cp $(HAMIL_H5) $(SIMUL_H5)
-	$(QDRIFT_RPE) --delta=$(DELTA) --epsilon=$(EPSILON)		\
-		--num-samples=$(SAMPLES) $(SIMUL_H5) | tee $@
+# Ground-state energy (CSV: E0, E0 + offset, in Hartree).
+$(SIMUL_PROC): $(SIMUL_H5)
+	$(ENERGY_MC) $(SIMUL_H5) | tee $@
 
+run: $(SIMUL_H5)
 analyze: $(SIMUL_PROC)
 
 regen:
@@ -71,4 +62,4 @@ regen:
 	$(PARSE_INPUTST) -o $(HAMIL_H5) $(INPUTST)
 
 clean:
-	$(RM) $(SIMUL_H5) $(SIMUL_H5)-* $(SIMUL_PROC)
+	$(RM) $(SIMUL_H5) $(SIMUL_PROC)
