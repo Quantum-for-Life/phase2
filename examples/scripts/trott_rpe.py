@@ -8,11 +8,13 @@ import math
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        prog="trott_validate",
-        description="",
+        prog="trott_rpe",
+        description="Robust phase estimation for Trotter",
         epilog="Quantum-for-Life",
     )
     parser.add_argument("filename", type=str, help="input file")
+    parser.add_argument("--group", type=str, default="circ_trott",
+                        help="results group (circ_trott or circ_trott2)")
     return parser.parse_args()
 
 
@@ -21,23 +23,21 @@ if __name__ == "__main__":
 
     samples = []
     with h5py.File(args.filename, "r") as f:
-        dset_values = f["circ_trott/values"]
+        dset_values = f[f"{args.group}/values"]
         J = int(math.log2(len(dset_values)))
         for i in range(0, J + 1):
             val = dset_values[2 ** i - 1]
             samples.append(complex(val[0], val[1]))
 
-        delta = f["circ_trott"].attrs["delta"]
+        delta = f[args.group].attrs["delta"]
         ph = f["pauli_hamil"]
         norm = ph.attrs["normalization"]
         offset = ph.attrs["offset"]
 
-    # print(J)
     thetas = [0.0]
     for i in range(0, J + 1):
-        # print(i)
         z = samples[i]
-        phi = cmath.phase(z)  # phi \in [-\pi, \pi]
+        phi = cmath.phase(z)  # phi in [-pi, pi]
         if phi < 0:
             phi = 2 * math.pi + phi
         S = [2 ** (-i) * (2 * math.pi * k + phi) for k in range(0, 2 ** i)]
@@ -52,9 +52,7 @@ if __name__ == "__main__":
     thJ = thetas[J]
     if thJ > math.pi:
         thJ = - (2 * math.pi - thJ)
-    x = 2**(-J)
-    E0 = math.sqrt(1-x**2)/x * math.tan(x*thJ) / norm
-    #E0 = thJ / norm
+    x = 2 ** (-J)
+    E0 = math.sqrt(1 - x ** 2) / x * math.tan(x * thJ) / norm
     E0 = E0 / delta
     print(E0, E0 + offset)
-

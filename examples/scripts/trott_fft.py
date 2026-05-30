@@ -10,11 +10,13 @@ import scipy
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        prog="trott_validate",
-        description="",
+        prog="trott_fft",
+        description="Spectral energy peaks from a Trotter time series",
         epilog="Quantum-for-Life",
     )
     parser.add_argument("filename", type=str, help="input file")
+    parser.add_argument("--group", type=str, default="circ_trott",
+                        help="results group (circ_trott or circ_trott2)")
     return parser.parse_args()
 
 
@@ -23,8 +25,8 @@ if __name__ == "__main__":
 
     with h5py.File(args.filename, "r") as f:
         values = np.array(
-            [complex(z[0], z[1]) for z in f["circ_trott/values"]])
-        time_factor = f["circ_trott"].attrs["time_factor"]
+            [complex(z[0], z[1]) for z in f[f"{args.group}/values"]])
+        delta = f[args.group].attrs["delta"]
         ph = f["pauli_hamil"]
         norm = ph.attrs["normalization"]
         offset = ph.attrs["offset"]
@@ -35,7 +37,7 @@ if __name__ == "__main__":
 
     peaks = scipy.signal.find_peaks(y_fft_abs)[0]
     fft_freqs = np.fft.fftfreq(fft_size)
-    peaks_freqs = [fft_freqs[p] / (norm * time_factor / tau) for p in peaks]
+    peaks_freqs = [fft_freqs[p] / (norm * delta / tau) for p in peaks]
     peaks_freqs.sort()
 
     print([p + offset for p in peaks_freqs])
