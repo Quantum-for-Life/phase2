@@ -1,5 +1,15 @@
 #!/usr/bin/env python
 
+"""Append an INPUTST reference state to a phase2 HDF5 file.
+
+INPUTST lists Slater determinants of a convex combination, one per
+line: `re im o0 o1 ...`, where `re`/`im` are the complex coefficient
+and `o*` are spin-orbital occupations with alpha/beta interleaved.
+This rearranges each determinant into phase2's alpha-block / beta-block
+order and writes /state_prep/multidet (`coeffs`, `dets`).  Run after
+parse_fcidump.py, which creates the file.
+"""
+
 import argparse
 
 import h5py
