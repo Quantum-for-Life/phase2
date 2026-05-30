@@ -1,92 +1,95 @@
 # `simul` pipelines
 
-End-to-end ground-state energy estimation with `ph2run`.
-Each subdirectory drives one algorithm through the same
-three stages:
+End-to-end ground-state energy estimation with `ph2run`. See
+[../TUTORIAL.md](../TUTORIAL.md) for the narrated walkthrough. Each
+subdirectory drives one algorithm through the same three stages:
 
 1. **Prepare** — seed `simul.h5` from the shared
    `../data/hamil.h5` (`/pauli_hamil` + `/state_prep`).
 2. **Simulate** — run `ph2run <algo>` under `mpirun`.
-3. **Analyse** — extract an energy estimate from
-   `/circ_<algo>/values` with a script in `../scripts`.
+3. **Analyse** — extract the energy from `/circ_<algo>/values`.
+
+Energy extraction uses one method per data shape:
 
 | Directory | Algorithm                     | Analysis        |
 |-----------|-------------------------------|-----------------|
-| `trott`   | 1st-order Trotter             | `trott_rpe.py`  |
-| `trott2`  | 2nd-order (Strang) Trotter    | `trott_rpe.py`  |
-| `qdrift`  | qDRIFT (RPE depth sweep)      | `qdrift_rpe.py` |
-| `cmpsit`  | composite (det. + randomised) | `cmpsit_rpe.py` |
+| `trott`   | 1st-order Trotter             | `energy_fft.py` |
+| `trott2`  | 2nd-order (Strang) Trotter    | `energy_fft.py` |
+| `qdrift`  | qDRIFT (randomised)           | `energy_mc.py`  |
+| `cmpsit`  | composite (det. + randomised) | `energy_mc.py`  |
+
+`trott`/`trott2` record a uniform overlap time series, so the energy
+is the dominant peak of its FFT. `qdrift`/`cmpsit` record independent
+Monte-Carlo samples at one effective time, so the energy is the phase
+of their averaged overlap.
 
 ## Running
 
-From the repository root, build `ph2run` and install the
-analysis extras (see [../README.md](../README.md)), then:
+From the repository root, build `ph2run` and install the `[examples]`
+extras (see [../README.md](../README.md)), then:
 
 ```sh
-make -C examples/simul/trott                 # default parameters
-make -C examples/simul/trott  DELTA=0.05 TROTT_STEPS=512 MPI_RANKS=2
-make -C examples/simul/qdrift DELTA=1.0 EPSILON=0.125 SAMPLES=64
-make -C examples/simul/cmpsit LENGTH=64 STEPS=8 SAMPLES=128
+make -C examples/simul/trott                     # default parameters
+make -C examples/simul/trott  DELTA=0.1 TROTT_STEPS=4096 MPI_RANKS=2
+make -C examples/simul/qdrift STEP_SIZE=0.0625 DEPTH=16 SAMPLES=1024
+make -C examples/simul/cmpsit LENGTH=200 STEPS=8 SAMPLES=256
 make -C examples/simul/<algo> clean
 ```
 
-Each pipeline writes its energy estimate to
-`<algo>/simul.h5.proc` (also echoed to the terminal).  The
-MPI rank count must be a power of two and at most
-`2^(nqb-1)`; the bundled fixture has `nqb = 10`, so
-`MPI_RANKS` up to 256 is valid.
+Each pipeline writes its energy to `<algo>/simul.h5.proc` (also echoed
+to the terminal). The MPI rank count must be a power of two and at
+most `2^(nqb-1)`; the bundled fixture has `nqb = 10`, so `MPI_RANKS`
+up to 256 is valid.
 
 ## Energy convention
 
-The analysis scripts print CSV.  The simulator evolves the
-**normalised, identity-removed** Hamiltonian, so the phase
-estimate `E0` is that Hamiltonian's eigenvalue; the total
-molecular energy is `E0 + offset`, where `offset` is the
-scalar term recorded by `parse_fcidump.py`.  For the bundled
-water CAS(5,6) fixture the ground state is near
-**-74.96 Ha** (exact diagonalisation: reference state
--74.963, ground state -74.997).
+The simulator evolves the **normalised, identity-removed**
+Hamiltonian, so the phase estimate `E0` is that operator's eigenvalue;
+the physical molecular energy is `E0 + offset`, where `offset` is the
+scalar term recorded by `parse_fcidump.py`. For the bundled water
+CAS(5,6) fixture the exact values are: ground state **-74.997 Ha**,
+reference state **-74.963 Ha**.
 
-- `trott_rpe.py` / `qdrift_rpe.py` print `E0` and
-  `E0 + offset`.
-- `cmpsit_rpe.py` prints `E0,E0+offset`.  The composite
-  estimate is a single-point phase read and is reliable only
-  when the randomised tail shares the deterministic time
-  scale (`angle_rand` close to `angle_det`) and the total
-  phase stays within `(-pi, pi)`; otherwise it is biased by
-  the over-rotated randomised part.  Increase `LENGTH`
-  (more deterministic terms) for a cleaner estimate.
+- `energy_fft.py` prints the dominant-peak energy `E`. Resolution is
+  one FFT bin = `2*pi / (steps * delta * norm)`; raise `TROTT_STEPS`
+  to sharpen it. `--peaks` lists every detected line.
+- `energy_mc.py` prints `E0,E0+offset`. The averaged-overlap estimate
+  is reliable while the effective time `T` keeps the mean coherent
+  (|mean| not too small) and the per-sample phase stays in `(-pi, pi)`;
+  large `T` (or, for `cmpsit`, `angle_rand` far from `angle_det`)
+  decoheres the average and biases the readout. Raise `SAMPLES` to
+  shrink the `1/sqrt(N)` statistical error.
 
 ## Input fixtures
 
-All four pipelines share one molecule, `../data/FCIDUMP`
-(water, CAS(5,6): `NORB=5`, `NELEC=6`) and the reference
-state `../data/INPUTST`.  `make regen` rebuilds
-`../data/hamil.h5` from them (needs the `[prep]` extras).
+All four pipelines share one molecule, `../data/FCIDUMP` (water,
+CAS(5,6): `NORB=5`, `NELEC=6`) and the reference state
+`../data/INPUTST`. `make regen` rebuilds `../data/hamil.h5` from them
+(needs the `[prep]` extras).
 
 ### `FCIDUMP`
 
-Standard FCIDUMP one- and two-electron integrals.
-`parse_fcidump.py` maps it to a Pauli Hamiltonian via the
-Jordan-Wigner transform (qiskit-nature), storing the
-normalisation and the scalar `offset` separately.
+Standard FCIDUMP one- and two-electron integrals. `parse_fcidump.py`
+maps it to a Pauli Hamiltonian via the Jordan-Wigner transform
+(qiskit-nature), storing the normalisation and the scalar `offset`
+separately.
 
 ### `INPUTST` (input state)
 
-Plain text; each line is one Slater determinant of a convex
-linear combination:
+Plain text; each line is one Slater determinant of a convex linear
+combination:
 
 ```text
 F F I I I ... I
 ```
 
-`F F` are the real and imaginary parts of the complex
-coefficient; the `I` values are spin-orbital occupations
-(`0`/`1`).  Alpha and beta orbitals interleave:
+`F F` are the real and imaginary parts of the complex coefficient; the
+`I` values are spin-orbital occupations (`0`/`1`). Alpha and beta
+orbitals interleave:
 
 ```text
 I_{1,alpha} I_{1,beta} I_{2,alpha} I_{2,beta} ...
 ```
 
-The occupation count must match across rows; whitespace and
-blank lines are ignored.
+The occupation count must match across rows; whitespace and blank
+lines are ignored.
