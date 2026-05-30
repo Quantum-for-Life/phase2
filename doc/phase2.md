@@ -713,6 +713,13 @@ multi-rank semantics, examples).
 
 ## 7. Examples
 
+For scripted end-to-end pipelines (prepare `simul.h5` from an
+FCIDUMP, run an algorithm under MPI, estimate the ground-state
+energy), see `examples/simul/` — one `Makefile` per algorithm
+(`trott`, `trott2`, `qdrift`, `cmpsit`) over a shared molecular
+fixture.  The invocations below show the raw `ph2run` calls those
+pipelines wrap.
+
 The test suite includes several HDF5 input files:
 
 - `test/data/H2O_CAS56.h5`: water in a CAS(5,6) active space,
@@ -729,28 +736,28 @@ The test suite includes several HDF5 input files:
 
 ### 7.1 Trotter (4 steps, 2 MPI ranks)
 
-    mpirun -n 2 ./ph2run/ph2run -S test/data/H2O_CAS56.h5 \
+    mpirun -n 2 ./build/ph2run/ph2run -S test/data/H2O_CAS56.h5 \
         trott -D 0.1 -s 4
 
 ### 7.2 Symmetric (Strang) Trotter
 
-    mpirun -n 2 ./ph2run/ph2run -S test/data/H2O_CAS56.h5 \
+    mpirun -n 2 ./build/ph2run/ph2run -S test/data/H2O_CAS56.h5 \
         trott2 -D 0.1 -s 4
 
 ### 7.3 qDRIFT (depth 64, 100 samples)
 
-    mpirun -n 2 ./ph2run/ph2run -S test/data/H2O_CAS56.h5 \
-        qdrift -D 0.05 -d 64 -n 100 -x 42
+    mpirun -n 2 ./build/ph2run/ph2run -S test/data/H2O_CAS56.h5 \
+        qdrift --step-size=0.05 -d 64 -n 100 -x 42
 
 ### 7.4 Composite (2nd-order)
 
-    mpirun -n 2 ./ph2run/ph2run                            \
+    mpirun -n 2 ./build/ph2run/ph2run                      \
         -S test/data/case-d9f603dc.h5_solved               \
-        cmpsit -l 3 -d 32 -s 4 -D 0.1 -R 0.05 -n 50 -x 7
+        cmpsit -l 3 -d 32 -s 4 --angle-det=0.1 -R 0.05 -n 50 -x 7
 
 ### 7.5 Coefficient-matrix state prep
 
-    mpirun -n 2 ./ph2run/ph2run -S test/data/N4_closed.h5 \
+    mpirun -n 2 ./build/ph2run/ph2run -S test/data/N4_closed.h5 \
         trott -D 0.05 -s 8
 
 The reference state is reconstructed at `circ_prepst` time
