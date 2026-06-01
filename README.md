@@ -56,6 +56,9 @@ share the same `-S FILE` convention; see
 `./build/ph2run/ph2run --help` and `./build/ph2run/ph2run CMD --help`
 for the flag surface.
 
+For scripted prepare-run-analyse pipelines (FCIDUMP to energy
+estimate) for each algorithm, see [examples/simul](examples/simul).
+
 The MPI rank count must be a power of two and must not
 exceed `2^(nqb-1)`, where `nqb` is the qubit width of the
 register.  Default log verbosity is `info` on stdout;

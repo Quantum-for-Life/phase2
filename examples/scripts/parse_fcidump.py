@@ -79,7 +79,7 @@ class H5Output:
         if offset_idx is not None:
             self.offset = self.coeffs[offset_idx] + problem.nuclear_repulsion_energy
             self.coeffs = np.delete(self.coeffs, offset_idx)
-            self.paulis = np.delete(self.paulis, 0, offset_idx)
+            self.paulis = np.delete(self.paulis, offset_idx, axis=0)
             self.num_sum_terms -= 1
 
     def write_h5file(self, outfile: str):
