@@ -25,8 +25,10 @@ determinant close to the ground state that peak IS the ground-state
 energy.  Frequency resolution is one bin = tau / (steps * delta * norm)
 Ha; raise `steps` (or `delta`) until the line sits on a bin.
 
-Prints `E` for the dominant peak.  With --peaks, lists every detected
-peak as `E,amplitude` sorted by energy.
+Prints `E,E_ref,dE`: the dominant-peak energy, the trial-state energy
+<psi|H|psi>, and their difference dE = E - E_ref (how far the evolution
+drove the state below the reference).  With --peaks, also lists every
+detected peak as `E,amplitude` sorted by energy.
 """
 
 import argparse
@@ -35,6 +37,8 @@ from math import tau
 import h5py
 import numpy as np
 import scipy.signal
+
+from energy_ref import reference_energy
 
 
 def parse_arguments():
@@ -71,7 +75,9 @@ if __name__ == "__main__":
     # picking the dominant tone.
     amp[0] = 0.0
     dom = int(np.argmax(amp))
-    print(energy[dom])
+    e = energy[dom]
+    e_ref = reference_energy(args.filename)
+    print(f"{e},{e_ref},{e - e_ref}")
 
     if args.peaks:
         peaks = scipy.signal.find_peaks(amp)[0]

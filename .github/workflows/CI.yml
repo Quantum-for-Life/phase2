@@ -41,4 +41,16 @@ jobs:
       - name: Run Python tests
         run: |
           .venv/bin/pytest -v
+      - name: Smoke-test the examples
+        run: |
+          .venv/bin/pip install -e ".[examples]"
+          mpirun -n 2 .venv/bin/python examples/pauli_rotation.py
+          make -C examples/simul/trott PYTHON="$PWD/.venv/bin/python" \
+               TROTT_STEPS=256 MPI_RANKS=2 PHASE2_LOG=warn
+          .venv/bin/python - <<'EOF'
+          line = open("examples/simul/trott/simul.h5.proc").read()
+          e = float(line.split(",")[0])
+          assert -80.0 < e < -70.0, f"trott energy {e} out of band"
+          print(f"examples smoke OK: trott E={e:.3f} Ha")
+          EOF
 

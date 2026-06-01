@@ -75,13 +75,15 @@ ground-state energy. `energy_fft.py` does exactly this:
 
 ```sh
 make -C examples/simul/trott analyze     # already run by step 2
-# -75.00018314380438
+# -75.00018314380438,-74.96314677561794,-0.03703636818644
 ```
 
-`-75.000` against the exact `-74.997` — the residual is the FFT bin
-width, `2*pi / (steps * delta * normalization)`. Raise `--steps`
-(or `delta`) to land the line closer to a bin centre. See the full
-spectrum with:
+The line is `E,E_ref,dE`: the recovered energy, the trial-state energy
+`E_ref = <psi|H|psi>` (computed straight from the input), and their
+difference. `-75.000` against the exact `-74.997` — the residual is the
+FFT bin width, `2*pi / (steps * delta * normalization)`. Raise
+`--steps` (or `delta`) to land the line closer to a bin centre. See the
+full spectrum with:
 
 ```sh
 python3 examples/scripts/energy_fft.py --peaks examples/simul/trott/simul.h5
@@ -103,13 +105,13 @@ with `T = depth * asin(step_size)` for qDRIFT and `T = steps *
 angle_det` for the composite. `energy_mc.py` reads this:
 
 ```sh
-make -C examples/simul/qdrift     # -2.757,-74.976
-make -C examples/simul/cmpsit     # -2.823,-75.043
+make -C examples/simul/qdrift     # -74.970,-74.963,-0.007
+make -C examples/simul/cmpsit     # -75.017,-74.963,-0.054
 ```
 
-(CSV: normalised eigenvalue, then physical energy.) The estimate is
-reliable while the averaged overlap stays coherent — keep `T` of order
-1 and use enough samples; statistical error falls as `1/sqrt(samples)`.
+Same `E,E_ref,dE` columns. The estimate is reliable while the averaged
+overlap stays coherent — keep `T` of order 1 and use enough samples;
+statistical error falls as `1/sqrt(samples)`.
 
 ## Where things live
 

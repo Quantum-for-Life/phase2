@@ -44,17 +44,21 @@ up to 256 is valid.
 ## Energy convention
 
 The simulator evolves the **normalised, identity-removed**
-Hamiltonian, so the phase estimate `E0` is that operator's eigenvalue;
-the physical molecular energy is `E0 + offset`, where `offset` is the
-scalar term recorded by `parse_fcidump.py`. For the bundled water
-CAS(5,6) fixture the exact values are: ground state **-74.997 Ha**,
-reference state **-74.963 Ha**.
+Hamiltonian; the physical molecular energy is the recovered eigenvalue
+plus `offset`, the scalar term recorded by `parse_fcidump.py`. For the
+bundled water CAS(5,6) fixture the exact values are: ground state
+**-74.997 Ha**, reference state **-74.963 Ha**.
 
-- `energy_fft.py` prints the dominant-peak energy `E`. Resolution is
-  one FFT bin = `2*pi / (steps * delta * norm)`; raise `TROTT_STEPS`
+Both scripts print one CSV line, `E,E_ref,dE`: the estimated energy,
+the trial-state energy `E_ref = <psi|H|psi>` (computed directly from
+the input by `energy_ref.py`), and `dE = E - E_ref`, the shift the
+evolution produced relative to the reference state.
+
+- `energy_fft.py` reports the dominant-peak energy as `E`. Resolution
+  is one FFT bin = `2*pi / (steps * delta * norm)`; raise `TROTT_STEPS`
   to sharpen it. `--peaks` lists every detected line.
-- `energy_mc.py` prints `E0,E0+offset`. The averaged-overlap estimate
-  is reliable while the effective time `T` keeps the mean coherent
+- `energy_mc.py` reports the averaged-overlap energy as `E`. It is
+  reliable while the effective time `T` keeps the mean coherent
   (|mean| not too small) and the per-sample phase stays in `(-pi, pi)`;
   large `T` (or, for `cmpsit`, `angle_rand` far from `angle_det`)
   decoheres the average and biases the readout. Raise `SAMPLES` to

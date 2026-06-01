@@ -24,8 +24,9 @@ step_size compensated by large depth, or large angle_rand) decoheres
 the average and biases the readout.  Statistical error falls as
 1/sqrt(samples); a few hundred samples reach ~0.05 Ha here.
 
-Prints `E0,E` where E0 = arg(z)/(T*norm) is the normalised-Hamiltonian
-eigenvalue and E = E0 + offset the physical energy.
+Prints `E,E_ref,dE`: the estimate E = arg(z)/(T*norm) + offset, the
+trial-state energy <psi|H|psi>, and their difference dE = E - E_ref
+(how far the evolution drove the state below the reference).
 """
 
 import argparse
@@ -34,6 +35,8 @@ import math
 
 import h5py
 import numpy as np
+
+from energy_ref import reference_energy
 
 
 def parse_arguments():
@@ -69,5 +72,6 @@ if __name__ == "__main__":
         offset = ph.attrs["offset"]
 
     z = values.mean()
-    E0 = cmath.phase(z) / (T * norm)
-    print(f"{E0},{E0 + offset}")
+    e = cmath.phase(z) / (T * norm) + offset
+    e_ref = reference_energy(args.filename)
+    print(f"{e},{e_ref},{e - e_ref}")
