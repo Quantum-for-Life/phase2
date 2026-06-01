@@ -45,6 +45,9 @@ jobs:
         run: |
           .venv/bin/pip install -e ".[examples]"
           mpirun -n 2 .venv/bin/python examples/pauli_rotation.py
+          # The shared-library step ran `make distclean`, removing the
+          # ph2run binary the pipeline needs; rebuild it.
+          make
           make -C examples/simul/trott PYTHON="$PWD/.venv/bin/python" \
                TROTT_STEPS=256 MPI_RANKS=2 PHASE2_LOG=warn
           .venv/bin/python - <<'EOF'
