@@ -262,7 +262,9 @@ int state_prep_coeff_inner(struct qreg *reg,
 	 * not relied upon here.  At OMP_NUM_THREADS=1 the
 	 * order is identical to the serial loop. */
 	double acc_r = 0.0, acc_i = 0.0;
+#ifdef _OPENMP
 #pragma omp parallel for reduction(+ : acc_r, acc_i)
+#endif
 	for (size_t i = 0; i < sc->Ma; i++) {
 		const double da = sc->det_a[i];
 		const uint32_t *oa = &sc->tup_a[i * ka];

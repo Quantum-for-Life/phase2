@@ -36,10 +36,13 @@ EXTRA_LDFLAGS   ?=
 # flags are split so both the ph2run/test link (LDFLAGS) and
 # the shared-library link (SHARED_LDFLAGS) pick up the runtime.
 # GCC spells both -fopenmp; override on a toolchain that
-# differs (e.g. a non-GNU clang: OPENMP_CFLAGS='-Xpreprocessor
-# -fopenmp', OPENMP_LDFLAGS='-lomp').  Set both empty to build
-# without OpenMP -- the pragma is then ignored and the walk
-# runs serially.
+# differs.  A non-GNU clang with libomp typically needs the
+# include and library paths as well, e.g.
+#   OPENMP_CFLAGS='-Xpreprocessor -fopenmp -I<libomp>/include'
+#   OPENMP_LDFLAGS='-L<libomp>/lib -lomp'
+# Set both empty to build without OpenMP -- the pragma is
+# compiled out (it is guarded on _OPENMP) and the walk runs
+# serially.
 OPENMP_CFLAGS   ?= -fopenmp
 OPENMP_LDFLAGS  ?= -fopenmp
 
