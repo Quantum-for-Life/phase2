@@ -117,6 +117,64 @@ static void compute_dets(uint32_t k, const uint32_t *tuples,
 	}
 }
 
+/* Resolve the det vectors for the coefficient pair
+ * (C_alpha, C_beta) against the scratch's precomputed
+ * tuples, returning them through *det_a / *det_b.  C_beta
+ * NULL falls back to C_alpha (closed shell), matching the
+ * readers.  Memoised: a slot keyed on the exact (C_alpha,
+ * C_beta) pointers is reused across calls; a miss computes
+ * the vectors once and caches them.  The cache grows on
+ * demand (one slot per distinct pair; CSF presents a
+ * handful).  Keys stay valid because C is immutable for the
+ * scratch's lifetime.  Returns 0 on success, -1 on alloc
+ * failure. */
+static int dets_for(struct state_prep_coeff_scratch *sc,
+	const double *C_alpha, const double *C_beta,
+	const double **det_a, const double **det_b)
+{
+	const double *Cb = C_beta ? C_beta : C_alpha;
+
+	for (size_t s = 0; s < sc->n_slots; s++) {
+		const struct state_prep_coeff_det_slot *sl = &sc->slots[s];
+		if (sl->key_a == C_alpha && sl->key_b == Cb) {
+			*det_a = sl->det_a;
+			*det_b = sl->det_b;
+			return 0;
+		}
+	}
+
+	if (sc->n_slots == sc->cap_slots) {
+		const size_t cap = sc->cap_slots ? sc->cap_slots * 2 : 4;
+		struct state_prep_coeff_det_slot *grown =
+			realloc(sc->slots, sizeof *grown * cap);
+		if (!grown) {
+			log_error("dets_for: slot array realloc failed");
+			return -1;
+		}
+		sc->slots = grown;
+		sc->cap_slots = cap;
+	}
+
+	struct state_prep_coeff_det_slot *sl = &sc->slots[sc->n_slots];
+	sl->det_a = malloc(sizeof *sl->det_a * sc->Ma);
+	sl->det_b = malloc(sizeof *sl->det_b * sc->Mb);
+	if (!sl->det_a || !sl->det_b) {
+		free(sl->det_a);
+		free(sl->det_b);
+		log_error("dets_for: det vector alloc failed");
+		return -1;
+	}
+	compute_dets(sc->n_alpha, sc->tup_a, C_alpha, sl->det_a, sc->Ma);
+	compute_dets(sc->n_beta, sc->tup_b, Cb, sl->det_b, sc->Mb);
+	sl->key_a = C_alpha;
+	sl->key_b = Cb;
+	sc->n_slots++;
+
+	*det_a = sl->det_a;
+	*det_b = sl->det_b;
+	return 0;
+}
+
 
 int state_prep_coeff_scratch_init(struct state_prep_coeff_scratch *sc,
 	uint32_t n_sites, uint32_t n_alpha, uint32_t n_beta)
@@ -149,9 +207,7 @@ int state_prep_coeff_scratch_init(struct state_prep_coeff_scratch *sc,
 
 	sc->tup_a = malloc(sizeof *sc->tup_a * sc->Ma * ka);
 	sc->tup_b = malloc(sizeof *sc->tup_b * sc->Mb * kb);
-	sc->det_a = malloc(sizeof *sc->det_a * sc->Ma);
-	sc->det_b = malloc(sizeof *sc->det_b * sc->Mb);
-	if (!sc->tup_a || !sc->tup_b || !sc->det_a || !sc->det_b) {
+	if (!sc->tup_a || !sc->tup_b) {
 		log_error("scratch_init: alloc failed");
 		goto err_alloc;
 	}
@@ -172,8 +228,11 @@ void state_prep_coeff_scratch_free(struct state_prep_coeff_scratch *sc)
 {
 	free(sc->tup_a);
 	free(sc->tup_b);
-	free(sc->det_a);
-	free(sc->det_b);
+	for (size_t s = 0; s < sc->n_slots; s++) {
+		free(sc->slots[s].det_a);
+		free(sc->slots[s].det_b);
+	}
+	free(sc->slots);
 	memset(sc, 0, sizeof *sc);
 }
 
@@ -183,20 +242,19 @@ int state_prep_coeff_expand(struct qreg *reg,
 	const double *C_alpha, const double *C_beta,
 	const double weight, const int tapered, const int accumulate)
 {
-	const double *Cb = C_beta ? C_beta : C_alpha;
-
-	compute_dets(sc->n_alpha, sc->tup_a, C_alpha, sc->det_a, sc->Ma);
-	compute_dets(sc->n_beta, sc->tup_b, Cb, sc->det_b, sc->Mb);
+	const double *det_a, *det_b;
+	if (dets_for(sc, C_alpha, C_beta, &det_a, &det_b) < 0)
+		return -1;
 
 	const int my_rank = reg->wd.rank;
 	const uint32_t ka = sc->n_alpha ? sc->n_alpha : 1;
 	const uint32_t kb = sc->n_beta ? sc->n_beta : 1;
 
 	for (size_t i = 0; i < sc->Ma; i++) {
-		const double da = sc->det_a[i];
+		const double da = det_a[i];
 		const uint32_t *oa = &sc->tup_a[i * ka];
 		for (size_t j = 0; j < sc->Mb; j++) {
-			const double cf = weight * da * sc->det_b[j];
+			const double cf = weight * da * det_b[j];
 			if (fabs(cf) < SPARSITY_PRUNE)
 				continue;
 			const uint32_t *ob = &sc->tup_b[j * kb];
@@ -226,8 +284,6 @@ int state_prep_coeff_inner(struct qreg *reg,
 	const double *C_alpha, const double *C_beta,
 	const double weight, const int tapered, _Complex double *out)
 {
-	const double *Cb = C_beta ? C_beta : C_alpha;
-
 	/* On the CUDA backend the canonical state lives in
 	 * cu->damp; reg->amp may be stale after any kernel
 	 * run (circuit evolution, paulirot, etc.).  Pull the
@@ -235,8 +291,9 @@ int state_prep_coeff_inner(struct qreg *reg,
 	 * backend: no-op + barrier. */
 	qreg_sync_device_to_host(reg);
 
-	compute_dets(sc->n_alpha, sc->tup_a, C_alpha, sc->det_a, sc->Ma);
-	compute_dets(sc->n_beta, sc->tup_b, Cb, sc->det_b, sc->Mb);
+	const double *det_a, *det_b;
+	if (dets_for(sc, C_alpha, C_beta, &det_a, &det_b) < 0)
+		return -1;
 
 	const int my_rank = reg->wd.rank;
 	const uint32_t ka = sc->n_alpha ? sc->n_alpha : 1;
@@ -244,10 +301,10 @@ int state_prep_coeff_inner(struct qreg *reg,
 
 	double acc_r = 0.0, acc_i = 0.0;
 	for (size_t i = 0; i < sc->Ma; i++) {
-		const double da = sc->det_a[i];
+		const double da = det_a[i];
 		const uint32_t *oa = &sc->tup_a[i * ka];
 		for (size_t j = 0; j < sc->Mb; j++) {
-			const double cf = weight * da * sc->det_b[j];
+			const double cf = weight * da * det_b[j];
 			if (fabs(cf) < SPARSITY_PRUNE)
 				continue;
 			const uint32_t *ob = &sc->tup_b[j * kb];
