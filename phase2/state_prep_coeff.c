@@ -15,6 +15,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #include "mpi.h"
 
 #include "combinations.h"
@@ -242,7 +246,23 @@ int state_prep_coeff_inner(struct qreg *reg,
 	const uint32_t ka = sc->n_alpha ? sc->n_alpha : 1;
 	const uint32_t kb = sc->n_beta ? sc->n_beta : 1;
 
+	/* The outer walk is a pure map-reduce: every body
+	 * local is declared in-loop (hence thread-private),
+	 * the reads (det_a / det_b, tup_a / tup_b, reg->amp)
+	 * are const for the duration, and the only carried
+	 * state is the acc_r / acc_i sum -> an OpenMP
+	 * reduction.  Builds without -fopenmp ignore the
+	 * pragma and run the serial loop unchanged.  The
+	 * reduction reorders the cross-thread partial sums,
+	 * so the result can differ from the serial order in
+	 * the last ULPs; this is an O(Ma * Mb) measurement
+	 * accumulator whose terms are already summed in an
+	 * MPI_Allreduce below (itself order-unspecified
+	 * across ranks), so floating-point associativity is
+	 * not relied upon here.  At OMP_NUM_THREADS=1 the
+	 * order is identical to the serial loop. */
 	double acc_r = 0.0, acc_i = 0.0;
+#pragma omp parallel for reduction(+ : acc_r, acc_i)
 	for (size_t i = 0; i < sc->Ma; i++) {
 		const double da = sc->det_a[i];
 		const uint32_t *oa = &sc->tup_a[i * ka];

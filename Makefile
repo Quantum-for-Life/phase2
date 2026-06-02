@@ -24,11 +24,24 @@
 
 # --- Toolchain ------------------------------------------------------------- #
 CC              ?= gcc
-CFLAGS          += -std=c11 -Wall -Wextra -O3 -march=native -mavx2 -MMD -MP
+CFLAGS          += -std=c11 -Wall -Wextra -O3 -march=native -mavx2 -MMD -MP \
+                   $(OPENMP_CFLAGS)
 # EXTRA_CFLAGS / EXTRA_LDFLAGS allow command-line overrides (e.g. sanitiser
 # builds) without clobbering the rest of the flag pipeline.
 EXTRA_CFLAGS    ?=
 EXTRA_LDFLAGS   ?=
+
+# OpenMP: shared-memory threading for the coeff-matrix inner-
+# product walk (state_prep_coeff_inner).  Compile and link
+# flags are split so both the ph2run/test link (LDFLAGS) and
+# the shared-library link (SHARED_LDFLAGS) pick up the runtime.
+# GCC spells both -fopenmp; override on a toolchain that
+# differs (e.g. a non-GNU clang: OPENMP_CFLAGS='-Xpreprocessor
+# -fopenmp', OPENMP_LDFLAGS='-lomp').  Set both empty to build
+# without OpenMP -- the pragma is then ignored and the walk
+# runs serially.
+OPENMP_CFLAGS   ?= -fopenmp
+OPENMP_LDFLAGS  ?= -fopenmp
 
 # --- System library root --------------------------------------------------- #
 # Most Debian/Ubuntu installs put MPI and HDF5 dynamic libs under
@@ -146,7 +159,8 @@ CFLAGS          += -I$(INCLUDE) $(MPI_CFLAGS) $(HDF5_CFLAGS)	\
                    -DPHASE2_VERSION=\"$(VERSION)\"		\
                    $(EXTRA_CFLAGS)
 LDFLAGS         += $(MPI_LDFLAGS) $(HDF5_LDFLAGS)		\
-                   $(BACKEND_LDFLAGS) $(EXTRA_LDFLAGS)
+                   $(BACKEND_LDFLAGS) $(OPENMP_LDFLAGS)		\
+                   $(EXTRA_LDFLAGS)
 LDLIBS          += -lm $(MPI_LDLIBS) $(HDF5_LDLIBS) $(BACKEND_LDLIBS)
 
 # --- Helpers --------------------------------------------------------------- #
@@ -226,7 +240,10 @@ build-test-slow: phase2 circ lib ph2run-data
 # objects build under $(BUILDDIR)/shared/<srcdir>/ on a disjoint path
 # from the regular tree, so `make build` and `make shared` cannot mix
 # PIC and non-PIC objects.
-SHARED_LDFLAGS := $(MPI_LDFLAGS) $(BACKEND_LDFLAGS)
+# OPENMP_LDFLAGS is required here too: state_prep_coeff.o is
+# compiled with OPENMP_CFLAGS and pulls in the OpenMP runtime,
+# which libphase2.so must resolve at link.
+SHARED_LDFLAGS := $(MPI_LDFLAGS) $(BACKEND_LDFLAGS) $(OPENMP_LDFLAGS)
 SHARED_LDLIBS  := $(MPI_LDLIBS) $(BACKEND_LDLIBS)
 SHARED_OBJS    := $(BUILDDIR)/shared/phase2/phase2_run.o		\
                   $(patsubst $(BUILDDIR)/%,$(BUILDDIR)/shared/%,	\
