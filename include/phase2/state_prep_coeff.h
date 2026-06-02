@@ -53,11 +53,13 @@ struct data_coeff_matrix;
  */
 
 /*
- * One memoised det vector pair, keyed by the (C_alpha,
- * C_beta) pointers the caller passed.  det_a[Ma] holds
- * det(C_a[occ]) over tup_a; det_b[Mb] holds det(C_b[occ])
- * over tup_b, where C_b is C_beta when non-NULL else
- * C_alpha (the closed-shell fallback the readers apply).
+ * One memoised det vector pair, keyed by the normalised
+ * (C_alpha, C_b) pointers, where C_b is C_beta when
+ * non-NULL else C_alpha (the closed-shell fallback the
+ * readers apply) — so the NULL and C_beta == C_alpha
+ * spellings of a closed-shell block share a slot.
+ * det_a[Ma] holds det(C_a[occ]) over tup_a; det_b[Mb]
+ * holds det(C_b[occ]) over tup_b.
  */
 struct state_prep_coeff_det_slot {
 	const double *key_a, *key_b;

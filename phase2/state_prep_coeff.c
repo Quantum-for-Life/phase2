@@ -136,7 +136,7 @@ static int dets_for(struct state_prep_coeff_scratch *sc,
 
 	for (size_t s = 0; s < sc->n_slots; s++) {
 		const struct state_prep_coeff_det_slot *sl = &sc->slots[s];
-		if (sl->key_a == C_alpha && sl->key_b == C_beta) {
+		if (sl->key_a == C_alpha && sl->key_b == Cb) {
 			*det_a = sl->det_a;
 			*det_b = sl->det_b;
 			return 0;
@@ -167,7 +167,7 @@ static int dets_for(struct state_prep_coeff_scratch *sc,
 	compute_dets(sc->n_alpha, sc->tup_a, C_alpha, sl->det_a, sc->Ma);
 	compute_dets(sc->n_beta, sc->tup_b, Cb, sl->det_b, sc->Mb);
 	sl->key_a = C_alpha;
-	sl->key_b = C_beta;
+	sl->key_b = Cb;
 	sc->n_slots++;
 
 	*det_a = sl->det_a;
