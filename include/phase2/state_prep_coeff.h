@@ -15,10 +15,24 @@ struct data_coeff_matrix;
  *
  * Caller-supplied scratch carries the alpha / beta
  * k-subset tuples (pure combinatorics; filled once at
- * init) and the det workspaces (refilled per call from
- * the current block's C_alpha / C_beta).  One scratch
- * services any number of _expand / _inner calls sharing
- * the same (n_sites, n_alpha, n_beta).
+ * init) and a small det cache.  One scratch services any
+ * number of _expand / _inner calls sharing the same
+ * (n_sites, n_alpha, n_beta).
+ *
+ * Det cache: for a fixed coefficient matrix C the products
+ * det(C_a[occ]) / det(C_b[occ]) over the precomputed tuples
+ * are run constants -- C is immutable for the scratch's
+ * lifetime.  The walk over Ma + Mb minors otherwise reruns
+ * on every call, and _inner runs once per CSF block per
+ * Trotter step (the dominant AO measurement cost).  Each
+ * (C_alpha, C_beta) argument pair therefore memoises its
+ * det vectors in a cache slot, keyed by the two pointers and
+ * filled on first use; later calls with the same pair read
+ * the cached vectors instead of recomputing.  The CSF
+ * dispatcher presents at most one pair per block, so the
+ * cache holds one slot per distinct block and grows on
+ * demand.  Bit-identical to recomputing: det_small is a
+ * pure function of (tuples, C).
  *
  * `_expand` writes (accumulate=0) or adds (accumulate=1)
  * weighted Slater-Condon products
@@ -38,11 +52,28 @@ struct data_coeff_matrix;
  * weighted sum over blocks.
  */
 
+/*
+ * One memoised det vector pair, keyed by the (C_alpha,
+ * C_beta) pointers the caller passed.  det_a[Ma] holds
+ * det(C_a[occ]) over tup_a; det_b[Mb] holds det(C_b[occ])
+ * over tup_b, where C_b is C_beta when non-NULL else
+ * C_alpha (the closed-shell fallback the readers apply).
+ */
+struct state_prep_coeff_det_slot {
+	const double *key_a, *key_b;
+	double *det_a, *det_b;
+};
+
 struct state_prep_coeff_scratch {
 	uint32_t n_sites, n_alpha, n_beta;
 	uint32_t *tup_a, *tup_b;
-	double   *det_a, *det_b;
 	size_t    Ma, Mb;
+
+	/* Det cache: see the header comment above.  `slots`
+	 * grows on demand to one entry per distinct
+	 * (C_alpha, C_beta) pair; n_slots <= cap_slots. */
+	struct state_prep_coeff_det_slot *slots;
+	size_t n_slots, cap_slots;
 };
 
 /* Allocate scratch buffers and fill the (n_sites,

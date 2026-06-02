@@ -765,15 +765,27 @@ from `/state_prep/coeff_matrix`; no per-determinant
 amplitudes appear in the file (see §3 of
 `doc/simul-h5-specs.md`).
 
-**Scratch lifecycle.**  Slater-Condon expansion needs four
-buffers (alpha / beta k-subset tuples and per-call dets)
-sized by `(n_sites, n_alpha, n_beta)`.  `circ_init`
-allocates a `struct state_prep_coeff_scratch` once when
-`stprep_kind == STPREP_COEFF_MATRIX`, fills the tuples
-(pure combinatorics, no dependence on `C`), and reuses it
-across every `circ_prepst` and `circ_measure` call for the
-lifetime of the `struct circ`.  `circ_free` releases the
-scratch.
+**Scratch lifecycle.**  Slater-Condon expansion needs the
+alpha / beta k-subset tuples (pure combinatorics) sized by
+`(n_sites, n_alpha, n_beta)`, plus the minor determinants
+det(C[occ]) over those tuples.  `circ_init` allocates a
+`struct state_prep_coeff_scratch` once when `stprep_kind ==
+STPREP_COEFF_MATRIX`, fills the tuples (no dependence on
+`C`), and reuses it across every `circ_prepst` and
+`circ_measure` call for the lifetime of the `struct circ`.
+`circ_free` releases the scratch.
+
+The dets are run constants for a fixed `C` — `C` is
+immutable for the scratch's lifetime — so the scratch
+memoises them in a small det cache, one entry per distinct
+`(C_alpha, C_beta)` pair (single-block: one entry; CSF: one
+per block).  The first `_expand` for a pair fills its entry;
+subsequent `_expand` / `_inner` calls with the same pair
+read the cached vectors.  This removes the `O(Ma + Mb)`
+minor walk from the hot measurement path, where `_inner`
+runs once per block per Trotter step.  The result is
+bit-identical to recomputing: `det_small` is a pure
+function of `(tuples, C)`.
 
 **Register-zero invariant.**  `state_prep_coeff_expand_all`
 calls `qreg_zero` internally before writing -- callers do
