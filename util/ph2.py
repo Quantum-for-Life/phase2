@@ -42,6 +42,11 @@ def cmd_hamil_paulis(args):
     return hamil.cmd_paulis(args)
 
 
+def cmd_hamil_fcidump(args):
+    from _ph2 import hamil
+    return hamil.cmd_fcidump(args)
+
+
 def make_parser():
     from _ph2 import __version__  # stdlib-only import
     p = argparse.ArgumentParser(
@@ -86,6 +91,18 @@ def make_parser():
     b.add_argument("--force", action="store_true",
                    help="overwrite an existing output file")
     b.set_defaults(func=cmd_hamil_paulis)
+
+    b = hs.add_parser(
+        "fcidump",
+        help="Jordan-Wigner transform of an FCIDUMP file")
+    b.add_argument("fcidump", metavar="FCIDUMP")
+    b.add_argument("-o", dest="out", required=True,
+                   metavar="OUT.h5")
+    b.add_argument("--sort-terms", action="store_true",
+                   help="sort terms by Pauli label")
+    b.add_argument("--force", action="store_true",
+                   help="overwrite an existing output file")
+    b.set_defaults(func=cmd_hamil_fcidump)
 
     return p
 

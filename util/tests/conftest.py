@@ -34,10 +34,10 @@ def examples_data():
 @pytest.fixture
 def run_ph2():
     """Run util/ph2.py as a subprocess: (rc, stdout, stderr)."""
-    def run(*args):
+    def run(*args, env=None):
         r = subprocess.run(
             [sys.executable, str(UTIL / "ph2.py"), *map(str, args)],
-            capture_output=True, text=True)
+            capture_output=True, text=True, env=env)
         return r.returncode, r.stdout, r.stderr
     return run
 

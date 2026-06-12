@@ -123,3 +123,40 @@ def cmd_paulis(args):
     write_hamil(args.out, coeffs, paulis, offset,
                 args.sort_terms, args.force)
     return 0
+
+
+def cmd_fcidump(args):
+    try:
+        import qiskit_nature
+        from qiskit_nature.second_q.formats.fcidump import FCIDump
+        from qiskit_nature.second_q.formats.fcidump_translator \
+            import fcidump_to_problem
+        from qiskit_nature.second_q.mappers.jordan_wigner_mapper \
+            import JordanWignerMapper
+    except ImportError:
+        raise Ph2Error(
+            "hamil fcidump requires qiskit-nature and pyscf"
+            " (pip install -e \".[prep]\")") from None
+
+    # Suppress deprecation warnings in the FCIDump translation.
+    qiskit_nature.settings.use_symmetry_reduced_integrals = True
+    qiskit_nature.settings.use_pauli_sum_op = False
+
+    problem = fcidump_to_problem(FCIDump.from_file(args.fcidump))
+    op = JordanWignerMapper().map(problem.hamiltonian.second_q_op())
+
+    # Qiskit labels are highest-qubit-first; reverse so column j is
+    # qubit j.
+    coeffs = np.array([c.real for c in op.coeffs], dtype=np.float64)
+    paulis = np.array(
+        [[_OPS[ch] for ch in p.to_label()[::-1]] for p in op.paulis],
+        dtype=np.uint8)
+
+    # Fold the identity term and the nuclear repulsion into offset;
+    # the all-zero row must not enter the dataset.
+    nuc = problem.nuclear_repulsion_energy or 0.0
+    ident = ~paulis.any(axis=1)
+    offset = float(coeffs[ident].sum()) + nuc
+    write_hamil(args.out, coeffs[~ident], paulis[~ident], offset,
+                args.sort_terms, args.force)
+    return 0

@@ -117,3 +117,46 @@ def test_overwrite_guard(run_ph2, terms, tmp_path):
     assert out.read_bytes() == before
     rc, _, _ = _build(run_ph2, terms, out, "--force")
     assert rc == 0
+
+
+# -- fcidump -----------------------------------------------------------
+
+def test_fcidump_round_trip(run_ph2, examples_data, tmp_path):
+    pytest.importorskip("qiskit_nature")
+    out = tmp_path / "h.h5"
+    rc, _, err = run_ph2("hamil", "fcidump",
+                         examples_data / "FCIDUMP", "-o", out,
+                         "--sort-terms")
+    assert rc == 0, err
+
+    def by_row(grp):
+        p = grp["paulis"][...]
+        order = np.lexsort(p.T[::-1])
+        return grp["coeffs"][...][order], p[order]
+
+    with h5py.File(out) as f, \
+            h5py.File(examples_data / "hamil.h5") as ref:
+        g, r = f["pauli_hamil"], ref["pauli_hamil"]
+        c1, p1 = by_row(g)
+        c2, p2 = by_row(r)
+        assert np.array_equal(p1, p2)
+        assert np.allclose(c1, c2, atol=1e-12)
+        assert g.attrs["offset"] == \
+            pytest.approx(r.attrs["offset"], abs=1e-9)
+        assert g.attrs["normalization"] == \
+            pytest.approx(r.attrs["normalization"], rel=1e-12)
+
+
+def test_fcidump_missing_qiskit_hint(run_ph2, examples_data,
+                                     tmp_path):
+    import os
+    block = tmp_path / "block"
+    block.mkdir()
+    (block / "qiskit_nature.py").write_text(
+        'raise ImportError("blocked for test")\n')
+    env = dict(os.environ, PYTHONPATH=str(block))
+    rc, _, err = run_ph2("hamil", "fcidump",
+                         examples_data / "FCIDUMP",
+                         "-o", tmp_path / "h.h5", env=env)
+    assert rc == 2
+    assert "[prep]" in err
