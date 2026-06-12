@@ -9,6 +9,7 @@ doc/ph2.md.  ph2 is the user-facing toolkit around that file format:
 
     show        summarise worksheet contents
     validate    check worksheets against the specification
+    hamil       build /pauli_hamil (FCIDUMP or Pauli-term text)
 
 Exit codes: 0 success; 1 semantic outcome (violations found, files
 differ); 2 usage, IO or missing-dependency error.  Diagnostics go to
@@ -36,6 +37,11 @@ def cmd_validate(args):
     return validate.cmd_validate(args)
 
 
+def cmd_hamil_paulis(args):
+    from _ph2 import hamil
+    return hamil.cmd_paulis(args)
+
+
 def make_parser():
     from _ph2 import __version__  # stdlib-only import
     p = argparse.ArgumentParser(
@@ -61,6 +67,25 @@ def make_parser():
                    help="do not require /state_prep (intermediate"
                         " paks from `ph2 hamil`)")
     q.set_defaults(func=cmd_validate)
+
+    q = sub.add_parser("hamil", help="build /pauli_hamil")
+    hs = q.add_subparsers(dest="builder", required=True,
+                          metavar="BUILDER")
+    b = hs.add_parser("paulis",
+                      help="from a Pauli-term text file (TERMS)")
+    b.add_argument("terms", metavar="TERMS")
+    b.add_argument("-o", dest="out", required=True,
+                   metavar="OUT.h5")
+    b.add_argument("--n-qubits", type=int, metavar="N",
+                   help="widen the register beyond max index + 1")
+    b.add_argument("--offset", type=float, default=0.0,
+                   metavar="E0",
+                   help="extra identity contribution (Hartree)")
+    b.add_argument("--sort-terms", action="store_true",
+                   help="sort terms by Pauli label")
+    b.add_argument("--force", action="store_true",
+                   help="overwrite an existing output file")
+    b.set_defaults(func=cmd_hamil_paulis)
 
     return p
 

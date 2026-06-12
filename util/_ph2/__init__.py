@@ -35,3 +35,10 @@ def open_ro(path):
         return h5py.File(path, "r")
     except OSError as e:
         raise Ph2Error(f"cannot open {path}: {e}") from None
+
+
+def guard_out(path, force):
+    """Refuse to overwrite an existing output unless --force."""
+    import os
+    if os.path.exists(path) and not force:
+        raise Ph2Error(f"{path} exists (use --force to overwrite)")
