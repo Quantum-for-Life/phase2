@@ -21,4 +21,4 @@ examples = ["h5py>=3", "numpy>=1.23", "scipy>=1.10"]
 prep = ["h5py>=3", "numpy>=1.23", "qiskit-nature>=0.7", "pyscf>=2.3"]
 
 [tool.pytest.ini_options]
-testpaths = ["python/tests"]
+testpaths = ["python/tests", "util/tests"]
