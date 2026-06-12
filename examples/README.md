@@ -17,10 +17,9 @@ Shared assets:
 - `data/` — the molecular fixture: `FCIDUMP` + `INPUTST` (source of
   truth) and the prepared `hamil.h5` (`/pauli_hamil` +
   `/state_prep/multidet`).
-- `scripts/` — input preparation (`parse_fcidump.py`,
-  `parse_inputst.py`) and the two energy-extraction methods
-  (`energy_fft.py` for the Trotter time series, `energy_mc.py` for the
-  randomised samples).
+- input preparation and energy analysis go through the worksheet
+  toolkit `util/ph2.py` (`ph2 hamil`, `ph2 stprep`,
+  `ph2 energy {fft,mc,ref,rpe}`); see [../doc/ph2.md](../doc/ph2.md).
 
 ## Prerequisites
 

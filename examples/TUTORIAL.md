@@ -35,8 +35,14 @@ determinant). To rebuild it yourself you need the `[prep]` extras
 make -C examples/simul/trott regen
 ```
 
-`parse_fcidump.py` applies the Jordan-Wigner transform; the resulting
-`/pauli_hamil` is a 10-qubit, 251-term operator.
+`ph2 hamil fcidump` applies the Jordan-Wigner transform; the
+resulting `/pauli_hamil` is a 10-qubit, 251-term operator.  Inspect
+and check any worksheet with the same tool:
+
+```sh
+util/ph2.py show examples/data/hamil.h5
+util/ph2.py validate examples/data/hamil.h5
+```
 
 ## 2. Evolve
 
@@ -71,7 +77,7 @@ normalised Hamiltonian, hence a physical energy
 The dominant peak (largest magnitude, ignoring the DC bin) is the
 eigenstate with the largest overlap with `|psi>`. For a reference
 determinant close to the ground state that peak **is** the
-ground-state energy. `energy_fft.py` does exactly this:
+ground-state energy. `ph2 energy fft` does exactly this:
 
 ```sh
 make -C examples/simul/trott analyze     # already run by step 2
@@ -86,7 +92,7 @@ FFT bin width, `2*pi / (steps * delta * normalization)`. Raise
 full spectrum with:
 
 ```sh
-python3 examples/scripts/energy_fft.py --peaks examples/simul/trott/simul.h5
+util/ph2.py energy fft --peaks examples/simul/trott/simul.h5
 ```
 
 The 2nd-order method (`make -C examples/simul/trott2`) uses the same
@@ -102,7 +108,7 @@ recovers the overlap, and its phase gives the energy:
     E = arg(mean(values)) / (T * normalization) + offset
 
 with `T = depth * asin(step_size)` for qDRIFT and `T = steps *
-angle_det` for the composite. `energy_mc.py` reads this:
+angle_det` for the composite. `ph2 energy mc` reads this:
 
 ```sh
 make -C examples/simul/qdrift     # -74.970,-74.963,-0.007
@@ -118,9 +124,9 @@ statistical error falls as `1/sqrt(samples)`.
 | Piece            | Path                              |
 |------------------|-----------------------------------|
 | simulator        | `build/ph2run/ph2run`             |
-| input prep       | `examples/scripts/parse_*.py`     |
-| FFT energy       | `examples/scripts/energy_fft.py`  |
-| Monte-Carlo energy | `examples/scripts/energy_mc.py` |
+| worksheet toolkit | `util/ph2.py` (see `doc/ph2.md`) |
+| input prep       | `ph2 hamil`, `ph2 stprep`         |
+| energy analysis  | `ph2 energy {fft,mc,ref,rpe}`     |
 | pipelines        | `examples/simul/<algo>/Makefile`  |
 | fixture          | `examples/data/`                  |
 

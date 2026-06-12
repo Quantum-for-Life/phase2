@@ -7,16 +7,18 @@ subdirectory drives one algorithm through the same three stages:
 1. **Prepare** — seed `simul.h5` from the shared
    `../data/hamil.h5` (`/pauli_hamil` + `/state_prep`).
 2. **Simulate** — run `ph2run <algo>` under `mpirun`.
-3. **Analyse** — extract the energy from `/circ_<algo>/values`.
+3. **Analyse** — extract the energy from `/circ_<algo>/values`
+   with the worksheet toolkit `util/ph2.py` (see
+   [../../doc/ph2.md](../../doc/ph2.md)).
 
 Energy extraction uses one method per data shape:
 
-| Directory | Algorithm                     | Analysis        |
-|-----------|-------------------------------|-----------------|
-| `trott`   | 1st-order Trotter             | `energy_fft.py` |
-| `trott2`  | 2nd-order (Strang) Trotter    | `energy_fft.py` |
-| `qdrift`  | qDRIFT (randomised)           | `energy_mc.py`  |
-| `cmpsit`  | composite (det. + randomised) | `energy_mc.py`  |
+| Directory | Algorithm                     | Analysis          |
+|-----------|-------------------------------|-------------------|
+| `trott`   | 1st-order Trotter             | `ph2 energy fft`  |
+| `trott2`  | 2nd-order (Strang) Trotter    | `ph2 energy fft`  |
+| `qdrift`  | qDRIFT (randomised)           | `ph2 energy mc`   |
+| `cmpsit`  | composite (det. + randomised) | `ph2 energy mc`   |
 
 `trott`/`trott2` record a uniform overlap time series, so the energy
 is the dominant peak of its FFT. `qdrift`/`cmpsit` record independent
@@ -45,19 +47,19 @@ up to 256 is valid.
 
 The simulator evolves the **normalised, identity-removed**
 Hamiltonian; the physical molecular energy is the recovered eigenvalue
-plus `offset`, the scalar term recorded by `parse_fcidump.py`. For the
+plus `offset`, the scalar term recorded by `ph2 hamil`. For the
 bundled water CAS(5,6) fixture the exact values are: ground state
 **-74.997 Ha**, reference state **-74.963 Ha**.
 
-Both scripts print one CSV line, `E,E_ref,dE`: the estimated energy,
+Both methods print one CSV line, `E,E_ref,dE`: the estimated energy,
 the trial-state energy `E_ref = <psi|H|psi>` (computed directly from
-the input by `energy_ref.py`), and `dE = E - E_ref`, the shift the
+the input by `ph2 energy ref`), and `dE = E - E_ref`, the shift the
 evolution produced relative to the reference state.
 
-- `energy_fft.py` reports the dominant-peak energy as `E`. Resolution
+- `ph2 energy fft` reports the dominant-peak energy as `E`. Resolution
   is one FFT bin = `2*pi / (steps * delta * norm)`; raise `TROTT_STEPS`
   to sharpen it. `--peaks` lists every detected line.
-- `energy_mc.py` reports the averaged-overlap energy as `E`. It is
+- `ph2 energy mc` reports the averaged-overlap energy as `E`. It is
   reliable while the effective time `T` keeps the mean coherent
   (|mean| not too small) and the per-sample phase stays in `(-pi, pi)`;
   large `T` (or, for `cmpsit`, `angle_rand` far from `angle_det`)
