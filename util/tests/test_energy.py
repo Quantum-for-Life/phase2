@@ -170,3 +170,70 @@ def test_mc_decoherence_warning(run_ph2, make_worksheet):
     rc, _, err = run_ph2("energy", "mc", ws)
     assert rc == 0
     assert "decohered" in err
+
+
+# -- rpe -----------------------------------------------------------------
+
+def _rpe_ws(make_worksheet, lam_norm, delta, norm, offset, n=64):
+    """Single-tone Trotter series; rpe must recover lam_norm."""
+    ws = make_worksheet(
+        multidet=[(0, 1.0, 0.0)],
+        results={"circ_trott": ({"delta": delta},
+                                _tone(n, lam_norm * delta))})
+    with h5py.File(ws, "a") as f:
+        f["pauli_hamil"].attrs["normalization"] = np.float64(norm)
+        f["pauli_hamil"].attrs["offset"] = np.float64(offset)
+    return ws
+
+
+def test_rpe_recovers_tone(run_ph2, make_worksheet):
+    # Negative eigenvalue: the per-step phase folds through the
+    # theta > pi branch; J = 6 exercises a multi-level ladder
+    # where the retired script's generator bug would have lurked.
+    lam, delta, norm, offset = -0.15, 0.2, 0.5, -1.0
+    ws = _rpe_ws(make_worksheet, lam, delta, norm, offset)
+    rc, out, _ = run_ph2("energy", "rpe", ws)
+    assert rc == 0
+    e, _, _ = _csv3(out)
+    assert e == pytest.approx(lam / norm + offset, abs=1e-4)
+
+
+def test_rpe_nan_dyadic_exit2(run_ph2, make_worksheet):
+    ws = _rpe_ws(make_worksheet, -0.15, 0.2, 0.5, -1.0)
+    with h5py.File(ws, "a") as f:
+        f["circ_trott/values"][3] = np.nan
+    rc, _, err = run_ph2("energy", "rpe", ws)
+    assert rc == 2
+    assert "incomplete" in err
+
+
+def test_rpe_qdrift_sweep(run_ph2, make_worksheet, tmp_path):
+    # delta/epsilon = 4 -> J = 2, x = 0.25; level i carries the
+    # accumulated phase lam_norm * 2^i (depth doubling at fixed
+    # step size); tan undoes the per-gate asin exactly.
+    lam, norm, offset = 0.1, 0.5, -1.0
+    j, x = 2, 0.25
+    for i in range(j + 1):
+        z = np.exp(1j * lam * 2 ** i)
+        values = np.tile([z.real, z.imag], (8, 1))
+        attrs = {"step_size": x, "depth": 2 ** (i + j),
+                 "num_samples": 8, "seed": 1}
+        ws = make_worksheet(name=f"sweep.h5-{i}",
+                            results={"circ_qdrift": (attrs, values)})
+        with h5py.File(ws, "a") as f:
+            f["pauli_hamil"].attrs["normalization"] = \
+                np.float64(norm)
+            f["pauli_hamil"].attrs["offset"] = np.float64(offset)
+    prefix = tmp_path / "sweep.h5"
+    mtime = (tmp_path / "sweep.h5-0").stat().st_mtime_ns
+    rc, out, err = run_ph2("energy", "rpe-qdrift", prefix,
+                           "--delta", "1.0", "--epsilon", "0.25")
+    assert rc == 0, err
+    assert (tmp_path / "sweep.h5-0").stat().st_mtime_ns == mtime
+    d, eps, e0, e = (float(v) for v in out.strip().split(","))
+    assert (d, eps) == (1.0, 0.25)
+    want = np.sqrt(1 - x * x) / x * np.tan(x * lam) / norm
+    assert e0 == pytest.approx(want, abs=1e-12)
+    assert e0 == pytest.approx(lam / norm, abs=1e-2)
+    assert e == pytest.approx(e0 + offset, abs=1e-12)
+    assert "level 0" in err and "level 2" in err

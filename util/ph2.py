@@ -74,6 +74,16 @@ def cmd_energy_ref(args):
     return analysis.cmd_ref(args)
 
 
+def cmd_energy_rpe(args):
+    from _ph2 import analysis
+    return analysis.cmd_rpe(args)
+
+
+def cmd_energy_rpe_qdrift(args):
+    from _ph2 import analysis
+    return analysis.cmd_rpe_qdrift(args)
+
+
 def make_parser():
     from _ph2 import __version__  # stdlib-only import
     p = argparse.ArgumentParser(
@@ -188,6 +198,24 @@ def make_parser():
                       help="trial-state energy <psi|H|psi>")
     b.add_argument("filename", metavar="FILE")
     b.set_defaults(func=cmd_energy_ref)
+
+    b = es.add_parser("rpe",
+                      help="robust phase estimation on a Trotter"
+                           " series")
+    b.add_argument("filename", metavar="FILE")
+    b.add_argument("--group", default="circ_trott",
+                   choices=("circ_trott", "circ_trott2"))
+    b.set_defaults(func=cmd_energy_rpe)
+
+    b = es.add_parser("rpe-qdrift",
+                      help="RPE over a qDRIFT depth sweep"
+                           " PREFIX-0..J")
+    b.add_argument("prefix", metavar="PREFIX")
+    b.add_argument("--delta", type=float, required=True,
+                   metavar="D")
+    b.add_argument("--epsilon", type=float, required=True,
+                   metavar="EPS")
+    b.set_defaults(func=cmd_energy_rpe_qdrift)
 
     return p
 

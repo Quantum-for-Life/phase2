@@ -30,6 +30,21 @@ channel reproduces exp(i*T*H_norm) in expectation, so
 
 The estimate is reliable while the mean stays coherent; a warning
 is emitted when |mean| < 0.1.
+
+rpe -- robust phase estimation on the dyadic subsequence
+values[2^i - 1], i = 0..J = floor(log2(len)): each level refines
+the per-step phase theta = lambda*delta with the 2^-i ambiguity
+resolved against the previous estimate, and
+
+    E0 = sqrt(1-x^2)/x * tan(x*thetaJ) / norm / delta,  x = 2^-J
+
+Resurrected from the retired trott_rpe.py / qdrift_rpe.py with
+three fixes: the candidate-distance generator is an explicit
+argmin, result files are opened read-only, and the sweep reads
+norm/offset from PREFIX-0.  rpe-qdrift consumes the multi-run
+depth sweep PREFIX-0..J (depth doubling at fixed step size
+x = 2^-J); tan undoes the per-gate asin exactly, so there is no
+/delta in the sweep formula.
 """
 
 import cmath
@@ -195,4 +210,64 @@ def cmd_mc(args):
 def cmd_ref(args):
     with open_ro(args.filename) as f:
         print(reference_energy(f))
+    return 0
+
+
+def _rpe_ladder(samples):
+    """Dyadic phase refinement -> theta (per-step phase)."""
+    thetas = [0.0]
+    for i, z in enumerate(samples):
+        phi = cmath.phase(z)
+        if phi < 0:
+            phi += tau
+        cand = [2 ** -i * (tau * k + phi) for k in range(2 ** i)]
+        best = min(range(2 ** i),
+                   key=lambda k: abs(thetas[i] - cand[k]))
+        thetas.append(cand[best])
+    th = thetas[len(samples) - 1]
+    if th > math.pi:
+        th = -(tau - th)
+    return th
+
+
+def cmd_rpe(args):
+    with open_ro(args.filename) as f:
+        if args.group not in f:
+            raise Ph2Error(f"no /{args.group} group")
+        raw = f[args.group]["values"][...]
+        delta = float(f[args.group].attrs["delta"])
+        norm, offset = _norm_offset(f)
+        e_ref = reference_energy(f)
+    j = int(math.log2(len(raw)))
+    samples = []
+    for i in range(j + 1):
+        row = raw[2 ** i - 1]
+        if np.isnan(row).any():
+            raise Ph2Error(f"values[{2 ** i - 1}] is NaN"
+                           " (run incomplete)")
+        samples.append(complex(row[0], row[1]))
+    th = _rpe_ladder(samples)
+    x = 2.0 ** -j
+    e0 = math.sqrt(1 - x * x) / x * math.tan(x * th) / norm / delta
+    _print_result(e0 + offset, e_ref)
+    return 0
+
+
+def cmd_rpe_qdrift(args):
+    j = math.ceil(math.log2(args.delta / args.epsilon))
+    x = 2.0 ** -j
+    with open_ro(f"{args.prefix}-0") as f:
+        norm, offset = _norm_offset(f)
+    samples = []
+    for i in range(j + 1):
+        with open_ro(f"{args.prefix}-{i}") as f:
+            v = _values(f, "circ_qdrift")
+            depth = int(f["circ_qdrift"].attrs["depth"])
+        z = v.mean()
+        print(f"ph2: level {i}: depth={depth} t={depth * x:g}"
+              f" |z|={abs(z):.3f}", file=sys.stderr)
+        samples.append(z)
+    th = _rpe_ladder(samples)
+    e0 = math.sqrt(1 - x * x) / x * math.tan(x * th) / norm
+    print(f"{args.delta},{args.epsilon},{e0},{e0 + offset}")
     return 0
