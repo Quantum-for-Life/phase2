@@ -12,6 +12,9 @@ doc/ph2.md.  ph2 is the user-facing toolkit around that file format:
     hamil       build /pauli_hamil (FCIDUMP or Pauli-term text)
     stprep      build /state_prep (multidet or coeff_matrix)
     energy      extract energies (fft, mc, ref, rpe, rpe-qdrift)
+    strip       remove results groups (copy-rewrite)
+    diff        compare two worksheets
+    attr        read or write scalar attributes
 
 Exit codes: 0 success; 1 semantic outcome (violations found, files
 differ); 2 usage, IO or missing-dependency error.  Diagnostics go to
@@ -82,6 +85,26 @@ def cmd_energy_rpe(args):
 def cmd_energy_rpe_qdrift(args):
     from _ph2 import analysis
     return analysis.cmd_rpe_qdrift(args)
+
+
+def cmd_strip(args):
+    from _ph2 import edit
+    return edit.cmd_strip(args)
+
+
+def cmd_diff(args):
+    from _ph2 import edit
+    return edit.cmd_diff(args)
+
+
+def cmd_attr_get(args):
+    from _ph2 import edit
+    return edit.cmd_attr_get(args)
+
+
+def cmd_attr_set(args):
+    from _ph2 import edit
+    return edit.cmd_attr_set(args)
 
 
 def make_parser():
@@ -216,6 +239,49 @@ def make_parser():
     b.add_argument("--epsilon", type=float, required=True,
                    metavar="EPS")
     b.set_defaults(func=cmd_energy_rpe_qdrift)
+
+    q = sub.add_parser("strip",
+                       help="remove results groups (copy-rewrite)")
+    q.add_argument("file", metavar="FILE")
+    q.add_argument("-o", dest="out", metavar="OUT.h5",
+                   help="write the result here instead of"
+                        " replacing FILE")
+    q.add_argument("--group", action="append", metavar="NAME",
+                   help="strip only this group (repeatable)")
+    q.add_argument("--force", action="store_true",
+                   help="overwrite an existing output file")
+    q.set_defaults(func=cmd_strip)
+
+    q = sub.add_parser("diff", help="compare two worksheets")
+    q.add_argument("a", metavar="A")
+    q.add_argument("b", metavar="B")
+    q.add_argument("--tol", type=float, default=1e-12,
+                   help="absolute float tolerance"
+                        " (default: 1e-12)")
+    q.add_argument("--ignore-results", action="store_true",
+                   help="skip the circ_* groups")
+    q.add_argument("--strict", action="store_true",
+                   help="also compare the root uuid")
+    q.set_defaults(func=cmd_diff)
+
+    q = sub.add_parser("attr",
+                       help="read or write scalar attributes")
+    ats = q.add_subparsers(dest="op", required=True, metavar="OP")
+    b = ats.add_parser("get", help="print attribute values")
+    b.add_argument("file", metavar="FILE")
+    b.add_argument("h5path", metavar="H5PATH")
+    b.add_argument("name", nargs="?", metavar="NAME")
+    b.set_defaults(func=cmd_attr_get)
+
+    b = ats.add_parser("set", help="write one attribute")
+    b.add_argument("file", metavar="FILE")
+    b.add_argument("h5path", metavar="H5PATH")
+    b.add_argument("name", metavar="NAME")
+    b.add_argument("value", metavar="VALUE")
+    b.add_argument("--type", default="f64",
+                   choices=("f64", "u64", "u32", "u8", "str"),
+                   help="attribute dtype (default: f64)")
+    b.set_defaults(func=cmd_attr_set)
 
     return p
 
