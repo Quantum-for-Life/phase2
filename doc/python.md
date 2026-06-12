@@ -257,9 +257,10 @@ The `examples/` directory contains self-contained scripts:
 - `examples/simul/` -- scripted `ph2run` pipelines (Trotter,
   qDRIFT, composite) that prepare `simul.h5`, run under MPI,
   and estimate a ground-state energy.  These use the C
-  driver and HDF5 I/O rather than the ctypes wrapper; the
-  analysis scripts need the `[examples]` extras (`h5py`,
-  `numpy`, `scipy`), and regenerating the input fixture needs
-  `[prep]` (`qiskit-nature`, `pyscf`).  See
+  driver and the `ph2` worksheet toolkit (`util/ph2.py`, see
+  [ph2.md](ph2.md)) rather than the ctypes wrapper; the
+  toolkit needs the `[examples]` extras (`h5py`, `numpy`,
+  `scipy`), and regenerating the input fixture needs `[prep]`
+  (`qiskit-nature`, `pyscf`).  See
   [../examples/simul/README.md](../examples/simul/README.md).
 

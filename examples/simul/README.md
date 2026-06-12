@@ -75,10 +75,10 @@ CAS(5,6): `NORB=5`, `NELEC=6`) and the reference state
 
 ### `FCIDUMP`
 
-Standard FCIDUMP one- and two-electron integrals. `parse_fcidump.py`
-maps it to a Pauli Hamiltonian via the Jordan-Wigner transform
-(qiskit-nature), storing the normalisation and the scalar `offset`
-separately.
+Standard FCIDUMP one- and two-electron integrals. `ph2 hamil
+fcidump` maps it to a Pauli Hamiltonian via the Jordan-Wigner
+transform (qiskit-nature), storing the normalisation and the scalar
+`offset` separately.
 
 ### `INPUTST` (input state)
 
