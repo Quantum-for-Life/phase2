@@ -42,3 +42,33 @@ def guard_out(path, force):
     import os
     if os.path.exists(path) and not force:
         raise Ph2Error(f"{path} exists (use --force to overwrite)")
+
+
+def copy_without(path, drop, out=None):
+    """Rewrite a worksheet without the root groups named in `drop`.
+
+    h5py's `del` only unlinks -- HDF5 never returns the freed pages
+    without a repack -- so removal is a copy-rewrite.  With `out`
+    the result is written there; without, it lands in a same-
+    directory temp file that atomically replaces `path`.  Root
+    attributes are preserved; dangling soft links (legacy junk that
+    cannot be copied) are silently dropped.
+    """
+    import os
+    import h5py
+    tmp = out if out is not None else f"{path}.tmp.{os.getpid()}"
+    with open_ro(path) as src, h5py.File(tmp, "w") as dst:
+        for k, v in src.attrs.items():
+            dst.attrs[k] = v
+        for name in src:
+            if name in drop:
+                continue
+            try:
+                src[name]
+            except KeyError:
+                continue  # dangling link
+            src.copy(name, dst)
+        dst.flush()
+        os.fsync(dst.id.get_vfd_handle())
+    if out is None:
+        os.replace(tmp, path)

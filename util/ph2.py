@@ -10,6 +10,7 @@ doc/ph2.md.  ph2 is the user-facing toolkit around that file format:
     show        summarise worksheet contents
     validate    check worksheets against the specification
     hamil       build /pauli_hamil (FCIDUMP or Pauli-term text)
+    stprep      build /state_prep (multidet or coeff_matrix)
 
 Exit codes: 0 success; 1 semantic outcome (violations found, files
 differ); 2 usage, IO or missing-dependency error.  Diagnostics go to
@@ -45,6 +46,16 @@ def cmd_hamil_paulis(args):
 def cmd_hamil_fcidump(args):
     from _ph2 import hamil
     return hamil.cmd_fcidump(args)
+
+
+def cmd_stprep_multidet(args):
+    from _ph2 import stprep
+    return stprep.cmd_multidet(args)
+
+
+def cmd_stprep_coeff(args):
+    from _ph2 import stprep
+    return stprep.cmd_coeff(args)
 
 
 def make_parser():
@@ -103,6 +114,38 @@ def make_parser():
     b.add_argument("--force", action="store_true",
                    help="overwrite an existing output file")
     b.set_defaults(func=cmd_hamil_fcidump)
+
+    q = sub.add_parser("stprep", help="build /state_prep")
+    ss = q.add_subparsers(dest="builder", required=True,
+                          metavar="BUILDER")
+    b = ss.add_parser("multidet",
+                      help="from an INPUTST determinant list")
+    b.add_argument("inputst", metavar="INPUTST")
+    b.add_argument("-f", dest="file", required=True, metavar="FILE",
+                   help="worksheet to append to")
+    b.add_argument("--no-reorder", action="store_true",
+                   help="occupations are already alpha-block |"
+                        " beta-block")
+    b.add_argument("--force", action="store_true",
+                   help="replace an existing /state_prep subtype")
+    b.set_defaults(func=cmd_stprep_multidet)
+
+    b = ss.add_parser("coeff",
+                      help="from CMAT coefficient-matrix files")
+    b.add_argument("-f", dest="file", required=True, metavar="FILE",
+                   help="worksheet to append to")
+    b.add_argument("--c-alpha", required=True, metavar="CA",
+                   help="alpha-block CMAT file")
+    b.add_argument("--c-beta", metavar="CB",
+                   help="beta-block CMAT file (open shell)")
+    b.add_argument("--tapered", action="store_true",
+                   help="Z2 + S_z tapering"
+                        " (n_qubits = 2*n_sites - 2)")
+    b.add_argument("--csf", action="append", metavar="W:CA[,CB]",
+                   help="CSF component (repeatable, ordered)")
+    b.add_argument("--force", action="store_true",
+                   help="replace an existing /state_prep subtype")
+    b.set_defaults(func=cmd_stprep_coeff)
 
     return p
 
