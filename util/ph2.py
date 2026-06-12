@@ -8,7 +8,7 @@ specified in doc/simul-h5-specs.md and documented for this tool in
 doc/ph2.md.  ph2 is the user-facing toolkit around that file format:
 
     show        summarise worksheet contents
-    validate    check a worksheet against the specification
+    validate    check worksheets against the specification
 
 Exit codes: 0 success; 1 semantic outcome (violations found, files
 differ); 2 usage, IO or missing-dependency error.  Diagnostics go to
@@ -31,6 +31,11 @@ def cmd_show(args):
     return worksheet.cmd_show(args)
 
 
+def cmd_validate(args):
+    from _ph2 import validate
+    return validate.cmd_validate(args)
+
+
 def make_parser():
     from _ph2 import __version__  # stdlib-only import
     p = argparse.ArgumentParser(
@@ -47,6 +52,15 @@ def make_parser():
     q = sub.add_parser("show", help="summarise worksheet contents")
     q.add_argument("files", nargs="+", metavar="FILE")
     q.set_defaults(func=cmd_show)
+
+    q = sub.add_parser(
+        "validate",
+        help="check worksheets against doc/simul-h5-specs.md")
+    q.add_argument("files", nargs="+", metavar="FILE")
+    q.add_argument("--hamil-only", action="store_true",
+                   help="do not require /state_prep (intermediate"
+                        " paks from `ph2 hamil`)")
+    q.set_defaults(func=cmd_validate)
 
     return p
 

@@ -74,16 +74,24 @@ def _line_results(name, g):
 def summary(f):
     """Per-group summary lines for an open worksheet."""
     lines = []
-    if "pauli_hamil" in f:
+    dangling = set()
+    for name in f:
+        try:
+            f[name]
+        except KeyError:  # legacy dangling soft link
+            dangling.add(name)
+    if "pauli_hamil" in f and "pauli_hamil" not in dangling:
         lines.append(_line_hamil(f["pauli_hamil"]))
-    if "state_prep" in f:
+    if "state_prep" in f and "state_prep" not in dangling:
         lines.append(_line_stprep(f["state_prep"]))
     for name in RESULTS_GROUPS:
-        if name in f:
+        if name in f and name not in dangling:
             lines.append(_line_results(name, f[name]))
     known = {"pauli_hamil", "state_prep", *RESULTS_GROUPS}
     for name in f:
-        if name not in known:
+        if name in dangling:
+            lines.append(f"{'/' + name:<{_W}}(dangling link)")
+        elif name not in known:
             lines.append(f"{'/' + name:<{_W}}(unrecognised)")
     return lines
 
