@@ -161,6 +161,8 @@ Documentation
 - [doc/testing.md](doc/testing.md) — test subsystem:
   harness, parallel runner, conventions, recipes.
 - [doc/python.md](doc/python.md) — Python interface.
+- [doc/ph2.md](doc/ph2.md) — `ph2` worksheet toolkit:
+  inspect, validate, build, analyse, edit `simul.h5`.
 - [doc/simul-h5-specs.md](doc/simul-h5-specs.md) — HDF5
   input/output schema.
 
