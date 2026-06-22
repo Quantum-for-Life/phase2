@@ -3,7 +3,7 @@
 Full-state vector quantum Hamiltonian simulation library for
 quantum phase estimation.
 
-Version 1.1.0
+Version 1.2.0
 
 Copyright (c) 2025, Marek Miller.  BSD 3-Clause License.
 
