@@ -89,6 +89,30 @@ present, or if neither is.  See
 schema, dispatch rules, and tapering convention.
 
 
+Worksheet toolkit
+-----------------
+
+`util/ph2.py` is the command-line toolkit for `simul.h5`
+worksheets — inspect, validate against the spec, build the
+Hamiltonian and trial state, extract energies, edit.  It runs
+straight from the checkout:
+
+```bash
+util/ph2.py hamil fcidump FCIDUMP -o simul.h5 --sort-terms
+util/ph2.py stprep multidet INPUTST -f simul.h5
+util/ph2.py validate simul.h5
+mpirun -n 2 ./build/ph2run/ph2run -S simul.h5 trott -D 0.1 -s 4096
+util/ph2.py energy fft simul.h5      # E,E_ref,dE (Hartree)
+```
+
+Subcommands: `show`, `validate`, `hamil` (FCIDUMP or plain
+Pauli-term text), `stprep` (multidet or coefficient matrix),
+`energy` (FFT, Monte-Carlo, reference, RPE), `strip`, `diff`,
+`attr`.  Needs the `[examples]` Python extras; `hamil fcidump`
+additionally needs `[prep]`.  Full reference:
+[doc/ph2.md](doc/ph2.md).
+
+
 GPU build
 ---------
 
@@ -161,6 +185,8 @@ Documentation
 - [doc/testing.md](doc/testing.md) — test subsystem:
   harness, parallel runner, conventions, recipes.
 - [doc/python.md](doc/python.md) — Python interface.
+- [doc/ph2.md](doc/ph2.md) — `ph2` worksheet toolkit:
+  inspect, validate, build, analyse, edit `simul.h5`.
 - [doc/simul-h5-specs.md](doc/simul-h5-specs.md) — HDF5
   input/output schema.
 

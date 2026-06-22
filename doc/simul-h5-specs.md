@@ -274,6 +274,12 @@ for the algorithm description.
     - *Type*: `unsigned long`
     - *Comment*: Circuit depth.
 
+- Attribute: `seed`
+    - *Type*: `unsigned long`
+    - *Comment*: PRNG seed used for this run; non-zero.  Written by
+      current `ph2run`; absent from files produced before it was
+      recorded, so readers must treat it as optional.
+
 - Dataset: `values`
     - *Type*: `double`
     - *Shape*: `(NUM_SAMPLES, 2)`
