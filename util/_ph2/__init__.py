@@ -6,7 +6,7 @@ that `ph2.py --help` works in a bare interpreter; submodules import
 the heavy dependencies at their own top level instead.
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 # Result groups a worksheet may carry, with the attributes each one
 # is required to have (doc/simul-h5-specs.md; /circ_qdrift "seed" is
