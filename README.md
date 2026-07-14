@@ -203,9 +203,9 @@ If you use phase2 in published work, cite:
 
 > Marek Miller, Jakob Gunther, Freek Witteveen, Matthew S.
 > Teynor, Mihael Erakovic, Markus Reiher, Gemma C. Solomon,
-> and Matthias Christandl, *phase2: Full-State Vector
-> Simulation of Quantum Time Evolution at Scale*,
-> arXiv:2504.17881.
+> and Matthias Christandl, phase2: full-state vector simulation
+> of quantum time evolution at scale. Commun. AI Comput. 1, 5 (2026).
+> https://doi.org/10.1038/s44488-026-00002-2
 
 
 Maintainer & licence
